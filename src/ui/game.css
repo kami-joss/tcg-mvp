@@ -1,0 +1,3123 @@
+/* Thème sombre « Plateau v2 » (maquette Claude Design). Le plateau se dimensionne à partir de --cell : toutes
+   les mesures des jetons en dérivent, pour rester lisible quand la fenêtre rétrécit. */
+
+:root {
+  --bg: oklch(0.2 0.014 60);
+  --bar: oklch(0.24 0.014 60);
+  --panel: oklch(0.25 0.014 60);
+  --panel-hi: oklch(0.29 0.014 60);
+  --line: oklch(0.32 0.014 60);
+  --text: oklch(0.95 0.01 85);
+  --muted: oklch(0.72 0.015 80);
+  --paper: oklch(0.97 0.01 85);
+  --card: oklch(0.94 0.02 85);
+  --ink: oklch(0.2 0.014 60);
+  --j1: oklch(0.56 0.15 255);
+  --j1-dark: oklch(0.4 0.11 255);
+  --j2: oklch(0.56 0.18 25);
+  --j2-dark: oklch(0.4 0.13 25);
+  --gold: oklch(0.82 0.13 85);
+  --gold-hi: oklch(0.87 0.12 85);
+  --select: oklch(0.88 0.15 88);
+  --mana: oklch(0.5 0.1 200);
+  --mana-text: oklch(0.82 0.1 195);
+  --move: oklch(0.9 0.07 195);
+  --move-line: oklch(0.55 0.1 200);
+  --path: oklch(0.36 0.09 208);
+  --effect: oklch(0.55 0.17 300);
+  --card-target: oklch(0.72 0.15 85);
+  --card-target-fill: oklch(0.92 0.11 92);
+  --danger: oklch(0.68 0.16 55);
+  --threat: oklch(0.6 0.21 27);
+  --zone: oklch(0.85 0.13 85);
+  --zone-label: oklch(0.36 0.06 55);
+  --cliff: oklch(0.12 0.01 60);
+  --cliff-low: oklch(0.82 0.14 80);
+  --frost: oklch(0.86 0.07 220);
+  --burn: oklch(0.8 0.14 60);
+  --hurt: oklch(0.48 0.2 25);
+  --ok: oklch(0.65 0.14 150);
+  --octagon: polygon(17% 0, 83% 0, 100% 17%, 100% 83%, 83% 100%, 17% 100%, 0 83%, 0 17%);
+  --font: 'Alegreya Sans', system-ui, sans-serif;
+  --font-sc: 'Alegreya Sans SC', 'Alegreya Sans', system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 15px/1.35 var(--font);
+}
+
+/* Pendant la partie, la page ne défile jamais : ce sont les colonnes qui défilent. */
+body:has(.game) {
+  overflow: hidden;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+button,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+.icon {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  display: block;
+}
+
+/* --- Boutons --- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 13px;
+  border: none;
+  border-radius: 8px;
+  font: 800 14px/1.1 var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.btn .icon {
+  font-size: 16px;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--select);
+  outline-offset: 2px;
+}
+
+.btn--ghost {
+  background: transparent;
+  color: oklch(0.9 0.01 85);
+  box-shadow: inset 0 0 0 1px oklch(0.45 0.014 60);
+}
+
+.btn--ghost:hover {
+  background: oklch(1 0 0 / 0.06);
+}
+
+.btn--gold:hover,
+.btn--end-turn:hover:not(:disabled) {
+  background: var(--gold-hi);
+}
+
+.btn--effect {
+  background: oklch(0.5 0.16 300);
+  color: white;
+}
+
+.btn--end-turn {
+  padding: 14px 24px;
+  border-radius: 10px;
+  font-size: 17px;
+  box-shadow: inset 0 -3px 0 oklch(0.6 0.12 75);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* --- Formes des joueurs : J1 rond, J2 octogone --- */
+
+.shape {
+  display: inline-block;
+  flex: none;
+  width: 30px;
+  height: 30px;
+}
+
+.shape--p1 {
+  background: var(--j1);
+  border-radius: 50%;
+}
+
+.shape--p2 {
+  background: var(--j2);
+  clip-path: var(--octagon);
+}
+
+.shape--large {
+  width: 56px;
+  height: 56px;
+}
+
+/* --- Barre du haut : une seule ligne fine --- */
+
+.topbar {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  min-height: 44px;
+  padding: 5px 14px;
+  background: var(--bar);
+  border-bottom: 1px solid oklch(0.3 0.014 60);
+}
+
+.topbar__end {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.topbar__turn {
+  font: 800 13px/1 var(--font-sc);
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.topbar .view-switch {
+  padding: 2px;
+  border-radius: 8px;
+}
+
+.topbar .view-switch button {
+  padding: 6px 9px;
+  font-size: 13px;
+}
+
+.topbar .zoom-switch button {
+  min-width: 26px;
+  padding: 6px 5px;
+}
+
+.topbar .zoom-switch .zoom-switch__value {
+  min-width: 46px;
+  font-size: 12px;
+}
+
+.topbar .sound-toggle {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.topbar .sound-toggle .icon {
+  font-size: 15px;
+}
+
+/* Menu « Stats » (lot 6) : les pastilles affichées sur les jetons. */
+.stats-control {
+  position: relative;
+  display: flex;
+  gap: 4px;
+}
+
+.stats-toggle,
+.stats-peek {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: oklch(0.9 0.015 80);
+  font: 800 13px/1 var(--font);
+  cursor: pointer;
+}
+
+.stats-toggle .icon,
+.stats-peek .icon {
+  font-size: 15px;
+}
+
+.stats-toggle[aria-expanded='true'],
+.stats-toggle.is-peeking,
+.stats-peek.is-peeking {
+  background: oklch(0.32 0.016 60);
+  box-shadow: inset 0 0 0 1px oklch(0.5 0.02 70);
+}
+
+.stats-toggle.is-peeking .icon,
+.stats-peek.is-peeking .icon {
+  color: var(--select);
+}
+
+/* Le bouton œil à maintenir : seulement sur écran tactile (ailleurs, Alt). */
+.stats-peek {
+  display: none;
+  padding: 6px 8px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .stats-peek {
+    display: flex;
+  }
+}
+
+.stats-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border-radius: 12px;
+  background: oklch(0.97 0.012 85);
+  color: oklch(0.2 0.014 60);
+  box-shadow: 0 10px 28px oklch(0 0 0 / 0.5);
+}
+
+.stats-menu__title {
+  padding: 2px 6px 8px;
+  font: 800 12px/1 var(--font-sc);
+  letter-spacing: 0.06em;
+  color: oklch(0.45 0.02 60);
+}
+
+.stats-menu__row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  font: 600 15px/1.15 var(--font);
+  cursor: pointer;
+}
+
+.stats-menu__row:hover {
+  background: oklch(0.92 0.02 85);
+}
+
+.stats-menu__row input {
+  appearance: none;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 2px solid oklch(0.7 0.02 70);
+  border-radius: 5px;
+  background: white;
+  cursor: pointer;
+}
+
+.stats-menu__row input:checked {
+  border: none;
+  background: oklch(0.5 0.1 200);
+}
+
+.stats-menu__row input:checked::after {
+  content: '';
+  width: 5px;
+  height: 9px;
+  margin-top: -2px;
+  border: solid white;
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg);
+}
+
+.stats-menu__row input:focus-visible {
+  outline: 2px solid oklch(0.5 0.1 200);
+  outline-offset: 2px;
+}
+
+.stats-menu__icon {
+  flex: none;
+  display: flex;
+  font-size: 16px;
+  color: oklch(0.25 0.014 60);
+}
+
+.stats-menu__icon--hp {
+  color: #c8323a;
+}
+
+.stats-menu__icon--mobility {
+  color: #1f7f8c;
+}
+
+.stats-menu__icon--statuses {
+  color: #b4471a;
+}
+
+.stats-menu__hint {
+  margin: 6px 0 0;
+  padding: 8px 6px 0;
+  border-top: 1px solid oklch(0.88 0.02 85);
+  font: 500 13px/1.35 var(--font);
+  color: oklch(0.42 0.02 60);
+  text-wrap: pretty;
+}
+
+.topbar .btn {
+  padding: 7px 11px;
+  font-size: 13px;
+}
+
+.topbar .btn--end-turn {
+  padding: 7px 18px;
+  border-radius: 8px;
+  font-size: 15px;
+  box-shadow: inset 0 -2px 0 oklch(0.6 0.12 75);
+}
+
+/* --- Encarts des joueurs : l'adversaire en haut à gauche, moi sous mon grimoire --- */
+
+.player {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.player.is-active {
+  background: var(--panel-hi);
+  box-shadow: inset 0 0 0 2px var(--player);
+}
+
+.player--p1 {
+  --player: var(--j1);
+}
+
+.player--p2 {
+  --player: var(--j2);
+}
+
+.player .shape {
+  width: 22px;
+  height: 22px;
+}
+
+.player__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.player__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 7px;
+}
+
+.player__name {
+  font: 800 15px/1 var(--font);
+  white-space: nowrap;
+}
+
+.player__tag {
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--player);
+  color: white;
+  font: 800 10px/1.3 var(--font-sc);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.player__vp {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font: 800 15px/1 var(--font);
+  white-space: nowrap;
+}
+
+.player__vp .icon {
+  font-size: 16px;
+  color: oklch(0.78 0.13 85);
+}
+
+.player__vp small {
+  font-size: inherit;
+  font-weight: 500;
+  color: oklch(0.7 0.015 80);
+}
+
+.vp-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: oklch(0.33 0.014 60);
+  overflow: hidden;
+}
+
+.vp-bar span {
+  display: block;
+  height: 100%;
+  background: var(--player);
+}
+
+.player__meta {
+  font-size: 12px;
+  color: oklch(0.74 0.015 80);
+}
+
+.player__mana {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  padding-left: 9px;
+  border-left: 1px solid oklch(0.34 0.014 60);
+}
+
+.player__mana strong {
+  font: 800 22px/1 var(--font);
+  color: var(--mana-text);
+}
+
+.player__mana span {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font: 700 10px/1.3 var(--font-sc);
+  letter-spacing: 0.06em;
+  color: oklch(0.7 0.015 80);
+}
+
+.player__mana .icon {
+  font-size: 12px;
+  color: var(--mana-text);
+}
+
+/* --- Nouvelle partie --- */
+
+.new-game {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  font-size: 14px;
+}
+
+.new-game label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.new-game select {
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid oklch(0.45 0.014 60);
+  background: var(--panel-hi);
+  color: var(--text);
+}
+
+.new-game--popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 30;
+  width: max-content;
+  max-width: calc(100vw - 40px);
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--panel-hi);
+  box-shadow: 0 0 0 1px var(--line), 0 12px 30px oklch(0 0 0 / 0.5);
+}
+
+/* --- Mise en page : toute la hauteur de la fenêtre, trois colonnes qui défilent chacune --- */
+
+.game {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.game__main {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr) min(var(--grimoire-w, 320px), 42vw);
+  gap: 12px;
+  padding: 10px 12px 12px;
+}
+
+.game__left,
+.game__play,
+.game__side {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Emplacement de la fiche au survol : une fiche plus haute que lui passe par-dessus le journal. */
+.game__sheet {
+  position: relative;
+  z-index: 5;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.game__sheet > .sheet {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  max-height: calc(100vh - 150px);
+  max-height: calc(100dvh - 150px);
+  /* Hors du plateau, rien à laisser voir dessous : la fiche est opaque. */
+  background: oklch(0.2 0.014 60 / 0.97);
+}
+
+.game__left > .panel {
+  flex: none;
+  min-height: 0;
+  max-height: 45%;
+}
+
+.game__left .log {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.game__side > .panel {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* --- Bandeau guide --- */
+
+.guide {
+  --tone: var(--select);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  flex: none;
+  min-height: 54px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: inset 3px 0 0 var(--tone);
+}
+
+.guide--p1 {
+  --tone: var(--j1);
+}
+
+.guide--p2 {
+  --tone: var(--j2);
+}
+
+.guide--effect {
+  --tone: oklch(0.6 0.15 300);
+}
+
+.guide--card {
+  --tone: oklch(0.86 0.14 90);
+}
+
+.guide--gold {
+  --tone: var(--gold);
+}
+
+.guide__dot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--tone);
+  box-shadow: 0 0 0 4px color-mix(in oklch, var(--tone) 25%, transparent);
+}
+
+.guide__body {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.guide__title {
+  font: 800 17px/1.2 var(--font);
+}
+
+.guide__text {
+  font-size: 14px;
+  color: oklch(0.8 0.015 80);
+  text-wrap: pretty;
+}
+
+.guide__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* --- Plateau --- */
+
+/* Scène : porte la perspective de la vue inclinée et le tremblement du plateau (jamais le plateau lui-même). */
+.scene {
+  position: relative;
+  flex: none;
+  perspective: 2200px;
+  transition: height 0.6s ease, perspective-origin 0.6s ease;
+}
+
+.board {
+  --gap: 4px;
+  --pad: 14px;
+  --cell: min(68px, calc((100vw - 48px - 2 * var(--pad) - (var(--cols) - 1) * var(--gap)) / var(--cols)));
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), var(--cell));
+  grid-auto-rows: var(--cell);
+  gap: var(--gap);
+  width: max-content;
+  position: absolute;
+  left: 0;
+  padding: var(--pad);
+  border-radius: 14px;
+  transform-origin: 50% 100%;
+  transition: transform 0.6s ease, top 0.6s ease;
+  background:
+    radial-gradient(60% 50% at 25% 25%, oklch(0.52 0.08 135), transparent 70%),
+    radial-gradient(55% 50% at 78% 72%, oklch(0.48 0.07 115), transparent 70%),
+    linear-gradient(160deg, oklch(0.44 0.07 140), oklch(0.34 0.05 125));
+  box-shadow: 0 0 0 1px oklch(0.4 0.014 60), 0 14px 40px oklch(0 0 0 / 0.5);
+}
+
+.board--art {
+  background-size: cover;
+  background-position: center;
+}
+
+/*
+ * Vue inclinée : le sol bascule de 45°, les jetons restent debout face à l'écran (voir .token__stand).
+ * Pas de filter, opacity, overflow ni clip-path sur .board, une case avec monstre ou .token : cela aplatirait la 3D.
+ */
+.board--tilt {
+  transform: rotateX(45deg);
+  transform-style: preserve-3d;
+  box-shadow: 0 0 0 1px oklch(0.4 0.014 60);
+}
+
+/* Les cases flottent un poil au-dessus du fond du plateau : sinon, dans le même plan, le fond capte les clics. */
+.board--tilt .cell {
+  transform: translateZ(1px);
+}
+
+.board--tilt .cell--unit {
+  transform-style: preserve-3d;
+}
+
+.board__edge {
+  display: none;
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: calc(100% - 2px);
+  height: 22px;
+  transform-origin: 50% 0;
+  transform: rotateX(-90deg);
+  border-radius: 0 0 10px 10px;
+  background: linear-gradient(oklch(0.33 0.05 125), oklch(0.2 0.02 90));
+  pointer-events: none;
+}
+
+.board--tilt .board__edge {
+  display: block;
+}
+
+/* Ombre de contact sous un jeton debout, sous son pied avancé vers l'avant de la case (lot 6). */
+.token-shadow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--cell) * 0.56);
+  height: calc(var(--cell) * 0.56);
+  transform: translate(-50%, calc(-50% + var(--cell) * 0.324));
+  border-radius: 50%;
+  background: radial-gradient(closest-side, oklch(0 0 0 / 0.5), oklch(0 0 0 / 0.2) 60%, transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.token-shadow--light {
+  background: radial-gradient(closest-side, oklch(0.25 0.03 60 / 0.35), transparent);
+}
+
+/* Terrain seul : son blason est au centre de la case. */
+.token-shadow--crest {
+  transform: translate(-50%, -50%);
+}
+
+.cell {
+  position: relative;
+  width: var(--cell);
+  height: var(--cell);
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: oklch(1 0 0 / 0.07);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.3);
+  cursor: default;
+}
+
+.cell:focus-visible {
+  outline: 3px solid var(--select);
+  outline-offset: 1px;
+  z-index: 8;
+}
+
+.cell.is-clickable {
+  cursor: pointer;
+}
+
+.cell--off {
+  background: none;
+  box-shadow: none;
+}
+
+.cell--blocked {
+  background: repeating-linear-gradient(135deg, oklch(0.14 0.01 60 / 0.75) 0 7px, oklch(0.24 0.01 60 / 0.75) 7px 14px);
+  box-shadow: inset 0 0 0 1.5px oklch(0.1 0.01 60 / 0.85);
+}
+
+.cell--blocked.is-dim {
+  filter: brightness(0.7);
+}
+
+.cell--mana {
+  background: oklch(0.85 0.12 85 / 0.24);
+  box-shadow: inset 0 0 0 3px var(--zone);
+}
+
+.cell--mana.cell--held-p1 {
+  box-shadow: inset 0 0 0 3px var(--j1);
+}
+
+.cell--mana.cell--held-p2 {
+  box-shadow: inset 0 0 0 3px var(--j2);
+}
+
+.cell--summon-p1 {
+  background: oklch(0.56 0.15 255 / 0.38);
+  box-shadow: inset 0 0 0 2px var(--j1);
+}
+
+.cell--summon-p2 {
+  background: oklch(0.56 0.18 25 / 0.38);
+  box-shadow: inset 0 0 0 2px var(--j2);
+}
+
+.cell__summon {
+  position: absolute;
+  right: calc(var(--cell) * 0.07);
+  bottom: calc(var(--cell) * 0.07);
+  padding: 1px 4px;
+  border-radius: 4px;
+  color: white;
+  font: 800 calc(var(--cell) * 0.16) / 1.1 var(--font-sc);
+}
+
+/*
+ * Zone d'un terrain « Passage » : au sol, un cercle en pointillés comme celui d'un piège, à la couleur du propriétaire
+ * du terrain, avec en grand l'icône de ce qu'il inflige (« −1 » sur le cœur pour des dégâts). Un peu transparent, par la
+ * couleur et pas par `opacity`. Plusieurs marques se rangent comme les points d'un dé (place et taille en ligne).
+ */
+.zone-marks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.zone-mark {
+  --player: var(--j1);
+  position: absolute;
+  translate: -50% -50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 2px dashed color-mix(in oklch, color-mix(in oklch, var(--player) 55%, white) 85%, transparent);
+  background: color-mix(in oklch, var(--player) 30%, transparent);
+}
+
+.zone-mark--p2 {
+  --player: var(--j2);
+}
+
+/* Case brûlée (Lutin brasier) : un cercle plein de braise, bordé de la couleur du propriétaire. */
+.zone-mark--burning {
+  border-style: solid;
+  background: radial-gradient(circle, oklch(0.78 0.18 60 / 0.75), oklch(0.55 0.2 35 / 0.55) 70%);
+}
+
+.zone-mark--burning .zone-mark__face {
+  color: oklch(0.97 0.08 85 / 0.9);
+}
+
+.zone-mark__face {
+  position: relative;
+  width: 72%;
+  height: 72%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: color-mix(in oklch, color-mix(in oklch, var(--player) 45%, white) 78%, transparent);
+}
+
+.zone-mark .icon {
+  width: 100%;
+  height: 100%;
+}
+
+.zone-mark__label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 8%;
+  color: color-mix(in oklch, var(--player) 70%, black);
+  font: 800 calc(var(--cell) * 0.22) / 1 var(--font);
+}
+
+.cell--summon-p1 .cell__summon {
+  background: var(--j1);
+}
+
+.cell--summon-p2 .cell__summon {
+  background: var(--j2);
+}
+
+/* Calques d'une case, du fond vers le dessus. */
+
+.layer {
+  position: absolute;
+  inset: 0;
+  border-radius: 7px;
+  pointer-events: none;
+}
+
+.layer--dim {
+  background: oklch(0.18 0.012 60 / 0.42);
+  z-index: 1;
+}
+
+.layer--reach {
+  background: repeating-linear-gradient(-45deg, transparent 0 6px, oklch(0.68 0.16 55 / 0.8) 6px 9px);
+  box-shadow: inset 0 0 0 2px var(--danger);
+  z-index: 2;
+}
+
+/* Cases que l'ennemi survolé pourra frapper sans y aller : hachures rouges, plus serrées. */
+.layer--threat {
+  background: repeating-linear-gradient(45deg, transparent 0 5px, oklch(0.6 0.21 27 / 0.85) 5px 8px);
+  box-shadow: inset 0 0 0 2px var(--threat);
+  z-index: 2;
+}
+
+.hl-move,
+.hl-path {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.hl-move {
+  background: oklch(0.9 0.07 195 / 0.82);
+  box-shadow: inset 0 0 0 2px var(--move-line);
+}
+
+.hl-move::after {
+  content: '';
+  width: calc(var(--cell) * 0.18);
+  height: calc(var(--cell) * 0.18);
+  border-radius: 50%;
+  background: oklch(0.42 0.1 205);
+}
+
+.hl-path {
+  background: oklch(0.9 0.07 195 / 0.95);
+  box-shadow: inset 0 0 0 2px oklch(0.42 0.1 205);
+}
+
+.hl-path span {
+  width: calc(var(--cell) * 0.41);
+  height: calc(var(--cell) * 0.41);
+  border-radius: 50%;
+  background: var(--path);
+  color: white;
+  font: 800 calc(var(--cell) * 0.22) / calc(var(--cell) * 0.41) var(--font);
+  text-align: center;
+}
+
+.hl-effect {
+  inset: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px dashed var(--effect);
+  background: oklch(0.62 0.15 300 / 0.35);
+  z-index: 2;
+}
+
+.hl-effect::after {
+  content: '';
+  width: calc(var(--cell) * 0.2);
+  height: calc(var(--cell) * 0.2);
+  transform: rotate(45deg);
+  background: oklch(0.48 0.17 300);
+}
+
+.hl-target {
+  inset: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--card-target);
+  background: oklch(0.92 0.11 92 / 0.7);
+  color: oklch(0.42 0.1 70);
+  font: 800 calc(var(--cell) * 0.44) / 1 var(--font);
+  z-index: 2;
+}
+
+.hl-attack {
+  inset: 2px;
+  border-radius: 10px;
+  border: 3px solid white;
+  box-shadow: 0 0 0 2px var(--ink), inset 0 0 0 2px var(--ink);
+  z-index: 4;
+}
+
+.dmg-pill {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 3px 7px;
+  border-radius: 7px;
+  background: var(--ink);
+  color: white;
+  font: 800 calc(var(--cell) * 0.22) / 1.1 var(--font);
+  white-space: nowrap;
+  box-shadow: 0 0 0 2px white;
+  pointer-events: none;
+  z-index: 7;
+}
+
+.trap {
+  position: absolute;
+  inset: calc(var(--cell) * 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 2px dashed oklch(0.95 0.03 95);
+  background: oklch(0.2 0.014 60 / 0.45);
+  color: var(--paper);
+  font: 800 calc(var(--cell) * 0.16) / 1 var(--font-sc);
+  z-index: 2;
+}
+
+/* Terrain : plaque claire au cadre du propriétaire ; seul sur sa case, il affiche son nom et ses PV. */
+
+.plaque {
+  --player: var(--j1);
+  position: absolute;
+  inset: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 3px solid var(--player);
+  background:
+    repeating-linear-gradient(45deg, transparent 0 5px, color-mix(in oklch, var(--player) 12%, transparent) 5px 7px),
+    oklch(0.96 0.015 85);
+  color: var(--ink);
+  z-index: 2;
+}
+
+.plaque--p2 {
+  --player: var(--j2);
+}
+
+.plaque.is-selected {
+  box-shadow: 0 0 0 3px var(--select), 0 0 14px oklch(0.88 0.15 88 / 0.8);
+}
+
+.plaque__name {
+  font: 800 calc(var(--cell) * 0.16) / 1.05 var(--font);
+  text-align: center;
+}
+
+.plaque__hp {
+  margin-top: 3px;
+  font: 800 calc(var(--cell) * 0.19) / 1 var(--font);
+}
+
+.plaque .statuses {
+  top: -6px;
+  left: -6px;
+}
+
+/* --- Jetons de monstre : gouttes orientées (handoff, lot 6) --- */
+
+.art {
+  --art-a: oklch(0.42 0.04 70);
+  --art-b: oklch(0.5 0.04 70);
+  background-color: oklch(0.96 0.01 85);
+  background-image: repeating-linear-gradient(135deg, var(--art-a) 0 7px, var(--art-b) 7px 14px);
+  background-size: cover;
+  background-position: center;
+}
+
+.token--p1 .art,
+.art--p1 {
+  --art-a: var(--j1-dark);
+  --art-b: var(--j1);
+}
+
+.token--p2 .art,
+.art--p2 {
+  --art-a: var(--j2-dark);
+  --art-b: var(--j2);
+}
+
+/*
+ * Toutes les cotes du jeton suivent la case (`--k`) : celles de la maquette, en px pour une case de 68 px.
+ * `--ds` : taille de la goutte (40 px debout, 32 px en vue de dessus).
+ */
+.token {
+  --player: var(--j1);
+  --k: var(--cell);
+  --ds: calc(var(--k) * 0.47);
+  position: absolute;
+  inset: calc(var(--k) * 0.1);
+  z-index: 3;
+}
+
+.board--tilt .token,
+.board--iso .token {
+  --ds: calc(var(--k) * 0.588);
+  transform-style: preserve-3d;
+}
+
+.token--p2 {
+  --player: var(--j2);
+}
+
+.token--on-zone {
+  inset: calc(var(--k) * 0.18) calc(var(--k) * 0.1) calc(var(--k) * 0.03);
+}
+
+.token__stand,
+.token__body,
+.token__frame {
+  position: absolute;
+  inset: 0;
+}
+
+/* Redresse le jeton face à l'écran ; jamais animé (cela écraserait la contre-rotation). */
+.token__stand {
+  transform-origin: 50% 50%;
+  transition: transform 0.6s ease;
+}
+
+/*
+ * Vues inclinée et iso : une fois composés en 3D, le support et le corps (animé) sont rognés à leur boîte ; ils sont
+ * donc plus grands que le jeton de 0,45 case de chaque côté, et `.token__frame` le ramène à sa taille (le centre ne
+ * bouge pas). Seul le cadre capte la souris. Le pied du jeton est avancé vers l'avant de la case, pour que la goutte
+ * déborde peu sur la case de derrière ; rien ne passe sous le sol.
+ */
+.board--tilt .token__stand,
+.board--iso .token__stand {
+  inset: calc(var(--k) * -0.45);
+  pointer-events: none;
+}
+
+.board--tilt .token__stand {
+  transform: translateY(calc(var(--k) * 0.324)) rotateX(-45deg) translateY(calc(var(--k) * -0.397 * var(--stand, 1))) scale(var(--stand, 1));
+}
+
+.board--tilt .token__frame,
+.board--iso .token__frame {
+  inset: calc(var(--k) * 0.45);
+  pointer-events: auto;
+}
+
+/* La goutte : en vue de dessus, un peu au-dessus du centre (les stats dessous) ; debout, posée en bas du jeton. */
+.token__drop {
+  position: absolute;
+  left: calc(50% - var(--ds) / 2);
+  top: calc(50% - var(--k) * 0.265);
+  width: var(--ds);
+  height: var(--ds);
+}
+
+.board--tilt .token__drop,
+.board--iso .token__drop {
+  top: auto;
+  bottom: calc(var(--k) * 0.176);
+}
+
+/* Contour de la goutte, déjà tourné (voir `dropPath`) : la pointe dépasse du rond, à la couleur du joueur. */
+.token__shape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 2px 2px oklch(0 0 0 / 0.45));
+}
+
+.token__rim {
+  fill: var(--player);
+}
+
+/* Sélection : un halo jaune en goutte autour du jeton. */
+.token__halo {
+  fill: var(--select);
+  stroke: var(--select);
+  stroke-width: 22;
+  stroke-linejoin: round;
+}
+
+/* L'illustration, droite, dans le rond de la goutte ; un liseré blanc pour le Joueur 2 (le camp sans la couleur). */
+.token__art {
+  position: absolute;
+  inset: calc(var(--k) * 0.022);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.token--p2 .token__art {
+  box-shadow: inset 0 0 0 calc(var(--k) * 0.022) oklch(0.98 0.01 85);
+}
+
+.token.is-exhausted .token__art {
+  filter: grayscale(0.85) brightness(0.75);
+}
+
+/* Monstre `invisible` que l'adversaire ne voit pas : translucide, contour en pointillés. */
+.token.is-hidden .token__rim {
+  fill-opacity: 0.55;
+  stroke: white;
+  stroke-width: 5;
+  stroke-dasharray: 9 7;
+}
+
+.token.is-hidden .token__art {
+  opacity: 0.55;
+}
+
+.token__label {
+  padding: 0 2px;
+  color: white;
+  font: 800 calc(var(--ds) * 0.19) / 1 var(--font);
+  text-align: center;
+  text-wrap: balance;
+  text-shadow: 0 1px 2px oklch(0 0 0 / 0.6);
+}
+
+/*
+ * Cible posée sur un jeton : un anneau en goutte autour de lui, pour que la pointe reste visible ; blanc cerné d'encre
+ * (attaque) ou doré (carte). Deux tracés : le large dessous (encre ou lueur), l'étroit dessus ; la goutte cache leur
+ * moitié intérieure.
+ */
+.token__target {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-width: 15;
+}
+
+.token__target.is-outer {
+  stroke-width: 25;
+}
+
+.token__target--attack {
+  stroke: white;
+}
+
+.token__target--attack.is-outer {
+  stroke: var(--ink);
+}
+
+.token__target--card {
+  stroke: oklch(0.86 0.15 90);
+}
+
+.token__target--card.is-outer {
+  stroke-width: 32;
+  stroke-opacity: 0.4;
+}
+
+/* Dégâts annoncés au-dessus du jeton (plus haut quand les stats y sont). */
+.token .dmg-pill {
+  top: calc(var(--k) * -0.32);
+  transform: translateX(-50%);
+}
+
+.token .dmg-pill.is-high {
+  top: calc(var(--k) * -0.56);
+}
+
+/*
+ * Stats sous la goutte (mordant un peu sur le rond) : mobilité à gauche, PV au centre, ATK à droite. Au-dessus du rond
+ * quand la pointe descend. Les trois ensemble forment un petit arc (PV décalé).
+ */
+.token__stats {
+  --ph: calc(var(--k) * 0.147);
+  position: absolute;
+  left: 50%;
+  top: calc(var(--ds) - var(--k) * 0.103);
+  z-index: 3;
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.board--tilt .token__stats,
+.board--iso .token__stats {
+  --ph: calc(var(--k) * 0.191);
+}
+
+.token__stats.is-above {
+  top: auto;
+  bottom: calc(var(--ds) - var(--k) * 0.088);
+  align-items: flex-end;
+}
+
+.stat {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 1px;
+  height: var(--ph);
+  padding: 0 calc(var(--ph) * 0.23) 0 calc(var(--ph) * 0.19);
+  border-radius: calc(var(--ph) * 0.54);
+  background: oklch(0.97 0.01 85);
+  color: var(--ink);
+  font: 800 calc(var(--ph) * 0.85) / 1 var(--font);
+  white-space: nowrap;
+  box-shadow: 0 0 0 1px var(--ink), 0 1px 1px oklch(0 0 0 / 0.3);
+}
+
+.stat .icon {
+  font-size: calc(var(--ph) * 0.65);
+}
+
+.token__stats.is-arc .stat--hp {
+  transform: translateY(calc(var(--ph) * 0.3));
+}
+
+.token__stats.is-arc.is-above .stat--hp {
+  transform: translateY(calc(var(--ph) * -0.3));
+}
+
+/* Mobilité restante de ses monstres : turquoise (grise à 0) ; celle d'un monstre adverse reste crème. */
+.stat--mob.is-mine {
+  background: oklch(0.5 0.1 200);
+  color: white;
+}
+
+.stat--mob.is-mine.is-empty {
+  background: oklch(0.45 0.01 80);
+}
+
+.stat--hp .icon {
+  color: oklch(0.55 0.2 25);
+}
+
+.stat--hp.is-hurt {
+  color: var(--hurt);
+}
+
+.stat--atk.is-spent {
+  opacity: 0.7;
+  text-decoration: line-through;
+}
+
+/* ATK au-dessus de celle du monstre : bonus du tour (Dopage, Seringue) ou aura (Arnold, Origine). */
+.stat--atk.is-boosted {
+  color: oklch(0.42 0.17 145);
+  box-shadow: 0 0 0 1.5px oklch(0.6 0.17 145), 0 1px 1px oklch(0 0 0 / 0.3);
+}
+
+/* Statuts d'un monstre : pastilles empilées à gauche de la goutte, à mi-hauteur. */
+.token .statuses {
+  top: calc(50% - var(--k) * 0.13);
+  left: calc(var(--k) * -0.176);
+  flex-direction: column;
+}
+
+.board--tilt .token .statuses,
+.board--iso .token .statuses {
+  left: calc(var(--k) * -0.22);
+}
+
+.token .status {
+  height: calc(var(--k) * 0.206);
+  min-width: calc(var(--k) * 0.206);
+  padding: 0 2px;
+  border-radius: calc(var(--k) * 0.103);
+  font-size: calc(var(--k) * 0.13);
+  box-shadow: 0 0 0 1.5px white;
+}
+
+.token .status .icon {
+  font-size: calc(var(--k) * 0.13);
+}
+
+/* Statuts d'un terrain debout : à son coin haut-gauche. */
+.board--tilt .crest .statuses,
+.board--iso .crest .statuses {
+  left: calc(var(--k) * -0.02);
+  top: calc(var(--k) * -0.02);
+}
+
+/* PV des terrains (blason, plaque) en badge. Les badges ne captent jamais la souris. */
+.badge {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  height: calc(var(--k) * 0.31);
+  padding: 0 calc(var(--k) * 0.06) 0 calc(var(--k) * 0.045);
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  font: 800 calc(var(--k) * 0.19) / 1 var(--font);
+  box-shadow: 0 2px 2px oklch(0 0 0 / 0.4);
+}
+
+.badge .icon {
+  font-size: calc(var(--k) * 0.16);
+}
+
+.badge,
+.statuses {
+  pointer-events: none;
+}
+
+.badge--hp {
+  border-radius: 11px;
+}
+
+.badge--hp .icon {
+  color: oklch(0.55 0.2 25);
+}
+
+.badge--hp.is-hurt {
+  color: var(--hurt);
+}
+
+.statuses {
+  position: absolute;
+  top: calc(var(--cell) * -0.1);
+  left: calc(var(--cell) * -0.1);
+  z-index: 2;
+  display: flex;
+  gap: 2px;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  height: calc(var(--cell) * 0.28);
+  min-width: calc(var(--cell) * 0.28);
+  padding: 0 3px;
+  border-radius: 10px;
+  color: var(--ink);
+  font: 800 calc(var(--cell) * 0.16) / 1 var(--font);
+  box-shadow: 0 0 0 2px white, 0 2px 3px oklch(0 0 0 / 0.45);
+}
+
+.status .icon {
+  font-size: calc(var(--cell) * 0.18);
+}
+
+.status--slow {
+  background: var(--frost);
+  color: oklch(0.35 0.1 240);
+}
+
+.status--stun {
+  background: oklch(0.88 0.13 95);
+  color: oklch(0.35 0.08 70);
+}
+
+.status--immobilise {
+  background: oklch(0.8 0.1 300);
+  color: oklch(0.3 0.12 300);
+}
+
+.status--burn {
+  background: var(--burn);
+  color: oklch(0.35 0.12 40);
+}
+
+.status--requiem {
+  background: oklch(0.32 0.03 300);
+  color: oklch(0.93 0.02 300);
+}
+
+.status--invisible {
+  background: oklch(0.45 0.06 270);
+  color: oklch(0.92 0.03 270);
+}
+
+/* --- Nom de mana zone et falaises --- */
+
+.zone-label {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--zone-label);
+  color: var(--paper);
+  font: 800 calc(min(var(--cell) * 0.147, 10px)) / 1.15 var(--font-sc);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  box-shadow: 0 0 0 1.5px oklch(0.8 0.12 85), 0 2px 3px oklch(0 0 0 / 0.4);
+  pointer-events: none;
+}
+
+.board--tilt .zone-label {
+  top: auto;
+  bottom: -13px;
+}
+
+.board--tilt .token--on-zone,
+.board--iso .token--on-zone {
+  inset: calc(var(--k) * 0.1);
+}
+
+.cell--held-p1 .zone-label {
+  background: var(--j1);
+}
+
+.cell--held-p2 .zone-label {
+  background: var(--j2);
+}
+
+.cliff {
+  position: absolute;
+  z-index: 6;
+  border-radius: 3px;
+  background: var(--cliff);
+  box-shadow: 0 0 0 1.5px oklch(0.97 0.01 85 / 0.85), 0 2px 4px oklch(0 0 0 / 0.4);
+  pointer-events: none;
+}
+
+.cliff--right {
+  top: -4px;
+  bottom: -4px;
+  right: -6px;
+  width: 8px;
+}
+
+.cliff--bottom {
+  left: -4px;
+  right: -4px;
+  bottom: -6px;
+  height: 8px;
+}
+
+.cliff--low.cliff--right {
+  background: repeating-linear-gradient(180deg, var(--cliff-low) 0 7px, oklch(0.3 0.04 60) 7px 10px);
+}
+
+.cliff--low.cliff--bottom {
+  background: repeating-linear-gradient(90deg, var(--cliff-low) 0 7px, oklch(0.3 0.04 60) 7px 10px);
+}
+
+/* --- Rivière (Champ de bataille) : une bande d'eau horizontale entre deux berges, en vue de dessus et inclinée --- */
+
+.cell--water {
+  background:
+    repeating-linear-gradient(90deg, transparent 0 9px, oklch(0.97 0.03 190 / 0.7) 9px 17px, transparent 17px 24px) 0 43% / 100% 2px no-repeat,
+    repeating-linear-gradient(90deg, transparent 0 14px, oklch(0.97 0.03 190 / 0.5) 14px 20px, transparent 20px 30px) 6px 56% / 100% 2px no-repeat,
+    linear-gradient(180deg, oklch(0.5 0.06 150 / 0.45) 0 17%, oklch(0.56 0.07 70) 17% 23%, oklch(0.78 0.07 190) 23% 30%, oklch(0.62 0.09 210) 50%, oklch(0.78 0.07 190) 70% 77%, oklch(0.56 0.07 70) 77% 83%, oklch(0.5 0.06 150 / 0.45) 83%);
+  box-shadow: inset 0 0 0 1.5px oklch(0.42 0.08 220 / 0.9);
+}
+
+/*
+ * --- Zone du plateau : elle prend toute la place libre de la colonne centrale ; la scène y est centrée et ajustée
+ * (Board.tsx). Zoom (lot 5) : au-delà de 100 %, la zone défile, à la molette ou en la faisant glisser. ---
+ */
+
+.board-viewport {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Marges automatiques plutôt que centrage : une scène plus grande que la zone reste accessible par le défilement. */
+.board-viewport > .scene {
+  margin: auto;
+}
+
+.board-viewport.is-zoomed {
+  overflow: auto;
+  border-radius: 14px;
+  cursor: grab;
+  overscroll-behavior: contain;
+  scrollbar-color: oklch(0.45 0.014 60) transparent;
+}
+
+.board-viewport.is-dragging {
+  cursor: grabbing;
+}
+
+/*
+ * --- Vue isométrique (lot 5) ---
+ * Le plateau garde ses cases cliquables : scale(k) rotateX(54.7356deg) rotateZ(45deg), en preserve-3d. Jetons, blasons
+ * et décor reçoivent la rotation inverse pour rester face à l'écran ; les textes au sol sont contre-tournés en 2D.
+ * --su : grossissement des unités debout ; --qz : contre-échelle des textes au sol.
+ */
+
+.scene--iso {
+  perspective: none;
+  transition: width 0.6s ease, height 0.6s ease;
+}
+
+.board--iso {
+  --cell: 68px;
+  transform-origin: 50% 50%;
+  transform-style: preserve-3d;
+  box-shadow: inset 0 0 0 2px oklch(0.95 0.04 140 / 0.22);
+  transition: transform 0.6s ease, top 0.6s ease, left 0.6s ease;
+}
+
+.board--iso .board__edge {
+  display: none;
+}
+
+.iso-decor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+/*
+ * Seules les cases captent la souris : le plateau, dans leur plan, prendrait sinon leurs clics. Pas de translateZ sur les
+ * cases ici (contrairement à la vue inclinée) : il fausserait le tri en profondeur avec les jetons debout voisins.
+ */
+.board--iso {
+  pointer-events: none;
+}
+
+.board--iso .cell {
+  pointer-events: auto;
+  transform-style: preserve-3d;
+}
+
+.board--iso .cell--plain {
+  background: oklch(0.25 0.04 165 / 0.07);
+  box-shadow: inset 0 0 0 1px oklch(0.28 0.04 165 / 0.32);
+}
+
+.board--iso .cell--plain.cell--odd {
+  background: oklch(1 0 0 / 0.08);
+}
+
+.board--iso .cell--blocked {
+  background: radial-gradient(closest-side, oklch(0.34 0.04 150 / 0.55), oklch(0.34 0.04 150 / 0.18));
+  box-shadow: inset 0 0 0 1px oklch(0.28 0.04 165 / 0.32);
+}
+
+.board--iso .cell--water {
+  background: transparent;
+  box-shadow: none;
+}
+
+.board--iso .cell--mana {
+  background: oklch(0.86 0.13 88 / 0.34);
+}
+
+.board--iso .cell--summon-p1 {
+  background: oklch(0.56 0.15 255 / 0.42);
+}
+
+.board--iso .cell--summon-p2 {
+  background: oklch(0.56 0.18 25 / 0.42);
+}
+
+/* Textes au sol : contre-rotation 2D, pour rester droits et lisibles. */
+.board--iso .cell__summon,
+.board--iso .hl-path span,
+.board--iso .trap span,
+.board--iso .cell > .dmg-pill {
+  --ground: translateZ(3px) rotate(-45deg) scale(var(--qz), calc(var(--qz) * 1.7321));
+}
+
+.board--iso .cell__summon {
+  right: auto;
+  bottom: auto;
+  left: 76%;
+  top: 76%;
+  transform: translate(-50%, -50%) var(--ground);
+  box-shadow: 0 0 0 1.5px white;
+}
+
+.board--iso .hl-path span,
+.board--iso .trap span {
+  transform: var(--ground);
+}
+
+/*
+ * En iso, le cercle reste au sol comme celui d'un piège (plus soutenu sur le sol clair) ; l'icône est redressée face à
+ * l'écran et suit la case.
+ */
+.board--iso .zone-mark {
+  background: color-mix(in oklch, var(--player) 42%, transparent);
+}
+
+.board--iso .zone-mark__face {
+  transform: rotate(-45deg) scale(0.9, 1.56);
+}
+
+.board--iso .cell > .dmg-pill {
+  transform: translate(-50%, -50%) var(--ground);
+}
+
+/* Nom de zone : debout face caméra, à la pointe avant de la case. */
+.board--iso .zone-label {
+  left: calc(100% + 2px);
+  top: calc(100% + 2px);
+  bottom: auto;
+  transform-origin: 0 0;
+  /* Bien décollé vers la caméra (vue orthographique : sans décalage à l'écran), pour passer devant les rochers voisins. */
+  transform: rotateZ(-45deg) rotateX(-54.7356deg) translateZ(48px) scale(var(--qz)) translate(-50%, -50%);
+}
+
+/* Iso : le pied est avancé vers l'avant de la case (en bas à droite du losange), comme en vue inclinée (lot 6). */
+.board--iso .token__stand {
+  transform: translate(19px, 19px) rotateZ(-45deg) rotateX(-54.7356deg) translateZ(10px) translateY(calc(-27px * var(--su))) scale(var(--su));
+}
+
+.board--iso .token-shadow {
+  transform: translate(calc(-50% + 19px), calc(-50% + 19px));
+}
+
+.board--iso .token-shadow--crest {
+  transform: translate(-50%, -50%);
+}
+
+/* --- Terrains debout (vues inclinée et isométrique) : un blason, qui ne flotte pas --- */
+
+.crest {
+  --player: var(--j1);
+  --k: var(--cell);
+  position: absolute;
+  inset: calc(var(--cell) * 0.1);
+  z-index: 3;
+  transform-style: preserve-3d;
+}
+
+.crest--p2 {
+  --player: var(--j2);
+}
+
+.crest.is-small {
+  pointer-events: none;
+}
+
+.board--tilt .crest.is-small {
+  z-index: 6;
+}
+
+/*
+ * Blason debout (lot 6) : seul sur sa case, réduit à la taille d'une goutte, le bas au centre de la case, ses PV en
+ * pastille dessous ; sous un monstre, un petit blason à droite de la goutte, à mi-hauteur, sans ses PV.
+ */
+.crest__stand {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+  transition: transform 0.6s cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+
+.board--tilt .crest__stand {
+  transform: rotateX(-45deg) translateY(calc(var(--k) * -0.235 * var(--stand, 1))) scale(calc(var(--stand, 1) * 0.55));
+}
+
+.board--tilt .crest.is-small .crest__stand {
+  transform: translateY(calc(var(--k) * 0.324)) rotateX(-45deg) translate(calc(var(--k) * 0.441 * var(--stand, 1)), calc(var(--k) * -0.441 * var(--stand, 1))) scale(calc(var(--stand, 1) * 0.34));
+}
+
+.board--iso .crest__stand {
+  transform: rotateZ(-45deg) rotateX(-54.7356deg) translateZ(12px) translateY(calc(-16px * var(--su))) scale(calc(var(--su) * 0.55));
+}
+
+.board--iso .crest.is-small .crest__stand {
+  transform: translate(19px, 19px) rotateZ(-45deg) rotateX(-54.7356deg) translateZ(12px) translate(calc(30px * var(--su)), calc(-30px * var(--su))) scale(calc(var(--su) * 0.34));
+}
+
+.crest__body {
+  position: absolute;
+  inset: 0;
+  filter: drop-shadow(0 3px 2px oklch(0 0 0 / 0.45));
+}
+
+.crest__rim,
+.crest__face {
+  position: absolute;
+  clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%);
+}
+
+.crest__rim {
+  inset: 0;
+  background: var(--player);
+}
+
+.crest__face {
+  inset: 4px 4px 5px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 7px;
+  box-sizing: border-box;
+  background:
+    repeating-linear-gradient(45deg, transparent 0 6px, color-mix(in oklch, var(--player) 16%, transparent) 6px 8px),
+    oklch(0.96 0.015 85);
+}
+
+.crest__face .icon {
+  font-size: 26px;
+  color: #2b241d;
+}
+
+/* L'illustration de la carte remplit le blason, recadrée au centre. */
+.crest__face--art {
+  padding: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+.crest .crest__hp {
+  left: 50%;
+  top: calc(100% - var(--k) * 0.147);
+  height: calc(var(--k) * 0.265);
+  padding: 0 calc(var(--k) * 0.06) 0 calc(var(--k) * 0.044);
+  border-width: 1.5px;
+  border-radius: calc(var(--k) * 0.132);
+  font-size: calc(var(--k) * 0.22);
+  transform: translateX(-50%);
+}
+
+.crest.is-small .crest__hp {
+  display: none;
+}
+
+.crest__target {
+  position: absolute;
+  inset: -6px;
+  border-radius: 12px;
+  border: 3px solid oklch(0.86 0.15 90);
+  box-shadow: 0 0 12px oklch(0.86 0.15 90 / 0.8);
+  pointer-events: none;
+}
+
+/* Boucles du décor iso (arbres, herbes, eau, drapeaux, feu de la Forge). */
+@keyframes isoSway {
+  0%,
+  100% {
+    transform: skewX(-1.6deg);
+  }
+  50% {
+    transform: skewX(1.6deg);
+  }
+}
+
+@keyframes isoSwayGrass {
+  0%,
+  100% {
+    transform: skewX(-8deg);
+  }
+  50% {
+    transform: skewX(8deg);
+  }
+}
+
+@keyframes isoRip1 {
+  to {
+    transform: translate(50.91px, 50.91px);
+  }
+}
+
+@keyframes isoRip2 {
+  to {
+    transform: translate(-77.78px, -77.78px);
+  }
+}
+
+@keyframes isoFlow {
+  to {
+    transform: translateX(48px);
+  }
+}
+
+@keyframes isoFlowWide {
+  to {
+    transform: translateX(72px);
+  }
+}
+
+@keyframes isoFoam {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes isoFlag {
+  0%,
+  100% {
+    transform: skewY(0deg) scaleX(1);
+  }
+  50% {
+    transform: skewY(-9deg) scaleX(0.9);
+  }
+}
+
+@keyframes isoFlick {
+  0% {
+    transform: scale(1, 1);
+  }
+  100% {
+    transform: scale(0.86, 1.2);
+  }
+}
+
+@keyframes isoSpark {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--sx), -44px);
+    opacity: 0;
+  }
+}
+
+/* --- Animations (handoff, lot 2) --- */
+
+/* Calque des effets : particules, projectiles, chiffres. Plein écran, fixe, sans clics. */
+.fx-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.game.is-busy .board,
+.game.is-busy .grimoire,
+.game.is-busy .guide__buttons {
+  cursor: progress;
+}
+
+.game.is-busy .guide__buttons {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Boucles permanentes. */
+.game--anim .token__body {
+  animation: unitBob 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.cell__glow,
+.plaque__glow {
+  display: none;
+  position: absolute;
+  pointer-events: none;
+}
+
+.cell__glow {
+  --glow: var(--zone);
+  inset: 0;
+  border-radius: 7px;
+  z-index: 1;
+  box-shadow: inset 0 0 14px 2px var(--glow), 0 0 12px 1px var(--glow);
+}
+
+.cell--held-p1 .cell__glow {
+  --glow: var(--j1);
+}
+
+.cell--held-p2 .cell__glow {
+  --glow: var(--j2);
+}
+
+.plaque__glow {
+  inset: -3px;
+  border-radius: 6px;
+  box-shadow: 0 0 10px 3px var(--player);
+}
+
+.game--anim .cell__glow,
+.game--anim .plaque__glow {
+  display: block;
+  animation: glowPulse 2.4s ease-in-out infinite;
+}
+
+.game--anim .token__halo {
+  animation: haloPulse 1.4s ease-in-out infinite;
+}
+
+/* Halo de sélection d'une goutte : il enfle et s'éclaire. */
+@keyframes haloPulse {
+  0%,
+  100% {
+    opacity: 0.6;
+    stroke-width: 16;
+  }
+  50% {
+    opacity: 1;
+    stroke-width: 30;
+  }
+}
+
+@keyframes unitBob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  45% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes glowPulse {
+  0%,
+  100% {
+    opacity: 0.12;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.handoff {
+  animation: fadeIn 0.35s ease-out;
+}
+
+.handoff .shape--handoff {
+  animation: popIn 0.6s 0.1s both cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.overlay {
+  animation: fadeIn 0.4s 0.3s both;
+}
+
+.overlay__box {
+  animation: popIn 0.6s 0.3s both cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game--anim .token__body,
+  .game--anim .cell__glow,
+  .game--anim .plaque__glow,
+  .game--anim .token__halo,
+  .scene,
+  .board,
+  .token__stand {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* --- Réglages de la vue --- */
+
+.view-switch {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.view-switch button {
+  padding: 8px 11px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: oklch(0.85 0.015 80);
+  font: 800 14px/1 var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.view-switch button[aria-pressed='true'] {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.view-switch button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.zoom-switch button {
+  min-width: 30px;
+  padding: 8px 6px;
+}
+
+.zoom-switch .zoom-switch__value {
+  min-width: 50px;
+  font-size: 13px;
+}
+
+/* Bouton Son (lot 4). */
+.sound-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: oklch(0.85 0.015 80);
+  font: 800 14px/1 var(--font);
+  cursor: pointer;
+}
+
+.sound-toggle .icon {
+  font-size: 17px;
+}
+
+.sound-toggle[aria-pressed='false'] {
+  color: var(--muted);
+}
+
+.legend__volume input {
+  flex: 1;
+  max-width: 160px;
+}
+
+/* Pastille de statut dans l'aide, à taille fixe (hors plateau, --cell n'existe pas). */
+.legend__status {
+  --cell: 64px;
+  display: inline-flex;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.sheet__passive {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: oklch(1 0 0 / 0.14);
+  font: 700 11px/1.4 var(--font-sc);
+  letter-spacing: 0.04em;
+}
+
+.legend__settings label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.legend__settings input {
+  accent-color: var(--gold);
+}
+
+/* --- Aide --- */
+
+.legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px 18px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--panel);
+  font-size: 14px;
+  color: oklch(0.86 0.015 80);
+}
+
+/* Dans l'écran de jeu, l'aide recouvre le bas du plateau et défile seule. */
+.game__play > .legend {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  max-height: 72%;
+  overflow-y: auto;
+  padding-right: 44px;
+  box-shadow: 0 0 0 1px var(--line), 0 -14px 34px oklch(0 0 0 / 0.5);
+}
+
+.legend__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font: 800 18px/1 var(--font);
+  cursor: pointer;
+}
+
+.legend__close:hover {
+  background: var(--panel-hi);
+}
+
+.legend__group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.legend h3 {
+  font: 800 11px/1 var(--font-sc);
+  letter-spacing: 0.08em;
+  color: oklch(0.7 0.015 80);
+}
+
+.legend p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend__icons {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 7px 12px;
+  justify-content: start;
+}
+
+.legend__icon {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend__icon .icon {
+  font-size: 16px;
+}
+
+.legend__icon--crystal-growth .icon {
+  color: oklch(0.78 0.1 200);
+}
+
+.legend__icon--laurels .icon {
+  color: oklch(0.78 0.13 85);
+}
+
+.legend__icon--magic-swirl .icon {
+  color: oklch(0.78 0.11 300);
+}
+
+.legend__icon--hearts .icon {
+  color: oklch(0.7 0.15 15);
+}
+
+.legend__icon--snowflake-2 .icon {
+  color: oklch(0.82 0.08 230);
+}
+
+.legend__icon--flame .icon {
+  color: oklch(0.76 0.14 55);
+}
+
+.legend__credit {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: oklch(0.62 0.015 80);
+}
+
+.sw {
+  flex: none;
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+}
+
+.sw.shape--p1 {
+  border-radius: 50%;
+}
+
+/* Goutte des jetons (lot 6) : coin bas-gauche pointu, tourné pour pointer vers le haut (ou la droite). */
+.sw--drop {
+  width: 15px;
+  height: 15px;
+  margin: 2px 1px 0;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(135deg);
+}
+
+.sw--drop-p1 {
+  background: var(--j1);
+}
+
+.sw--drop-p2 {
+  background: var(--j2);
+  box-shadow: inset 0 0 0 2px oklch(0.98 0.01 85);
+}
+
+.sw--drop-right {
+  margin: 1px 3px 0 0;
+  transform: rotate(225deg);
+}
+
+.sw--zone {
+  background: oklch(0.85 0.12 85 / 0.3);
+  box-shadow: inset 0 0 0 2px var(--zone);
+}
+
+.sw--blocked {
+  background: repeating-linear-gradient(135deg, oklch(0.14 0.01 60) 0 4px, oklch(0.26 0.01 60) 4px 8px);
+  box-shadow: inset 0 0 0 1px oklch(0.5 0.01 60);
+}
+
+.sw--cliff,
+.sw--cliff-low {
+  height: 7px;
+  border-radius: 3px;
+  background: var(--cliff);
+  box-shadow: 0 0 0 1.5px oklch(0.97 0.01 85 / 0.85);
+}
+
+.sw--cliff-low {
+  background: repeating-linear-gradient(90deg, var(--cliff-low) 0 5px, oklch(0.3 0.04 60) 5px 7px);
+}
+
+.sw--move {
+  background: var(--move);
+}
+
+.sw--attack {
+  width: 14px;
+  height: 14px;
+  margin: 0 2px;
+  border: 3px solid white;
+  box-shadow: 0 0 0 1px var(--ink);
+}
+
+.sw--target {
+  background: oklch(0.9 0.12 92);
+  box-shadow: inset 0 0 0 2px var(--card-target);
+}
+
+.sw--effect {
+  background: oklch(0.62 0.15 300);
+}
+
+.sw--reach {
+  background: repeating-linear-gradient(-45deg, transparent 0 3px, var(--danger) 3px 6px);
+}
+
+.sw--threat {
+  background: repeating-linear-gradient(45deg, transparent 0 3px, var(--threat) 3px 6px);
+}
+
+/* --- Panneaux des colonnes : grimoire et journal --- */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.panel__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.panel__title {
+  font: 800 12px/1 var(--font-sc);
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.panel__meta {
+  font-size: 13px;
+  color: oklch(0.7 0.015 80);
+}
+
+/* Le grimoire n'a pas de fond : ses cartes se détachent directement sur la page. */
+.panel--grimoire {
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+}
+
+.panel__count {
+  margin-left: 4px;
+  font-weight: 700;
+  color: oklch(0.62 0.015 80);
+}
+
+.panel--grimoire .panel__head {
+  align-items: center;
+}
+
+.panel--grimoire .panel__title {
+  white-space: nowrap;
+}
+
+/* Boutons d'affichage du grimoire : 3, 2 ou 1 carte par ligne, ou liste. */
+.layout-switch {
+  padding: 2px;
+  border-radius: 8px;
+}
+
+.layout-switch button {
+  padding: 5px 6px;
+}
+
+.layout-switch .icon {
+  font-size: 15px;
+}
+
+/* Le grimoire défile seul, en trois sections (monstres, sorts, terrains) ; la marge laisse voir le liseré de la carte choisie. */
+.grimoire {
+  --per-row: var(--grimoire-cols, 2);
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: -3px;
+  padding: 3px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: oklch(0.45 0.014 60) transparent;
+}
+
+.grimoire__section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Titre de section, à la couleur de la pierre du type (rubis, saphir, émeraude). */
+.grimoire__heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid oklch(0.62 calc(var(--jewel-c) * 0.7) var(--jewel-h) / 0.45);
+  font: 800 11px/1 var(--font-sc);
+  letter-spacing: 0.08em;
+  color: oklch(0.78 calc(var(--jewel-c) * 0.6) var(--jewel-h));
+}
+
+.grimoire__heading .icon {
+  font-size: 13px;
+}
+
+.grimoire__heading .panel__count {
+  margin-left: 0;
+}
+
+.grimoire__section--monster {
+  --jewel-h: 14;
+  --jewel-c: 0.17;
+}
+
+.grimoire__section--spell {
+  --jewel-h: 264;
+  --jewel-c: 0.16;
+}
+
+.grimoire__section--terrain {
+  --jewel-h: 160;
+  --jewel-c: 0.13;
+}
+
+/*
+ * --grimoire-cols cartes par ligne ; si la colonne devient trop étroite (petit écran), moins de cartes par ligne
+ * plutôt que des cartes de moins de 96 px.
+ */
+.grimoire__cards {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(max(96px, calc((100% - (var(--per-row) - 1) * 8px) / var(--per-row) - 0.5px)), 1fr)
+  );
+  align-content: start;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.grimoire__cards li {
+  display: flex;
+}
+
+.tile {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: none;
+  border-radius: 9px;
+  overflow: hidden;
+  text-align: left;
+  cursor: not-allowed;
+  /* Injouable : sa pierre, sombre et ternie. */
+  background: oklch(0.3 calc(var(--jewel-c) * 0.4) var(--jewel-h) / 0.7);
+  color: oklch(0.72 0.015 80);
+  opacity: 0.75;
+}
+
+/*
+ * Pierres des types de cartes, sur les tuiles du grimoire et sur la fiche : rubis (monstre), saphir (sort),
+ * émeraude (terrain). Un peu transparentes : le fond de la page passe au travers.
+ */
+.tile,
+.is-jewel {
+  --jewel-h: 60;
+  --jewel-c: 0.014;
+  --jewel-l: 0.4;
+}
+
+.tile--monster,
+.jewel--monster {
+  --jewel-h: 14;
+  --jewel-c: 0.17;
+  --jewel-l: 0.44;
+}
+
+.tile--spell,
+.jewel--spell {
+  --jewel-h: 264;
+  --jewel-c: 0.16;
+  --jewel-l: 0.44;
+}
+
+.tile--terrain,
+.jewel--terrain {
+  --jewel-h: 160;
+  --jewel-c: 0.13;
+  --jewel-l: 0.5;
+}
+
+/* Jouable : sa pierre, vive. */
+.tile--playable {
+  cursor: pointer;
+  background: oklch(var(--jewel-l) var(--jewel-c) var(--jewel-h) / 0.82);
+  color: oklch(0.97 0.01 85);
+  text-shadow: 0 1px 1px oklch(0 0 0 / 0.35);
+  box-shadow: inset 0 -3px 0 var(--ok);
+  opacity: 1;
+}
+
+.tile.is-selected {
+  box-shadow: 0 0 0 3px var(--select);
+}
+
+.tile:focus-visible {
+  outline: 2px solid var(--select);
+  outline-offset: 2px;
+}
+
+.tile__art {
+  position: relative;
+  height: 58px;
+  width: 100%;
+}
+
+.tile:not(.tile--playable) .tile__art {
+  filter: grayscale(1) brightness(0.7);
+}
+
+.tile__cost {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 22px;
+  padding: 0 6px 0 4px;
+  border-radius: 11px;
+  background: oklch(0.4 0.014 60);
+  color: white;
+  font: 800 14px/1 var(--font);
+  box-shadow: 0 0 0 2px white;
+}
+
+.tile--playable .tile__cost {
+  background: var(--mana);
+}
+
+.tile__cost .icon {
+  font-size: 12px;
+}
+
+.tile__kind {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: oklch(0.2 0.012 60 / 0.8);
+  color: white;
+  font: 800 11px/1.2 var(--font);
+}
+
+.tile__kind .icon {
+  font-size: 13px;
+}
+
+.tile__body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 8px 8px;
+}
+
+.tile__name {
+  font: 800 14px/1.1 var(--font);
+  text-wrap: balance;
+}
+
+.tile__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  font: 800 13px/1 var(--font);
+}
+
+.tile__stat {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tile__stat .icon {
+  font-size: 13px;
+}
+
+.tile--playable .tile__stat--hearts .icon {
+  color: oklch(0.86 0.12 20);
+}
+
+.tile__note {
+  font: 700 12px/1.2 var(--font);
+  opacity: 0.8;
+}
+
+/* Vue liste : une ligne par carte (coût, nom et caractéristiques, type et exemplaires), sans illustration. */
+.grimoire--list .grimoire__cards {
+  gap: 5px;
+}
+
+.tile--row {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+}
+
+.tile--row .tile__cost {
+  position: static;
+  flex: none;
+}
+
+.tile--row .tile__body {
+  flex: 1;
+  min-width: 0;
+  gap: 3px;
+  padding: 0;
+}
+
+.tile--row .tile__name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tile--row .tile__stats {
+  flex-wrap: nowrap;
+  font-size: 12px;
+}
+
+.tile--row .tile__kind {
+  position: static;
+  flex: none;
+}
+
+.log {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: calc(8 * 1.35em + 7 * 4px);
+  margin: 0;
+  padding: 0 4px 0 0;
+  overflow-y: auto;
+  list-style: none;
+  font-size: 14px;
+  line-height: 1.35;
+  color: oklch(0.84 0.015 80);
+}
+
+.log__used {
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  line-height: 1.4;
+  color: oklch(0.68 0.015 80);
+}
+
+/* --- Fiche au survol --- */
+
+.sheet {
+  --frame: oklch(0.45 0.08 70);
+  position: relative;
+  z-index: 40;
+  overflow: hidden;
+  border-radius: 12px;
+  /* Translucide, comme dans la maquette : les hachures de portée restent visibles dessous. */
+  background: oklch(0.16 0.014 60 / 0.55);
+  color: var(--paper);
+  text-shadow: 0 1px 2px oklch(0 0 0 / 0.9);
+  box-shadow: 0 0 0 2px var(--frame), 0 8px 24px oklch(0 0 0 / 0.3);
+  pointer-events: none;
+}
+
+/* Fiche d'une carte ou d'une unité : la pierre de son type (voir les tuiles du grimoire). */
+.sheet.is-jewel,
+.game__sheet > .sheet.is-jewel {
+  background: linear-gradient(
+    165deg,
+    oklch(var(--jewel-l) var(--jewel-c) var(--jewel-h) / 0.86),
+    oklch(calc(var(--jewel-l) - 0.16) var(--jewel-c) var(--jewel-h) / 0.9)
+  );
+}
+
+.sheet--1 {
+  --frame: var(--j1);
+}
+
+.sheet--2 {
+  --frame: var(--j2);
+}
+
+.sheet--zone {
+  --frame: oklch(0.5 0.1 75);
+}
+
+.sheet--blocked,
+.sheet--trap {
+  --frame: oklch(0.35 0.014 60);
+}
+
+.sheet__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.sheet__title {
+  flex: 1;
+  font: 800 18px/1.1 var(--font);
+}
+
+.sheet__cost {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 28px;
+  padding: 0 9px 0 6px;
+  border-radius: 14px;
+  background: var(--mana);
+  color: white;
+  font: 800 15px/1 var(--font);
+  text-shadow: none;
+}
+
+.sheet__cost .icon {
+  font-size: 15px;
+}
+
+.sheet__art {
+  height: 84px;
+  opacity: 0.85;
+  background-position: center 25%;
+}
+
+.sheet__body {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 10px 12px 12px;
+}
+
+.sheet__type {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 800 12px/1 var(--font-sc);
+  letter-spacing: 0.06em;
+  color: oklch(0.88 0.02 85);
+}
+
+.sheet__type .icon {
+  font-size: 17px;
+}
+
+.sheet__stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.sheet__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 2px;
+  border-radius: 7px;
+  background: oklch(1 0 0 / 0.1);
+}
+
+.sheet__stat .icon {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.sheet__stat strong {
+  font: 800 18px/1 var(--font);
+}
+
+.sheet__stat span {
+  font: 700 10px/1.3 var(--font-sc);
+  letter-spacing: 0.03em;
+  color: oklch(0.85 0.015 80);
+}
+
+.sheet__line {
+  font-size: 14px;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+.sheet__effect {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: oklch(0.55 0.15 300 / 0.25);
+  box-shadow: inset 0 0 0 1px oklch(0.7 0.15 300 / 0.6);
+}
+
+.sheet__effect-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 5px;
+  font: 800 11px/1 var(--font-sc);
+  letter-spacing: 0.06em;
+  color: oklch(0.84 0.1 300);
+}
+
+.sheet__effect-head .icon {
+  font-size: 15px;
+}
+
+.sheet__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.chip {
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  background: oklch(1 0 0 / 0.12);
+}
+
+.chip--ok {
+  background: oklch(0.65 0.14 150 / 0.4);
+}
+
+.chip--warn {
+  background: oklch(0.72 0.14 60 / 0.4);
+}
+
+/* --- Victoire --- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: oklch(0.15 0.01 60 / 0.8);
+}
+
+.overlay__box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 100%;
+  padding: 32px 40px;
+  border-radius: 16px;
+  background: var(--panel);
+  text-align: center;
+}
+
+.overlay__kicker {
+  font: 800 13px/1 var(--font-sc);
+  letter-spacing: 0.1em;
+  color: var(--gold);
+}
+
+.overlay__box h2 {
+  font: 800 34px/1.1 var(--font);
+}
+
+.overlay__score {
+  font-size: 16px;
+  color: oklch(0.8 0.015 80);
+}
+
+/* --- Passage d'écran --- */
+
+.handoff {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  color: white;
+  text-align: center;
+}
+
+.handoff--p1 {
+  background: var(--j1);
+}
+
+.handoff--p2 {
+  background: var(--j2);
+}
+
+.handoff .shape--handoff {
+  width: 72px;
+  height: 72px;
+  background: white;
+  opacity: 0.9;
+}
+
+.handoff__kicker {
+  font: 800 13px/1 var(--font-sc);
+  letter-spacing: 0.12em;
+  opacity: 0.85;
+}
+
+.handoff h1 {
+  font: 800 42px/1.1 var(--font);
+  text-wrap: balance;
+}
+
+.handoff__hint {
+  font-size: 15px;
+  opacity: 0.85;
+}
+
+.btn--handoff {
+  padding: 14px 26px;
+  border-radius: 12px;
+  background: white;
+  color: var(--ink);
+  font-size: 18px;
+}
+
+/* Écran moins large : colonnes plus étroites, la fiche flotte en bas à gauche, par-dessus le plateau. */
+@media (max-width: 1100px) {
+  .game__main {
+    grid-template-columns: 196px minmax(0, 1fr) min(var(--grimoire-w, 320px), 28vw);
+    gap: 10px;
+    padding: 8px 10px 10px;
+  }
+
+  .game__sheet {
+    position: fixed;
+    left: 8px;
+    bottom: 8px;
+    z-index: 40;
+    width: 240px;
+    flex: none;
+    pointer-events: none;
+  }
+
+  .game__sheet > .sheet {
+    position: relative;
+    background: oklch(0.16 0.014 60 / 0.55);
+  }
+
+  .game__sheet > .sheet.is-jewel {
+    background: linear-gradient(
+      165deg,
+      oklch(var(--jewel-l) var(--jewel-c) var(--jewel-h) / 0.72),
+      oklch(calc(var(--jewel-l) - 0.16) var(--jewel-c) var(--jewel-h) / 0.78)
+    );
+  }
+
+  .game__left > .panel {
+    flex: 1 1 auto;
+    max-height: none;
+  }
+
+  .topbar .view-switch button {
+    padding: 6px 7px;
+  }
+}
+
+/* --- Écrans étroits : une seule colonne, qui défile elle-même (jamais la page) --- */
+
+@media (max-width: 720px) {
+  .topbar {
+    padding: 5px 10px;
+  }
+
+  .game__main {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 8px;
+  }
+
+  .game__left,
+  .game__side {
+    flex: none;
+  }
+
+  .game__play {
+    flex: none;
+    height: 72vh;
+    height: 72dvh;
+  }
+
+  .game__side > .panel {
+    flex: none;
+  }
+
+  .grimoire {
+    overflow: visible;
+  }
+
+  /* Trop petits pour être lus : la fiche (ou le bandeau) donne ces informations. */
+  .zone-label,
+  .token__label {
+    display: none;
+  }
+
+  .handoff h1 {
+    font-size: 30px;
+  }
+}

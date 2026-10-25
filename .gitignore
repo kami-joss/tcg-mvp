@@ -1,0 +1,8 @@
+node_modules
+dist
+*.local
+.DS_Store
+
+# Hors dépôt : livrables de Claude et archives des maquettes
+Claude outputs/
+*.zip

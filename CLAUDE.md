@@ -1,0 +1,79 @@
+# CLAUDE.md
+
+## Projet
+
+MVP d'un jeu de cartes tactique (TCG + échecs) : deux joueurs en « hotseat » dans le navigateur.
+Chaque joueur dispose d'un grimoire de 25 cartes (monstres, sorts, terrains) qu'il joue sur un plateau de 11 × 9 cases.
+On gagne en accumulant 20 VP, en contrôlant des mana zones et en détruisant des monstres adverses.
+
+## Référence des règles
+
+- **`SPEC.md` est la référence absolue.** Toujours s'y référer pour les règles, le plateau, les cartes et l'ordre de travail.
+- Ne prendre **aucune décision de règle** qui n'y figure pas. Si une règle est ambiguë ou incomplète : **poser la question** au lieu de deviner.
+- Les réponses validées sont consignées dans la **§10 « Clarifications validées »** de SPEC.md.
+- **Lexique (SPEC.md §5)** : les cartes s'écrivent avec ses mots, un mot = une notion, du texte de la carte jusqu'au code. Un terme absent du lexique ou une phrase ambiguë dans une carte → poser la question, puis ajouter la réponse au lexique.
+- Ne rien implémenter de ce qui est listé « Hors MVP » (section 1) ou « Prévu pour plus tard » (section 9), mais ne pas bloquer leur ajout futur.
+- **Liste des cartes : doc Claude « Cartes du TCG »** (https://claude.ai/artifact/3LtWKyVuPdpL16mZLn9CYc, id `12f92682-7da3-4338-91e9-ac4058f58ea5`). L'utilisateur y modifie et ajoute ses cartes (un tableau par deck, une ligne par carte, suivi du tableau « Composition » du deck avec les quantités de toutes ses cartes ; plus « Nouvelles cartes et brouillons ») et les règles (section « Règles du jeu », reprise de SPEC.md §3 et §4). « Relis le doc » : le lire avec les outils docs, le comparer à SPEC.md (règles §3–§4, tableaux de cartes §6 à §6 ter) et à `src/engine/cards.ts`, poser les questions (mot hors lexique, phrase ambiguë, deck d'une nouvelle carte, règle manquante), puis mettre à jour SPEC.md, les données, les tests et l'interface, et enfin le doc lui-même (colonne « Illus. », formulation alignée sur le lexique). SPEC.md reste la référence des règles.
+
+## Architecture (SPEC.md §2)
+
+- Stack : TypeScript (strict), Vite, React pour l'UI, Vitest pour les tests.
+- **Moteur de règles pur dans `src/engine/`**, sans aucune dépendance à l'UI (pas de React, pas de DOM) :
+  - `createGame(): GameState`
+  - `getLegalActions(state): Action[]`
+  - `applyAction(state, action): GameState` — déterministe, **ne mute jamais `state`** (retourne un nouvel état), lève une erreur si l'action est illégale.
+  - `getPlayerView(state, player): PlayerView` — retire les informations cachées. L'UI n'affiche que des `PlayerView`.
+- **Decks pré-construits** (`DECKS` dans `src/engine/cards.ts`) : Classique, Archers, Pièges, Bodybuilder, Dragons, Sorciers du feu, choisis par chaque joueur avant la partie : 25 cartes, avec les quantités du tableau « Composition » du doc (ses cartes, un complément de cartes de base, des cartes communes `COMMON_CARDS` en quantités propres à chaque deck, SPEC.md §6 bis et §6 ter).
+- **Entrer sur une case** (`enterCell` dans `src/engine/traps.ts`) : pièges, puis unités « Passage » (terrains, et monstres comme le Golem de lave : `getPassageSources`), puis cases brûlées (`GameState.burningCells`, publiques, posées par le Lutin brasier, éteintes au début du tour `expiresAtTurn`), pour chaque mouvement (déplacement, recul, avancée, invocation, téléportation) ; un `Movement` retient les unités « Passage » déjà déclenchées (une fois par mouvement). Le slow du Terrain piégé coûte de la mobilité : `movement.ts` cherche les chemins par coût croissant.
+- **Un même sort une fois par tour** : `PlayerState.spellsThisTurn` (remis à zéro au début de son tour) ; `getPlayCardActions` n'offre plus un sort déjà lancé ce tour.
+- **Statuts** (stun, slow, immobilisé, burn, requiem, SPEC.md §5 bis) dans `src/engine/statuses.ts` : une liste par unité, chaque statut avec sa durée en tours du camp de l'unité (`turns`, §5.5 ; 0 = jusqu'à son prochain tour) et le tour où il disparaît ; requiem tue le monstre au début de son N-ième prochain tour, avant les revenus, sans VP.
+- **ATK effective** (`getAtk` dans `src/engine/units.ts`) : ATK du monstre + `atkBonus` (bonus du tour : Dopage, Seringue ; remis à 0 au début de chaque tour) + auras des alliés adjacents de sa famille (Arnold, cumulables). C'est elle qui frappe, riposte et s'affiche (jeton, fiche, dégâts annoncés). De même, **portée effective** (`getRange`) : portée de la carte + `rangeBonus` (Flèche divine, remis à 0 au début de chaque tour) ; elle sert à l'attaque du tour, la menace du prochain tour garde celle de la carte. Familles (`family` : Bodybuilder, Archer, Dragon élémentaire, Piège, Sorcier du feu) et passifs « Quand il détruit une unité » (`onKill`), « Début de tour » (`turnStart`), « Aura » (`aura`) sont des données de la carte.
+- **Cartes décrites en données** dans `src/engine/cards.ts`, avec les mots du lexique : stats + mots-clés avec leurs valeurs (`KeywordSpec` : « Givre 1 », « Assassin ×3 ») + effets (`Ability` : un ciblage, puis une liste d'effets appliqués dans l'ordre, §5.2 à §5.4 ; résolus dans `src/engine/effects.ts`). Pas de code spécifique par carte quand un mot-clé ou un effet générique suffit.
+- **Plateaux décrits en données** dans `src/engine/board.ts` (`BOARDS` : classique 11 × 9 et « Champ de bataille » 11 × 11), falaises comprises. `createGame(board)` prend le plateau classique par défaut.
+- Constantes de jeu ajustables (20 VP, 3 mana, +1 mana pour J2, 3 exemplaires au plus d'une carte par deck…) dans `src/engine/config.ts`. Les valeurs des mots-clés et des effets sont sur les cartes, pas là.
+- L'UI (`src/` hors `engine/`) consomme le moteur, jamais l'inverse.
+- La session de jeu (`src/ui/session.ts`, branchée dans `App.tsx` par un reducer) détient le `GameState` : c'est l'autorité locale (le futur serveur). L'écran ne reçoit que `getPlayerView(state, joueurActif)` — contre l'IA, toujours la vue du joueur humain (`viewerOf`).
+- **IA d'entraînement** (SPEC.md §7 bis) dans `src/ai/bot.ts`, hors du moteur : `chooseAction(state, joueur)` essaie chaque action légale sur ce que son camp voit (`knownState` : sans monstres invisibles, pièges ni grimoire adverses) et garde la meilleure selon `evaluate`, en regardant aussi la meilleure action suivante du même monstre (`getFollowUps` : deux coups à l'avance, ex. Flèche divine puis attaque, déplacement puis effet du Mage) ; monstres et terrains posés après les actions utiles du plateau, effet utile avant une carte qui lui prendrait son mana (`EFFECT_FIRST_GAIN`) ; `endTurn` quand rien ne l'améliore. Pour la vitesse, `getUnitsAt` et `getCliff` s'appuient sur des index mis en cache par objet (`units`, `cliffs`), sûrs car les états ne sont jamais modifiés. `Setup.ai` (« J2 joué par l'IA », dans Nouvelle partie) ; `SessionScreen` la fait jouer une action à la fois, `GameScreen` appelant `autoPlay` à la fin de chaque animation.
+- Hotseat : après « Fin du tour », l'écran de passage remplace tout (rien de la partie n'est rendu) jusqu'au clic du joueur suivant ; pas d'écran de passage en début de partie ni quand la partie est finie.
+- `src/ui/` : composants React qui ne font qu'afficher, et logique d'interface pure, testée sans navigateur :
+  - `session.ts` : déroulement de la partie (actions, journal, écran de passage) ;
+  - `interaction.ts` : sélection, surbrillances et clics, calculés uniquement à partir de `view.legalActions` (l'UI ne propose jamais une action que le moteur refuserait) ;
+  - `log.ts` : journal des actions, déduit de l'action et des vues avant/après ;
+  - `cardText.ts` : textes des cartes générés à partir de leurs données, au format du lexique ; `cardText.test.ts` vérifie que les tableaux de cartes de SPEC.md (§6, §6 bis) disent la même chose que les données ;
+  - `sheet.ts` : contenu de la fiche au survol (case ou carte), tiré de la vue du joueur seulement ;
+  - `zoneMarks.ts` : icônes des statuts, et marques au sol sur les cases de la zone des terrains « Passage » (un cercle comme un piège, à l'icône de ce qu'ils infligent aux ennemis qui y entrent ; plusieurs marques rangées comme les points d'un dé) ;
+  - `fx/` : animations des actions (handoff « Plateau v4 », lot 2). Le moteur ajoute à l'état la liste `events` de la dernière action (`src/engine/events.ts`, filtrée par joueur dans `getPlayerView`) ; `GameScreen` repart de la vue d'avant l'action et rejoue ces événements (`fx/player.ts`) en mettant l'écran à jour pas à pas (`fx/patch.ts`, pur et testé). Effets en Web Animations API dans un calque fixe (`fx/stage.ts`, `fx/missiles.ts`) ; clics bloqués pendant la lecture ;
+  - `settings.ts` : réglages d'affichage mémorisés (vue de dessus, inclinée à 45° ou isométrique, plateau tourné vers le joueur actif, animations, son et volume, zoom de 100 à 200 %, affichage du grimoire, stats sur les jetons) ;
+  - `boardGeometry.ts` : mesures des vues de dessus et inclinée, et plus grande case (28 à 84 px) pour que la scène tienne dans sa zone ; `Board` mesure sa zone et pose `--cell` (en iso, `isoCamera` ajuste l'échelle de la même façon) ;
+  - `sfx/` : sons (handoff V5, lot 4), en Web Audio : un seul AudioContext créé au premier clic, recettes synthétisées (`recipes.ts`). Un fichier `src/assets/sons/<nom>.mp3` (ou .ogg, .wav) remplace la synthèse de ce son, sans autre changement. `fx/player.ts` joue chaque son avec son effet visuel ; sans animation, `sfx/events.ts` enchaîne seulement les sons ;
+  - `iso/` : vue isométrique (handoff V5, lot 5), **Champ de bataille seulement** (ailleurs, elle se replie sur la vue inclinée) : données du décor et caméra (`scenery.ts`), décor en 3D (`IsoDecor.tsx` : bloc de terrain, lac, rivière, mana zones modélisées avec drapeau du contrôleur, enclaves de la Mine et de la Scierie, sprites Kenney CC0 de `src/assets/decor/`). La rivière n'est qu'un rendu : ses cases restent des cases bloquées.
+- Vue isométrique : `.board` en `scale(k) rotateX(54.7356deg) rotateZ(45deg)` ; jetons, blasons des terrains et décor reçoivent la rotation inverse pour rester face à l'écran, les textes au sol une contre-rotation 2D. Pièges connus : pas de `translateZ` sur les cases (il fausse le tri en profondeur avec les jetons voisins) mais `pointer-events: none` sur le plateau et `auto` sur les cases ; un élément debout du décor doit avoir une boîte qui couvre tout son contenu (un conteneur de taille nulle est rogné à sa boîte une fois composé). Les effets se calent sur les cases à l'écran (`data-lift` donne la hauteur des jetons).
+- Vue inclinée (handoff, lot 3) : `.scene` (perspective) > `.board` (rotateX 45°, preserve-3d) > `.cell` > `.token` (déplacements) > `.token__stand` (redressé face à l'écran, jamais animé) > `.token__body` (ombre, respiration, effets). Ne jamais mettre filter, opacity < 1, overflow ou clip-path sur `.board`, une case avec monstre ou `.token`. Plateau retourné : les cases sont rendues dans l'ordre inverse, rien d'autre.
+- Jetons (handoff V6, lot 6) : une **goutte** (SVG `dropPath`, déjà tournée : pas de rotation CSS dans le support 3D) dont la pointe, à la couleur du joueur, donne le sens affiché (iso : haut 60°, droite 120°, bas 240°, gauche 300° ; plateau retourné : sens inversé). Halo de sélection et cibles suivent la goutte. Pastilles mobilité | PV | ATK sous la goutte, au-dessus si la pointe descend (`statsAbove`) ; statuts à gauche. Le joueur choisit les pastilles (menu « Stats » de la barre du haut, `StatsControl`, réglage `tokenStats`) ; Alt maintenu, ou le bouton œil sur écran tactile, affiche tout. Terrain seul : blason réduit, PV dessous ; sous un monstre : petit blason à droite de la goutte, sans PV.
+- Mise en page de l'écran de jeu (`GameScreen`) : toute la hauteur de la fenêtre, **la page ne défile jamais**, ce sont les colonnes qui défilent. Barre du haut fine (tour, réglages de vue, Fin du tour). À gauche : encart de l'adversaire, emplacement de la fiche au survol, journal. Au centre : bandeau guide et plateau ajusté à la place restante (l'aide s'ouvre par-dessus le bas du plateau). À droite : grimoire sur fond transparent, en trois sections Monstres, Sorts, Terrains (une section vide disparaît ; tuiles teintées par type, comme la fiche au survol : rubis pour les monstres, saphir pour les sorts, émeraude pour les terrains ; boutons d'affichage 3, 2 ou 1 carte par ligne ou liste, qui règlent aussi la largeur de la colonne) et, dessous, l'encart du joueur qui regarde (`PlayerBox`, avec `data-mana` / `data-vp` visés par les animations).
+- Design « Plateau v2 » (maquette Claude Design) : thème sombre dans `src/ui/game.css`, toutes les mesures du plateau dérivent de `--cell`. Polices Alegreya Sans auto-hébergées (`@fontsource`), icônes game-icons.net intégrées dans `src/ui/iconPaths.ts` (CC BY 3.0, crédit dans l'aide) : rien n'est chargé depuis Internet. Illustrations des cartes et fonds de plateau : `src/ui/art.ts` (images dans `src/assets/art/`, sources dans `artworks/`).
+
+## Méthode de travail
+
+- Avancer **étape par étape** selon SPEC.md §8. Une étape à la fois ; ne pas commencer l'étape suivante sans accord.
+- **Chaque règle a au moins un test unitaire.** Tests verts (et typecheck propre) avant de passer à l'étape suivante.
+- Les tests sont à côté du code : `src/engine/*.test.ts` et `src/ui/*.test.ts(x)` ; le rendu React se teste avec `renderToStaticMarkup`, sans navigateur. `src/engine/test-utils.ts` (`gameWith`) pose des unités directement pour décrire une situation.
+- L'interface se vérifie aussi en vrai : `npm run dev` (configuration `dev` dans `.claude/launch.json`).
+
+## Conventions
+
+- Identifiants de code en anglais ; noms affichés des cartes et commentaires en français (vocabulaire de SPEC.md).
+- Points de victoire = `vp` dans le code (pour ne pas confondre avec les points de vie = `hp`).
+- Positions : `{ row, col }`, `(0, 0)` en haut à gauche, distances orthogonales uniquement.
+- Les types d'état sont `readonly` : toute modification passe par la création d'un nouvel objet.
+
+## Commandes
+
+```bash
+npm install          # installer les dépendances
+npm run dev          # lancer le projet (serveur Vite)
+npm test             # lancer les tests une fois
+npm run test:watch   # tests en mode watch
+npm run typecheck    # vérification TypeScript
+npm run build        # typecheck + build de production
+```
