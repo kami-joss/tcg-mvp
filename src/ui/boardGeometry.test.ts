@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { CELL_MAX, CELL_MIN, boardMetrics, fitCell, sceneSize, tiltGeometry } from './boardGeometry';
+import { CELL_GROWN, CELL_MAX, CELL_MIN, boardMetrics, fitCell, sceneSize, tiltGeometry } from './boardGeometry';
 
 describe('géométrie du plateau : il tient dans sa zone, sans défilement', () => {
   it('mesures à plat : 11 cases de 68 px, 4 px entre elles, 14 px de marge', () => {
     expect(boardMetrics(68, 9, 11)).toEqual({ cell: 68, pitch: 72, pad: 14, width: 816, height: 672 });
   });
 
-  it('grande zone : cases de 84 px au plus', () => {
+  it('grande zone : le plateau grandit jusqu’à ×1,35 (cases de 113 px au plus ; les jetons, eux, s’arrêtent à 84 px)', () => {
     expect(CELL_MAX).toBe(84);
-    expect(fitCell(2400, 1400, 11, 11, false)).toBe(CELL_MAX);
-    expect(fitCell(2400, 1400, 11, 11, true)).toBe(CELL_MAX);
+    expect(CELL_GROWN).toBe(113);
+    expect(fitCell(2400, 1800, 11, 11, false)).toBe(CELL_GROWN);
+    expect(fitCell(2400, 1800, 11, 11, true)).toBe(CELL_GROWN);
+    expect(fitCell(1100, 1100, 11, 11, false)).toBeGreaterThan(CELL_MAX);
   });
 
   it('la plus grande case qui tient, en largeur comme en hauteur', () => {

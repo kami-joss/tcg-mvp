@@ -474,7 +474,7 @@ Elles complètent les decks, chacun avec ses propres quantités (composition du 
 - Plateau au centre, cases cliquables, unités affichées avec ATK / PV actuels / mobilité restante.
 - Panneau du joueur actif : mana, VP, grimoire (cartes jouables en surbrillance, coût visible).
 - Panneau adverse : mana, VP, cartes utilisées, nombre de cartes restantes.
-- Sélection d'un monstre → surbrillance des cases atteignables et des cibles attaquables.
+- Sélection d'un monstre → surbrillance des cases atteignables et des cibles attaquables. Clic sur une cible → bulle d'action : attaquer, attaquer et avancer (si l'attaque la détruit au contact, §4.7), effets du monstre. Clic droit sur un de ses monstres → ses effets actifs.
 - Sélection d'un monstre adverse → surbrillance des cases qu'il pourra atteindre à son prochain tour (mobilité complète moins le givre, plateau actuel).
 - Sélection d'une carte → surbrillance des cibles valides.
 - Journal des actions.

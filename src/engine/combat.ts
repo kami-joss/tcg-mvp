@@ -10,7 +10,7 @@ import { perceived, reveal } from './stealth';
 import { enterCell } from './traps';
 import { applyTriggeredEffects } from './effects';
 import { getActiveMonster, getAtk, getKeyword, getMonsters, getRange, getUnitsAt, hasKeyword, setUnit } from './units';
-import type { Action, BoardState, GameState, MonsterUnit, Position, Unit } from './types';
+import type { Action, BoardState, GameState, MonsterUnit, Position, StatusSpec, Unit } from './types';
 
 type AttackAction = Extract<Action, { type: 'attack' }>;
 
@@ -103,13 +103,67 @@ export function isBehind(attacker: MonsterUnit, target: MonsterUnit): boolean {
  * Avancée : l'attaquant était adjacent, l'attaque détruit la cible, et la case libérée peut être
  * occupée (il n'y reste pas de terrain ennemi, SPEC.md §4.9).
  */
-export function canAdvance(state: GameState, attacker: MonsterUnit, target: Unit): boolean {
+export function canAdvance(state: BoardState, attacker: MonsterUnit, target: Unit): boolean {
   return (
     canMove(attacker) &&
     distance(attacker.pos, target.pos) === 1 &&
     target.hp <= attackDamage(state, attacker, target) &&
     getUnitsAt(state, target.pos).every((u) => u.id === target.id)
   );
+}
+
+/** Ce que ferait une attaque, sans la résoudre (bulle d'action, handoff V10 lot 11). */
+export interface AttackPreview {
+  readonly damage: number;
+  /** Frappe par derrière (`assassin`, `sournois`). */
+  readonly behind: boolean;
+  /** PV de la cible avant et après l'attaque (0 si elle est détruite). */
+  readonly hpBefore: number;
+  readonly hpAfter: number;
+  readonly destroys: boolean;
+  /** Statuts posés si elle survit (`brulure`, `givre`). */
+  readonly statuses: readonly StatusSpec[];
+  /** Dégâts de la riposte que l'attaquant subira (0 sans riposte) et ses PV après. */
+  readonly riposte: number;
+  readonly attackerHpAfter: number;
+  /** Il peut prendre la case libérée (§4.7). */
+  readonly canAdvance: boolean;
+}
+
+/**
+ * Aperçu d'une attaque sur ce que voit l'attaquant : dégâts, prise de dos, destruction, statuts posés, riposte.
+ * Un monstre invisible sur la ligne de tir (qui arrêterait le tir) n'est pas connu, donc pas compté.
+ */
+export function previewAttack(state: BoardState, attacker: MonsterUnit, target: Unit): AttackPreview {
+  const damage = attackDamage(state, attacker, target);
+  const hpAfter = Math.max(0, target.hp - damage);
+  const destroys = hpAfter === 0;
+  const statuses: StatusSpec[] = [];
+  const brulure = getKeyword(attacker, 'brulure');
+  const givre = getKeyword(attacker, 'givre');
+  if (!destroys && target.kind === 'monster') {
+    if (brulure) statuses.push({ kind: 'burn', amount: brulure.amount, turns: brulure.turns });
+    if (givre) statuses.push({ kind: 'slow', amount: givre.amount, turns: givre.turns });
+  }
+  const ripostes =
+    !destroys &&
+    target.kind === 'monster' &&
+    hasKeyword(target, 'riposte') &&
+    !target.hasRiposted &&
+    !isStunned(target) &&
+    distance(attacker.pos, target.pos) === 1;
+  const riposte = ripostes ? getAtk(state, target) : 0;
+  return {
+    damage,
+    behind: hitsFromBehind(attacker, target),
+    hpBefore: target.hp,
+    hpAfter,
+    destroys,
+    statuses,
+    riposte,
+    attackerHpAfter: Math.max(0, attacker.hp - riposte),
+    canAdvance: canAdvance(state, attacker, target),
+  };
 }
 
 export function getAttackActions(state: GameState): Action[] {

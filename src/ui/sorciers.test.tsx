@@ -1,4 +1,3 @@
-import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { applyAction, getCard, getPlayerView } from '../engine';
 import type { Action, GameState } from '../engine';
@@ -6,7 +5,6 @@ import { at, gameWith } from '../engine/test-utils';
 import { CARD_ART } from './art';
 import { cardEffectLine, describeCard } from './cardText';
 import { applyEvent } from './fx/patch';
-import { GuideBanner } from './GuideBanner';
 import { clickCell, getHighlights, posKey } from './interaction';
 import type { Selection } from './interaction';
 import { describeAction } from './log';
@@ -50,26 +48,11 @@ describe('textes des cartes Sorciers du feu', () => {
 describe('Lutin brasier : brûler une case', () => {
   const selection: Selection = { kind: 'unit', unitId: 'u1', mode: 'effect' };
 
-  it('cases violettes, clic, bandeau', () => {
+  it('cases violettes, clic', () => {
     const highlights = getHighlights(view(state), selection);
     expect(highlights.get(posKey(at(2, 4)))).toBe('effect');
     expect(highlights.has(posKey(at(2, 5)))).toBe(false);
     expect(clickCell(view(state), selection, at(2, 4))).toEqual({ action: BURN });
-    const html = renderToStaticMarkup(
-      <GuideBanner
-        view={view(state)}
-        selection={selection}
-        highlights={highlights}
-        helpOpen={false}
-        onToggleHelp={() => {}}
-        onToggleArt={null}
-        onAction={() => {}}
-        onSelect={() => {}}
-        flipped={false}
-        busy={false}
-      />,
-    );
-    expect(html).toContain('choisis une case violette à brûler');
   });
 
   it('journal, animation, son ; marque au sol et fiche visibles des deux joueurs', () => {

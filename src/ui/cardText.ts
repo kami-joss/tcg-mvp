@@ -244,7 +244,7 @@ export const TELEPORT_TEXT =
   'pose un de tes monstres, où qu’il soit, sur une case adjacente libre ; il garde sa mobilité, son attaque et son orientation.';
 
 /**
- * Explication d'un effet pour la fiche et le bandeau : sa cible et ses effets (« Un ennemi · recul 2, direction au
+ * Explication d’un effet pour la fiche et la bulle d’action : sa cible et ses effets (« Un ennemi · recul 2, direction au
  * choix »), ou la définition de l'évolution, de l'invocation ou de la téléportation.
  */
 export function abilityExplanation(ability: Ability): string {

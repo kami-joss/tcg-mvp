@@ -5,8 +5,8 @@
 /** Vue du plateau : de dessus, inclinée à 45° ou isométrique (lot 5). */
 export type BoardView = 'top' | 'tilt' | 'iso';
 
-/** Niveaux de zoom du plateau (lot 5). */
-export const ZOOMS: readonly number[] = [1, 1.25, 1.5, 1.75, 2];
+/** Niveaux de zoom du plateau (lot 5 ; lot 11 : de 50 à 200 %). 100 % : le plateau ajusté à sa zone. */
+export const ZOOMS: readonly number[] = [0.5, 0.65, 0.8, 1, 1.25, 1.5, 1.75, 2];
 
 /** Affichage du grimoire : 3, 2 ou 1 carte par ligne, ou liste compacte. */
 export type GrimoireLayout = 'grid3' | 'grid2' | 'grid1' | 'list';

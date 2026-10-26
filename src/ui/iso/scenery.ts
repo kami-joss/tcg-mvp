@@ -173,9 +173,12 @@ export const ZONE_DECOR: Readonly<
   ferme: { wall: 'wood', marks: [['z_farm', 0.24, 0, 0], ['f4', 0.62, 30, -4], ['f2', 0.62, -4, 30]] },
 };
 
+/** Agrandissement maximal du plateau pour remplir sa zone (lot 11), dans toutes les vues. */
+export const ISO_GROW = 1.35;
+
 /** Caméra isométrique pour une zone du plateau (largeur, hauteur) et un zoom donnés. */
 export interface IsoCamera {
-  /** Échelle du plateau (0,35 à 1, multipliée par le zoom). */
+  /** Échelle du plateau (0,35 à 1,35, multipliée par le zoom). */
   readonly k: number;
   readonly width: number;
   readonly height: number;
@@ -190,12 +193,14 @@ export interface IsoCamera {
 }
 
 /** Caméra pour un plan de côté `plan` (`planSize`). */
-export function isoCamera(plan: number, areaWidth: number, areaHeight: number, zoom: number): IsoCamera {
+export function isoCamera(plan: number, areaWidth: number, _areaHeight: number, zoom: number): IsoCamera {
   const frame = isoFrame(plan);
-  // La scène entière tient dans la zone ; en dessous de 0,35, elle déborde.
-  const fit = Math.max(0.35, Math.min(1, areaWidth / frame.width, areaHeight / frame.height));
+  // Lot 11 : la scène est calée sur la largeur de la zone seule (elle défile en hauteur si besoin), jusqu'à ×1,35 ; en
+  // dessous de 0,35, elle déborde. La hauteur de la zone ne compte plus.
+  const fit = Math.max(0.35, Math.min(ISO_GROW, areaWidth / frame.width));
   const k = fit * zoom;
-  const standScale = Math.max(1.1, 0.95 / k);
+  // Les jetons ne grandissent pas avec le plateau au-delà de ×1 (plus d'espace autour d'eux) ; le zoom, lui, les agrandit.
+  const standScale = fit > 1 ? 1.1 / fit : Math.max(1.1, 0.95 / fit);
   return {
     k,
     width: Math.round(frame.width * k),

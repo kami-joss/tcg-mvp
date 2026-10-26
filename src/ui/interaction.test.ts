@@ -6,7 +6,8 @@ import {
   NO_SELECTION,
   clickCard,
   clickCell,
-  getAdvanceChoices,
+  contextCard,
+  contextCell,
   getAreaDirections,
   getAttackPreviews,
   getEffectActions,
@@ -50,22 +51,47 @@ describe('interaction : monstres (SPEC.md §7)', () => {
     expect(clickCell(duel(), selection, at(9, 1))).toEqual({ action: { type: 'move', unitId: 'u1', to: at(9, 1) } });
   });
 
-  it('cliquer une cible qui survit joue l’attaque', () => {
+  it('cliquer une cible à portée ouvre la bulle d’action, sans attaquer (lot 11)', () => {
+    const view = duel();
     const selection = { kind: 'unit', unitId: 'u1', mode: 'act' } as const;
-    expect(clickCell(duel(), selection, at(8, 2))).toEqual({
-      action: { type: 'attack', unitId: 'u1', targetId: 'u2', advance: false },
-    });
+    expect(clickCell(view, selection, at(8, 2))).toEqual({ selection: { kind: 'attack', unitId: 'u1', targetId: 'u2', page: 'main' } });
+    expect(clickCell(view, selection, at(7, 1))).toEqual({ selection: { kind: 'attack', unitId: 'u1', targetId: 'u3', page: 'main' } });
   });
 
-  it('cliquer une cible détruite au contact demande s’il faut avancer', () => {
+  it('bulle ouverte : le plateau ne déplace ni ne sélectionne rien ; une autre cible y déplace la bulle', () => {
     const view = duel();
-    const result = clickCell(view, { kind: 'unit', unitId: 'u1', mode: 'act' }, at(7, 1));
-    expect(result).toEqual({ selection: { kind: 'advance', unitId: 'u1', targetId: 'u3' } });
-    if (!('selection' in result)) throw new Error('sélection attendue');
-    expect(getAdvanceChoices(view, result.selection)).toEqual({
-      advance: { type: 'attack', unitId: 'u1', targetId: 'u3', advance: true },
-      stay: { type: 'attack', unitId: 'u1', targetId: 'u3', advance: false },
+    const bubble = { kind: 'attack', unitId: 'u1', targetId: 'u2', page: 'main' } as const;
+    expect(clickCell(view, bubble, at(9, 1))).toEqual({ selection: NO_SELECTION });
+    expect(clickCell(view, bubble, at(8, 1))).toEqual({ selection: NO_SELECTION });
+    expect(clickCell(view, { ...bubble, page: 'effects' }, at(7, 1))).toEqual({
+      selection: { kind: 'attack', unitId: 'u1', targetId: 'u3', page: 'main' },
     });
+    expect(clickCell(view, bubble, at(8, 2))).toEqual({ selection: NO_SELECTION });
+    // Seule la cible est marquée ; le reste du plateau est atténué.
+    expect([...getHighlights(view, bubble)]).toEqual([[posKey(at(8, 2)), 'attack']]);
+    expect([...getAttackPreviews(view, bubble).keys()]).toEqual([posKey(at(8, 2))]);
+    expect(isFocused(bubble)).toBe(true);
+  });
+
+  it('clic droit sur une carte de son grimoire : sa bulle ; la bulle ouverte, le plateau la ferme', () => {
+    const view = activeView(gameWith([], MANA));
+    expect(contextCard(view, 'milicien')).toEqual({ kind: 'cardMenu', cardId: 'milicien' });
+    expect(contextCard(view, 'dragon-feu')).toEqual(NO_SELECTION);
+    expect(clickCell(view, { kind: 'cardMenu', cardId: 'milicien' }, at(0, 4))).toEqual({ selection: NO_SELECTION });
+  });
+
+  it('clic droit : sur un de ses monstres, la bulle de ses effets ; ailleurs, il ferme la bulle', () => {
+    const view = duel();
+    expect(contextCell(view, NO_SELECTION, at(8, 1))).toEqual({ kind: 'effects', unitId: 'u1', page: 'effects' });
+    const bubble = { kind: 'effects', unitId: 'u1', page: 'effects' } as const;
+    expect(contextCell(view, bubble, at(8, 2))).toEqual(NO_SELECTION);
+    expect(contextCell(view, bubble, at(1, 1))).toEqual(NO_SELECTION);
+    const unit = { kind: 'unit', unitId: 'u1', mode: 'act' } as const;
+    expect(contextCell(view, unit, at(1, 1))).toEqual(unit);
+    // Hors de son tour : rien.
+    expect(contextCell(getPlayerView(gameWith([{ monster: 'chevalier', owner: 1, at: at(8, 1) }]), 2), NO_SELECTION, at(8, 1))).toEqual(
+      NO_SELECTION,
+    );
   });
 
   it('cliquer une unité adverse l’affiche pour information ; cliquer une case vide désélectionne', () => {
@@ -286,7 +312,7 @@ describe('interaction : dragons (évolution, effets de zone)', () => {
     expect(clickCell(fire, effectMode, at(9, 1))).toEqual({
       action: { type: 'activateEffect', unitId: 'u1', target: { kind: 'area' } },
     });
-    // Vent violent : la ligne cliquée donne la direction ; reste la distance, dans le bandeau.
+    // Vent violent : la ligne cliquée donne la direction ; reste la distance, dans la bulle.
     expect(clickCell(state('dragon-vent'), effectMode, at(9, 2))).toEqual({
       selection: { kind: 'areaDirection', unitId: 'u1', direction: 'down' },
     });

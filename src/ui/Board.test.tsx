@@ -58,9 +58,12 @@ describe('plateau : vues du handoff (lots 3 et 5)', () => {
     expect(render(alone, 'top')).not.toContain('crest');
   });
 
-  it('zoom au-delà de 100 % : fenêtre défilante ; en vue de dessus, toute la scène grandit', () => {
-    expect(render(battlefield(), 'top', 1.5)).toContain('board-viewport is-zoomed');
+  it('zoom : la scène qui dépasse le cadre le fait défiler ; en vue de dessus, toute la scène grandit (ou rapetisse)', () => {
+    expect(render(battlefield(), 'top', 1.5)).toContain('board-viewport is-scrollable');
+    expect(render(battlefield(), 'top', 1.5)).toContain('overflow-x:auto;overflow-y:auto');
     expect(render(battlefield(), 'top', 1.5)).toContain('zoom:1.5');
-    expect(render(battlefield(), 'top', 1)).not.toContain('is-zoomed');
+    expect(render(battlefield(), 'top', 1)).not.toContain('is-scrollable');
+    expect(render(battlefield(), 'top', 0.65)).toContain('zoom:0.65');
+    expect(render(battlefield(), 'top', 0.65)).toContain('overflow-x:hidden;overflow-y:hidden');
   });
 });

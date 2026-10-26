@@ -207,7 +207,7 @@ function activeBlock(card: MonsterCard, foot: SheetStatus | null): SheetActive |
 const OK: SheetStatus = { text: 'Disponible', tone: 'ok' };
 
 /** Pourquoi ce n'est pas possible, en mots ; `missing` : la cible qui manque, dite selon ce qu'on essaie de faire. */
-function reasonStatus(reason: UnavailableReason, used: string): SheetStatus {
+export function reasonStatus(reason: UnavailableReason, used: string): SheetStatus {
   switch (reason.kind) {
     case 'notYourTurn':
       return { text: 'Pas ton tour', tone: 'off' };

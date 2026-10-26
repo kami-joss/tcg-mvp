@@ -4,8 +4,9 @@
 // l'écran), ou isométrique (Champ de bataille seulement : bloc de terrain, décor, mana zones modélisées, rivière).
 // Le plateau peut être retourné pour que le camp du joueur actif soit en bas : seules les coordonnées d'affichage
 // changent, les textes et les badges restent à l'endroit. Le plateau remplit sa zone de l'écran : la taille des cases
-// (ou l'échelle de la vue isométrique) est choisie pour que toute la scène y tienne. Au-delà de 100 %, le zoom fait
-// défiler la zone à la molette ou en la faisant glisser.
+// (ou l'échelle de la vue isométrique) est choisie pour que toute la scène y tienne, jusqu'à ×1,35 sans que les jetons
+// grossissent (lot 11 : plus d'espace autour des monstres). La zone défile dès que la scène la dépasse (zoom, ou vue
+// isométrique calée sur la largeur), à la molette ou en la faisant glisser.
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import type { CSSProperties, MouseEvent, PointerEvent as ReactPointerEvent } from 'react';
@@ -42,8 +43,8 @@ interface BoardProps {
   highlights: ReadonlyMap<string, Highlight>;
   attacks: ReadonlyMap<string, AttackPreview>;
   selectedUnitId: UnitId | null;
-  /** Unité montrée par la fiche : son jeton grossit un peu (lot 9). */
-  focusedUnitId?: UnitId | null;
+  /** Case sous la bulle d'action : son jeton ne grossit pas au survol (la bulle s'y mesure). */
+  anchor?: Position | null;
   /** Atténuer les cases qui ne sont pas des cibles. */
   focused: boolean;
   /** Chemin prévu sous la souris, dans l'ordre des pas. */
@@ -53,7 +54,7 @@ interface BoardProps {
   showArt: boolean;
   /** Vue du plateau (déjà ramenée à « inclinée » si le plateau n'a pas de vue isométrique). */
   mode: BoardView;
-  /** Zoom (1 à 2). */
+  /** Zoom (0,5 à 2). */
   zoom: number;
   /** Boucles d'animation du décor (arbres, eau, drapeaux, feu). */
   animated: boolean;
@@ -62,6 +63,8 @@ interface BoardProps {
   /** Stats affichées sur les jetons (menu « Stats », Alt pour tout voir). */
   stats?: TokenStats;
   onCellClick: (pos: Position) => void;
+  /** Clic droit sur une case (le menu du navigateur est bloqué). */
+  onCellContextMenu?: (pos: Position) => void;
   onCellHover: (pos: Position | null, rect?: DOMRect) => void;
 }
 
@@ -93,7 +96,7 @@ export function dropPath(angle: number): string {
 /** La rangée de stats passe au-dessus du rond quand la pointe va vers le bas de l'écran, pour ne pas la cacher. */
 export const statsAbove = (angle: number) => Math.cos((angle * Math.PI) / 180) < -0.2;
 
-/** Taille de la zone du plateau, suivie au redimensionnement (fenêtre, largeur du grimoire, bandeau). */
+/** Taille de la zone du plateau, suivie au redimensionnement (fenêtre, largeur du grimoire). */
 function useElementSize(ref: RefObject<HTMLElement | null>): { width: number; height: number } {
   // Avant la première mesure (et dans le rendu des tests), une zone ordinaire d'écran de bureau.
   const [size, setSize] = useState({ width: 900, height: 640 });
@@ -115,38 +118,57 @@ function useElementSize(ref: RefObject<HTMLElement | null>): { width: number; he
 }
 
 /**
- * Fenêtre de zoom : au-delà de 100 %, on déplace le plateau à la molette ou en le faisant glisser. Un glisser n'est pas
- * compté comme un clic sur une case. En changeant de niveau, le centre de la vue est conservé (centré depuis 100 %).
+ * Cadre du plateau (lot 11) : il défile, sur chaque axe où la scène le dépasse (zoom, vue isométrique calée sur la
+ * largeur), à la molette ou en la faisant glisser ; sinon la scène y est centrée, sans défilement (le décor qui déborde
+ * de la scène n'ouvre pas de défilement). Un glisser n'est pas compté comme un clic sur une case. Au chargement et au
+ * changement de vue, la vue est recentrée sur le plateau (`focusY` : hauteur de son centre dans la scène, de 0 à 1) ;
+ * en changeant de zoom, le point de la scène au centre de la vue est conservé.
  */
-function useZoomViewport(zoom: number, mode: BoardView) {
-  const ref = useRef<HTMLDivElement>(null);
+function useZoomViewport(
+  zoom: number,
+  mode: BoardView,
+  scroll: { readonly x: boolean; readonly y: boolean },
+  ref: RefObject<HTMLDivElement | null>,
+) {
   const drag = useRef<{ x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
   const suppressClick = useRef(false);
+  /** Point de la scène au centre de la vue, en fractions de sa largeur et de sa hauteur. */
   const center = useRef<{ x: number; y: number } | null>(null);
+  const shownMode = useRef(mode);
+  /** Hauteur du centre du plateau dans la scène (de 0 à 1), tenue à jour par le plateau à chaque rendu. */
+  const focusY = useRef(0.5);
+  const axes = useRef(scroll);
+  axes.current = scroll;
 
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el || zoom <= 1) {
+    const scene = el?.querySelector<HTMLElement>('[data-scene]');
+    if (!el || !scene) return;
+    if (shownMode.current !== mode) {
+      shownMode.current = mode;
       center.current = null;
-      return;
     }
+    /** La scène dans le repère de défilement du cadre. */
+    const box = () => {
+      const v = el.getBoundingClientRect();
+      const r = scene.getBoundingClientRect();
+      return { left: r.left - v.left + el.scrollLeft, top: r.top - v.top + el.scrollTop, width: r.width || 1, height: r.height || 1 };
+    };
     const apply = () => {
-      const kept = center.current;
-      if (kept) {
-        el.scrollLeft = kept.x * el.scrollWidth - el.clientWidth / 2;
-        el.scrollTop = kept.y * el.scrollHeight - el.clientHeight / 2;
-      } else {
-        el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2;
-        el.scrollTop = (el.scrollHeight - el.clientHeight) * 0.55;
-      }
+      const b = box();
+      const fx = center.current?.x ?? 0.5;
+      const fy = center.current?.y ?? focusY.current;
+      el.scrollLeft = axes.current.x ? b.left + fx * b.width - el.clientWidth / 2 : 0;
+      el.scrollTop = axes.current.y ? b.top + fy * b.height - el.clientHeight / 2 : 0;
     };
     apply();
     // Le passage d'une vue à l'autre est animé : on recentre une fois la transition finie.
     const timer = window.setTimeout(apply, 650);
     const remember = () => {
+      const b = box();
       center.current = {
-        x: (el.scrollLeft + el.clientWidth / 2) / el.scrollWidth,
-        y: (el.scrollTop + el.clientHeight / 2) / el.scrollHeight,
+        x: (el.scrollLeft + el.clientWidth / 2 - b.left) / b.width,
+        y: (el.scrollTop + el.clientHeight / 2 - b.top) / b.height,
       };
     };
     el.addEventListener('scroll', remember);
@@ -154,13 +176,12 @@ function useZoomViewport(zoom: number, mode: BoardView) {
       window.clearTimeout(timer);
       el.removeEventListener('scroll', remember);
     };
-  }, [zoom, mode]);
+  }, [zoom, mode, scroll.x, scroll.y]);
 
   const handlers = {
     onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => {
       const el = ref.current;
-      if (!el || zoom <= 1 || event.button !== 0) return;
-      if (el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight) return;
+      if (!el || event.button !== 0 || !(axes.current.x || axes.current.y)) return;
       drag.current = { x: event.clientX, y: event.clientY, left: el.scrollLeft, top: el.scrollTop, moved: false };
     },
     onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -172,8 +193,8 @@ function useZoomViewport(zoom: number, mode: BoardView) {
       if (!d.moved && Math.hypot(dx, dy) < 6) return;
       d.moved = true;
       el.classList.add('is-dragging');
-      el.scrollLeft = d.left - dx;
-      el.scrollTop = d.top - dy;
+      if (axes.current.x) el.scrollLeft = d.left - dx;
+      if (axes.current.y) el.scrollTop = d.top - dy;
     },
     onPointerUp: () => {
       ref.current?.classList.remove('is-dragging');
@@ -191,7 +212,7 @@ function useZoomViewport(zoom: number, mode: BoardView) {
       event.preventDefault();
     },
   };
-  return { ref, handlers };
+  return { handlers, focusY, scroll };
 }
 
 export function Board(props: BoardProps) {
@@ -202,16 +223,21 @@ export function Board(props: BoardProps) {
   // Décor 2,5D (rochers, eau, mana zones modélisées, enclaves, bordure) : vues isométrique et inclinée, s'il existe.
   const decor = (iso || tilted) && scenery !== null;
   const art = showArt && !decor ? boardArt(view.board) : undefined;
-  const zoomView = useZoomViewport(zoom, mode);
-  const area = useElementSize(zoomView.ref);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const area = useElementSize(viewportRef);
   const { rows, cols } = view.board;
   // Vues de dessus et inclinée : la plus grande case pour laquelle la scène tient dans la zone (le zoom s'y ajoute).
   const tiltDecor = tilted && decor;
   const metrics = boardMetrics(fitCell(area.width - FIT_MARGIN, area.height - FIT_MARGIN, rows, cols, tilted, tiltDecor), rows, cols);
   const geometry = tiltGeometry(metrics, rows, tiltDecor);
   const plan = planSize(Math.max(rows, cols));
-  const camera = isoCamera(plan, area.width, area.height, zoom);
+  const camera = isoCamera(plan, area.width - FIT_MARGIN, area.height - FIT_MARGIN, zoom);
   const sceneHeight = tilted ? geometry.sceneHeight : metrics.height;
+  // Taille de la scène à l'écran (zoom compris) : le cadre ne défile que sur les axes où elle le dépasse.
+  const shownWidth = iso ? camera.width : (tilted ? geometry.sceneWidth : metrics.width) * zoom;
+  const shownHeight = iso ? camera.height : sceneHeight * zoom;
+  const zoomView = useZoomViewport(zoom, mode, { x: shownWidth > area.width + 1, y: shownHeight > area.height + 1 }, viewportRef);
+  zoomView.focusY.current = iso ? camera.centerY / camera.height : tilted ? geometry.originY / geometry.sceneHeight : 0.5;
   const sceneStyle: CSSProperties = iso
     ? { width: camera.width, height: camera.height, perspective: 'none' }
     : {
@@ -257,12 +283,13 @@ export function Board(props: BoardProps) {
       })
       .map((pos) => [`${pos.row},${pos.col}`, getViewZoneController(view, pos)] as const),
   );
-  const zoomed = zoom > 1;
+  const scrollable = zoomView.scroll.x || zoomView.scroll.y;
 
   return (
     <div
-      ref={zoomView.ref}
-      className={`board-viewport${zoomed ? ' is-zoomed' : ''}`}
+      ref={viewportRef}
+      className={`board-viewport${scrollable ? ' is-scrollable' : ''}`}
+      style={{ overflowX: zoomView.scroll.x ? 'auto' : 'hidden', overflowY: zoomView.scroll.y ? 'auto' : 'hidden' }}
       data-viewport
       {...zoomView.handlers}
     >
@@ -295,6 +322,7 @@ export function Board(props: BoardProps) {
               pos={pos}
               step={steps.get(posKey(pos))}
               marks={zoneMarks.get(posKey(pos))}
+              isAnchor={props.anchor ? samePos(props.anchor, pos) : false}
               standScale={tilted ? geometry.standScale(displayRow(pos)) : 1}
             />
           ))}
@@ -314,19 +342,33 @@ function BoardCell({
   highlights,
   attacks,
   selectedUnitId,
-  focusedUnitId = null,
   focused,
   reach,
   mode,
   flipped,
   stats = DEFAULT_TOKEN_STATS,
   onCellClick,
+  onCellContextMenu,
   onCellHover,
   decor,
-}: BoardProps & { pos: Position; step: number | undefined; marks: readonly ZoneMark[] | undefined; standScale: number; decor: boolean }) {
+  isAnchor,
+}: BoardProps & {
+  pos: Position;
+  step: number | undefined;
+  marks: readonly ZoneMark[] | undefined;
+  standScale: number;
+  decor: boolean;
+  isAnchor: boolean;
+}) {
   const cell = getCell(view.board, pos);
   const dataCell = `${pos.row},${pos.col}`;
-  if (cell.kind === 'offBoard') return <div className="cell cell--off" aria-hidden="true" data-cell={dataCell} />;
+  const contextMenu = (event: MouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    onCellContextMenu?.(pos);
+  };
+  if (cell.kind === 'offBoard') {
+    return <div className="cell cell--off" aria-hidden="true" data-cell={dataCell} onContextMenu={contextMenu} />;
+  }
   const hover = (event: MouseEvent<HTMLElement>) => onCellHover(pos, event.currentTarget.getBoundingClientRect());
   const iso = mode === 'iso';
   // Avec le décor 2,5D, les falaises ne sont plus des barres : les enclaves sont modélisées.
@@ -341,6 +383,7 @@ function BoardCell({
       <div
         className={`cell cell--blocked${waterClass}${parity}${focused ? ' is-dim' : ''}`}
         onMouseEnter={hover}
+        onContextMenu={contextMenu}
         aria-label={water === 'pond' ? 'Étang' : water ? 'Rivière' : 'Case bloquée'}
         data-cell={dataCell}
       >
@@ -359,7 +402,6 @@ function BoardCell({
   const attack = attacks.get(key);
   const trap = view.traps.find((t) => samePos(t.pos, pos));
   const isSelected = (unit: Unit | undefined) => unit !== undefined && unit.id === selectedUnitId;
-  const isFocus = (unit: Unit | undefined) => unit !== undefined && unit.id === focusedUnitId;
   const dim = focused && !highlight && !step && !isSelected(monster) && !isSelected(terrain);
   // En vue inclinée ou isométrique, les unités sont debout : une cible posée sur un monstre s'affiche sur le jeton.
   const upright = mode !== 'top';
@@ -370,7 +412,11 @@ function BoardCell({
     controller && `cell--held-p${controller}`,
     monster && 'cell--unit',
     (highlight || monster) && 'is-clickable',
+    isAnchor && 'is-anchor',
   ];
+  // Orientation affichée (plateau retourné compris) : la pointe de la goutte, et la flèche au bord de la case.
+  const facing = monster ? (flipped ? FLIP_DIRECTION[monster.facing] : monster.facing) : null;
+  const exhausted = monster ? isExhausted(view, monster.id) : false;
   // Respiration des jetons désynchronisée d'une case à l'autre.
   const bobDelay = `${-((pos.row * 7 + pos.col * 3) % 10) * 0.18}s`;
 
@@ -379,6 +425,9 @@ function BoardCell({
       type="button"
       className={classes.filter(Boolean).join(' ')}
       onClick={() => onCellClick(pos)}
+      onContextMenu={contextMenu}
+      // Un clic ne donne pas le focus à la case (contour du clavier) : seul Tab le fait.
+      onMouseDown={(event) => event.preventDefault()}
       onMouseEnter={hover}
       aria-label={cellLabel(pos, zone ? MANA_ZONE_NAMES[zone] : null, units)}
       data-cell={dataCell}
@@ -400,8 +449,11 @@ function BoardCell({
       {reach.get(key) === 'move' && <span className="layer layer--reach" />}
       {reach.get(key) === 'strike' && <span className="layer layer--threat" />}
       {trap && !monster && <TrapMarker trap={trap} />}
-      {terrain && (
-        <TerrainPlaque terrain={terrain} alone={!monster} selected={isSelected(terrain)} focus={isFocus(terrain)} upright={upright} />
+      {terrain && <TerrainPlaque terrain={terrain} alone={!monster} selected={isSelected(terrain)} upright={upright} />}
+      {monster && facing && (
+        <span className={`facing facing--${facing} facing--p${monster.owner}${exhausted ? ' is-done' : ''}`} aria-hidden="true">
+          <span />
+        </span>
       )}
       {upright && (monster || terrain) && (
         <span
@@ -412,7 +464,6 @@ function BoardCell({
         <TerrainCrest
           terrain={terrain}
           small={monster !== undefined}
-          focus={isFocus(terrain)}
           standScale={standScale}
           target={!monster && highlight === 'target'}
         />
@@ -424,11 +475,10 @@ function BoardCell({
           requiem={requiemCountdown(monster, view.turn, view.activePlayer)}
           active={monster.owner === view.activePlayer}
           selected={isSelected(monster)}
-          focus={isFocus(monster)}
-          exhausted={isExhausted(view, monster.id)}
+          exhausted={exhausted}
           hidden={view.hiddenFromOpponent.includes(monster.id)}
           onZone={zone !== null}
-          angle={(iso ? ISO_ANGLES : FLAT_ANGLES)[flipped ? FLIP_DIRECTION[monster.facing] : monster.facing]}
+          angle={(iso ? ISO_ANGLES : FLAT_ANGLES)[facing!]}
           stats={stats}
           mobilityBonus={view.board.mobilityBonus}
           standScale={standScale}
@@ -515,8 +565,6 @@ interface MonsterTokenProps {
   /** Monstre du joueur dont c'est le tour : sa mobilité restante est affichée. */
   active: boolean;
   selected: boolean;
-  /** Montré par la fiche. */
-  focus: boolean;
   exhausted: boolean;
   /** Un de ses monstres `invisible` que l'adversaire ne voit pas en ce moment. */
   hidden: boolean;
@@ -543,7 +591,7 @@ interface MonsterTokenProps {
  * jeton : le support et le corps sont plus grands que lui, pour que rien de ce qui dépasse ne soit rogné en 3D.
  */
 function MonsterToken(props: MonsterTokenProps) {
-  const { monster, atk, requiem, active, selected, focus, exhausted, hidden, onZone, angle, stats, mobilityBonus, standScale } = props;
+  const { monster, atk, requiem, active, selected, exhausted, hidden, onZone, angle, stats, mobilityBonus, standScale } = props;
   const { bobDelay, target, damage } = props;
   const card = getCard(monster.cardId);
   const art = CARD_ART[monster.cardId];
@@ -556,7 +604,6 @@ function MonsterToken(props: MonsterTokenProps) {
     `token--p${monster.owner}`,
     onZone && 'token--on-zone',
     selected && 'is-selected',
-    focus && 'is-focus',
     exhausted && 'is-exhausted',
     hidden && 'is-hidden',
   ];
@@ -575,7 +622,18 @@ function MonsterToken(props: MonsterTokenProps) {
               <svg className="token__shape" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
                 {target && <path className={`token__target token__target--${target} is-outer`} d={path} />}
                 {target && <path className={`token__target token__target--${target}`} d={path} />}
-                {selected && <path className="token__halo" d={path} />}
+                {selected && (
+                  <>
+                    {/* Halo flou de la sélection (lot 11) : un filtre propre au jeton, sous la goutte. */}
+                    <defs>
+                      <filter id={`halo-${monster.id}`} x="-80%" y="-80%" width="260%" height="260%">
+                        <feGaussianBlur stdDeviation="9" />
+                      </filter>
+                    </defs>
+                    <path className="token__glow" d={path} filter={`url(#halo-${monster.id})`} />
+                    <path className="token__halo" d={path} />
+                  </>
+                )}
                 <path className="token__rim" d={path} />
               </svg>
               <span className="token__art art">
@@ -626,10 +684,10 @@ function MonsterToken(props: MonsterTokenProps) {
   );
 }
 
-function TerrainPlaque(props: { terrain: TerrainUnit; alone: boolean; selected: boolean; focus: boolean; upright: boolean }) {
-  const { terrain, alone, selected, focus, upright } = props;
+function TerrainPlaque(props: { terrain: TerrainUnit; alone: boolean; selected: boolean; upright: boolean }) {
+  const { terrain, alone, selected, upright } = props;
   // Debout (vues inclinée et isométrique), le terrain est un blason : la plaque au sol n'est plus qu'un socle.
-  const classes = ['plaque', `plaque--p${terrain.owner}`, selected && 'is-selected', focus && alone && !upright && 'is-focus'];
+  const classes = ['plaque', `plaque--p${terrain.owner}`, alone && !upright && 'is-alone', selected && 'is-selected'];
   return (
     <span className={classes.filter(Boolean).join(' ')} data-tid={upright ? undefined : terrain.id}>
       <span className="plaque__glow" />
@@ -650,12 +708,12 @@ function TerrainPlaque(props: { terrain: TerrainUnit; alone: boolean; selected: 
  * petit blason au-dessus de sa tête (iso) ou sur son coin haut-droit (inclinée), et redescend avec un rebond quand le
  * monstre part. Il ne flotte pas.
  */
-function TerrainCrest(props: { terrain: TerrainUnit; small: boolean; focus: boolean; standScale: number; target: boolean }) {
-  const { terrain, small, focus, standScale, target } = props;
+function TerrainCrest(props: { terrain: TerrainUnit; small: boolean; standScale: number; target: boolean }) {
+  const { terrain, small, standScale, target } = props;
   const card = getCard(terrain.cardId);
   const art = CARD_ART[terrain.cardId];
   return (
-    <span className={`crest crest--p${terrain.owner}${small ? ' is-small' : ''}${focus ? ' is-focus' : ''}`}>
+    <span className={`crest crest--p${terrain.owner}${small ? ' is-small' : ''}`}>
       <span className="crest__stand" style={{ '--stand': standScale.toFixed(3) } as CSSProperties}>
         <span className="crest__body" data-tid={terrain.id} title={card.name}>
           <span className="crest__rim" />

@@ -5,7 +5,8 @@
 // Tuiles illustrées au format 3:4 (handoff V8, lot 9) : l'illustration cadrée sur les yeux, coût en haut à gauche, type
 // et exemplaires en haut à droite, nom et caractéristiques en bas. Jouable : liseré vert ; injouable : ternie ;
 // choisie : anneau doré ; montrée par la fiche : anneau blanc. En liste, fond teinté selon le type (monstre rouge, sort
-// bleu, terrain vert), vif si la carte est jouable, sombre sinon.
+// bleu, terrain vert), vif si la carte est jouable, sombre sinon. Clic : la sélectionner (cases dorées) ; clic droit : sa
+// bulle d'action (l'invoquer, la lancer, la poser, ou pourquoi elle ne peut pas l'être).
 import type { CSSProperties, MouseEvent } from 'react';
 import { getCard } from '../engine';
 import type { Card, CardId, PlayerView } from '../engine';
@@ -25,6 +26,8 @@ interface GrimoireProps {
   layout: GrimoireLayout;
   onLayout: (layout: GrimoireLayout) => void;
   onCardClick: (cardId: CardId) => void;
+  /** Clic droit sur une carte (le menu du navigateur est bloqué). */
+  onCardContextMenu?: (cardId: CardId) => void;
   onCardHover: (cardId: CardId | null, rect?: DOMRect) => void;
 }
 
@@ -76,7 +79,8 @@ function Stats({ card }: { card: Card }) {
   );
 }
 
-export function Grimoire({ view, selectedCard, focusedCard = null, layout, onLayout, onCardClick, onCardHover }: GrimoireProps) {
+export function Grimoire(props: GrimoireProps) {
+  const { view, selectedCard, focusedCard = null, layout, onLayout, onCardClick, onCardContextMenu, onCardHover } = props;
   const { grimoire } = view.me;
   const columns = { '--grimoire-cols': GRIMOIRE_DISPLAY[layout].columns } as CSSProperties;
   const groups = groupCards(grimoire);
@@ -124,6 +128,7 @@ export function Grimoire({ view, selectedCard, focusedCard = null, layout, onLay
                     selected={selectedCard === cardId}
                     focused={focusedCard === cardId}
                     onCardClick={onCardClick}
+                    onCardContextMenu={onCardContextMenu}
                     onCardHover={onCardHover}
                   />
                 ))}
@@ -145,10 +150,12 @@ interface TileProps {
   selected: boolean;
   focused: boolean;
   onCardClick: (cardId: CardId) => void;
+  /** Clic droit sur une carte (le menu du navigateur est bloqué). */
+  onCardContextMenu?: (cardId: CardId) => void;
   onCardHover: (cardId: CardId | null, rect?: DOMRect) => void;
 }
 
-function Tile({ cardId, count, list, playable, selected, focused, onCardClick, onCardHover }: TileProps) {
+function Tile({ cardId, count, list, playable, selected, focused, onCardClick, onCardContextMenu, onCardHover }: TileProps) {
   const card = getCard(cardId);
   const art = CARD_ART[cardId];
   const classes = [
@@ -181,6 +188,10 @@ function Tile({ cardId, count, list, playable, selected, focused, onCardClick, o
         aria-pressed={selected}
         data-card={cardId}
         onClick={() => onCardClick(cardId)}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          onCardContextMenu?.(cardId);
+        }}
         onMouseEnter={(event: MouseEvent<HTMLElement>) => onCardHover(cardId, event.currentTarget.getBoundingClientRect())}
         onMouseLeave={() => onCardHover(null)}
       >

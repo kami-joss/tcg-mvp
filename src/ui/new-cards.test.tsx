@@ -7,7 +7,6 @@ import { CARD_ART } from './art';
 import { Board } from './Board';
 import { cardEffectLine, describeCard } from './cardText';
 import { applyEvent } from './fx/patch';
-import { GuideBanner } from './GuideBanner';
 import { clickCell, getHighlights, posKey } from './interaction';
 import type { Selection } from './interaction';
 import { describeAction } from './log';
@@ -75,26 +74,11 @@ describe('Pénombre', () => {
     expect(describeCard(getCard('penombre'))).toEqual(['Tous les monstres piège alliés · invisible 2 pendant 1 tour']);
   });
 
-  it('sans cible à choisir : ses monstres piège en doré, un clic sur l’un d’eux ou le bouton la lance', () => {
+  it('sans cible à choisir : ses monstres piège en doré, un clic sur l’un d’eux la lance', () => {
     const highlights = getHighlights(view(state), selection);
     expect([...highlights.keys()].sort()).toEqual([posKey(at(1, 1)), posKey(at(2, 7))]);
     expect(clickCell(view(state), selection, at(2, 7))).toEqual({ action: PENOMBRE });
     expect(clickCell(view(state), selection, at(1, 4))).not.toEqual({ action: PENOMBRE });
-    const html = renderToStaticMarkup(
-      <GuideBanner
-        view={view(state)}
-        selection={selection}
-        highlights={highlights}
-        helpOpen={false}
-        onToggleHelp={() => {}}
-        onToggleArt={null}
-        onAction={() => {}}
-        onSelect={() => {}}
-        flipped={false}
-        busy={false}
-      />,
-    );
-    expect(html).toContain('Lancer Pénombre');
   });
 
   it('journal, fiche et pastille du statut invisible', () => {

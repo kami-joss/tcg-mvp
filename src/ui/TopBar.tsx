@@ -1,5 +1,6 @@
-// Barre du haut, aussi fine que possible : le tour, puis la vue du plateau, les stats des jetons (lot 6), le zoom, le son, la nouvelle partie
-// (retour à l'accueil) et « Fin du tour » (handoff, lots 3 à 5). Les encarts des joueurs (SPEC.md §7) sont dans les colonnes (`PlayerBox`).
+// Barre du haut, aussi fine que possible : le tour, puis la vue du plateau, les stats des jetons (lot 6), le zoom, le son et la nouvelle
+// partie (retour à l'accueil). « Fin du tour » est en haut de la colonne de droite, au-dessus du grimoire (lot 11) ; les encarts des
+// joueurs (SPEC.md §7) sont dans les colonnes (`PlayerBox`).
 import { useState } from 'react';
 import type { PlayerView } from '../engine';
 import { Icon } from './Icon';
@@ -9,8 +10,6 @@ import type { BoardView, TokenStats } from './settings';
 
 interface TopBarProps {
   view: PlayerView;
-  /** Une animation se joue : « Fin du tour » attend. */
-  busy: boolean;
   boardView: BoardView;
   /** La vue isométrique existe pour ce plateau. */
   isoAvailable: boolean;
@@ -23,7 +22,6 @@ interface TopBarProps {
   onZoom: (zoom: number) => void;
   sound: boolean;
   onSound: (on: boolean) => void;
-  onEndTurn: () => void;
   /** Retour à l'accueil, pour régler une nouvelle partie. */
   onHome: () => void;
 }
@@ -35,9 +33,7 @@ const VIEWS: [BoardView, string][] = [
 ];
 
 export function TopBar(props: TopBarProps) {
-  const { view, busy, boardView, isoAvailable, onView, stats, onStats, peek, onPeek, zoom, onZoom, sound, onSound } = props;
-  const { onEndTurn, onHome } = props;
-  const myTurn = view.activePlayer === view.viewer && view.winner === null;
+  const { view, boardView, isoAvailable, onView, stats, onStats, peek, onPeek, zoom, onZoom, sound, onSound, onHome } = props;
   const zoomIndex = ZOOMS.indexOf(zoom);
   return (
     <header className="topbar">
@@ -78,9 +74,6 @@ export function TopBar(props: TopBarProps) {
           Son
         </button>
         <NewGameButton confirm={view.winner === null} onHome={onHome} />
-        <button type="button" className="btn btn--end-turn" disabled={!myTurn || busy} onClick={onEndTurn}>
-          Fin du tour
-        </button>
       </div>
     </header>
   );

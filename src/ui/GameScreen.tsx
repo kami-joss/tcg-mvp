@@ -2,31 +2,37 @@
 // Après chaque action, il rejoue en animation les événements de la vue (handoff, lot 2) : pendant la lecture, l'écran
 // montre un état intermédiaire et les clics sont bloqués ; à la fin, il reprend la vraie vue. Les sons (lot 4) suivent
 // la même file d'événements ; sans animation, chaque événement joue seulement son son.
-// Mise en page : l'écran occupe toute la hauteur de la fenêtre et ne défile jamais ; ce sont les colonnes qui défilent.
-// À gauche, l'adversaire, la fiche et le journal ; au centre, le bandeau et le plateau, ajusté à sa zone ;
-// à droite, le grimoire (3, 2 ou 1 carte par ligne, ou liste : la colonne s'élargit en conséquence) et, dessous,
-// l'encart du joueur qui regarde.
+// Mise en page (handoff V10, lot 11) : l'écran occupe toute la hauteur de la fenêtre et ne défile jamais ; ce sont les
+// colonnes qui défilent. À gauche, l'adversaire, la fiche et le journal ; au centre, le plateau, ajusté à sa zone, et
+// l'aide dessous quand elle est ouverte ; à droite, « Aide » et « Fin du tour », le grimoire (3, 2 ou 1 carte par ligne,
+// ou liste : la colonne s'élargit en conséquence) et, dessous, l'encart du joueur qui regarde.
+// Les choix passent par la bulle d'action (`ActionBubble`) : attaque d'une cible, effets (clic droit sur son monstre),
+// carte du grimoire (clic droit : l'invoquer, la lancer, la poser), choix en plusieurs temps. Échap annule.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { flushSync } from 'react-dom';
 import type { Action, CardId, GameEvent, PlayerId, PlayerView, Position } from '../engine';
 import type { Setup } from './session';
+import { ActionBubble } from './ActionBubble';
 import { ActionLog } from './ActionLog';
-import { boardArt } from './art';
 import { Board } from './Board';
+import { bubbleBack, getBubble } from './bubble';
+import type { BubbleRow } from './bubble';
 import { applyEvent } from './fx/patch';
 import { playEvents } from './fx/player';
 import { GRIMOIRE_DISPLAY, Grimoire } from './Grimoire';
-import { GuideBanner } from './GuideBanner';
 import { HoverSheet, SheetPlaceholder } from './HoverSheet';
 import {
   NO_SELECTION,
   clickCard,
   clickCell,
+  contextCard,
+  contextCell,
   getAttackPreviews,
   getHighlights,
   getPathPreview,
   getReach,
+  isBubble,
   isFocused,
   posKey,
   selectedUnitId,
@@ -80,7 +86,8 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
   focusRef.current = focus;
   const focusTimer = useRef<number | undefined>(undefined);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [showArt, setShowArt] = useState(true);
+  /** Trajet montré au survol d'une ligne de la bulle (« Attaquer et avancer »), pour la sélection où il a été montré. */
+  const [bubblePath, setBubblePath] = useState<{ selection: Selection; path: readonly Position[] } | null>(null);
   const [settings, setSettings] = useState<DisplaySettings>(loadSettings);
   /** Alt (ou le bouton œil) maintenu : toutes les stats sur les jetons (lot 6). */
   const [peek, setPeek] = useState(false);
@@ -90,6 +97,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
   const played = useRef<PlayerView | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const layerRef = useRef<HTMLDivElement>(null);
+  const legendRef = useRef<HTMLDivElement>(null);
 
   const busy = shown !== null;
   const display = shown ?? view;
@@ -102,18 +110,31 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
   const animated = settings.animations && !prefersReducedMotion();
 
   const hovered = hover?.subject.kind === 'cell' ? hover.subject.pos : null;
-  const activeSelection = busy ? NO_SELECTION : selection;
+  // Bulle d'action : pendant une animation, aucune ; une sélection de bulle qui n'a plus rien à proposer est oubliée.
+  const bubble = useMemo(() => (busy ? null : getBubble(view, selection, flipped)), [busy, view, selection, flipped]);
+  const activeSelection = busy || (isBubble(selection) && !bubble) ? NO_SELECTION : selection;
   const highlights = useMemo(() => getHighlights(display, activeSelection), [display, activeSelection]);
   const attacks = useMemo(() => getAttackPreviews(display, activeSelection), [display, activeSelection]);
+  // Bulle ouverte : ni portée adverse ni chemin sous la souris, seulement le trajet de la ligne survolée.
   const reach = useMemo(() => {
+    if (bubble) return new Map<string, 'move' | 'strike'>();
     const threat = getReach(display, activeSelection, hovered);
     return new Map<string, 'move' | 'strike'>([
       ...threat.moves.map((pos) => [posKey(pos), 'move'] as const),
       ...threat.strikes.map((pos) => [posKey(pos), 'strike'] as const),
     ]);
-  }, [display, activeSelection, hovered]);
-  const path = useMemo(() => getPathPreview(display, activeSelection, hovered), [display, activeSelection, hovered]);
+  }, [bubble, display, activeSelection, hovered]);
+  const path = useMemo(
+    () =>
+      bubble
+        ? bubblePath?.selection === activeSelection
+          ? bubblePath.path
+          : []
+        : getPathPreview(display, activeSelection, hovered),
+    [bubble, bubblePath, display, activeSelection, hovered],
+  );
   const sheet = focus ? getSheet(display, focus) : null;
+  const myTurn = view.activePlayer === view.viewer && view.winner === null;
 
   const changeSettings = (patch: Partial<DisplaySettings>) =>
     setSettings((current) => {
@@ -152,15 +173,69 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
     winner.current = view.winner;
   }, [view.winner]);
 
+  // Clavier : Échap annule (dans la bulle : retour depuis une sous-vue, sinon fermer) ; Retour arrière revient en arrière
+  // dans la bulle ; 1 à 9 choisissent une de ses lignes.
+  const bubbleRef = useRef(bubble);
+  bubbleRef.current = bubble;
+  const pickRef = useRef<(row: BubbleRow) => void>(() => {});
   useEffect(() => {
-    const cancelOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      setSelection(NO_SELECTION);
-      setHelpOpen(false);
+    const onKey = (event: KeyboardEvent) => {
+      const model = bubbleRef.current;
+      const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
+      // Une case cliquée garde le focus : un raccourci ne doit pas y faire apparaître le contour du clavier.
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active.dataset.cell && /^(Escape|Backspace|[1-9])$/.test(event.key)) active.blur();
+      if (event.key === 'Escape') {
+        if (model) {
+          setSelection(bubbleBack(model) ?? NO_SELECTION);
+          return;
+        }
+        setSelection(NO_SELECTION);
+        setHelpOpen(false);
+        return;
+      }
+      if (!model || typing || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.key === 'Backspace') {
+        const back = bubbleBack(model);
+        if (back) {
+          event.preventDefault();
+          setSelection(back);
+        }
+        return;
+      }
+      if (/^[1-9]$/.test(event.key)) {
+        const row = model.rows[Number(event.key) - 1];
+        if (row?.enabled) {
+          event.preventDefault();
+          pickRef.current(row);
+        }
+      }
     };
-    window.addEventListener('keydown', cancelOnEscape);
-    return () => window.removeEventListener('keydown', cancelOnEscape);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // Bulle ouverte : un clic hors d'elle et du plateau la ferme (et désélectionne). Sur le plateau, c'est `clickCell`
+  // (ou le clic droit) qui décide : la déplacer sur une autre cible, ou la fermer.
+  const bubbleOpen = bubble !== null;
+  useEffect(() => {
+    if (!bubbleOpen) return;
+    const close = (event: PointerEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest('.bubble, [data-cell]')) return;
+      setSelection(NO_SELECTION);
+    };
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [bubbleOpen]);
+
+  // L'aide s'ouvre sous le plateau, qui ne rétrécit pas : la colonne défile pour la montrer sur la moitié basse.
+  useEffect(() => {
+    const legend = legendRef.current;
+    const column = legend?.parentElement;
+    if (!helpOpen || !legend || !column) return;
+    column.scrollTo({ top: Math.max(0, legend.offsetTop - column.clientHeight * 0.45), behavior: 'smooth' });
+  }, [helpOpen]);
 
   // Alt maintenu : toutes les stats ; relâcher, ou quitter la fenêtre, revient au choix du joueur.
   useEffect(() => {
@@ -252,18 +327,41 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
     setHover((current) => (current?.subject.kind === 'card' ? null : current));
     onAction(action);
   };
+  /** Changer de sélection ; ouvrir une bulle (ou la déplacer sur une autre cible) fait le son de sélection. */
+  const select = (next: Selection) => {
+    if (isBubble(next) && getBubble(view, next, flipped) && JSON.stringify(next) !== JSON.stringify(selection)) sfx('select');
+    setSelection(next);
+  };
   const handleCellClick = (pos: Position) => {
     const subject = subjectAt(display, pos);
     if (subject.kind === 'unit') focusNow(subject);
     if (busy) return;
-    const result = clickCell(view, selection, pos);
+    const result = clickCell(view, activeSelection, pos);
     if ('action' in result) play(result.action);
-    else setSelection(result.selection);
+    else select(result.selection);
+  };
+  const handleCellContextMenu = (pos: Position) => {
+    if (busy) return;
+    const next = contextCell(view, activeSelection, pos);
+    const subject = subjectAt(display, pos);
+    if (next.kind === 'effects' && subject.kind === 'unit') focusNow(subject);
+    select(next);
+  };
+  const pickRow = (row: BubbleRow) => {
+    if (busy || !row.enabled || !row.pick) return;
+    if ('action' in row.pick) play(row.pick.action);
+    else select(row.pick.selection);
+  };
+  pickRef.current = pickRow;
+  const endTurn = () => {
+    sfx('ui');
+    focusNow(null);
+    play({ type: 'endTurn' });
   };
   const handleCardClick = (cardId: CardId) => {
     focusNow({ kind: 'card', cardId });
     if (busy) return;
-    const next = clickCard(view, selection, cardId);
+    const next = clickCard(view, activeSelection, cardId);
     if (next.kind === 'card' && !(selection.kind === 'card' && selection.cardId === next.cardId)) sfx('select');
     setSelection(next);
   };
@@ -271,11 +369,20 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
     setHover(pos && rect ? { subject: { kind: 'cell', pos }, rect } : null);
     aimAt(pos ? subjectAt(display, pos) : null);
   };
+  /** Clic droit sur une carte du grimoire : sa bulle (l'invoquer, la lancer ou la poser). */
+  const handleCardContextMenu = (cardId: CardId) => {
+    focusNow({ kind: 'card', cardId });
+    if (busy) return;
+    select(contextCard(view, cardId));
+  };
   const handleCardHover = (cardId: CardId | null, rect?: DOMRect) => {
     setHover(cardId && rect ? { subject: { kind: 'card', cardId }, rect } : null);
     aimAt(cardId ? { kind: 'card', cardId } : null);
   };
-  const selectedCard = activeSelection.kind === 'card' || activeSelection.kind === 'push' ? activeSelection.cardId : null;
+  const selectedCard =
+    activeSelection.kind === 'card' || activeSelection.kind === 'cardMenu' || activeSelection.kind === 'push'
+      ? activeSelection.cardId
+      : null;
   const opponent: PlayerId = display.viewer === 1 ? 2 : 1;
 
   const classes = ['game', animated && 'game--anim', busy && 'is-busy'].filter(Boolean).join(' ');
@@ -284,7 +391,6 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
     <div className={classes} ref={rootRef} style={layout}>
       <TopBar
         view={display}
-        busy={busy}
         boardView={mode}
         isoAvailable={isoAvailable}
         onView={(next) => changeSettings({ view: next })}
@@ -302,11 +408,6 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
             sfx('ui');
           }
         }}
-        onEndTurn={() => {
-          sfx('ui');
-          focusNow(null);
-          play({ type: 'endTurn' });
-        }}
         onHome={onHome}
       />
 
@@ -318,41 +419,43 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
           <ActionLog entries={log} opponentUsed={display.opponent.used} />
         </aside>
 
+        {/* Colonne centrale : le plateau garde sa taille ; l'aide s'ouvre dessous, la colonne défile. */}
         <main className="game__play">
-          <GuideBanner
-            view={display}
-            selection={activeSelection}
-            highlights={highlights}
-            helpOpen={helpOpen}
-            onToggleHelp={() => setHelpOpen((open) => !open)}
-            onToggleArt={boardArt(view.board) ? () => setShowArt((show) => !show) : null}
-            onAction={play}
-            onSelect={(next) => !busy && setSelection(next)}
-            flipped={flipped}
-            busy={busy}
-          />
           <Board
             view={display}
             highlights={highlights}
             attacks={attacks}
             selectedUnitId={selectedUnitId(activeSelection)}
-            focusedUnitId={focus?.kind === 'unit' ? focus.unitId : null}
+            anchor={bubble?.anchor ?? null}
             focused={isFocused(activeSelection)}
             path={path}
             reach={reach}
-            showArt={showArt}
+            showArt
             mode={mode}
             zoom={settings.zoom}
             animated={animated}
             flipped={flipped}
             stats={peek ? ALL_TOKEN_STATS : settings.tokenStats}
             onCellClick={handleCellClick}
+            onCellContextMenu={handleCellContextMenu}
             onCellHover={handleCellHover}
           />
-          {helpOpen && <Legend settings={settings} onChange={changeSettings} onClose={() => setHelpOpen(false)} />}
+          {helpOpen && (
+            <div ref={legendRef} className="game__legend">
+              <Legend settings={settings} onChange={changeSettings} onClose={() => setHelpOpen(false)} />
+            </div>
+          )}
         </main>
 
         <aside className="game__side">
+          <div className="side-actions">
+            <button type="button" className="btn btn--ghost btn--help" aria-pressed={helpOpen} onClick={() => setHelpOpen((open) => !open)}>
+              Aide
+            </button>
+            <button type="button" className="btn btn--end-turn" disabled={!myTurn || busy} onClick={endTurn}>
+              Fin du tour
+            </button>
+          </div>
           <Grimoire
             view={display}
             selectedCard={selectedCard}
@@ -360,12 +463,23 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
             layout={settings.grimoireLayout}
             onLayout={(grimoireLayout) => changeSettings({ grimoireLayout })}
             onCardClick={handleCardClick}
+            onCardContextMenu={handleCardContextMenu}
             onCardHover={handleCardHover}
           />
           <PlayerBox view={display} player={display.viewer} deckName={setup.decks[display.viewer].name} />
         </aside>
       </div>
 
+      {bubble && (
+        <ActionBubble
+          model={bubble}
+          layoutKey={`${mode}|${settings.zoom}|${flipped}|${settings.grimoireLayout}`}
+          onPick={pickRow}
+          onBack={() => setSelection(bubbleBack(bubble) ?? NO_SELECTION)}
+          onClose={() => setSelection(NO_SELECTION)}
+          onHoverPath={(hoverPath) => setBubblePath(hoverPath ? { selection: activeSelection, path: hoverPath } : null)}
+        />
+      )}
       {!busy && <VictoryOverlay view={view} onRestart={onRestart} onHome={onHome} />}
       <div className="fx-stage" ref={layerRef} aria-hidden="true" />
     </div>

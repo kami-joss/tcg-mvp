@@ -70,9 +70,10 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
     }
   });
 
-  it('zoom par paliers de 25 %, de 100 à 200 %', () => {
-    expect(ZOOMS).toEqual([1, 1.25, 1.5, 1.75, 2]);
-    expect(stepZoom(1, -1)).toBe(1);
+  it('zoom par paliers, de 50 à 200 % (lot 11)', () => {
+    expect(ZOOMS).toEqual([0.5, 0.65, 0.8, 1, 1.25, 1.5, 1.75, 2]);
+    expect(stepZoom(1, -1)).toBe(0.8);
+    expect(stepZoom(0.5, -1)).toBe(0.5);
     expect(stepZoom(1.75, 1)).toBe(2);
     expect(stepZoom(2, 1)).toBe(2);
   });

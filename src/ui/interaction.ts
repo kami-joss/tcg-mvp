@@ -23,20 +23,42 @@ export type Selection =
   | { readonly kind: 'unit'; readonly unitId: UnitId; readonly mode: 'act' | 'effect' }
   /** Une carte de son grimoire, en attente de sa cible. */
   | { readonly kind: 'card'; readonly cardId: CardId }
-  /** Bourrasque : la cible est choisie, reste la direction. */
+  /** Bulle d'une carte du grimoire (clic droit) : l'invoquer, la lancer ou la poser. */
+  | { readonly kind: 'cardMenu'; readonly cardId: CardId }
+  /** Bourrasque : la cible est choisie, reste la direction (dans la bulle). */
   | { readonly kind: 'push'; readonly cardId: CardId; readonly unitId: UnitId }
-  /** Attaque qui détruit sa cible au contact : avancer ou non. */
-  | { readonly kind: 'advance'; readonly unitId: UnitId; readonly targetId: UnitId }
-  /** Invocateur : la case est choisie, reste le monstre à invoquer. */
+  /**
+   * Bulle d'action sur une cible à portée (handoff V10, lot 11) : attaquer, attaquer et avancer, ou ses effets (`page`
+   * « effets », puis le choix d'une carte d'évolution).
+   */
+  | { readonly kind: 'attack'; readonly unitId: UnitId; readonly targetId: UnitId; readonly page: BubblePage }
+  /** Bulle de ses effets (clic droit sur son monstre). */
+  | { readonly kind: 'effects'; readonly unitId: UnitId; readonly page: Exclude<BubblePage, 'main'> }
+  /** Invocateur : la case est choisie, reste le monstre à invoquer (dans la bulle). */
   | { readonly kind: 'summonAt'; readonly unitId: UnitId; readonly pos: Position }
   /** Téléporteur : l'allié est choisi, reste la case où le poser. */
   | { readonly kind: 'teleport'; readonly unitId: UnitId; readonly targetId: UnitId }
-  /** Zone en ligne avec un recul au choix (Vent violent) : la direction est choisie, reste la distance. */
+  /** Zone en ligne avec un recul au choix (Vent violent) : la direction est choisie, reste la distance (dans la bulle). */
   | { readonly kind: 'areaDirection'; readonly unitId: UnitId; readonly direction: Direction }
   /** Unité affichée pour information seulement (adverse, terrain, ou hors de son tour). */
   | { readonly kind: 'inspect'; readonly unitId: UnitId };
 
 export const NO_SELECTION: Selection = { kind: 'none' };
+
+/** Pages de la bulle d'action : ses actions sur la cible, ses effets, le choix d'une carte d'évolution. */
+export type BubblePage = 'main' | 'effects' | 'evolve';
+
+/** La sélection s'affiche dans une bulle : le plateau ne fait que la fermer (ou la déplacer sur une autre cible). */
+export function isBubble(selection: Selection): boolean {
+  return (
+    selection.kind === 'attack' ||
+    selection.kind === 'effects' ||
+    selection.kind === 'cardMenu' ||
+    selection.kind === 'push' ||
+    selection.kind === 'summonAt' ||
+    selection.kind === 'areaDirection'
+  );
+}
 
 export type Highlight = 'move' | 'attack' | 'effect' | 'target';
 
@@ -112,12 +134,14 @@ export function selectedUnitId(selection: Selection): UnitId | null {
     case 'unit':
     case 'inspect':
     case 'push':
-    case 'advance':
+    case 'attack':
+    case 'effects':
     case 'summonAt':
     case 'teleport':
     case 'areaDirection':
       return selection.unitId;
     case 'card':
+    case 'cardMenu':
     case 'none':
       return null;
   }
@@ -150,7 +174,7 @@ export function getHighlights(view: PlayerView, selection: Selection): Map<strin
     case 'push':
       mark(unitPos(view, selection.unitId), 'target');
       break;
-    case 'advance':
+    case 'attack':
       mark(unitPos(view, selection.targetId), 'attack');
       break;
     case 'summonAt':
@@ -165,23 +189,38 @@ export function getHighlights(view: PlayerView, selection: Selection): Map<strin
       break;
     case 'none':
     case 'inspect':
+    case 'effects':
+    case 'cardMenu':
       break;
   }
   return highlights;
 }
 
+/** Cible que `unitId` peut attaquer sur cette case. */
+function attackTargetAt(view: PlayerView, unitId: UnitId, pos: Position): UnitId | undefined {
+  return actionsOf(view, 'attack').find((a) => a.unitId === unitId && samePos(unitPos(view, a.targetId) ?? { row: -1, col: -1 }, pos))
+    ?.targetId;
+}
+
 export function clickCell(view: PlayerView, selection: Selection, pos: Position): ClickResult {
   const isHere = (target: Position | undefined) => target !== undefined && samePos(target, pos);
+
+  // Bulle ouverte : le plateau ne déplace ni ne sélectionne rien. Un clic sur une autre cible de l'attaquant y déplace
+  // la bulle ; tout autre clic la ferme, et désélectionne (sinon les cases de déplacement reviendraient sous la souris).
+  if (isBubble(selection)) {
+    const other = selection.kind === 'attack' ? attackTargetAt(view, selection.unitId, pos) : undefined;
+    if (selection.kind === 'attack' && other && other !== selection.targetId) {
+      return { selection: { kind: 'attack', unitId: selection.unitId, targetId: other, page: 'main' } };
+    }
+    return { selection: NO_SELECTION };
+  }
 
   if (selection.kind === 'unit' && selection.mode === 'act') {
     const move = actionsOf(view, 'move').find((a) => a.unitId === selection.unitId && isHere(a.to));
     if (move) return { action: move };
-    const attacks = actionsOf(view, 'attack').filter(
-      (a) => a.unitId === selection.unitId && isHere(unitPos(view, a.targetId)),
-    );
-    // Deux variantes de la même attaque : avec et sans avancée. Il faut demander.
-    if (attacks.length > 1) return { selection: { kind: 'advance', unitId: selection.unitId, targetId: attacks[0]!.targetId } };
-    if (attacks[0]) return { action: attacks[0] };
+    // Une cible à portée : la bulle d'action s'ouvre au-dessus d'elle, l'attaque n'est jamais immédiate.
+    const target = attackTargetAt(view, selection.unitId, pos);
+    if (target) return { selection: { kind: 'attack', unitId: selection.unitId, targetId: target, page: 'main' } };
   }
 
   if (selection.kind === 'teleport') {
@@ -191,20 +230,20 @@ export function clickCell(view: PlayerView, selection: Selection, pos: Position)
     if (teleport) return { action: teleport };
   }
 
-  if (selection.kind === 'summonAt' || selection.kind === 'teleport' || (selection.kind === 'unit' && selection.mode === 'effect')) {
+  if (selection.kind === 'teleport' || (selection.kind === 'unit' && selection.mode === 'effect')) {
     const here = getEffectActions(view, selection.unitId).filter((a) => isHere(effectTargetPos(view, a)));
-    // Invocation : la case est choisie, le monstre se choisit dans le bandeau.
+    // Invocation : la case est choisie, le monstre se choisit dans la bulle.
     if (here[0]?.target.kind === 'cellAndCard') return { selection: { kind: 'summonAt', unitId: selection.unitId, pos } };
     // Téléportation : l'allié est choisi, la case se choisit ensuite sur le plateau.
     const ally = here[0]?.target.kind === 'unitAndCell' ? here[0].target.unitId : null;
     if (ally) return { selection: { kind: 'teleport', unitId: selection.unitId, targetId: ally } };
   }
 
-  if ((selection.kind === 'unit' && selection.mode === 'effect') || selection.kind === 'areaDirection') {
+  if (selection.kind === 'unit' && selection.mode === 'effect') {
     const effect = getEffectActions(view, selection.unitId).find((a) => isHere(effectTargetPos(view, a)));
     if (effect) return { action: effect };
     // Effet de zone : un clic sur la zone le lance, s'il n'y a plus rien à choisir. En ligne, le clic choisit d'abord
-    // la direction de la ligne cliquée ; s'il reste une distance de recul à choisir, elle se choisit dans le bandeau.
+    // la direction de la ligne cliquée ; s'il reste une distance de recul à choisir, elle se choisit dans la bulle.
     if (getEffectArea(view, selection.unitId).some(isHere)) {
       const direction = areaDirectionAt(view, selection.unitId, pos);
       const area = getEffectActions(view, selection.unitId).filter((a) => a.target.kind === 'area' && a.target.direction === direction);
@@ -228,6 +267,17 @@ export function clickCell(view: PlayerView, selection: Selection, pos: Position)
   return { selection: selectAt(view, selection, pos) };
 }
 
+/**
+ * Clic droit (handoff V10, lot 11) : sur un de ses monstres, à son tour, la bulle de ses effets s'ouvre au-dessus de lui ;
+ * ailleurs, il ferme la bulle ouverte (et ne change rien sinon).
+ */
+export function contextCell(view: PlayerView, selection: Selection, pos: Position): Selection {
+  const monster = getUnitsAt(view, pos).find((u) => u.kind === 'monster');
+  const canAct = view.activePlayer === view.viewer && view.winner === null;
+  if (monster && monster.owner === view.viewer && canAct) return { kind: 'effects', unitId: monster.id, page: 'effects' };
+  return isBubble(selection) ? NO_SELECTION : selection;
+}
+
 /** Sélection après un clic qui ne joue rien : un de ses monstres, une unité à consulter, ou rien. */
 function selectAt(view: PlayerView, current: Selection, pos: Position): Selection {
   const units = getUnitsAt(view, pos);
@@ -241,6 +291,11 @@ function selectAt(view: PlayerView, current: Selection, pos: Position): Selectio
 
 export function canPlay(view: PlayerView, cardId: CardId): boolean {
   return actionsOf(view, 'playCard').some((a) => a.cardId === cardId);
+}
+
+/** Clic droit sur une carte de son grimoire : sa bulle (l'invoquer, la lancer ou la poser, ou pourquoi pas). */
+export function contextCard(view: PlayerView, cardId: CardId): Selection {
+  return view.me.grimoire.includes(cardId) ? { kind: 'cardMenu', cardId } : NO_SELECTION;
 }
 
 /** Cliquer une carte jouable la sélectionne ; la recliquer la désélectionne. */
@@ -267,17 +322,6 @@ export function getTeleportCells(view: PlayerView, selection: Selection): Positi
   return getEffectActions(view, selection.unitId).flatMap((action) =>
     action.target.kind === 'unitAndCell' && action.target.unitId === selection.targetId ? [action.target.pos] : [],
   );
-}
-
-/** Les deux variantes d'une attaque létale au contact, pour la sélection `advance`. */
-export function getAdvanceChoices(view: PlayerView, selection: Selection): { advance: Action; stay: Action } | null {
-  if (selection.kind !== 'advance') return null;
-  const attacks = actionsOf(view, 'attack').filter(
-    (a) => a.unitId === selection.unitId && a.targetId === selection.targetId,
-  );
-  const advance = attacks.find((a) => a.advance);
-  const stay = attacks.find((a) => !a.advance);
-  return advance && stay ? { advance, stay } : null;
 }
 
 export interface PushChoice {
@@ -368,13 +412,13 @@ export interface AttackPreview {
 
 export function getAttackPreviews(view: PlayerView, selection: Selection): Map<string, AttackPreview> {
   const previews = new Map<string, AttackPreview>();
-  const unitId = selection.kind === 'unit' && selection.mode === 'act' ? selection.unitId : selection.kind === 'advance' ? selection.unitId : null;
+  const unitId = selection.kind === 'unit' && selection.mode === 'act' ? selection.unitId : selection.kind === 'attack' ? selection.unitId : null;
   const attacker = unitId ? view.units[unitId] : undefined;
   if (attacker?.kind !== 'monster') return previews;
   for (const action of actionsOf(view, 'attack')) {
     const target = view.units[action.targetId];
     if (action.unitId !== attacker.id || !target) continue;
-    if (selection.kind === 'advance' && target.id !== selection.targetId) continue;
+    if (selection.kind === 'attack' && target.id !== selection.targetId) continue;
     const behind = hitsFromBehind(attacker, target);
     previews.set(posKey(target.pos), { damage: attackDamage(view, attacker, target), behind });
   }
@@ -387,7 +431,8 @@ export function isFocused(selection: Selection): boolean {
     selection.kind === 'unit' ||
     selection.kind === 'card' ||
     selection.kind === 'push' ||
-    selection.kind === 'advance' ||
+    selection.kind === 'attack' ||
+    selection.kind === 'effects' ||
     selection.kind === 'summonAt' ||
     selection.kind === 'teleport' ||
     selection.kind === 'areaDirection'

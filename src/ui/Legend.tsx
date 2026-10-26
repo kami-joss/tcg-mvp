@@ -1,4 +1,5 @@
-// Aide, par-dessus le bas du plateau (l'écran ne défile pas) : réglages, qui est qui, obstacles, icônes et surbrillances.
+// Aide, sous le plateau (la colonne centrale défile, le plateau ne rétrécit pas) : réglages, commandes, qui est qui,
+// obstacles, icônes et surbrillances.
 import { Icon } from './Icon';
 import type { IconName } from './Icon';
 import type { DisplaySettings } from './settings';
@@ -54,6 +55,14 @@ export function Legend({ settings, onChange, onClose }: LegendProps) {
             onChange={(e) => onChange({ volume: Number(e.target.value) })}
           />
         </label>
+      </div>
+      <div className="legend__group">
+        <h3>Commandes</h3>
+        <p>Clic sur ton monstre : ses déplacements (turquoise) et ses cibles (cadre blanc).</p>
+        <p>Clic sur une cible : la bulle d’action (attaquer, attaquer et avancer, effets). Touches 1 à 9 pour choisir.</p>
+        <p>Clic droit sur ton monstre : ses effets actifs.</p>
+        <p>Clic droit sur une carte du grimoire : l’invoquer, la lancer ou la poser (ou un clic gauche, puis la case dorée).</p>
+        <p>Échap : retour, ou annuler · Alt : toutes les stats.</p>
       </div>
       <div className="legend__group">
         <h3>Qui est qui</h3>

@@ -604,75 +604,42 @@ select {
   min-height: 0;
 }
 
-/* --- Bandeau guide --- */
+/* Colonne centrale (lot 11) : le plateau garde la hauteur de la colonne ; l'aide s'ouvre dessous et la colonne défile. */
+.game__play {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.45 0.014 60) transparent;
+}
 
-.guide {
-  --tone: var(--select);
+.game__legend {
+  flex: none;
+}
+
+/* Haut de la colonne de droite : « Aide » (fantôme) et « Fin du tour » (doré, poussé à droite). */
+.side-actions {
+  flex: none;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px 14px;
-  flex: none;
-  min-height: 54px;
-  padding: 8px 14px;
-  border-radius: 12px;
-  background: var(--panel);
-  box-shadow: inset 3px 0 0 var(--tone);
-}
-
-.guide--p1 {
-  --tone: var(--j1);
-}
-
-.guide--p2 {
-  --tone: var(--j2);
-}
-
-.guide--effect {
-  --tone: oklch(0.6 0.15 300);
-}
-
-.guide--card {
-  --tone: oklch(0.86 0.14 90);
-}
-
-.guide--gold {
-  --tone: var(--gold);
-}
-
-.guide__dot {
-  flex: none;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--tone);
-  box-shadow: 0 0 0 4px color-mix(in oklch, var(--tone) 25%, transparent);
-}
-
-.guide__body {
-  flex: 1 1 260px;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.guide__title {
-  font: 800 17px/1.2 var(--font);
-}
-
-.guide__text {
-  font-size: 14px;
-  color: oklch(0.8 0.015 80);
-  text-wrap: pretty;
-}
-
-.guide__buttons {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
   gap: 8px;
+}
+
+.side-actions .btn--help {
+  box-shadow: inset 0 0 0 1.5px oklch(0.45 0.014 60);
+}
+
+.side-actions .btn--help[aria-pressed='true'] {
+  background: oklch(1 0 0 / 0.08);
+  box-shadow: inset 0 0 0 1.5px oklch(0.82 0.13 85 / 0.85);
+}
+
+.side-actions .btn--end-turn {
   margin-left: auto;
+  padding: 9px 20px;
+  border-radius: 9px;
+  font-size: 15px;
+  box-shadow: inset 0 -2px 0 oklch(0.6 0.12 75);
 }
 
 /* --- Plateau --- */
@@ -764,9 +731,9 @@ select {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: calc(var(--cell) * 0.56);
-  height: calc(var(--cell) * 0.56);
-  transform: translate(-50%, calc(-50% + var(--cell) * 0.324));
+  width: calc(min(var(--cell), 84px) * 0.56);
+  height: calc(min(var(--cell), 84px) * 0.56);
+  transform: translate(-50%, calc(-50% + min(var(--cell), 84px) * 0.324));
   border-radius: 50%;
   background: radial-gradient(closest-side, oklch(0 0 0 / 0.5), oklch(0 0 0 / 0.2) 60%, transparent);
   pointer-events: none;
@@ -1081,8 +1048,10 @@ select {
 }
 
 /*
- * Unité montrée par la fiche (lot 9) : un peu plus grosse. La propriété `scale` (pas `transform`, déjà pris par
- * l'orientation, le redressement et les animations).
+ * Survol (lot 11) : le jeton survolé grossit (goutte et stats ×1,4), seulement tant que la souris est sur sa case, et
+ * passe devant ses voisins : z-index 40 en vue de dessus ; en vues 3D, où preserve-3d ignore le z-index, son support
+ * avance vers la caméra (plus bas). La propriété `scale` (pas `transform`, déjà pris par l'orientation, le redressement
+ * et les animations). Jamais sous la bulle d'action (`is-anchor`) : elle se place en mesurant le jeton.
  */
 .plaque,
 .token__frame,
@@ -1090,20 +1059,24 @@ select {
   transition: scale 0.2s cubic-bezier(0.3, 1.5, 0.5, 1);
 }
 
-.plaque.is-focus {
+.board:not(.board--tilt, .board--iso) .cell:hover:not(.is-anchor) {
+  z-index: 40;
+}
+
+.cell:hover:not(.is-anchor) .plaque.is-alone {
   scale: 1.15;
 }
 
-.token.is-focus {
-  z-index: 4;
-}
-
-.token.is-focus .token__frame {
+.cell:hover:not(.is-anchor) .token__frame {
   scale: 1.4;
 }
 
-.crest.is-focus .crest__body {
+.cell:hover:not(.is-anchor) .crest:not(.is-small) .crest__body {
   scale: 1.25;
+}
+
+.cell.is-anchor .token__frame {
+  transition: none;
 }
 
 .plaque__name {
@@ -1145,15 +1118,17 @@ select {
 }
 
 /*
- * Toutes les cotes du jeton suivent la case (`--k`) : celles de la maquette, en px pour une case de 68 px.
+ * Toutes les cotes du jeton suivent la case (`--k`) : celles de la maquette, en px pour une case de 68 px. Au-delà de
+ * 84 px, la case grandit seule (lot 11) : le jeton garde la taille d'une case de 84 px, centré (`--kd`).
  * `--ds` : taille de la goutte (40 px debout, 32 px en vue de dessus).
  */
 .token {
   --player: var(--j1);
-  --k: var(--cell);
+  --k: min(var(--cell), 84px);
+  --kd: calc((var(--cell) - var(--k)) / 2);
   --ds: calc(var(--k) * 0.47);
   position: absolute;
-  inset: calc(var(--k) * 0.1);
+  inset: calc(var(--kd) + var(--k) * 0.1);
   z-index: 3;
 }
 
@@ -1168,7 +1143,7 @@ select {
 }
 
 .token--on-zone {
-  inset: calc(var(--k) * 0.18) calc(var(--k) * 0.1) calc(var(--k) * 0.03);
+  inset: calc(var(--kd) + var(--k) * 0.18) calc(var(--kd) + var(--k) * 0.1) calc(var(--kd) + var(--k) * 0.03);
 }
 
 .token__stand,
@@ -1197,13 +1172,93 @@ select {
 }
 
 .board--tilt .token__stand {
-  transform: translateY(calc(var(--k) * 0.324)) rotateX(-45deg) translateY(calc(var(--k) * -0.397 * var(--stand, 1))) scale(var(--stand, 1));
+  transform: translateY(calc(var(--k) * 0.324)) rotateX(-45deg) translateZ(0) translateY(calc(var(--k) * -0.397 * var(--stand, 1))) scale(var(--stand, 1));
+}
+
+/* Survol en 3D (lot 11) : le support avance vers la caméra, juste après le redressement, sans transition à l'aller. */
+.board--tilt .cell:hover:not(.is-anchor) .token__stand {
+  transform: translateY(calc(var(--k) * 0.324)) rotateX(-45deg) translateZ(160px) translateY(calc(var(--k) * -0.397 * var(--stand, 1))) scale(var(--stand, 1));
+  transition: none;
 }
 
 .board--tilt .token__frame,
 .board--iso .token__frame {
   inset: calc(var(--k) * 0.45);
   pointer-events: auto;
+}
+
+/*
+ * Flèche d'orientation au bord de la case (lot 11) : un triangle du côté où le monstre regarde (orientation affichée,
+ * plateau retourné compris), à la couleur du joueur (grise quand il a fini), cerné de crème, sous le jeton.
+ */
+.facing {
+  --a: calc(min(var(--cell), 84px) * 0.235);
+  --player: var(--j1);
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  filter: drop-shadow(0 0 1px oklch(0.97 0.02 85)) drop-shadow(0 0 1px oklch(0.97 0.02 85));
+}
+
+.facing--p2 {
+  --player: var(--j2);
+}
+
+.facing.is-done {
+  --player: oklch(0.55 0.02 80);
+}
+
+.facing > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--player);
+}
+
+.facing--up,
+.facing--down {
+  left: calc(50% - var(--a) / 2);
+  width: var(--a);
+  height: calc(var(--a) / 2);
+}
+
+.facing--left,
+.facing--right {
+  top: calc(50% - var(--a) / 2);
+  width: calc(var(--a) / 2);
+  height: var(--a);
+}
+
+.facing--up {
+  top: 2px;
+}
+
+.facing--down {
+  bottom: 2px;
+}
+
+.facing--left {
+  left: 2px;
+}
+
+.facing--right {
+  right: 2px;
+}
+
+.facing--up > span {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.facing--down > span {
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.facing--left > span {
+  clip-path: polygon(0 50%, 100% 0, 100% 100%);
+}
+
+.facing--right > span {
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
 /* La goutte : en vue de dessus, un peu au-dessus du centre (les stats dessous) ; debout, posée en bas du jeton. */
@@ -1231,15 +1286,31 @@ select {
   filter: drop-shadow(0 2px 2px oklch(0 0 0 / 0.45));
 }
 
+/* Bord à la couleur du joueur, cerné de sombre (lot 11) : la pointe se détache mieux du sol. */
 .token__rim {
   fill: var(--player);
+  stroke: oklch(0.16 0.02 60);
+  stroke-width: 8;
+  stroke-linejoin: round;
+  paint-order: stroke;
 }
 
-/* Sélection : un halo jaune en goutte autour du jeton. */
+/*
+ * Sélection (lot 11) : un liseré fin en goutte autour du contour sombre, et un halo flou qui pulse (`haloPulse`).
+ * Le flou est un filtre SVG propre au jeton (Board.tsx).
+ */
 .token__halo {
-  fill: var(--select);
-  stroke: var(--select);
-  stroke-width: 22;
+  fill: oklch(0.88 0.15 88 / 0.9);
+  stroke: oklch(0.88 0.15 88 / 0.9);
+  stroke-width: 15;
+  stroke-linejoin: round;
+}
+
+.token__glow {
+  fill: none;
+  stroke: oklch(0.88 0.15 88);
+  stroke-opacity: 0.75;
+  stroke-width: 30;
   stroke-linejoin: round;
 }
 
@@ -1642,30 +1713,37 @@ select {
 }
 
 /*
- * --- Zone du plateau : elle prend toute la place libre de la colonne centrale ; la scène y est centrée et ajustée
- * (Board.tsx). Zoom (lot 5) : au-delà de 100 %, la zone défile, à la molette ou en la faisant glisser. ---
+ * --- Cadre du plateau (lot 11) : toute la hauteur de la colonne centrale, sans jamais rétrécir (l'aide s'ouvre dessous) ;
+ * la scène y est centrée et ajustée (Board.tsx). Il défile dès que la scène le dépasse (zoom, vue isométrique calée sur
+ * la largeur), à la molette ou en le faisant glisser. Il isole les z-index du plateau (jeton survolé à 40). ---
  */
 
 .board-viewport {
   position: relative;
-  flex: 1 1 0;
+  flex: none;
+  height: 100%;
   min-width: 0;
-  min-height: 0;
+  min-height: 240px;
   display: flex;
-  overflow: hidden;
+  overflow: auto;
+  isolation: isolate;
+  border-radius: 14px;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.45 0.014 60) transparent;
 }
 
-/* Marges automatiques plutôt que centrage : une scène plus grande que la zone reste accessible par le défilement. */
+/*
+ * Centrage « sûr » (justify-content: safe center) par marges automatiques : une scène plus grande que le cadre reste
+ * accessible par le défilement.
+ */
 .board-viewport > .scene {
+  flex: none;
   margin: auto;
 }
 
-.board-viewport.is-zoomed {
-  overflow: auto;
-  border-radius: 14px;
+.board-viewport.is-scrollable {
   cursor: grab;
-  overscroll-behavior: contain;
-  scrollbar-color: oklch(0.45 0.014 60) transparent;
 }
 
 .board-viewport.is-dragging {
@@ -1803,6 +1881,11 @@ select {
   transform: translate(19px, 19px) rotateZ(-45deg) rotateX(-54.7356deg) translateZ(10px) translateY(calc(-27px * var(--su))) scale(var(--su));
 }
 
+.board--iso .cell:hover:not(.is-anchor) .token__stand {
+  transform: translate(19px, 19px) rotateZ(-45deg) rotateX(-54.7356deg) translateZ(160px) translateY(calc(-27px * var(--su))) scale(var(--su));
+  transition: none;
+}
+
 .board--iso .token-shadow {
   transform: translate(calc(-50% + 19px), calc(-50% + 19px));
 }
@@ -1815,9 +1898,9 @@ select {
 
 .crest {
   --player: var(--j1);
-  --k: var(--cell);
+  --k: min(var(--cell), 84px);
   position: absolute;
-  inset: calc(var(--cell) * 0.1);
+  inset: calc((var(--cell) - var(--k)) / 2 + var(--k) * 0.1);
   z-index: 3;
   transform-style: preserve-3d;
 }
@@ -1926,7 +2009,7 @@ select {
   pointer-events: none;
 }
 
-/* Boucles du décor iso (arbres, herbes, eau, drapeaux, feu de la Forge). */
+/* Boucles du décor iso (arbres, herbes, eau, feu de la Forge). */
 @keyframes isoSway {
   0%,
   100% {
@@ -1994,16 +2077,6 @@ select {
   }
 }
 
-@keyframes isoFlag {
-  0%,
-  100% {
-    transform: skewY(0deg) scaleX(1);
-  }
-  50% {
-    transform: skewY(-9deg) scaleX(0.9);
-  }
-}
-
 @keyframes isoFlick {
   0% {
     transform: scale(1, 1);
@@ -2027,6 +2100,276 @@ select {
   }
 }
 
+/*
+ * --- Bulle d'action (lot 11) : au-dessus de la cible (ou de son monstre, au clic droit), en position fixe, sans
+ * animation. Elle remplace le bandeau guide : attaquer, attaquer et avancer, effets, et chaque choix en plusieurs temps.
+ */
+.bubble {
+  --bubble-bg: oklch(0.2 0.014 60);
+  --bubble-line: oklch(0.5 0.03 75);
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 60;
+  width: 256px;
+  max-width: calc(100vw - 16px);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 12px;
+  background: var(--bubble-bg);
+  box-shadow: 0 0 0 1.5px var(--bubble-line), 0 12px 28px oklch(0 0 0 / 0.5);
+  color: var(--paper);
+  font-family: var(--font);
+  text-align: left;
+}
+
+/* Pointe : un carré tourné de 45°, bordé sur ses deux côtés visibles, sur le centre du jeton. */
+.bubble__arrow {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: var(--bubble-bg);
+  border-right: 1.5px solid var(--bubble-line);
+  border-bottom: 1.5px solid var(--bubble-line);
+  pointer-events: none;
+}
+
+.bubble__head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  margin-bottom: 2px;
+  padding: 0 2px 6px 6px;
+  border-bottom: 1px solid oklch(1 0 0 / 0.1);
+}
+
+.bubble__head--page {
+  padding-left: 0;
+}
+
+.bubble__dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  box-shadow: 0 0 0 1.5px var(--paper);
+}
+
+.bubble__dot--p1 {
+  background: var(--j1);
+  border-radius: 50%;
+}
+
+.bubble__dot--p2 {
+  background: var(--j2);
+  border-radius: 1px;
+}
+
+.bubble__kind {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: oklch(0.3 0.016 60);
+  color: var(--paper);
+  font-size: 14px;
+}
+
+.bubble__name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font: 800 15px/1.2 var(--font);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* La note cède la place au nom : elle rétrécit d'abord (`flex-shrink` bien plus fort). */
+.bubble__note {
+  flex: 0 1000 auto;
+  min-width: 0;
+  overflow: hidden;
+  margin-right: auto;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: 600 12px/1.2 var(--font);
+  color: oklch(0.75 0.012 80);
+}
+
+.bubble__head:not(:has(.bubble__note)) .bubble__name {
+  margin-right: auto;
+}
+
+.bubble__hp {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+  padding: 0 7px 0 5px;
+  border-radius: 9px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 800 12px/1 var(--font);
+}
+
+.bubble__hp .icon {
+  font-size: 11px;
+  color: oklch(0.55 0.2 25);
+}
+
+.bubble__hp-arrow {
+  color: oklch(0.45 0.014 60);
+}
+
+.bubble__hp-after {
+  color: oklch(0.5 0.2 25);
+}
+
+.bubble__close,
+.bubble__back {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: oklch(1 0 0 / 0.08);
+  color: var(--paper);
+  font: 700 17px/1 var(--font);
+  cursor: pointer;
+}
+
+.bubble__close:hover,
+.bubble__back:hover {
+  background: oklch(1 0 0 / 0.16);
+}
+
+.bubble__row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 6px;
+  border-radius: 8px;
+  cursor: default;
+  user-select: none;
+}
+
+.bubble__row.is-enabled {
+  cursor: pointer;
+}
+
+.bubble__row.is-enabled:hover {
+  background: oklch(0.3 0.03 75);
+  box-shadow: inset 0 0 0 1.5px oklch(0.82 0.13 85 / 0.85);
+}
+
+.bubble__icon {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: oklch(0.3 0.016 60);
+  color: var(--paper);
+  font-size: 20px;
+}
+
+.bubble__icon--effect {
+  color: #c9a3ef;
+}
+
+.bubble__glyph {
+  display: grid;
+  place-items: center;
+}
+
+.bubble__boot {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: oklch(0.5 0.1 200);
+  box-shadow: 0 0 0 1.5px var(--bubble-bg);
+  color: white;
+  font-size: 10px;
+}
+
+.bubble__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.bubble__title {
+  font: 800 14px/1.2 var(--font);
+}
+
+.bubble__sub {
+  font: 500 12px/1.25 var(--font);
+  color: oklch(0.75 0.012 80);
+  text-wrap: pretty;
+}
+
+.bubble__row:not(.is-enabled) .bubble__icon,
+.bubble__row:not(.is-enabled) .mana-pill {
+  opacity: 0.45;
+}
+
+.bubble__row:not(.is-enabled) .bubble__title {
+  color: oklch(0.62 0.012 80);
+}
+
+.bubble__row:not(.is-enabled) .bubble__sub {
+  font-weight: 700;
+}
+
+.bubble__sub.is-warn {
+  color: oklch(0.75 0.13 30);
+}
+
+.mana-pill--row {
+  height: 22px;
+  padding: 0 7px 0 5px;
+  border-radius: 11px;
+  font-size: 13px;
+}
+
+.mana-pill--row .icon {
+  font-size: 12px;
+}
+
+.bubble__kbd {
+  flex: none;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.28);
+  font: 700 11px/1 var(--font);
+  color: oklch(0.75 0.012 80);
+}
+
 /* --- Animations (handoff, lot 2) --- */
 
 /* Calque des effets : particules, projectiles, chiffres. Plein écran, fixe, sans clics. */
@@ -2039,14 +2382,8 @@ select {
 }
 
 .game.is-busy .board,
-.game.is-busy .grimoire,
-.game.is-busy .guide__buttons {
+.game.is-busy .grimoire {
   cursor: progress;
-}
-
-.game.is-busy .guide__buttons {
-  pointer-events: none;
-  opacity: 0.6;
 }
 
 /* Boucles permanentes. */
@@ -2089,20 +2426,20 @@ select {
   animation: glowPulse 2.4s ease-in-out infinite;
 }
 
-.game--anim .token__halo {
-  animation: haloPulse 1.4s ease-in-out infinite;
+.game--anim .token__glow {
+  animation: haloPulse 1.6s ease-in-out infinite;
 }
 
 /* Halo de sélection d'une goutte : il enfle et s'éclaire. */
 @keyframes haloPulse {
   0%,
   100% {
-    opacity: 0.6;
-    stroke-width: 16;
+    stroke-opacity: 0.55;
+    stroke-width: 20;
   }
   50% {
-    opacity: 1;
-    stroke-width: 30;
+    stroke-opacity: 0.95;
+    stroke-width: 40;
   }
 }
 
@@ -2166,7 +2503,7 @@ select {
   .game--anim .token__body,
   .game--anim .cell__glow,
   .game--anim .plaque__glow,
-  .game--anim .token__halo,
+  .game--anim .token__glow,
   .scene,
   .board,
   .token__stand {
@@ -2277,17 +2614,11 @@ select {
   color: oklch(0.86 0.015 80);
 }
 
-/* Dans l'écran de jeu, l'aide recouvre le bas du plateau et défile seule. */
-.game__play > .legend {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 20;
-  max-height: 72%;
-  overflow-y: auto;
+/* Dans l'écran de jeu, l'aide s'ouvre sous le plateau (lot 11) : elle ne le recouvre ni ne le réduit. */
+.game__legend > .legend {
+  position: relative;
   padding-right: 44px;
-  box-shadow: 0 0 0 1px var(--line), 0 -14px 34px oklch(0 0 0 / 0.5);
+  box-shadow: 0 0 0 1px var(--line);
 }
 
 .legend__close {
@@ -3838,7 +4169,7 @@ select {
     overflow: visible;
   }
 
-  /* Trop petits pour être lus : la fiche (ou le bandeau) donne ces informations. */
+  /* Trop petits pour être lus : la fiche donne ces informations. */
   .zone-label,
   .token__label {
     display: none;

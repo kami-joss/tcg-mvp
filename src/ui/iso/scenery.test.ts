@@ -67,15 +67,18 @@ describe('vue isométrique (handoff, lots 5 et 7)', () => {
     for (const zone of Object.values(ZONE_DECOR)) for (const [id] of zone.marks) expect(SPRITES[id], id).toBeDefined();
   });
 
-  it('caméra : la scène tient dans la zone du plateau (0,35 à 1), le zoom la multiplie, les textes gardent leur taille', () => {
-    const wide = isoCamera(816, 2400, 1400, 1);
-    expect(wide.k).toBe(1);
-    expect(wide).toMatchObject({ width: 1341, height: 948 });
-    expect(isoCamera(960, 2400, 1400, 1)).toMatchObject({ width: 1544, height: 1092, centerY: 603 });
-    const fitted = isoCamera(816, 800, 900, 1);
-    expect(fitted.width).toBeLessThanOrEqual(800);
+  it('caméra : calée sur la largeur de la zone (0,35 à 1,35), le zoom la multiplie, les textes gardent leur taille', () => {
+    const fitted = isoCamera(816, 800, 300, 1);
     expect(fitted.k).toBeCloseTo(800 / 1341);
-    expect(isoCamera(816, 1400, 474, 1).k).toBeCloseTo(0.5);
+    expect(fitted.width).toBeLessThanOrEqual(800);
+    expect(isoCamera(816, 800, 2000, 1).k).toBe(fitted.k);
+    const wide = isoCamera(816, 2400, 1400, 1);
+    expect(wide.k).toBe(1.35);
+    expect(wide).toMatchObject({ width: 1810, height: 1280 });
+    expect(isoCamera(960, 1544, 400, 1)).toMatchObject({ k: 1, width: 1544, height: 1092, centerY: 603 });
+    // Au-delà de ×1, les jetons gardent leur taille à l'écran ; le zoom, lui, agrandit tout.
+    expect(wide.standScale * wide.k).toBeCloseTo(isoCamera(816, 1341, 900, 1).standScale);
+    expect(isoCamera(816, 800, 900, 2).standScale).toBe(isoCamera(816, 800, 900, 1).standScale);
     const small = isoCamera(816, 300, 200, 1);
     expect(small.k).toBe(0.35);
     expect(isoCamera(816, 300, 200, 2).k).toBeCloseTo(0.7);

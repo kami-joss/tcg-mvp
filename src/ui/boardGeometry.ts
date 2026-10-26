@@ -6,9 +6,15 @@ export const TILT_DEG = 45;
 export const PERSPECTIVE = 2200;
 export const EDGE = 22;
 
-/** Taille des cases : 68 px dans la maquette, jusqu'à 84 px sur grand écran ; au moins de quoi rester cliquable. */
+/**
+ * Taille des cases : 68 px dans la maquette, 84 px sur grand écran ; au moins de quoi rester cliquable. Au-delà de
+ * `CELL_MAX`, le plateau grandit encore jusqu'à ×1,35 pour remplir sa zone, mais pas les jetons (lot 11) : leur taille
+ * reste celle d'une case de `CELL_MAX` (`--k` dans game.css).
+ */
 export const CELL_MAX = 84;
 export const CELL_MIN = 28;
+export const BOARD_GROW = 1.35;
+export const CELL_GROWN = Math.floor(CELL_MAX * BOARD_GROW);
 /** Espace entre les cases et marge intérieure du plateau. */
 export const BOARD_GAP = 4;
 export const BOARD_PAD = 14;
@@ -70,7 +76,7 @@ export function tiltGeometry(m: Metrics, rows: number, decor = false): TiltGeome
   const scaleAt = (t: number) => PERSPECTIVE / (PERSPECTIVE + t * Math.sin(rad));
   /** Hauteur à l'écran, depuis le bord avant, d'un point à `t` px derrière lui et `h` px au-dessus du sol. */
   const project = (t: number, h: number) => -centerY + (-t * Math.cos(rad) - h + centerY) * scaleAt(t);
-  const tokenHeight = (92 * m.cell) / 68;
+  const tokenHeight = (92 * Math.min(m.cell, CELL_MAX)) / 68;
   let top = project(m.height, 0);
   for (let row = 0; row < rows; row++) top = Math.min(top, project(depth(row), tokenHeight * standScale(row)));
   let bottom = EDGE;
@@ -106,14 +112,14 @@ export function sceneSize(cell: number, rows: number, cols: number, tilted: bool
   return { width: geometry.sceneWidth, height: geometry.sceneHeight };
 }
 
-/** Plus grande case (de `CELL_MIN` à `CELL_MAX` px) pour laquelle la scène tient dans la zone du plateau. */
+/** Plus grande case (de `CELL_MIN` à `CELL_GROWN` px) pour laquelle la scène tient dans la zone du plateau. */
 export function fitCell(width: number, height: number, rows: number, cols: number, tilted: boolean, decor = false): number {
   const fits = (cell: number) => {
     const size = sceneSize(cell, rows, cols, tilted, decor);
     return size.width <= width && size.height <= height;
   };
   let low = CELL_MIN;
-  let high = CELL_MAX;
+  let high = CELL_GROWN;
   if (fits(high)) return high;
   while (low < high) {
     const mid = Math.ceil((low + high) / 2);

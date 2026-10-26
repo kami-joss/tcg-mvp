@@ -1,6 +1,6 @@
 // Décor 2,5D des vues isométrique et inclinée (handoff, lot 5 ; maquette « Plateau v5 », `decor()`), posé dans le plan du plateau,
-// sous les cases : bloc de terrain et lac, rochers sur les cases X, rivière, mana zones modélisées (muret, poteaux,
-// drapeau du contrôleur, repère), enclaves de la Mine et de la Scierie, décor de bordure. Les sprites sont des
+// sous les cases : bloc de terrain et lac, rochers sur les cases X, rivière, mana zones modélisées (muret et poteaux
+// à la couleur du contrôleur, repère ; plus de drapeau depuis le lot 11), enclaves de la Mine et de la Scierie, décor de bordure. Les sprites sont des
 // « billboards » : la rotation inverse de la caméra les garde face à l'écran, et la 3D les trie devant ou derrière.
 // Rien ici ne capte la souris : les cases restent seules cliquables.
 import { createElement } from 'react';
@@ -375,12 +375,12 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
   }
   const inWater = (x: number, y: number) => beds.some((q) => x > q.xa - 10 && x < q.xb + 10 && y > q.ya - 14 && y < q.yb + 14);
 
-  // --- Mana zones : muret, poteaux d'angle et drapeau à la couleur du contrôleur, repère au coin arrière.
+  // --- Mana zones : muret et poteaux d'angle à la couleur du contrôleur, repère au coin arrière.
   const MATERIALS = {
     stone: { lit: '#ece5d3', shade: '#bdb5a2', line: '#8f8878', period: 15 },
     wood: { lit: '#d2b06c', shade: '#a07e4f', line: '#6f5636', period: 9 },
   };
-  /** Petit élément debout (feu, drapeau) : boîte de 60 × 70 px, ancrée en bas au milieu ; enfants placés depuis l'ancre. */
+  /** Petit élément debout (feu de la Forge) : boîte de 60 × 70 px, ancrée en bas au milieu ; enfants placés depuis l'ancre. */
   const standing = (key: string, x: number, y: number, dz: number, ...children: Node[]) =>
     upright(key, x, y, 60, 70, 30, 66, dz, 0, div('anchor', { ...box(30, 66, 0, 0) }, ...children));
   for (let r = 0; r < board.rows; r++) {
@@ -491,49 +491,6 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
           ),
         );
       }
-      out.push(
-        standing(
-          key + 'flag',
-          x0 + 61,
-          y0 + 7,
-          4,
-          div('pole', { position: 'absolute', left: -1.5, top: -56, width: 3, height: 56, background: 'linear-gradient(90deg, #dcc08a 50%, #8a6a45 50%)' }),
-          div('ball', {
-            position: 'absolute',
-            left: -3.5,
-            top: -61,
-            width: 7,
-            height: 7,
-            borderRadius: '50%',
-            background: cap,
-            boxShadow: '0 0 0 1px oklch(0.3 0.02 60 / .6)',
-            transition,
-          }),
-          // Le drapeau du contrôleur se hisse ; il redescend quand la zone redevient neutre.
-          div(
-            'flag',
-            {
-              position: 'absolute',
-              left: 1.5,
-              top: -55,
-              width: 26,
-              height: 17,
-              transformOrigin: '0 0',
-              transition: 'transform .9s cubic-bezier(.3,1.3,.5,1), opacity .5s',
-              transform: owner ? 'translateY(0px) scaleY(1)' : 'translateY(30px) scaleY(.2)',
-              opacity: owner ? 1 : 0,
-            },
-            div('cloth', {
-              position: 'absolute',
-              inset: 0,
-              background: owner ? PLAYER[owner] : NEUTRAL,
-              clipPath: 'polygon(0 0,100% 0,80% 50%,100% 100%,0 100%)',
-              transformOrigin: '0 50%',
-              animation: anim('isoFlag 1.7s ease-in-out infinite'),
-            }),
-          ),
-        ),
-      );
     }
   }
 

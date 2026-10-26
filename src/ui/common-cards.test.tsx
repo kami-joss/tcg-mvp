@@ -26,7 +26,7 @@ describe('Invocateur : la case, puis le monstre', () => {
   const view = activeView(state);
   const effect: Selection = { kind: 'unit', unitId: 'u1', mode: 'effect' };
 
-  it('ses cases adjacentes libres sont en violet ; un clic choisit la case, le bandeau propose les monstres payables', () => {
+  it('ses cases adjacentes libres sont en violet ; un clic choisit la case, la bulle propose les monstres payables', () => {
     expect(getHighlights(view, effect).get(posKey(at(3, 3)))).toBe('effect');
     const pick = selectionOf(clickCell(view, effect, at(3, 3)));
     expect(pick).toEqual({ kind: 'summonAt', unitId: 'u1', pos: at(3, 3) });

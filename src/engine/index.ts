@@ -10,7 +10,7 @@ export { IllegalActionError } from './errors';
 export { canAdvance, getAttackTargets, getLineOfSightCells, getStrikeCells } from './combat';
 export { getAreaCells, getAreaTargets, getEffectTargets, getPushDestination } from './effects';
 export { getMoveDestinations, getMovePath, type Destination } from './movement';
-export { attackDamage, hitsFromBehind, isBehind } from './combat';
+export { attackDamage, hitsFromBehind, isBehind, previewAttack, type AttackPreview } from './combat';
 export { getEmptyAdjacentCells, getTrapCells } from './effects';
 export { COMMON_CARDS } from './cards';
 export { getPassage, getPassageSources } from './traps';

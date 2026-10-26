@@ -82,7 +82,7 @@ export const CARD_ART: Partial<Record<CardId, CardArt>> = {
   'ki-ne': art(kiNe, 1024, 559, [52.5, 36.2], 16),
   seringue: art(seringue, 1024, 559, [52, 45], 45),
   // Deck Sorciers du feu
-  apprenti: art(apprenti, 1024, 559, [50.3, 25], 21),
+  apprenti: art(apprenti, 576, 1024, [46.5, 24.6], 30),
   'lutin-brasier': art(lutinBrasier, 1024, 559, [49.9, 28.6], 23),
   archimage: art(archimage, 1024, 559, [52.7, 24.3], 16),
   'golem-de-lave': art(golemDeLave, 1024, 559, [49.7, 16.5], 28),
