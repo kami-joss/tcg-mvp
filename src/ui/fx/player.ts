@@ -111,7 +111,7 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
           floatAt(stage, selector, `−${-event.amount}`, MANA);
           pulse(stage, selector, false);
         } else if (event.pos) {
-          flyTo(stage, event.pos, selector, 'crystal-growth', '#6cc9d6');
+          flyTo(stage, event.pos, selector, 'water-drop', '#7ea6f0');
           sfx('mana', 0.85);
           burst(stage, event.pos, GOLD, { n: 6, spread: 20, size: 4, ringScale: 2.2 });
           await wait(170);

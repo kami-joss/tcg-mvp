@@ -4,7 +4,7 @@ import { SessionScreen } from './SessionScreen';
 import { newSession, updateSession } from './session';
 import type { Session } from './session';
 
-const render = (session: Session) => renderToStaticMarkup(<SessionScreen session={session} dispatch={() => {}} />);
+const render = (session: Session) => renderToStaticMarkup(<SessionScreen session={session} dispatch={() => {}} onHome={() => {}} />);
 const afterEndTurn = () => updateSession(newSession(1), { type: 'play', action: { type: 'endTurn' } });
 
 describe('écran de passage hotseat (SPEC.md §4.3, §7)', () => {

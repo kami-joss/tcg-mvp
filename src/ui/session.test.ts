@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BATTLEFIELD, BOARD, DECKS } from '../engine';
+import { BATTLEFIELD, BATTLEFIELD_13, DECKS } from '../engine';
 import { at, gameWith } from '../engine/test-utils';
 import type { Action } from '../engine';
 import { DEFAULT_SETUP, newSession, updateSession, viewerOf } from './session';
@@ -13,17 +13,17 @@ describe('session hotseat (SPEC.md §4.3)', () => {
     const session = newSession(1);
     expect(session.handoffTo).toBeNull();
     expect(session.game.activePlayer).toBe(1);
-    expect(session.log).toEqual([
-      'Début de la partie sur la carte « Classique (11 × 9) », J1 avec le deck Classique, J2 avec le deck Classique.',
+    expect(session.log.map((entry) => entry.text)).toEqual([
+      'Début de la partie sur la carte « Champ de bataille (13 × 13) », J1 avec le deck Classique, J2 avec le deck Classique.',
       'J1 commence avec 3 mana.',
     ]);
   });
 
   it('les actions pendant le tour ne déclenchent pas d’écran de passage', () => {
-    const summon: Action = { type: 'playCard', cardId: 'milicien', target: { kind: 'cell', pos: at(0, 4) } };
+    const summon: Action = { type: 'playCard', cardId: 'milicien', target: { kind: 'cell', pos: at(0, 1) } };
     const session = play(newSession(1), summon);
     expect(session.handoffTo).toBeNull();
-    expect(session.log.at(-1)).toBe('J1 invoque Milicien en (0, 4).');
+    expect(session.log.at(-1)).toMatchObject({ kind: 'action', player: 1, icon: 'dragon-head', text: 'J1 invoque Milicien en (0, 1).' });
   });
 
   it('« Fin du tour » masque le jeu jusqu’à ce que le joueur suivant prenne l’écran', () => {
@@ -51,7 +51,7 @@ describe('session hotseat (SPEC.md §4.3)', () => {
       id: 1,
       game: gameWith([{ monster: 'milicien', owner: 1, at: at(5, 4) }], {
         activePlayer: 2,
-        players: { 1: { vp: 19 } },
+        players: { 1: { vp: 29 } },
       }),
       previous: null,
       setup: DEFAULT_SETUP,
@@ -67,7 +67,7 @@ describe('session hotseat (SPEC.md §4.3)', () => {
     const session = newSession(1);
     const after = play(session, { type: 'move', unitId: 'u42', to: at(1, 1) });
     expect(after.game).toBe(session.game);
-    expect(after.log.at(-1)).toMatch(/^Action refusée : /);
+    expect(after.log.at(-1)?.text).toMatch(/^Action refusée : /);
   });
 
   it('« Nouvelle partie » repart de zéro', () => {
@@ -86,7 +86,7 @@ describe('session hotseat (SPEC.md §4.3)', () => {
     expect(changed.game.players[1].grimoire).toEqual(archers!.cards);
     expect(changed.game.players[2].grimoire).toEqual(pieges!.cards);
     expect(updateSession(changed, { type: 'restart' }).setup).toBe(setup);
-    expect(newSession(1).game.board).toBe(BOARD);
+    expect(newSession(1).game.board).toBe(BATTLEFIELD_13);
     expect(newSession(1).setup.decks[1]).toBe(classique);
   });
 });

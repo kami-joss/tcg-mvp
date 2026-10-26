@@ -84,6 +84,36 @@ r10    P  P  P| P  P  X  P  P  P  2  2
 
 Un couloir libre (lignes 3 et 7, colonnes 3 et 7) sépare la Scierie et la Mine du centre : on peut longer leurs falaises pour aller d'une entrée à l'autre. La Scierie (en haut à droite) s'ouvre à gauche en ligne 1 et en bas en colonne 9 ; la Mine (en bas à gauche) en haut en colonne 1 et à droite en ligne 9. La carte est symétrique par rapport à la case (5, 5).
 
+### Grande carte « Champ de bataille » (13 × 13)
+
+Carte proposée par défaut au lancement d'une partie (handoff V7), chargée depuis `src/engine/maps/champ-13x13.json`. Mêmes symboles et mêmes règles ; `~` : eau (règles d'une case X, seul le rendu change) ; `|` et `‾` marquent les falaises : hautes autour de la Mine (rien ne les franchit, ni les tirs, ni `vol`), basses autour de la Scierie (les tirs de portée 2+ et `vol` passent).
+
+```
+      c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 10 11 12
+r0     1  1  P  P  P  P  P  P  P| P  P  P  P
+r1     1  P  P  P  P  P  P  P  P  P| P  S  P
+r2     P  P  P  P  P  P  ~  P  P| P  P  P  P
+                                        ‾‾
+r3     P  P  P  X  X  P  ~  P  X  P  P  P  P
+                                     ‾‾    ‾‾
+r4     P  E  P  X  X  P  P  P  X  X  P  P  P
+r5     P  P  P  P  P  P  P  P  P  X  P  P  P
+r6     P  P  P  X  P  P  F  P  P  X  P  P  P
+r7     P  P  P  X  P  P  P  P  P  P  P  P  P
+r8     P  P  P  X  X  P  P  P  X  X  P  R  P
+       ‾‾    ‾‾
+r9     P  P  P  P  X  P  ~  P  X  X  P  P  P
+          ‾‾
+r10    P  P  P  P| P  P  ~  P  P  P  P  P  P
+r11    P  M  P| P  P  P  P  P  P  P  P  P  2
+r12    P  P  P  P| P  P  P  P  P  P  P  2  2
+```
+
+- **Symétrie** : identique pour les deux joueurs après une rotation de 180°, falaises comprises ; seule leur hauteur diffère (Mine fermée, Scierie ouverte aux tirs de portée 2+ et à `vol`).
+- **Équilibre** (cases de marche depuis l'invocation la plus proche) : Forge à 11 pour chaque joueur, Mine et Scierie à 13 ; Écurie à 4 pour J1 et 18 pour J2, Ferme l'inverse.
+- **Passages** : le mur de rochers de la colonne 3 est ouvert en (5, 3), à hauteur de l'ancienne place de l'Écurie ; celui de la colonne 9 en (7, 9), symétrique.
+- **+1 mobilité** pour tous les monstres sur cette carte, à l'invocation et à chaque début de tour (§10) : les stats des cartes ne changent pas.
+
 ## 4. Règles
 
 ### 4.1 Mise en place
@@ -152,8 +182,8 @@ Le mana non dépensé est conservé d'un tour à l'autre, sans plafond.
 - Un terrain n'a ni ATK ni mobilité. Les ennemis ne peuvent pas entrer sur sa case tant qu'il n'est pas détruit.
 
 ### 4.10 Victoire
-- Le premier joueur à atteindre **20 VP** gagne immédiatement.
-- Les valeurs (20 VP, 3 mana, +1 mana pour J2) sont des constantes dans `src/engine/config.ts`, pour pouvoir les ajuster facilement.
+- Le premier joueur à atteindre **30 VP** gagne immédiatement.
+- Les valeurs (30 VP, 3 mana, +1 mana pour J2) sont des constantes dans `src/engine/config.ts`, pour pouvoir les ajuster facilement.
 
 ## 5. Lexique
 
@@ -275,7 +305,7 @@ Un mot-clé est un raccourci : un nom, parfois un nombre, et une définition éc
 ### 5.7 Conventions du code
 
 - Un paramètre a toujours le même nom : une quantité `amount`, une portée `range`, une distance en pas `steps`, un recul `distance`, un multiplicateur `multiplier`, une durée de statut `turns`.
-- Les nombres d'une carte sont dans ses données, pas dans des constantes globales ; `config.ts` ne garde que les règles générales (20 VP, 3 mana par tour…).
+- Les nombres d'une carte sont dans ses données, pas dans des constantes globales ; `config.ts` ne garde que les règles générales (30 VP, 3 mana par tour…).
 - Les noms propres du jeu (mots-clés, statuts, cartes, mana zones) gardent le mot français, sans accent (`immobilise`, `brulure`) ; les notions techniques sont en anglais (`damage`, `heal`, `push`).
 - Un effet sans nombre (stun, immobilisé, Vol, Riposte) n'a pas de paramètre `amount`.
 
@@ -440,6 +470,7 @@ Elles complètent les decks, chacun avec ses propres quantités (composition du 
 
 ## 7. Interface (minimale)
 
+- Accueil (`/`) : choix de la carte, du deck de chaque joueur et de qui joue J2 (un humain ou l'IA), puis la partie se lance sur `/game` (réglages dans l'adresse : recharger la page relance une partie avec les mêmes). En jeu, « Nouvelle partie » ramène à l'accueil ; l'écran de victoire propose de rejouer avec les mêmes réglages.
 - Plateau au centre, cases cliquables, unités affichées avec ATK / PV actuels / mobilité restante.
 - Panneau du joueur actif : mana, VP, grimoire (cartes jouables en surbrillance, coût visible).
 - Panneau adverse : mana, VP, cartes utilisées, nombre de cartes restantes.
@@ -478,7 +509,7 @@ Une étape à la fois, tests verts avant de passer à la suivante.
 - Sorts d'invocateur : 2 par joueur, choisis avant la partie, cachés jusqu'à utilisation, utilisables une fois.
 - Multijoueur en ligne avec serveur qui fait autorité, basé sur le même moteur.
 - Règle de priorité entre effets qui se déclenchent en même temps. En attendant : sur une case où entre un monstre, les pièges de la case passent avant les terrains « Passage » (§10).
-- Plusieurs cartes de plateau. (Une deuxième carte de test, « Champ de bataille » 11 × 11, est déjà jouable : voir §3.)
+- Plusieurs cartes de plateau. (Deux autres cartes, « Champ de bataille » 11 × 11 et 13 × 13, sont déjà jouables : voir §3.)
 
 ## 10. Clarifications validées
 
@@ -512,7 +543,7 @@ Réponses aux questions posées pendant le développement. Elles font autorité 
 - **§10 — « Adjacent »** : les 8 cases autour d'un monstre, diagonales comprises (soin du Chaman, pose des pièges, Tremblement de terre, zone de devant des dragons). Une case X ou hors plateau n'est jamais adjacente. Une falaise sépare : une case orthogonale derrière une falaise n'est pas adjacente ; une case en diagonale l'est si au moins un des deux chemins en L qui y mènent passe (case de coin jouable, aucune falaise sur le chemin). Les attaques, la riposte, l'avancée, `trophee` et `pillage` restent « au contact » : en ligne droite, à 1 case.
 - **§7 — Menace adverse au survol** : hachures orange sur les cases où le monstre adverse pourra aller à son prochain tour ; hachures rouges sur les autres cases qu'il pourra frapper depuis sa case ou l'une d'elles (portée et ligne de vue de son attaque), y compris celles de tes monstres.
 - **§5.5 — Durée des statuts** : elle est propre à chaque effet et se compte en tours du camp de l'unité touchée (le tour en cours ne compte pas) : « pendant N tours ». Le filet du Poseur de piège garde sa durée courte, « jusqu'à son prochain tour ».
-- **§7 — Vue isométrique et rivière (handoff V5)** : la vue isométrique n'existe que pour le Champ de bataille (11 × 11), le plateau de la maquette ; sur le plateau classique, seules les vues Dessus et Inclinée sont proposées. Sur le Champ de bataille, 4 cases X — (4, 6), (6, 4), (5, 0), (5, 10) — sont dessinées en rivière dans toutes les vues : c'est un rendu seulement, elles restent des cases bloquées.
+- **§7 — Vue isométrique et rivière (handoff V5)** : la vue isométrique n'existe que pour les Champs de bataille (11 × 11 et 13 × 13), les plateaux des maquettes ; sur le plateau classique, seules les vues Dessus et Inclinée sont proposées. Sur le Champ de bataille, 4 cases X — (4, 6), (6, 4), (5, 0), (5, 10) — sont dessinées en rivière dans toutes les vues : c'est un rendu seulement, elles restent des cases bloquées.
 - **§6 ter — Passage (Terrain drainant, Terrain piégé)** : la zone est formée des 8 cases adjacentes au terrain (voir « Adjacent ») ; « les 2 cases adjacentes » du Terrain piégé désignent ces mêmes 8 cases. L'effet touche le monstre ennemi qui entre sur une case de la zone, en se déplaçant, poussé, en avançant après une attaque, invoqué ou téléporté (volant et invisible compris), après les pièges de cette case. Il se déclenche **une fois par mouvement** et par terrain, même si le monstre traverse plusieurs cases de la zone ; un nouveau déplacement le déclenche à nouveau. Une destruction rapporte 1 VP au propriétaire du terrain.
 - **§6 ter — Terrain piégé** : le monstre qui entre est slow 1 jusqu'à son prochain tour ; il perd aussitôt 1 de mobilité restante, pour ce tour seulement. Les déplacements proposés en tiennent compte (entrer dans la zone coûte 1 mobilité de plus, une fois par déplacement). Pris pendant le tour adverse (recul), le slow ne retire rien.
 - **§6 ter — Invocateur** : effet actif, 1 mana, plus le coût du monstre invoqué ; n'importe quel monstre de son grimoire, sur une case adjacente libre (sans unité). Comme une invocation normale, le monstre peut agir aussitôt ; il entre sur sa case (pièges, Passage).
@@ -534,3 +565,7 @@ Réponses aux questions posées pendant le développement. Elles font autorité 
 - **§6 bis — Lutin brasier** : effet actif, 1 mana : une case libre (sans unité, pas déjà brûlée) parmi ses « adjacents, rayon 2 » brûle jusqu'à la fin du 2e prochain tour de son camp (« pendant 2 tours » : deux tours adverses). Chaque monstre ennemi qui y entre (en passant, poussé, en avançant, invoqué ou téléporté, volant et invisible compris) perd 1 PV puis est burn 1 pendant 1 tour ; la case reste. Elle est visible des deux joueurs. Un monstre déjà sur la case quand elle s'éteint ou qui y reste n'est pas touché à nouveau ; seule l'entrée compte.
 - **§6 bis — Archimage** : effet actif, 1 mana : tous les ennemis adjacents (zone « adjacents ») sont burn 2 pendant 2 tours.
 - **§6 bis — Golem de lave** : passif « Passage » comme un terrain : chaque monstre ennemi qui entre sur une des 8 cases autour du Golem est burn 1 pendant 1 tour, une fois par mouvement. La zone suit le Golem ; quand c'est le Golem qui s'approche, rien ne se déclenche.
+- **§3 — Grande carte 13 × 13 (handoff V7)** : elle s'ajoute aux deux autres et devient la carte proposée par défaut dans « Nouvelle partie ». Tous les monstres y ont +1 mobilité (bonus de la carte, pas des cartes de monstre : sur les autres plateaux, rien ne change). Ses 4 cases d'eau — (2, 6), (3, 6), (9, 6), (10, 6) — sont des cases X ; deux cases d'eau voisines verticalement sont dessinées en un seul étang.
+- **§3 — Grande carte 13 × 13, retouche** : l'Écurie recule d'une case vers la base de J1, en (4, 1), et la Ferme vers celle de J2, en (8, 11) ; un passage s'ouvre dans chaque mur de rochers, en (5, 3) et en (7, 9).
+- **§3 — Grande carte 13 × 13, murs intérieurs de la Mine** : décalés d'un cran pour se trouver devant ses deux ouvertures, en (9, 1)|(10, 1) sous l'entrée du haut et en (11, 2)|(11, 3) devant celle de droite. La Mine passe à 13 cases de marche pour chaque joueur.
+- **§3 — Grande carte 13 × 13, Scierie** : mêmes falaises que la Mine, par symétrie (murs intérieurs devant ses deux ouvertures compris), mais basses : les tirs de portée 2+ et `vol` passent toujours. La Scierie passe à 13 cases de marche pour chaque joueur.

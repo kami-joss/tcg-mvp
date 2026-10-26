@@ -3,7 +3,7 @@
 // montre un état intermédiaire et les clics sont bloqués ; à la fin, il reprend la vraie vue. Les sons (lot 4) suivent
 // la même file d'événements ; sans animation, chaque événement joue seulement son son.
 // Mise en page : l'écran occupe toute la hauteur de la fenêtre et ne défile jamais ; ce sont les colonnes qui défilent.
-// À gauche, l'adversaire, la fiche au survol et le journal ; au centre, le bandeau et le plateau, ajusté à sa zone ;
+// À gauche, l'adversaire, la fiche et le journal ; au centre, le bandeau et le plateau, ajusté à sa zone ;
 // à droite, le grimoire (3, 2 ou 1 carte par ligne, ou liste : la colonne s'élargit en conséquence) et, dessous,
 // l'encart du joueur qui regarde.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -18,7 +18,7 @@ import { applyEvent } from './fx/patch';
 import { playEvents } from './fx/player';
 import { GRIMOIRE_DISPLAY, Grimoire } from './Grimoire';
 import { GuideBanner } from './GuideBanner';
-import { HoverSheet } from './HoverSheet';
+import { HoverSheet, SheetPlaceholder } from './HoverSheet';
 import {
   NO_SELECTION,
   clickCard,
@@ -39,8 +39,9 @@ import { ALL_TOKEN_STATS, loadSettings, prefersReducedMotion, saveSettings } fro
 import type { BoardView, DisplaySettings } from './settings';
 import { eventSounds } from './sfx/events';
 import { configureSound, sfx, unlockAudio } from './sfx/sound';
-import { getSheet } from './sheet';
+import { getSheet, sameSubject, subjectAt } from './sheet';
 import type { HoverSubject } from './sheet';
+import type { LogEntry } from './log';
 import { TopBar } from './TopBar';
 import { VictoryOverlay } from './VictoryOverlay';
 
@@ -48,10 +49,13 @@ interface GameScreenProps {
   view: PlayerView;
   /** La vue du même joueur avant la dernière action, d'où partent les animations ; `null` en début de partie. */
   before: PlayerView | null;
-  log: readonly string[];
+  log: readonly LogEntry[];
   onAction: (action: Action) => void;
   setup: Setup;
-  onRestart: (setup: Setup) => void;
+  /** Rejouer avec les mêmes réglages. */
+  onRestart: () => void;
+  /** Retour à l'accueil, pour régler une nouvelle partie. */
+  onHome: () => void;
   /** Tour de l'IA : l'action suivante à jouer, appelée quand l'écran a fini d'animer la précédente. */
   autoPlay?: (() => void) | null;
 }
@@ -59,11 +63,22 @@ interface GameScreenProps {
 /** Pause entre deux actions de l'IA, pour qu'on puisse les suivre. */
 const AI_PAUSE_MS = 450;
 
+/**
+ * La fiche suit un nouvel élément survolé après ce délai (tout de suite s'il n'y a pas encore de fiche) : on peut
+ * traverser le plateau jusqu'à elle sans la perdre (lot 9).
+ */
+const FOCUS_DELAY_MS = 100;
+
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-export function GameScreen({ view, before, log, onAction, setup, onRestart, autoPlay = null }: GameScreenProps) {
+export function GameScreen({ view, before, log, onAction, setup, onRestart, onHome, autoPlay = null }: GameScreenProps) {
   const [selection, setSelection] = useState<Selection>(NO_SELECTION);
   const [hover, setHover] = useState<{ subject: HoverSubject; rect: DOMRect } | null>(null);
+  /** Ce que montre la fiche : le dernier élément survolé 100 ms, ou cliqué ; « Fin du tour » la vide. */
+  const [focus, setFocus] = useState<HoverSubject | null>(null);
+  const focusRef = useRef<HoverSubject | null>(null);
+  focusRef.current = focus;
+  const focusTimer = useRef<number | undefined>(undefined);
   const [helpOpen, setHelpOpen] = useState(false);
   const [showArt, setShowArt] = useState(true);
   const [settings, setSettings] = useState<DisplaySettings>(loadSettings);
@@ -98,7 +113,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, auto
     ]);
   }, [display, activeSelection, hovered]);
   const path = useMemo(() => getPathPreview(display, activeSelection, hovered), [display, activeSelection, hovered]);
-  const sheet = hover ? getSheet(display, hover.subject) : null;
+  const sheet = focus ? getSheet(display, focus) : null;
 
   const changeSettings = (patch: Partial<DisplaySettings>) =>
     setSettings((current) => {
@@ -114,6 +129,21 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, auto
     document.addEventListener('pointerdown', unlockAudio);
     return () => document.removeEventListener('pointerdown', unlockAudio);
   }, []);
+
+  useEffect(() => () => window.clearTimeout(focusTimer.current), []);
+
+  /** Survol : un élément qui a une fiche la prend après le délai ; une case vide, ou le même élément, ne change rien. */
+  const aimAt = (subject: HoverSubject | null) => {
+    window.clearTimeout(focusTimer.current);
+    if (!subject || sameSubject(subject, focusRef.current) || !getSheet(display, subject)) return;
+    if (focusRef.current === null) setFocus(subject);
+    else focusTimer.current = window.setTimeout(() => setFocus(subject), FOCUS_DELAY_MS);
+  };
+  /** Clic : la fiche le montre tout de suite. */
+  const focusNow = (subject: HoverSubject | null) => {
+    window.clearTimeout(focusTimer.current);
+    setFocus(subject);
+  };
 
   // Fanfare de victoire.
   const winner = useRef(view.winner);
@@ -223,21 +253,28 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, auto
     onAction(action);
   };
   const handleCellClick = (pos: Position) => {
+    const subject = subjectAt(display, pos);
+    if (subject.kind === 'unit') focusNow(subject);
     if (busy) return;
     const result = clickCell(view, selection, pos);
     if ('action' in result) play(result.action);
     else setSelection(result.selection);
   };
   const handleCardClick = (cardId: CardId) => {
+    focusNow({ kind: 'card', cardId });
     if (busy) return;
     const next = clickCard(view, selection, cardId);
     if (next.kind === 'card' && !(selection.kind === 'card' && selection.cardId === next.cardId)) sfx('select');
     setSelection(next);
   };
-  const handleCellHover = (pos: Position | null, rect?: DOMRect) =>
+  const handleCellHover = (pos: Position | null, rect?: DOMRect) => {
     setHover(pos && rect ? { subject: { kind: 'cell', pos }, rect } : null);
-  const handleCardHover = (cardId: CardId | null, rect?: DOMRect) =>
+    aimAt(pos ? subjectAt(display, pos) : null);
+  };
+  const handleCardHover = (cardId: CardId | null, rect?: DOMRect) => {
     setHover(cardId && rect ? { subject: { kind: 'card', cardId }, rect } : null);
+    aimAt(cardId ? { kind: 'card', cardId } : null);
+  };
   const selectedCard = activeSelection.kind === 'card' || activeSelection.kind === 'push' ? activeSelection.cardId : null;
   const opponent: PlayerId = display.viewer === 1 ? 2 : 1;
 
@@ -247,7 +284,6 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, auto
     <div className={classes} ref={rootRef} style={layout}>
       <TopBar
         view={display}
-        setup={setup}
         busy={busy}
         boardView={mode}
         isoAvailable={isoAvailable}
@@ -268,17 +304,18 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, auto
         }}
         onEndTurn={() => {
           sfx('ui');
+          focusNow(null);
           play({ type: 'endTurn' });
         }}
-        onRestart={onRestart}
+        onHome={onHome}
       />
 
       <div className="game__main">
-        {/* Colonne de gauche : l'adversaire, la fiche au survol (jamais sur le plateau), le journal. */}
+        {/* Colonne de gauche : l'adversaire, la fiche (jamais sur le plateau), le journal. */}
         <aside className="game__left">
           <PlayerBox view={display} player={opponent} deckName={setup.decks[opponent].name} ai={setup.ai === opponent} />
-          <div className="game__sheet">{sheet && hover && <HoverSheet sheet={sheet} />}</div>
-          <ActionLog lines={log} opponentUsed={display.opponent.used} />
+          <div className="game__sheet">{sheet ? <HoverSheet sheet={sheet} /> : <SheetPlaceholder />}</div>
+          <ActionLog entries={log} opponentUsed={display.opponent.used} />
         </aside>
 
         <main className="game__play">
@@ -299,6 +336,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, auto
             highlights={highlights}
             attacks={attacks}
             selectedUnitId={selectedUnitId(activeSelection)}
+            focusedUnitId={focus?.kind === 'unit' ? focus.unitId : null}
             focused={isFocused(activeSelection)}
             path={path}
             reach={reach}
@@ -318,6 +356,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, auto
           <Grimoire
             view={display}
             selectedCard={selectedCard}
+            focusedCard={focus?.kind === 'card' ? focus.cardId : null}
             layout={settings.grimoireLayout}
             onLayout={(grimoireLayout) => changeSettings({ grimoireLayout })}
             onCardClick={handleCardClick}
@@ -327,7 +366,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, auto
         </aside>
       </div>
 
-      {!busy && <VictoryOverlay view={view} setup={setup} onRestart={onRestart} />}
+      {!busy && <VictoryOverlay view={view} onRestart={onRestart} onHome={onHome} />}
       <div className="fx-stage" ref={layerRef} aria-hidden="true" />
     </div>
   );

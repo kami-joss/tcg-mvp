@@ -21,7 +21,15 @@ import type {
 /** Orientation d'un monstre qui ne s'est pas encore déplacé : vers le camp adverse (J1 en haut, J2 en bas). */
 export const INITIAL_FACING: Readonly<Record<PlayerId, Direction>> = { 1: 'down', 2: 'up' };
 
-export function createMonsterUnit(id: UnitId, card: MonsterCard, owner: PlayerId, pos: Position, turn = 0): MonsterUnit {
+/** Nouveau monstre ; `mobilityBonus` : mobilité en plus du plateau (SPEC.md §3). */
+export function createMonsterUnit(
+  id: UnitId,
+  card: MonsterCard,
+  owner: PlayerId,
+  pos: Position,
+  turn = 0,
+  mobilityBonus = 0,
+): MonsterUnit {
   return {
     kind: 'monster',
     id,
@@ -34,7 +42,9 @@ export function createMonsterUnit(id: UnitId, card: MonsterCard, owner: PlayerId
     atkBonus: 0,
     rangeBonus: 0,
     auraHp: 0,
-    mobilityLeft: card.mobility,
+    mobilityLeft: card.mobility + mobilityBonus,
+    froze: 0,
+    boost: 0,
     hasAttacked: false,
     hasUsedEffect: false,
     hasRiposted: false,

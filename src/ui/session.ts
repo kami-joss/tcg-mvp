@@ -1,9 +1,10 @@
 // Déroulement d'une partie en hotseat (SPEC.md §4.3) : état complet, journal, et écran de passage entre
 // deux tours ; ou contre l'IA d'entraînement (§7 bis) : pas d'écran de passage, l'écran montre toujours la vue du
 // joueur humain. App.tsx n'en est que l'enveloppe React : toute la logique est ici, testée sans navigateur.
-import { BOARD, DECKS, IllegalActionError, applyAction, createGame, getPlayerView } from '../engine';
+import { BATTLEFIELD_13, DECKS, IllegalActionError, applyAction, createGame, getPlayerView } from '../engine';
 import type { Action, Board, Deck, GameState, PlayerId } from '../engine';
-import { describeAction } from './log';
+import { logEntry } from './log';
+import type { LogEntry } from './log';
 
 /** Carte et deck de chaque joueur, choisis avant la partie ; `ai` : le joueur tenu par l'IA (J2), s'il y en a un. */
 export interface Setup {
@@ -19,7 +20,8 @@ export function viewerOf(session: Pick<Session, 'setup' | 'game'>): PlayerId {
   return session.game.activePlayer;
 }
 
-export const DEFAULT_SETUP: Setup = { board: BOARD, decks: { 1: DECKS[0]!, 2: DECKS[0]! } };
+/** Partie proposée d'emblée : la grande carte 13 × 13 (handoff V7), deck Classique des deux côtés. */
+export const DEFAULT_SETUP: Setup = { board: BATTLEFIELD_13, decks: { 1: DECKS[0]!, 2: DECKS[0]! } };
 
 export interface Session {
   /** Change à chaque nouvelle partie, pour repartir d'un écran neuf. */
@@ -29,7 +31,8 @@ export interface Session {
   readonly game: GameState;
   /** État d'avant la dernière action : l'écran rejoue ses événements à partir de là. */
   readonly previous: GameState | null;
-  readonly log: readonly string[];
+  /** Journal : une entrée par action. */
+  readonly log: readonly LogEntry[];
   /** Joueur à qui passer l'écran : tant qu'il n'a pas cliqué, rien de la partie n'est affiché. */
   readonly handoffTo: PlayerId | null;
 }
@@ -51,8 +54,21 @@ export function newSession(id: number, setup: Setup = DEFAULT_SETUP): Session {
     game,
     previous: null,
     log: [
-      `Début de la partie sur la carte « ${board.name} », J1 avec le deck ${decks[1].name}, J2 avec le deck ${decks[2].name}.`,
-      `J${first.id} commence avec ${first.mana} mana.`,
+      {
+        kind: 'start',
+        player: null,
+        icon: 'castle',
+        text: `Début de la partie sur la carte « ${board.name} », J1 avec le deck ${decks[1].name}, J2 avec le deck ${decks[2].name}.`,
+        items: [],
+      },
+      {
+        kind: 'turn',
+        player: first.id,
+        icon: 'water-drop',
+        text: `J${first.id} commence avec ${first.mana} mana.`,
+        items: [],
+        turn: { number: game.turn, player: first.id, mana: first.mana, vp: 0 },
+      },
     ],
     handoffTo: null,
   };
@@ -76,7 +92,7 @@ function play(session: Session, action: Action): Session {
   try {
     const next = applyAction(game, action);
     const viewer = game.activePlayer;
-    const lines = describeAction(getPlayerView(game, viewer), action, getPlayerView(next, viewer));
+    const entry = logEntry(getPlayerView(game, viewer), action, getPlayerView(next, viewer));
     // Entre deux tours, l'écran est masqué jusqu'à ce que le joueur suivant le prenne ; inutile si la partie est finie.
     // Contre l'IA, un seul humain : pas d'écran de passage.
     const turnChanged = next.activePlayer !== game.activePlayer && next.winner === null && !session.setup.ai;
@@ -84,11 +100,12 @@ function play(session: Session, action: Action): Session {
       ...session,
       game: next,
       previous: game,
-      log: [...session.log, ...lines],
+      log: [...session.log, entry],
       handoffTo: turnChanged ? next.activePlayer : null,
     };
   } catch (error) {
     if (!(error instanceof IllegalActionError)) throw error;
-    return { ...session, log: [...session.log, `Action refusée : ${error.message}`] };
+    const refused: LogEntry = { kind: 'refused', player: game.activePlayer, icon: 'knockout', text: `Action refusée : ${error.message}`, items: [] };
+    return { ...session, log: [...session.log, refused] };
   }
 }

@@ -264,7 +264,7 @@ export function net(stage: Stage, pos: Position): void {
   );
 }
 
-/** Icône qui vole d'une case jusqu'à un compteur (cristal vers le mana, lauriers vers les VP), qui pulse à l'arrivée. */
+/** Icône qui vole d'une case jusqu'à un compteur (goutte vers le mana, lauriers vers les VP), qui pulse à l'arrivée. */
 export function flyTo(stage: Stage, pos: Position, selector: string, icon: IconName, color: string, delay = 0): void {
   const a = point(stage, pos);
   const b = center(stage, selector);

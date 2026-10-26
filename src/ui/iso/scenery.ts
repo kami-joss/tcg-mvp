@@ -1,22 +1,25 @@
-// Vue isométrique (handoff, lot 5 ; maquette « Plateau v5 », `decor()` et `renderVals()`) : données du décor et
-// géométrie de la caméra. Rien ici ne touche aux règles : la rivière reste une case bloquée, les enclaves sont celles
-// que dessinent déjà les falaises du plateau.
-import { BATTLEFIELD } from '../../engine';
-import type { Board, ManaZoneId, Position } from '../../engine';
+// Vue isométrique (handoff, lot 5 ; maquette « Plateau v5 », `decor()` et `renderVals()` ; taille quelconque depuis
+// le lot 7) : données du décor et géométrie de la caméra. Rien ici ne touche aux règles : l'eau reste une case bloquée,
+// les enclaves sont celles que dessinent déjà les falaises du plateau. Le décor vient du plateau (`Board.scenery`).
+import type { Board, Enclave, ManaZoneId, Position } from '../../engine';
 
 /** Inclinaison de la vraie isométrie : arctan(1/√2), en degrés. */
 export const ISO_TILT = 54.7356;
 
 /**
- * Dimensions du bloc de terrain, dans le plan du plateau (816 px de côté, cases de 68 px au pas de 72 px) : bordure
- * côté fond `R`, côté joueur `N`, hauteur des flancs `D`, profondeur du lac `W`.
+ * Dimensions du bloc de terrain, dans le plan du plateau (cases de 68 px au pas de 72 px, marge `pad`) : bordure côté
+ * fond `R`, côté joueur `N`, hauteur des flancs `D`, profondeur du lac `W`.
  */
-export const ISO = { R: 96, N: 36, D: 50, W: 36, board: 816, pitch: 72, pad: 14 } as const;
+export const ISO = { R: 96, N: 36, D: 50, W: 36, pitch: 72, pad: 14 } as const;
+
+/** Côté du plan d'un plateau de `cells` cases : 816 px en 11 × 11, 960 px en 13 × 13. */
+export const planSize = (cells: number): number => 2 * ISO.pad + cells * 68 + (cells - 1) * 4;
 
 /** Taille de la scène isométrique à l'échelle 1 (bloc, décor et lac compris), et hauteur de son centre. */
-const SCENE_W = 1341;
-const SCENE_H = 948;
-const CENTER_Y = 531;
+export function isoFrame(plan: number): { width: number; height: number; centerY: number } {
+  const height = plan + 132;
+  return { width: Math.round(height * Math.SQRT2), height, centerY: height / 2 + 57 };
+}
 
 /** Sprites du pack Kenney « Isometric Nature » (CC0), recadrés : [largeur, hauteur, ancre x, ancre y] en px source. */
 export const SPRITES: Readonly<Record<string, readonly [number, number, number, number]>> = {
@@ -41,8 +44,19 @@ export const SPRITES: Readonly<Record<string, readonly [number, number, number, 
 /** Un élément de décor posé sur la bordure du bloc : sprite, position dans le plan du plateau, échelle. */
 export type DecorItem = readonly [id: string, x: number, y: number, scale: number];
 
-/** Décor de bordure (arbres, touffes, rochers), généré une fois pour toutes de façon déterministe. */
-export const BORDER_DECOR: readonly DecorItem[] = (() => {
+const borderDecors = new Map<number, readonly DecorItem[]>();
+
+/** Décor de bordure (arbres, touffes, rochers) d'un plan de côté `plan`, généré une fois de façon déterministe. */
+export function borderDecor(plan: number): readonly DecorItem[] {
+  let decor = borderDecors.get(plan);
+  if (!decor) {
+    decor = makeBorderDecor(plan);
+    borderDecors.set(plan, decor);
+  }
+  return decor;
+}
+
+function makeBorderDecor(plan: number): readonly DecorItem[] {
   let seed = 20261022;
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const pick = (list: readonly string[]) => list[Math.floor(rnd() * list.length)]!;
@@ -58,7 +72,7 @@ export const BORDER_DECOR: readonly DecorItem[] = (() => {
   // Côtés du fond (haut et gauche à l'écran) : forêt.
   for (const side of [0, 1]) {
     const at = (t: number, d: number): [number, number] => (side ? [t, -d] : [-d, t]);
-    for (let t = -64 + rnd() * 20; t < 846; t += 56 + rnd() * 20) {
+    for (let t = -64 + rnd() * 20; t < plan + 30; t += 56 + rnd() * 20) {
       const q = rnd();
       if (q < 0.08) put(pick(BIG), at(t, 70 + rnd() * 10), 0.5);
       else put(q < 0.24 ? pick(AUTUMN) : q < 0.55 ? pick(TALL) : pick(MID), at(t, 66 + rnd() * 18), 0.5 + rnd() * 0.12);
@@ -68,47 +82,84 @@ export const BORDER_DECOR: readonly DecorItem[] = (() => {
   }
   // Côtés des joueurs (devant) : seulement des touffes et des cailloux, pour ne rien cacher.
   for (const side of [0, 1]) {
-    const at = (t: number, d: number): [number, number] => (side ? [816 + d, t] : [t, 816 + d]);
-    for (let t = 6 + rnd() * 30; t < 846; t += 44 + rnd() * 44) {
+    const at = (t: number, d: number): [number, number] => (side ? [plan + d, t] : [t, plan + d]);
+    for (let t = 6 + rnd() * 30; t < plan + 30; t += 44 + rnd() * 44) {
       put(rnd() < 0.22 ? pick(['r9', 'r5', 'r10', 's1']) : pick(LOW), at(t, 10 + rnd() * 18), rnd() < 0.25 ? 0.42 : 0.62);
     }
   }
   return out;
-})();
+}
 
 /** Enclave délimitée par des falaises : carrière de la Mine (`quarry`) ou creux de la Scierie (`hollow`). */
-export interface Region {
-  readonly type: 'quarry' | 'hollow';
+export type Region = Enclave;
+
+/**
+ * Eau d'une colonne : les cases d'eau voisines verticalement (lignes `r0` à `r1`) forment un seul étang allongé ;
+ * une case seule (`r0 === r1`) est un tronçon de rivière horizontal.
+ */
+export interface WaterRun {
   readonly r0: number;
   readonly r1: number;
-  readonly c0: number;
-  readonly c1: number;
+  readonly col: number;
 }
 
 /** Ce que le plateau a de particulier en vue isométrique. */
 export interface IsoScenery {
-  /** Cases X rendues en tronçons de rivière (« ligne,colonne ») : rendu seulement, règles d'une case bloquée. */
+  /** Cases X rendues en eau (« ligne,colonne ») : rendu seulement, règles d'une case bloquée. */
   readonly water: ReadonlySet<string>;
+  readonly runs: readonly WaterRun[];
+  /** Cases d'un étang vertical (« ligne,colonne »). */
+  readonly ponds: ReadonlySet<string>;
   readonly regions: readonly Region[];
 }
 
-/** « Champ de bataille » (11 × 11), le plateau de la maquette : 4 tronçons de rivière en paires symétriques. */
-const BATTLEFIELD_SCENERY: IsoScenery = {
-  water: new Set(['4,6', '6,4', '5,0', '5,10']),
-  regions: [
-    { type: 'hollow', r0: 0, r1: 2, c0: 8, c1: 10 },
-    { type: 'quarry', r0: 8, r1: 10, c0: 0, c1: 2 },
-  ],
-};
-
-/** Décor isométrique du plateau, ou `null` : la vue isométrique n'existe que pour le Champ de bataille. */
-export function isoScenery(board: Board): IsoScenery | null {
-  return board.name === BATTLEFIELD.name ? BATTLEFIELD_SCENERY : null;
+/** Regroupe les cases d'eau en colonnes, de gauche à droite puis de haut en bas. */
+export function waterRuns(water: readonly Position[]): WaterRun[] {
+  const cells = new Set(water.map((pos) => `${pos.row},${pos.col}`));
+  const seen = new Set<string>();
+  const runs: WaterRun[] = [];
+  for (const { row, col } of [...water].sort((a, b) => a.col - b.col || a.row - b.row)) {
+    if (seen.has(`${row},${col}`)) continue;
+    let r1 = row;
+    seen.add(`${row},${col}`);
+    while (cells.has(`${r1 + 1},${col}`)) seen.add(`${++r1},${col}`);
+    runs.push({ r0: row, r1, col });
+  }
+  return runs;
 }
 
-/** Case bloquée rendue en rivière (Champ de bataille seulement, dans toutes les vues). */
+const sceneries = new WeakMap<Board, IsoScenery | null>();
+
+/** Décor isométrique du plateau, ou `null` : pas de vue isométrique pour un plateau sans décor. */
+export function isoScenery(board: Board): IsoScenery | null {
+  if (!sceneries.has(board)) {
+    const data = board.scenery;
+    const runs = data ? waterRuns(data.water) : [];
+    sceneries.set(
+      board,
+      data && {
+        water: new Set(data.water.map((pos) => `${pos.row},${pos.col}`)),
+        runs,
+        ponds: new Set(
+          runs.filter((run) => run.r1 > run.r0).flatMap((run) => Array.from({ length: run.r1 - run.r0 + 1 }, (_, i) => `${run.r0 + i},${run.col}`)),
+        ),
+        regions: data.enclaves,
+      },
+    );
+  }
+  return sceneries.get(board) ?? null;
+}
+
+/** Case bloquée rendue en eau (dans toutes les vues) : `'pond'` dans un étang vertical, `'river'` sinon. */
+export function waterKind(board: Board, pos: Position): 'river' | 'pond' | null {
+  const scenery = isoScenery(board);
+  const key = `${pos.row},${pos.col}`;
+  if (!scenery?.water.has(key)) return null;
+  return scenery.ponds.has(key) ? 'pond' : 'river';
+}
+
 export function isWater(board: Board, pos: Position): boolean {
-  return isoScenery(board)?.water.has(`${pos.row},${pos.col}`) ?? false;
+  return waterKind(board, pos) !== null;
 }
 
 /** Muret des mana zones en iso : matière, repères (sprite, échelle, décalage depuis le coin arrière), feu (Forge). */
@@ -138,35 +189,47 @@ export interface IsoCamera {
   readonly lift: number;
 }
 
-export function isoCamera(areaWidth: number, areaHeight: number, zoom: number): IsoCamera {
+/** Caméra pour un plan de côté `plan` (`planSize`). */
+export function isoCamera(plan: number, areaWidth: number, areaHeight: number, zoom: number): IsoCamera {
+  const frame = isoFrame(plan);
   // La scène entière tient dans la zone ; en dessous de 0,35, elle déborde.
-  const fit = Math.max(0.35, Math.min(1, areaWidth / SCENE_W, areaHeight / SCENE_H));
+  const fit = Math.max(0.35, Math.min(1, areaWidth / frame.width, areaHeight / frame.height));
   const k = fit * zoom;
   const standScale = Math.max(1.1, 0.95 / k);
   return {
     k,
-    width: Math.round(SCENE_W * k),
-    height: Math.round(SCENE_H * k),
-    centerY: CENTER_Y * k,
+    width: Math.round(frame.width * k),
+    height: Math.round(frame.height * k),
+    centerY: frame.centerY * k,
     standScale,
     textScale: 0.92 / k,
     lift: 27 * standScale * k,
   };
 }
 
-/** Rectangle d'une enclave dans le plan du plateau (en coordonnées affichées), étendu au bord du plateau s'il le touche. */
-export function regionRect(region: Region, flipped: boolean, rows: number, cols: number): [x: number, y: number, w: number, h: number] {
+/**
+ * Rectangle d'une enclave dans le plan du plateau (en coordonnées affichées), étendu au bord du plateau s'il le touche ;
+ * `pitch` : pas des cases (72 px en iso, la taille des cases + 4 en vue inclinée).
+ */
+export function regionRect(
+  region: Region,
+  flipped: boolean,
+  rows: number,
+  cols: number,
+  pitch: number = ISO.pitch,
+): [x: number, y: number, w: number, h: number] {
   const row = (r: number) => (flipped ? rows - 1 - r : r);
   const col = (c: number) => (flipped ? cols - 1 - c : c);
   const r0 = Math.min(row(region.r0), row(region.r1));
   const r1 = Math.max(row(region.r0), row(region.r1));
   const c0 = Math.min(col(region.c0), col(region.c1));
   const c1 = Math.max(col(region.c0), col(region.c1));
-  const { pitch, board } = ISO;
-  const x = c0 === 0 ? 0 : 12 + c0 * pitch;
-  const y = r0 === 0 ? 0 : 12 + r0 * pitch;
-  const x1 = c1 === cols - 1 ? board : 12 + (c1 + 1) * pitch;
-  const y1 = r1 === rows - 1 ? board : 12 + (r1 + 1) * pitch;
+  // Bord d'une enclave : au milieu de l'espace entre deux cases ; côté plateau, son bord extérieur.
+  const edge = (cells: number) => 2 * ISO.pad + cells * pitch - 4;
+  const x = c0 === 0 ? 0 : ISO.pad - 2 + c0 * pitch;
+  const y = r0 === 0 ? 0 : ISO.pad - 2 + r0 * pitch;
+  const x1 = c1 === cols - 1 ? edge(cols) : ISO.pad - 2 + (c1 + 1) * pitch;
+  const y1 = r1 === rows - 1 ? edge(rows) : ISO.pad - 2 + (r1 + 1) * pitch;
   return [x, y, x1 - x, y1 - y];
 }
 
@@ -189,10 +252,10 @@ export const REGION_FLOORS: Readonly<Record<Region['type'], readonly string[]>> 
   ],
 };
 
-/** Fond du plateau en iso : les sols des enclaves, sous les cases. */
-export function isoFloor(scenery: IsoScenery, flipped: boolean, rows: number, cols: number): string {
+/** Fond du plateau avec le décor 2,5D : les sols des enclaves, sous les cases. */
+export function isoFloor(scenery: IsoScenery, flipped: boolean, rows: number, cols: number, pitch: number = ISO.pitch): string {
   const layers = scenery.regions.flatMap((region) => {
-    const [x, y, w, h] = regionRect(region, flipped, rows, cols);
+    const [x, y, w, h] = regionRect(region, flipped, rows, cols, pitch);
     return REGION_FLOORS[region.type].map((layer) => `${layer} ${x}px ${y}px / ${w}px ${h}px no-repeat`);
   });
   return [...layers, 'oklch(0.25 0.04 165 / .1)'].join(', ');

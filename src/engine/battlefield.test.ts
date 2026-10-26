@@ -92,7 +92,7 @@ describe('carte « Champ de bataille » 11 × 11 (SPEC.md §3)', () => {
   it('createGame accepte une carte ; le plateau classique reste celui par défaut', () => {
     expect(createGame().board).toBe(BOARD);
     expect(createGame(BATTLEFIELD)).toMatchObject({ board: BATTLEFIELD, activePlayer: 1, players: { 1: { mana: 3 } } });
-    expect(BOARDS).toEqual([BOARD, BATTLEFIELD]);
+    expect(BOARDS.slice(0, 2)).toEqual([BOARD, BATTLEFIELD]);
   });
 
   it('on entre dans la Scierie par la gauche en ligne 1, pas par-dessus la falaise', () => {

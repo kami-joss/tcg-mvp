@@ -35,7 +35,7 @@ export function gameWith(
       const { monster, owner, at: pos, ...overrides } = spec;
       const card = getCard(monster);
       if (card.kind !== 'monster') throw new Error(`${monster} n'est pas un monstre`);
-      placed[id] = { ...createMonsterUnit(id, card, owner, pos), ...overrides };
+      placed[id] = { ...createMonsterUnit(id, card, owner, pos, 0, base.board.mobilityBonus), ...overrides };
     } else {
       const { terrain, owner, at: pos, ...overrides } = spec;
       const card = getCard(terrain);

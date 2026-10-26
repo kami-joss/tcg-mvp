@@ -2,6 +2,8 @@
 import { burst, center, point, spawn, wait } from './stage';
 import type { Stage } from './stage';
 import type { Position } from '../../engine';
+import { TILE_FRAME, artFit, fitBackground } from '../art';
+import type { CardArt } from '../art';
 
 export type Projectile = 'arrow' | 'fire' | 'ice' | 'stone' | 'fireball' | 'magic';
 
@@ -172,7 +174,7 @@ export async function revealTrap(stage: Stage, pos: Position, kind: 'bomb' | 'ne
 }
 
 /** Tuile du grimoire qui vole jusqu'à sa cible (arc, rotation) ; un sort éclate en doré à l'arrivée. */
-export async function flyCard(stage: Stage, fromSelector: string, pos: Position, art: string | null, name: string, spell: boolean): Promise<void> {
+export async function flyCard(stage: Stage, fromSelector: string, pos: Position, art: CardArt | null, name: string, spell: boolean): Promise<void> {
   const to = point(stage, pos);
   const from = center(stage, fromSelector) ?? { x: to.x, y: to.y + 160, w: 72, h: 96 };
   const dx = to.x - from.x;
@@ -194,15 +196,17 @@ export async function flyCard(stage: Stage, fromSelector: string, pos: Position,
         { transform: T(dx, dy, 0, 0, 0.8), opacity: 1, offset: 0.82 },
         { transform: T(dx, dy, 0, 90, 0.6), opacity: 0.6 },
       ];
+  // Comme une tuile du grimoire (3:4, lot 9) : l'illustration cadrée sur les yeux, le nom en bas sous un voile.
+  const veil = 'linear-gradient(180deg, oklch(0.12 0.01 60 / 0) 0 34%, oklch(0.12 0.01 60 / .8) 62%, oklch(0.12 0.01 60 / .85) 100%)';
   const artCss = art
-    ? `background:url("${art}") center/cover`
-    : 'background:repeating-linear-gradient(135deg, oklch(0.42 0.04 70) 0 7px, oklch(0.5 0.04 70) 7px 14px)';
+    ? `${veil}, ${fitBackground(art, artFit(art, TILE_FRAME), 72)}, oklch(0.2 0.014 60)`
+    : `${veil}, repeating-linear-gradient(135deg, oklch(0.42 0.04 70) 0 7px, oklch(0.5 0.04 70) 7px 14px)`;
   const card = spawn(
     stage,
-    { left: `${from.x - 36}px`, top: `${from.y - 48}px`, width: '72px', height: '96px', borderRadius: '8px', overflow: 'hidden', background: 'oklch(0.94 0.02 85)', boxShadow: '0 0 0 2px oklch(0.82 0.13 85), 0 10px 24px oklch(0 0 0 / .5)', display: 'flex', flexDirection: 'column', zIndex: '3' },
+    { left: `${from.x - 36}px`, top: `${from.y - 48}px`, width: '72px', height: '96px', borderRadius: '8px', overflow: 'hidden', background: artCss, boxShadow: '0 0 0 2px oklch(0.82 0.13 85), 0 10px 24px oklch(0 0 0 / .5)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', zIndex: '3' },
     frames,
     { duration: ms, easing: 'cubic-bezier(.4,0,.3,1)' },
-    `<div style="height:58px;flex:none;${artCss}"></div><div class="fx-card__name" style="flex:1;display:flex;align-items:center;justify-content:center;padding:0 4px;font:800 11px/1.05 'Alegreya Sans',sans-serif;color:oklch(0.2 0.014 60);text-align:center"></div>`,
+    `<div class="fx-card__name" style="padding:0 4px 6px;font:800 11px/1.05 'Alegreya Sans',sans-serif;color:oklch(0.97 0.01 85);text-shadow:0 1px 2px oklch(0 0 0 / .9);text-align:center"></div>`,
   );
   const label = card.querySelector('.fx-card__name');
   if (label) label.textContent = name;

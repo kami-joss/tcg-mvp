@@ -116,7 +116,8 @@ describe('terrains debout : un blason garni de l’illustration de la carte', ()
         onCellHover={() => {}}
       />,
     );
-    expect(html.match(/class="crest__face crest__face--art" style="background-image:url\(/g)).toHaveLength(3);
+    // Cadrée comme un jeton (lot 10), en cqw : le blason est le conteneur.
+    expect(html.match(/class="crest__face crest__face--art"><span class="art-fit" style="background:url\(&quot;[^"]*cqw/g)).toHaveLength(3);
     for (const art of ['terrain-drainant', 'terrain-piege', 'zone-invocation']) expect(html).toContain(art);
   });
 });

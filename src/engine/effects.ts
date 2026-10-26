@@ -375,6 +375,7 @@ function applyEffect(state: GameState, effect: Effect, monster: MonsterUnit, con
       return setUnit(emit(state, { type: 'mobility', unitId, pos, amount: effect.amount }), {
         ...monster,
         mobilityLeft: monster.mobilityLeft + effect.amount,
+        boost: monster.boost + effect.amount,
       });
     case 'addAtkThisTurn':
       return boost(state, monster, effect.amount);

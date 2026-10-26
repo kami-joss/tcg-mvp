@@ -86,7 +86,7 @@ export function addStatus(state: GameState, unitId: UnitId, spec: StatusSpec): G
   if (updated.kind === 'monster') {
     if (kind === 'stun' || kind === 'immobilise') updated = { ...updated, mobilityLeft: 0 };
     else if (spec.kind === 'slow' && unit.owner === state.activePlayer) {
-      updated = { ...updated, mobilityLeft: Math.max(0, updated.mobilityLeft - spec.amount) };
+      updated = { ...updated, mobilityLeft: Math.max(0, updated.mobilityLeft - spec.amount), froze: updated.froze + spec.amount };
     }
   }
   return setUnit(emit(state, { type: 'status', unitId, pos: unit.pos, status }), updated);
@@ -104,24 +104,24 @@ export function expireStatuses(state: GameState, turn: number): GameState {
 
 /**
  * Mobilité d'un tour, avec les statuts actifs à ce tour-là : 0 si stun ou immobilisé, sinon celle de la carte plus
- * `aura` (Origine), moins les slow.
+ * `bonus` (aura d'Origine, bonus du plateau), moins les slow.
  */
-function mobilityWith(monster: MonsterUnit, statuses: readonly Status[], aura: number): number {
+function mobilityWith(monster: MonsterUnit, statuses: readonly Status[], bonus: number): number {
   if (statuses.some((s) => s.kind === 'stun' || s.kind === 'immobilise')) return 0;
   const slow = statuses.filter((s) => s.kind === 'slow').reduce((total, s) => total + statusAmount(s), 0);
-  return Math.max(0, getMonsterCard(monster.cardId).mobility + aura - slow);
+  return Math.max(0, getMonsterCard(monster.cardId).mobility + bonus - slow);
 }
 
-/** Mobilité retrouvée au début du tour en cours (les statuts échus ont déjà disparu) ; `aura` : bonus d'aura. */
-export function turnMobility(monster: MonsterUnit, aura = 0): number {
-  return mobilityWith(monster, monster.statuses, aura);
+/** Mobilité retrouvée au début du tour en cours (les statuts échus ont déjà disparu) ; `bonus` : aura et plateau. */
+export function turnMobility(monster: MonsterUnit, bonus = 0): number {
+  return mobilityWith(monster, monster.statuses, bonus);
 }
 
 /**
- * Mobilité qu'aura le monstre à son prochain tour, vu depuis le tour `turn` où `active` joue ; `aura` : bonus d'aura
- * s'il reste où il est.
+ * Mobilité qu'aura le monstre à son prochain tour, vu depuis le tour `turn` où `active` joue ; `bonus` : bonus du
+ * plateau, et d'aura s'il reste où il est.
  */
-export function getNextTurnMobility(monster: MonsterUnit, turn: number, active: PlayerId, aura = 0): number {
+export function getNextTurnMobility(monster: MonsterUnit, turn: number, active: PlayerId, bonus = 0): number {
   const next = ownerNextTurn(turn, active, monster.owner);
-  return mobilityWith(monster, monster.statuses.filter((s) => s.expiresAtTurn > next), aura);
+  return mobilityWith(monster, monster.statuses.filter((s) => s.expiresAtTurn > next), bonus);
 }

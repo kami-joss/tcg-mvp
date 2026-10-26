@@ -40,8 +40,8 @@ describe('Flèche divine et famille Archer', () => {
 
   it('fiche : portée 3 et puce du bonus ; dégâts annoncés à 3 cases', () => {
     const sheet = getSheet(view(after), { kind: 'cell', pos: at(9, 0) })!;
-    expect(sheet.stats?.find((s) => s.label === 'Portée')?.value).toBe('3');
-    expect(sheet.chips).toContainEqual({ text: '+1 portée jusqu’à la fin du tour', tone: 'ok' });
+    expect(sheet.stats.find((s) => s.label === 'Portée')).toMatchObject({ value: '3', delta: 1 });
+    expect(sheet.status?.map((c) => c.text)).toContain('+1 portée jusqu’à la fin du tour');
     expect(getAttackPreviews(view(after), { kind: 'unit', unitId: 'u1', mode: 'act' }).get(posKey(at(6, 0)))?.damage).toBe(2);
   });
 

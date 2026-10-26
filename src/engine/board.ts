@@ -1,5 +1,6 @@
 // Plateau (SPEC.md §3).
-import type { Board, Cell, Cliff, Direction, ManaZoneId, PlayerId, Position } from './types';
+import MAP_13 from './maps/champ-13x13.json';
+import type { Board, BoardScenery, Cell, Cliff, Direction, Enclave, ManaZoneId, PlayerId, Position } from './types';
 
 /** Plateau du MVP, recopié tel quel depuis SPEC.md §3 (une chaîne par ligne, un caractère par colonne). */
 export const BOARD_LAYOUT: readonly string[] = [
@@ -74,7 +75,13 @@ export const BOARD_CLIFFS: readonly Cliff[] = [
   mineCliff(6, 5, 6, 6),
 ];
 
-export function parseBoard(name: string, layout: readonly string[], cliffs: readonly Cliff[] = []): Board {
+/** Ce qu'un plateau peut avoir en plus de ses cases et de ses falaises. */
+export interface BoardOptions {
+  readonly mobilityBonus?: number;
+  readonly scenery?: BoardScenery | null;
+}
+
+export function parseBoard(name: string, layout: readonly string[], cliffs: readonly Cliff[] = [], options: BoardOptions = {}): Board {
   const cols = layout[0]?.length ?? 0;
   const cells = layout.map((line, row) => {
     if (line.length !== cols) {
@@ -91,7 +98,55 @@ export function parseBoard(name: string, layout: readonly string[], cliffs: read
       throw new Error(`Falaise entre (${a.row}, ${a.col}) et (${b.row}, ${b.col}) : les cases doivent être voisines`);
     }
   }
-  return { name, rows: layout.length, cols, cells, cliffs };
+  return { name, rows: layout.length, cols, cells, cliffs, mobilityBonus: options.mobilityBonus ?? 0, scenery: options.scenery ?? null };
+}
+
+/**
+ * Carte au format des handoffs (`carte-13x13.json`) : une ligne par rangée, symboles séparés par des espaces (ceux de
+ * `parseBoard`), cases d'eau (« ligne,colonne », des X), falaises hautes (Mine) ou basses (Scierie), enclaves.
+ */
+export interface MapData {
+  readonly lignes: readonly string[];
+  readonly eau: readonly string[];
+  readonly falaises: readonly { readonly entre: readonly (readonly number[])[]; readonly type: string }[];
+  readonly enclaves: readonly { readonly type: string; readonly lignes: readonly number[]; readonly colonnes: readonly number[]; readonly zone: readonly number[] }[];
+}
+
+const pair = (values: readonly number[], what: string): [number, number] => {
+  const [a, b] = values;
+  if (values.length !== 2 || a === undefined || b === undefined) throw new Error(`${what} : deux nombres attendus`);
+  return [a, b];
+};
+
+export function parseMap(name: string, data: MapData, options: Omit<BoardOptions, 'scenery'> = {}): Board {
+  const cliffs = data.falaises.map(({ entre, type }) => {
+    const [a, b] = entre.map((pos) => pair(pos, 'Falaise'));
+    if (!a || !b || entre.length !== 2) throw new Error('Falaise : deux cases attendues');
+    if (type === 'basse') return scierieCliff(...a, ...b);
+    if (type === 'haute') return mineCliff(...a, ...b);
+    throw new Error(`Falaise de type inconnu « ${type} »`);
+  });
+  const enclaves = data.enclaves.map(({ type, lignes, colonnes, zone }): Enclave => {
+    if (type !== 'scierie' && type !== 'mine') throw new Error(`Enclave de type inconnu « ${type} »`);
+    const [r0, r1] = pair(lignes, 'Enclave');
+    const [c0, c1] = pair(colonnes, 'Enclave');
+    const [row, col] = pair(zone, 'Enclave');
+    return { type: type === 'scierie' ? 'hollow' : 'quarry', r0, r1, c0, c1, zone: { row, col } };
+  });
+  const water = data.eau.map((id) => {
+    const [row, col] = pair(id.split(',').map(Number), 'Eau');
+    return { row, col };
+  });
+  const board = parseBoard(
+    name,
+    data.lignes.map((line) => line.split(' ').join('')),
+    cliffs,
+    { ...options, scenery: { water, enclaves } },
+  );
+  for (const pos of water) {
+    if (getCell(board, pos).kind !== 'blocked') throw new Error(`Eau en (${pos.row}, ${pos.col}) : la case doit être un X`);
+  }
+  return board;
 }
 
 /** Plateau classique du MVP (11 × 9). */
@@ -127,10 +182,30 @@ export const BATTLEFIELD_CLIFFS: readonly Cliff[] = [
   mineCliff(10, 2, 10, 3),
 ];
 
-export const BATTLEFIELD: Board = parseBoard('Champ de bataille (11 × 11)', BATTLEFIELD_LAYOUT, BATTLEFIELD_CLIFFS);
+export const BATTLEFIELD: Board = parseBoard('Champ de bataille (11 × 11)', BATTLEFIELD_LAYOUT, BATTLEFIELD_CLIFFS, {
+  // 4 tronçons de rivière en paires symétriques ; enclaves de la Scierie et de la Mine.
+  scenery: {
+    water: [
+      { row: 4, col: 6 },
+      { row: 6, col: 4 },
+      { row: 5, col: 0 },
+      { row: 5, col: 10 },
+    ],
+    enclaves: [
+      { type: 'hollow', r0: 0, r1: 2, c0: 8, c1: 10, zone: { row: 1, col: 9 } },
+      { type: 'quarry', r0: 8, r1: 10, c0: 0, c1: 2, zone: { row: 9, col: 1 } },
+    ],
+  },
+});
+
+/**
+ * Grande carte 13 × 13 (SPEC.md §3, handoff V7) : symétrique par rotation de 180° sauf les falaises (Mine fermée,
+ * Scierie ouverte), deux étangs, +1 mobilité pour tous les monstres.
+ */
+export const BATTLEFIELD_13: Board = parseMap('Champ de bataille (13 × 13)', MAP_13, { mobilityBonus: 1 });
 
 /** Cartes proposées au lancement d'une partie. */
-export const BOARDS: readonly Board[] = [BOARD, BATTLEFIELD];
+export const BOARDS: readonly Board[] = [BOARD, BATTLEFIELD, BATTLEFIELD_13];
 
 /** Renvoie la case en `pos` ; toute position hors de la grille est hors plateau. */
 export function getCell(board: Board, pos: Position): Cell {

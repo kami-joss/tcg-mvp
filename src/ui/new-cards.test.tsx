@@ -48,8 +48,11 @@ describe('Dragon élémentaire - Origine', () => {
     });
     const after = applyAction(state, { type: 'playCard', cardId: 'dragon-feu', target: { kind: 'cell', pos: at(0, 4) } });
     const sheet = getSheet(view(after), { kind: 'cell', pos: at(0, 4) })!;
-    expect(sheet.stats?.slice(0, 2).map((s) => s.value)).toEqual(['6', '6/6']);
-    expect(sheet.chips).toContainEqual({ text: '+1 ATK +1 PV +1 mobilité (aura : Dragon élémentaire - Origine)', tone: 'ok' });
+    expect(sheet.stats.slice(0, 2).map((s) => [s.value, s.delta])).toEqual([
+      ['6', 1],
+      ['6/6', 1],
+    ]);
+    expect(sheet.status?.map((c) => c.text)).toContain('+1 ATK +1 PV +1 mobilité (aura : Dragon élémentaire - Origine)');
     const aura = view(after).events.find((e) => e.type === 'auraHp')!;
     const before = { ...view(after), units: { ...view(after).units, u2: { ...view(after).units.u2!, hp: 5, maxHp: 5, auraHp: 0 } } };
     expect(applyEvent(before, aura, view(after)).units.u2).toMatchObject({ hp: 6, maxHp: 6, auraHp: 1 });
@@ -97,9 +100,13 @@ describe('Pénombre', () => {
   it('journal, fiche et pastille du statut invisible', () => {
     const after = applyAction(state, PENOMBRE);
     expect(describeAction(view(state), PENOMBRE, view(after))[0]).toBe('J1 lance Pénombre.');
-    const chips = getSheet(view(after), { kind: 'cell', pos: at(1, 1) })!.chips;
-    expect(chips).toContainEqual({ text: 'Invisible 2 (Pénombre) jusqu’à la fin de ce tour et de son prochain', tone: 'ok' });
-    expect(chips).toContainEqual({ text: 'Invisible pour l’adversaire', tone: 'ok' });
+    const chips = getSheet(view(after), { kind: 'cell', pos: at(1, 1) })!.status;
+    expect(chips).toContainEqual({
+      icon: 'eye-slash',
+      text: 'Invisible 2 (Pénombre) jusqu’à la fin de ce tour et de son prochain',
+      kind: 'info',
+    });
+    expect(chips).toContainEqual({ icon: 'eye-slash', text: 'Invisible pour l’adversaire', kind: 'info' });
     expect(renderBoard(after)).toContain('class="status status--invisible"');
   });
 });

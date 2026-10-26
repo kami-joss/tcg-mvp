@@ -19,8 +19,12 @@
   --gold: oklch(0.82 0.13 85);
   --gold-hi: oklch(0.87 0.12 85);
   --select: oklch(0.88 0.15 88);
-  --mana: oklch(0.5 0.1 200);
-  --mana-text: oklch(0.82 0.1 195);
+  /* Mana : une goutte saphir (handoff V8, lot 9). Pastille de coût en dégradé, avec un reflet en haut. */
+  --mana: oklch(0.5 0.165 263);
+  --mana-pill: linear-gradient(160deg, oklch(0.6 0.16 262), oklch(0.42 0.17 264));
+  --mana-shine: inset 0 1px 0 oklch(0.82 0.09 255 / 0.6);
+  --mana-text: oklch(0.78 0.12 258);
+  --mana-drop: #7ea6f0;
   --move: oklch(0.9 0.07 195);
   --move-line: oklch(0.55 0.1 200);
   --path: oklch(0.36 0.09 208);
@@ -510,7 +514,7 @@ select {
 
 .player__mana .icon {
   font-size: 12px;
-  color: var(--mana-text);
+  color: var(--mana-drop);
 }
 
 /* --- Nouvelle partie --- */
@@ -522,21 +526,6 @@ select {
   justify-content: center;
   gap: 8px 12px;
   font-size: 14px;
-}
-
-.new-game label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
-}
-
-.new-game select {
-  padding: 6px 8px;
-  border-radius: 7px;
-  border: 1px solid oklch(0.45 0.014 60);
-  background: var(--panel-hi);
-  color: var(--text);
 }
 
 .new-game--popover {
@@ -566,7 +555,7 @@ select {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) min(var(--grimoire-w, 320px), 42vw);
+  grid-template-columns: 280px minmax(0, 1fr) min(var(--grimoire-w, 320px), 42vw);
   gap: 12px;
   padding: 10px 12px 12px;
 }
@@ -582,23 +571,21 @@ select {
   gap: 10px;
 }
 
-/* Emplacement de la fiche au survol : une fiche plus haute que lui passe par-dessus le journal. */
+/*
+ * Colonne de la fiche (lot 9) : une place fixe de la taille d'une carte, pour que le journal en dessous ne bouge pas
+ * quand la fiche change. La fiche reçoit la souris : son corps défile.
+ */
 .game__sheet {
   position: relative;
   z-index: 5;
-  flex: 1 1 0;
-  min-height: 0;
+  flex: none;
+  height: min(498px, calc(100vh - 210px));
+  height: min(498px, calc(100dvh - 210px));
+  min-height: 260px;
 }
 
 .game__sheet > .sheet {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  max-height: calc(100vh - 150px);
-  max-height: calc(100dvh - 150px);
-  /* Hors du plateau, rien à laisser voir dessous : la fiche est opaque. */
-  background: oklch(0.2 0.014 60 / 0.97);
+  max-height: 100%;
 }
 
 .game__left > .panel {
@@ -761,6 +748,15 @@ select {
 
 .board--tilt .board__edge {
   display: block;
+}
+
+/* Vue inclinée avec le décor 2,5D (lot 7) : le bloc de terrain remplace le fond et le bord du plateau. */
+.board--tilt.board--decor {
+  box-shadow: inset 0 0 0 2px oklch(0.95 0.04 140 / 0.22);
+}
+
+.board--tilt.board--decor .board__edge {
+  display: none;
 }
 
 /* Ombre de contact sous un jeton debout, sous son pied avancé vers l'avant de la case (lot 6). */
@@ -1084,6 +1080,32 @@ select {
   box-shadow: 0 0 0 3px var(--select), 0 0 14px oklch(0.88 0.15 88 / 0.8);
 }
 
+/*
+ * Unité montrée par la fiche (lot 9) : un peu plus grosse. La propriété `scale` (pas `transform`, déjà pris par
+ * l'orientation, le redressement et les animations).
+ */
+.plaque,
+.token__frame,
+.crest__body {
+  transition: scale 0.2s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.plaque.is-focus {
+  scale: 1.15;
+}
+
+.token.is-focus {
+  z-index: 4;
+}
+
+.token.is-focus .token__frame {
+  scale: 1.4;
+}
+
+.crest.is-focus .crest__body {
+  scale: 1.25;
+}
+
 .plaque__name {
   font: 800 calc(var(--cell) * 0.16) / 1.05 var(--font);
   text-align: center;
@@ -1221,7 +1243,10 @@ select {
   stroke-linejoin: round;
 }
 
-/* L'illustration, droite, dans le rond de la goutte ; un liseré blanc pour le Joueur 2 (le camp sans la couleur). */
+/*
+ * L'illustration, droite, dans le rond de la goutte ; un liseré blanc pour le Joueur 2 (le camp sans la couleur).
+ * Le rond est le conteneur de son calque `.art-fit` : le cadrage sur les yeux s'écrit en cqw (lot 10).
+ */
 .token__art {
   position: absolute;
   inset: calc(var(--k) * 0.022);
@@ -1230,10 +1255,25 @@ select {
   justify-content: center;
   border-radius: 50%;
   overflow: hidden;
+  container-type: inline-size;
 }
 
-.token--p2 .token__art {
+/* Calque d'une illustration cadrée (jeton, blason, tuile du grimoire) : il remplit son conteneur. */
+.art-fit {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Au-dessus de l'illustration : un calque, pas l'ombre du rond (peinte sous ses enfants). */
+.token--p2 .token__art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
   box-shadow: inset 0 0 0 calc(var(--k) * 0.022) oklch(0.98 0.01 85);
+  pointer-events: none;
 }
 
 .token.is-exhausted .token__art {
@@ -1581,7 +1621,10 @@ select {
   background: repeating-linear-gradient(90deg, var(--cliff-low) 0 7px, oklch(0.3 0.04 60) 7px 10px);
 }
 
-/* --- Rivière (Champ de bataille) : une bande d'eau horizontale entre deux berges, en vue de dessus et inclinée --- */
+/*
+ * --- Eau (Champ de bataille) : une bande d'eau entre deux berges, en vue de dessus et inclinée ; horizontale pour une
+ * case de rivière, verticale pour les cases d'un étang (lot 7) ---
+ */
 
 .cell--water {
   background:
@@ -1589,6 +1632,13 @@ select {
     repeating-linear-gradient(90deg, transparent 0 14px, oklch(0.97 0.03 190 / 0.5) 14px 20px, transparent 20px 30px) 6px 56% / 100% 2px no-repeat,
     linear-gradient(180deg, oklch(0.5 0.06 150 / 0.45) 0 17%, oklch(0.56 0.07 70) 17% 23%, oklch(0.78 0.07 190) 23% 30%, oklch(0.62 0.09 210) 50%, oklch(0.78 0.07 190) 70% 77%, oklch(0.56 0.07 70) 77% 83%, oklch(0.5 0.06 150 / 0.45) 83%);
   box-shadow: inset 0 0 0 1.5px oklch(0.42 0.08 220 / 0.9);
+}
+
+.cell--pond {
+  background:
+    repeating-linear-gradient(180deg, transparent 0 9px, oklch(0.97 0.03 190 / 0.7) 9px 17px, transparent 17px 24px) 43% 0 / 2px 100% no-repeat,
+    repeating-linear-gradient(180deg, transparent 0 14px, oklch(0.97 0.03 190 / 0.5) 14px 20px, transparent 20px 30px) 56% 6px / 2px 100% no-repeat,
+    linear-gradient(90deg, oklch(0.5 0.06 150 / 0.45) 0 17%, oklch(0.56 0.07 70) 17% 23%, oklch(0.78 0.07 190) 23% 30%, oklch(0.62 0.09 210) 50%, oklch(0.78 0.07 190) 70% 77%, oklch(0.56 0.07 70) 77% 83%, oklch(0.5 0.06 150 / 0.45) 83%);
 }
 
 /*
@@ -1669,34 +1719,34 @@ select {
   transform-style: preserve-3d;
 }
 
-.board--iso .cell--plain {
+.board--decor .cell--plain {
   background: oklch(0.25 0.04 165 / 0.07);
   box-shadow: inset 0 0 0 1px oklch(0.28 0.04 165 / 0.32);
 }
 
-.board--iso .cell--plain.cell--odd {
+.board--decor .cell--plain.cell--odd {
   background: oklch(1 0 0 / 0.08);
 }
 
-.board--iso .cell--blocked {
+.board--decor .cell--blocked {
   background: radial-gradient(closest-side, oklch(0.34 0.04 150 / 0.55), oklch(0.34 0.04 150 / 0.18));
   box-shadow: inset 0 0 0 1px oklch(0.28 0.04 165 / 0.32);
 }
 
-.board--iso .cell--water {
+.board--decor .cell--water {
   background: transparent;
   box-shadow: none;
 }
 
-.board--iso .cell--mana {
+.board--decor .cell--mana {
   background: oklch(0.86 0.13 88 / 0.34);
 }
 
-.board--iso .cell--summon-p1 {
+.board--decor .cell--summon-p1 {
   background: oklch(0.56 0.15 255 / 0.42);
 }
 
-.board--iso .cell--summon-p2 {
+.board--decor .cell--summon-p2 {
   background: oklch(0.56 0.18 25 / 0.42);
 }
 
@@ -1726,7 +1776,7 @@ select {
  * En iso, le cercle reste au sol comme celui d'un piège (plus soutenu sur le sol clair) ; l'icône est redressée face à
  * l'écran et suit la case.
  */
-.board--iso .zone-mark {
+.board--decor .zone-mark {
   background: color-mix(in oklch, var(--player) 42%, transparent);
 }
 
@@ -1845,11 +1895,11 @@ select {
   color: #2b241d;
 }
 
-/* L'illustration de la carte remplit le blason, recadrée au centre. */
+/* L'illustration de la carte remplit le blason, cadrée comme sur un jeton (lot 10). */
 .crest__face--art {
   padding: 0;
-  background-size: cover;
-  background-position: center;
+  container-type: inline-size;
+  background: oklch(0.3 0.03 50);
 }
 
 .crest .crest__hp {
@@ -1918,6 +1968,19 @@ select {
 @keyframes isoFlowWide {
   to {
     transform: translateX(72px);
+  }
+}
+
+/* Courant des étangs (lot 7), vers le bas. */
+@keyframes isoFlowY {
+  to {
+    transform: translateY(48px);
+  }
+}
+
+@keyframes isoFlowYWide {
+  to {
+    transform: translateY(72px);
   }
 }
 
@@ -2190,14 +2253,6 @@ select {
   vertical-align: middle;
 }
 
-.sheet__passive {
-  padding: 0 5px;
-  border-radius: 4px;
-  background: oklch(1 0 0 / 0.14);
-  font: 700 11px/1.4 var(--font-sc);
-  letter-spacing: 0.04em;
-}
-
 .legend__settings label {
   display: flex;
   align-items: center;
@@ -2288,8 +2343,8 @@ select {
   font-size: 16px;
 }
 
-.legend__icon--crystal-growth .icon {
-  color: oklch(0.78 0.1 200);
+.legend__icon--water-drop .icon {
+  color: var(--mana-drop);
 }
 
 .legend__icon--laurels .icon {
@@ -2612,20 +2667,10 @@ select {
   outline-offset: 2px;
 }
 
-.tile__art {
-  position: relative;
-  height: 58px;
-  width: 100%;
-}
-
-.tile:not(.tile--playable) .tile__art {
-  filter: grayscale(1) brightness(0.7);
-}
-
 .tile__cost {
   position: absolute;
-  top: 5px;
-  left: 5px;
+  top: 6px;
+  left: 6px;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -2635,11 +2680,13 @@ select {
   background: oklch(0.4 0.014 60);
   color: white;
   font: 800 14px/1 var(--font);
+  text-shadow: none;
   box-shadow: 0 0 0 2px white;
 }
 
 .tile--playable .tile__cost {
-  background: var(--mana);
+  background: var(--mana-pill);
+  box-shadow: 0 0 0 2px white, var(--mana-shine);
 }
 
 .tile__cost .icon {
@@ -2648,16 +2695,17 @@ select {
 
 .tile__kind {
   position: absolute;
-  top: 5px;
-  right: 5px;
+  top: 6px;
+  right: 6px;
   display: flex;
   align-items: center;
   gap: 3px;
   padding: 2px 5px;
   border-radius: 6px;
-  background: oklch(0.2 0.012 60 / 0.8);
+  background: oklch(0.15 0.012 60 / 0.75);
   color: white;
   font: 800 11px/1.2 var(--font);
+  text-shadow: none;
 }
 
 .tile__kind .icon {
@@ -2667,8 +2715,8 @@ select {
 .tile__body {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 6px 8px 8px;
+  gap: 4px;
+  padding: 0 8px 9px;
 }
 
 .tile__name {
@@ -2693,13 +2741,89 @@ select {
   font-size: 13px;
 }
 
-.tile--playable .tile__stat--hearts .icon {
+.tile--playable .tile__stat--hearts .icon,
+.tile--card .tile__stat--hearts .icon {
   color: oklch(0.86 0.12 20);
 }
 
 .tile__note {
   font: 700 12px/1.2 var(--font);
   opacity: 0.8;
+}
+
+/*
+ * Tuile illustrée (3:4, lot 9). Elle est le conteneur de son illustration (cqw) ; l'illustration et son voile sont
+ * derrière le texte. Injouable : toute la tuile ternie. Liseré vert si jouable, anneau doré si choisie, blanc si la
+ * fiche la montre.
+ */
+.tile--card {
+  --tile-ring: 0 0 0 0 transparent;
+  --tile-line: 0 0 0 0 transparent;
+  position: relative;
+  container-type: inline-size;
+  isolation: isolate;
+  aspect-ratio: 3 / 4;
+  justify-content: flex-end;
+  background: oklch(0.2 0.014 60);
+  color: oklch(0.97 0.01 85);
+  text-shadow: 0 1px 2px oklch(0 0 0 / 0.9);
+  opacity: 1;
+  filter: grayscale(0.85) brightness(0.72);
+  box-shadow: var(--tile-ring), inset 0 0 0 1px oklch(1 0 0 / 0.14), var(--tile-line);
+  transition: box-shadow 0.15s ease;
+}
+
+.tile--card.tile--playable {
+  --tile-line: inset 0 -3px 0 oklch(0.65 0.14 150);
+  filter: none;
+}
+
+.tile--card.is-focused {
+  --tile-ring: 0 0 0 2px oklch(0.97 0.01 85 / 0.8);
+}
+
+.tile--card.is-selected {
+  --tile-ring: 0 0 0 3px var(--select);
+}
+
+.tile--card .tile__note {
+  color: oklch(0.85 0.015 80);
+  opacity: 1;
+}
+
+/* Illustration en fond, sous un voile qui fonce le bas (nom et stats). Sans illustration : l'icône du type, sur des
+   rayures à la couleur du type. */
+.tile__art {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  display: flex;
+  justify-content: center;
+  padding-top: 24%;
+  background: repeating-linear-gradient(
+    135deg,
+    oklch(0.42 calc(var(--jewel-c) * 0.5) var(--jewel-h)) 0 7px,
+    oklch(0.36 calc(var(--jewel-c) * 0.45) var(--jewel-h)) 7px 14px
+  );
+  pointer-events: none;
+}
+
+.tile__art > .icon {
+  font-size: 34cqw;
+  color: white;
+  opacity: 0.9;
+}
+
+.tile__art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    oklch(0.12 0.01 60 / 0) 0 34%,
+    oklch(0.12 0.01 60 / 0.8) 62%,
+    oklch(0.12 0.01 60 / 0.85) 100%
+  );
 }
 
 /* Vue liste : une ligne par carte (coût, nom et caractéristiques, type et exemplaires), sans illustration. */
@@ -2745,15 +2869,116 @@ select {
 .log {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  max-height: calc(8 * 1.35em + 7 * 4px);
+  gap: 7px;
+  max-height: 24em;
   margin: 0;
   padding: 0 4px 0 0;
   overflow-y: auto;
   list-style: none;
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.35;
-  color: oklch(0.84 0.015 80);
+  color: var(--text);
+}
+
+/* Une entrée par action : l'icône de l'action dans une pastille à la couleur du camp, puis la phrase et ses conséquences. */
+.log__entry {
+  --side: oklch(0.42 0.014 60);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.log__entry--p1,
+.log__turn--p1 {
+  --side: var(--j1);
+}
+
+.log__entry--p2,
+.log__turn--p2 {
+  --side: var(--j2);
+}
+
+.log__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-top: -2px;
+  border-radius: 50%;
+  background: var(--side);
+  color: white;
+  font-size: 13px;
+}
+
+.log__body {
+  min-width: 0;
+}
+
+.log__entry--start .log__text {
+  color: var(--muted);
+}
+
+.log__entry--refused .log__icon {
+  background: var(--danger);
+}
+
+.log__entry--refused .log__text {
+  color: var(--danger);
+}
+
+/* Conséquences : des étiquettes colorées à la suite de la phrase (pertes en rouge, gains en vert, VP en or). */
+.log__item {
+  margin-left: 7px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.log__item .icon {
+  display: inline-block;
+  margin-right: 3px;
+  font-size: 12px;
+  vertical-align: -1px;
+}
+
+.log__item--hurt {
+  color: oklch(0.76 0.13 25);
+}
+
+.log__item--good {
+  color: oklch(0.8 0.12 150);
+}
+
+.log__item--vp {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.log__item--mana {
+  color: var(--mana-text);
+  font-weight: 700;
+}
+
+/* Nouveau tour : un séparateur avec le numéro, le joueur, le mana et les VP reçus. */
+.log__turn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 10px;
+  margin-top: 3px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: oklch(1 0 0 / 0.045);
+  box-shadow: inset 3px 0 0 var(--side, oklch(0.42 0.014 60));
+}
+
+.log__turn .log__item {
+  margin-left: 0;
+}
+
+.log__turn-label {
+  font: 800 12px/1.2 var(--font-sc);
+  letter-spacing: 0.06em;
 }
 
 .log__used {
@@ -2764,30 +2989,29 @@ select {
   color: oklch(0.68 0.015 80);
 }
 
-/* --- Fiche au survol --- */
+/* --- Fiche (handoff V8, lot 9) --- */
 
 .sheet {
-  --frame: oklch(0.45 0.08 70);
+  --frame: oklch(0.55 0.09 75);
   position: relative;
-  z-index: 40;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 280px;
+  max-width: 100%;
   overflow: hidden;
   border-radius: 12px;
-  /* Translucide, comme dans la maquette : les hachures de portée restent visibles dessous. */
-  background: oklch(0.16 0.014 60 / 0.55);
+  background: oklch(0.25 0.014 60);
   color: var(--paper);
   text-shadow: 0 1px 2px oklch(0 0 0 / 0.9);
-  box-shadow: 0 0 0 2px var(--frame), 0 8px 24px oklch(0 0 0 / 0.3);
-  pointer-events: none;
+  box-shadow: 0 0 0 2px var(--frame), 0 10px 28px oklch(0 0 0 / 0.4);
 }
 
-/* Fiche d'une carte ou d'une unité : la pierre de son type (voir les tuiles du grimoire). */
-.sheet.is-jewel,
-.game__sheet > .sheet.is-jewel {
-  background: linear-gradient(
-    165deg,
-    oklch(var(--jewel-l) var(--jewel-c) var(--jewel-h) / 0.86),
-    oklch(calc(var(--jewel-l) - 0.16) var(--jewel-c) var(--jewel-h) / 0.9)
-  );
+.sheet--card {
+  height: 498px;
+  max-height: 100%;
+  background: oklch(0.18 0.014 60);
 }
 
 .sheet--1 {
@@ -2799,7 +3023,7 @@ select {
 }
 
 .sheet--zone {
-  --frame: oklch(0.5 0.1 75);
+  --frame: oklch(0.6 0.11 80);
 }
 
 .sheet--blocked,
@@ -2807,7 +3031,109 @@ select {
   --frame: oklch(0.35 0.014 60);
 }
 
+/* Fond d'une fiche illustrée : flou, illustration cadrée, voile qui fonce le texte sous le bandeau clair. */
+.sheet__bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.sheet__bg--blur {
+  inset: -30px;
+  background: center / cover no-repeat;
+  filter: blur(18px) brightness(0.85);
+}
+
+.sheet__bg--veil {
+  background: linear-gradient(
+    180deg,
+    oklch(0.12 0.01 60 / 0) 0 88px,
+    oklch(0.12 0.01 60 / 0.75) 136px,
+    oklch(0.12 0.01 60 / 0.75) 100%
+  );
+}
+
+/* Sans illustration : l'icône du type sur des rayures du propriétaire (pierre du type pour une carte du grimoire). */
+.sheet__bg--plain {
+  display: flex;
+  justify-content: center;
+  padding-top: 18px;
+  background:
+    linear-gradient(180deg, oklch(0.12 0.01 60 / 0) 0 88px, oklch(0.12 0.01 60 / 0.75) 136px, oklch(0.12 0.01 60 / 0.75) 100%),
+    repeating-linear-gradient(
+      135deg,
+      oklch(0.42 calc(var(--jewel-c, 0.06) * 0.6) var(--jewel-h, 70)) 0 7px,
+      oklch(0.36 calc(var(--jewel-c, 0.06) * 0.55) var(--jewel-h, 70)) 7px 14px
+    );
+}
+
+.sheet__bg--p1 {
+  background:
+    linear-gradient(180deg, oklch(0.12 0.01 60 / 0) 0 88px, oklch(0.12 0.01 60 / 0.75) 136px, oklch(0.12 0.01 60 / 0.75) 100%),
+    repeating-linear-gradient(135deg, oklch(0.42 0.1 255) 0 7px, oklch(0.36 0.09 255) 7px 14px);
+}
+
+.sheet__bg--p2 {
+  background:
+    linear-gradient(180deg, oklch(0.12 0.01 60 / 0) 0 88px, oklch(0.12 0.01 60 / 0.75) 136px, oklch(0.12 0.01 60 / 0.75) 100%),
+    repeating-linear-gradient(135deg, oklch(0.42 0.12 25) 0 7px, oklch(0.36 0.11 25) 7px 14px);
+}
+
+.sheet__bg--plain > .icon {
+  font-size: 72px;
+  color: white;
+  filter: drop-shadow(0 4px 6px oklch(0 0 0 / 0.4));
+}
+
+/* Bandeau clair du haut : l'illustration s'y voit en entier ; le coût en haut à droite. */
+.sheet__band {
+  position: relative;
+  flex: none;
+  height: 112px;
+}
+
+.sheet__band > .mana-pill {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  box-shadow: var(--mana-shine), 0 0 0 1px oklch(0.28 0.12 264), 0 3px 8px oklch(0 0 0 / 0.5);
+}
+
+/* Pastille de coût en mana : une goutte saphir. */
+.mana-pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 28px;
+  padding: 0 10px 0 7px;
+  border-radius: 14px;
+  background: var(--mana-pill);
+  box-shadow: var(--mana-shine), 0 0 0 1px oklch(0.28 0.12 264);
+  color: white;
+  font: 800 15px/1 var(--font);
+  letter-spacing: 0;
+  text-shadow: none;
+}
+
+.mana-pill .icon {
+  font-size: 15px;
+}
+
+.mana-pill--small {
+  height: 18px;
+  padding: 0 6px 0 4px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+.mana-pill--small .icon {
+  font-size: 10px;
+}
+
 .sheet__head {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -2819,35 +3145,22 @@ select {
   font: 800 18px/1.1 var(--font);
 }
 
-.sheet__cost {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  height: 28px;
-  padding: 0 9px 0 6px;
-  border-radius: 14px;
-  background: var(--mana);
-  color: white;
-  font: 800 15px/1 var(--font);
-  text-shadow: none;
-}
-
-.sheet__cost .icon {
-  font-size: 15px;
-}
-
-.sheet__art {
-  height: 84px;
-  opacity: 0.85;
-  background-position: center 25%;
-}
-
+/* Le corps défile (fondu en bas) ; une fiche sans illustration prend simplement sa hauteur. */
 .sheet__body {
   display: flex;
   flex-direction: column;
   gap: 9px;
-  padding: 10px 12px 12px;
+  padding: 0 12px 12px;
+}
+
+.sheet--card .sheet__body {
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 16px;
+  overflow: hidden auto;
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.7 0.02 80 / 0.55) transparent;
+  mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
 }
 
 .sheet__type {
@@ -2860,27 +3173,32 @@ select {
 }
 
 .sheet__type .icon {
+  flex: none;
   font-size: 17px;
 }
 
 .sheet__stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
   gap: 5px;
+  padding-top: 4px;
 }
 
 .sheet__stat {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 6px 2px;
+  padding: 6px 2px 5px;
   border-radius: 7px;
-  background: oklch(1 0 0 / 0.1);
+  background: oklch(0.13 0.01 60 / 0.55);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.12);
 }
 
 .sheet__stat .icon {
   font-size: 16px;
   margin-bottom: 4px;
+  color: #f2ebe0;
 }
 
 .sheet__stat strong {
@@ -2893,31 +3211,181 @@ select {
   color: oklch(0.85 0.015 80);
 }
 
+.sheet__stat.is-up strong {
+  color: oklch(0.86 0.14 150);
+}
+
+.sheet__stat.is-down strong,
+.sheet__stat.is-hurt strong {
+  color: oklch(0.78 0.16 28);
+}
+
+/* Bonus ou malus du moment, par rapport à la carte. */
+.sheet__delta {
+  position: absolute;
+  top: -7px;
+  right: -5px;
+  padding: 2px 5px;
+  border-radius: 8px;
+  background: oklch(0.55 0.19 28);
+  box-shadow: 0 0 0 2px oklch(0.2 0.014 60);
+  color: white;
+  font: 800 11px/1 var(--font);
+  font-style: normal;
+  text-shadow: none;
+}
+
+.sheet__stat.is-up .sheet__delta {
+  background: oklch(0.55 0.15 150);
+}
+
+/* Disponibilité : point coloré et texte (vert possible, orange il manque quelque chose, gris impossible). */
+.tone--ok {
+  --tone-dot: oklch(0.68 0.15 150);
+  --tone-text: oklch(0.9 0.09 150);
+}
+
+.tone--warn {
+  --tone-dot: oklch(0.72 0.15 60);
+  --tone-text: oklch(0.92 0.08 70);
+}
+
+.tone--off {
+  --tone-dot: oklch(0.62 0.01 80);
+  --tone-text: oklch(0.86 0.01 80);
+}
+
+.tone--info {
+  --tone-dot: oklch(0.72 0.13 50);
+  --tone-text: oklch(0.9 0.06 60);
+}
+
+.tone__dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tone-dot);
+  box-shadow: 0 0 6px var(--tone-dot);
+}
+
+.sheet__avail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 6px 8px 6px 9px;
+  border-radius: 8px;
+  background: oklch(0.13 0.01 60 / 0.55);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.1);
+}
+
+.sheet__avail > .icon {
+  font-size: 15px;
+  color: #e2d9ca;
+}
+
+.sheet__avail > b {
+  font: 800 13px/1.2 var(--font);
+}
+
+.sheet__state {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font: 800 12.5px/1.2 var(--font);
+  color: var(--tone-text);
+}
+
 .sheet__line {
   font-size: 14px;
   line-height: 1.4;
   text-wrap: pretty;
 }
 
-.sheet__effect {
+/* Effet passif (ambre) et effet actif (violet), avec leur disponibilité en pied. */
+.sheet__block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   padding: 8px 10px;
   border-radius: 8px;
-  background: oklch(0.55 0.15 300 / 0.25);
-  box-shadow: inset 0 0 0 1px oklch(0.7 0.15 300 / 0.6);
 }
 
-.sheet__effect-head {
+.sheet__block--passive {
+  background: linear-gradient(oklch(0.55 0.12 75 / 0.24), oklch(0.55 0.12 75 / 0.24)), oklch(0.13 0.01 60 / 0.55);
+  box-shadow: inset 0 0 0 1px oklch(0.72 0.12 75 / 0.6);
+}
+
+.sheet__block--active {
+  background: linear-gradient(oklch(0.55 0.15 305 / 0.26), oklch(0.55 0.15 305 / 0.26)), oklch(0.13 0.01 60 / 0.55);
+  box-shadow: inset 0 0 0 1px oklch(0.68 0.15 305 / 0.6);
+}
+
+.sheet__block-head {
   display: flex;
   align-items: center;
   gap: 5px;
-  margin-bottom: 5px;
   font: 800 11px/1 var(--font-sc);
   letter-spacing: 0.06em;
-  color: oklch(0.84 0.1 300);
 }
 
-.sheet__effect-head .icon {
+.sheet__block-head > span:not(.mana-pill) {
+  flex: 1;
+}
+
+.sheet__block-head > .icon {
+  flex: none;
   font-size: 15px;
+}
+
+.sheet__block--passive .sheet__block-head {
+  color: oklch(0.87 0.12 75);
+}
+
+.sheet__block--passive .sheet__block-head > .icon {
+  color: #ecc983;
+}
+
+.sheet__block--active .sheet__block-head {
+  color: oklch(0.85 0.1 305);
+}
+
+.sheet__block--active .sheet__block-head > .icon {
+  color: #d9b8f7;
+}
+
+.sheet__foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid oklch(1 0 0 / 0.14);
+  font: 800 12.5px/1.25 var(--font);
+  color: var(--tone-text);
+}
+
+/* « Effets en cours », fixe en bas de la fiche. */
+.sheet__status {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 12px 11px;
+  background: oklch(0.13 0.012 60 / 0.76);
+  box-shadow: inset 0 1px 0 oklch(0.38 0.014 60);
+}
+
+.sheet__status-head {
+  font: 800 11px/1 var(--font-sc);
+  letter-spacing: 0.08em;
+  color: oklch(0.72 0.015 80);
+}
+
+.sheet__none {
+  font: 500 13px/1.3 var(--font);
+  color: oklch(0.68 0.012 80);
 }
 
 .sheet__chips {
@@ -2926,20 +3394,274 @@ select {
   gap: 5px;
 }
 
+/* Puce : fond de sa couleur à 20 %, contour à 55 %. */
 .chip {
-  padding: 3px 7px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 700;
-  background: oklch(1 0 0 / 0.12);
+  --chip: oklch(0.72 0.03 80);
+  --chip-icon: #e2d9ca;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px 4px 6px;
+  border-radius: 7px;
+  background: color-mix(in oklch, var(--chip) 20%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--chip) 55%, transparent);
+  color: oklch(0.95 0.01 85);
+  font: 700 12.5px/1.2 var(--font);
 }
 
-.chip--ok {
-  background: oklch(0.65 0.14 150 / 0.4);
+.chip > .icon {
+  flex: none;
+  font-size: 14px;
+  color: var(--chip-icon);
+}
+
+.chip--frost {
+  --chip: oklch(0.74 0.09 220);
+  --chip-icon: #a9dcf0;
+}
+
+.chip--burn {
+  --chip: oklch(0.7 0.17 45);
+  --chip-icon: #ffb27a;
+}
+
+.chip--boost {
+  --chip: oklch(0.66 0.14 150);
+  --chip-icon: #9be3b0;
+}
+
+.chip--zone {
+  --chip: oklch(0.8 0.13 85);
+  --chip-icon: #ecd07a;
 }
 
 .chip--warn {
-  background: oklch(0.72 0.14 60 / 0.4);
+  --chip: oklch(0.72 0.15 60);
+  --chip-icon: oklch(0.88 0.1 70);
+}
+
+.chip--info {
+  --chip: oklch(0.62 0.03 250);
+  --chip-icon: oklch(0.88 0.03 250);
+}
+
+/* Sans fiche : un cadre pointillé à sa place. */
+.sheet-placeholder {
+  box-sizing: border-box;
+  width: 280px;
+  max-width: 100%;
+  height: 498px;
+  max-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  border: 1.5px dashed oklch(0.36 0.014 60);
+  border-radius: 12px;
+  font: 500 14px/1.45 var(--font);
+  color: oklch(0.62 0.015 80);
+  text-align: center;
+  text-wrap: pretty;
+}
+
+/* --- Accueil (/) : réglages de la partie, avant de la lancer sur /game --- */
+
+.home {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  padding: 48px 20px 56px;
+  background: radial-gradient(80% 60% at 50% 0%, oklch(0.32 0.05 150 / 0.5), transparent 70%), var(--bg);
+}
+
+.home__header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 640px;
+  text-align: center;
+}
+
+.home__kicker {
+  font: 800 13px/1 var(--font-sc);
+  letter-spacing: 0.12em;
+  color: var(--gold);
+}
+
+.home h1 {
+  font: 800 44px/1.05 var(--font);
+}
+
+.home__lead {
+  font-size: 16px;
+  color: var(--muted);
+}
+
+.home__section {
+  width: min(920px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.home__section h2 {
+  font: 800 13px/1 var(--font-sc);
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.home__maps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.home__map {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--line);
+  cursor: pointer;
+}
+
+.home__map:hover {
+  background: var(--panel-hi);
+}
+
+.home__map:has(input:checked) {
+  background: var(--panel-hi);
+  box-shadow: inset 0 0 0 2px var(--gold);
+}
+
+.home__map input,
+.home__deck input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.home__map:has(input:focus-visible),
+.home__deck:has(input:focus-visible) {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.home__map-title {
+  font: 800 18px/1.15 var(--font);
+}
+
+.home__map-details {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.home__players {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.home__player {
+  --player: var(--j1);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px 18px;
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--line), inset 4px 0 0 var(--player);
+}
+
+.home__player--p2 {
+  --player: var(--j2);
+}
+
+.home__player h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 800 18px/1 var(--font);
+}
+
+.home__player h3 .shape {
+  width: 18px;
+  height: 18px;
+}
+
+.home__player h3 small {
+  font: 700 12px/1 var(--font-sc);
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.home__decks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.home__deck {
+  position: relative;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font: 700 14px/1 var(--font);
+  cursor: pointer;
+}
+
+.home__deck:hover {
+  box-shadow: inset 0 0 0 1px oklch(0.5 0.02 70);
+}
+
+.home__deck:has(input:checked) {
+  background: var(--player);
+  box-shadow: none;
+  color: white;
+}
+
+.home__switch {
+  align-self: flex-start;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.home__switch button {
+  padding: 7px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font: 700 14px/1 var(--font);
+  cursor: pointer;
+}
+
+.home__switch button[aria-pressed='true'] {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.home__start {
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 18px;
+  box-shadow: inset 0 -3px 0 oklch(0.6 0.12 75);
+}
+
+.home__start .icon {
+  font-size: 20px;
 }
 
 /* --- Victoire --- */
@@ -2980,6 +3702,13 @@ select {
 .overlay__score {
   font-size: 16px;
   color: oklch(0.8 0.015 80);
+}
+
+.overlay__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
 }
 
 /* --- Passage d'écran --- */
@@ -3045,27 +3774,25 @@ select {
     padding: 8px 10px 10px;
   }
 
+  /* La fiche flotte en bas à gauche, réduite, par-dessus le plateau ; sans fiche, rien à cet endroit. */
   .game__sheet {
     position: fixed;
     left: 8px;
     bottom: 8px;
     z-index: 40;
-    width: 240px;
-    flex: none;
+    width: 280px;
+    height: auto;
+    min-height: 0;
+    zoom: 0.8;
     pointer-events: none;
   }
 
-  .game__sheet > .sheet {
-    position: relative;
-    background: oklch(0.16 0.014 60 / 0.55);
+  .game__sheet > .sheet--card {
+    max-height: calc(100dvh - 120px);
   }
 
-  .game__sheet > .sheet.is-jewel {
-    background: linear-gradient(
-      165deg,
-      oklch(var(--jewel-l) var(--jewel-c) var(--jewel-h) / 0.72),
-      oklch(calc(var(--jewel-l) - 0.16) var(--jewel-c) var(--jewel-h) / 0.78)
-    );
+  .sheet-placeholder {
+    display: none;
   }
 
   .game__left > .panel {

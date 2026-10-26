@@ -242,7 +242,7 @@ function reachLosses(state: GameState, attacker: PlayerId): number {
   for (const monster of monstersOf(state, attacker)) {
     const next = ownerNextTurn(state.turn, state.activePlayer, monster.owner);
     if (monster.statuses.some((s) => s.kind === 'stun' && s.expiresAtTurn > next)) continue;
-    const mobile = { ...monster, mobilityLeft: getNextTurnMobility(monster, state.turn, state.activePlayer) };
+    const mobile = { ...monster, mobilityLeft: getNextTurnMobility(monster, state.turn, state.activePlayer, state.board.mobilityBonus) };
     const { [monster.id]: _self, ...others } = state.units;
     const board = { board: state.board, units: others };
     const froms = [monster.pos, ...getMoveDestinations(state, mobile).map((d) => d.pos)];

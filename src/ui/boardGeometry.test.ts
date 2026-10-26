@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CELL_MAX, CELL_MIN, boardMetrics, fitCell, sceneSize } from './boardGeometry';
+import { CELL_MAX, CELL_MIN, boardMetrics, fitCell, sceneSize, tiltGeometry } from './boardGeometry';
 
 describe('géométrie du plateau : il tient dans sa zone, sans défilement', () => {
   it('mesures à plat : 11 cases de 68 px, 4 px entre elles, 14 px de marge', () => {
@@ -30,6 +30,19 @@ describe('géométrie du plateau : il tient dans sa zone, sans défilement', () 
 
   it('la vue inclinée, plus basse, laisse des cases plus grandes à hauteur égale', () => {
     expect(fitCell(2000, 600, 11, 11, true)).toBeGreaterThan(fitCell(2000, 600, 11, 11, false));
+  });
+
+  it('vue inclinée avec le décor 2,5D : la scène l’englobe, le plateau y reste au point de fuite', () => {
+    const m = boardMetrics(50, 13, 13);
+    const plain = tiltGeometry(m, 13);
+    const decor = tiltGeometry(m, 13, true);
+    expect(plain).toMatchObject({ sceneWidth: m.width, boardLeft: 0 });
+    expect(decor.sceneWidth).toBeGreaterThan(m.width + 100);
+    expect(decor.sceneHeight).toBeGreaterThan(plain.sceneHeight + 80);
+    expect(decor.originX).toBeCloseTo(decor.boardLeft + m.width / 2);
+    expect(decor.boardTop + m.height).toBeLessThan(decor.sceneHeight);
+    // À place égale, des cases plus petites pour faire tenir le décor.
+    expect(fitCell(1000, 800, 13, 13, true, true)).toBeLessThan(fitCell(1000, 800, 13, 13, true));
   });
 
   it('zone minuscule : jamais sous la taille minimale (la zone défile alors)', () => {

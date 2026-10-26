@@ -27,7 +27,7 @@ export function getFreeSummonCells(state: BoardState, player: PlayerId): Positio
  */
 export function placeSummonedMonster(state: GameState, player: PlayerId, card: MonsterCard, pos: Position): GameState {
   const id = `u${state.nextUnitId}`;
-  const unit = createMonsterUnit(id, card, player, pos, state.turn);
+  const unit = createMonsterUnit(id, card, player, pos, state.turn, state.board.mobilityBonus);
   return enterCell(addUnit(emit(state, { type: 'summon', unit }), () => unit), id, NEW_MOVEMENT).state;
 }
 

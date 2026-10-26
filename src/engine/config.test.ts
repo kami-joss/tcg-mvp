@@ -12,7 +12,7 @@ import {
 // Celui-ci fige les valeurs du MVP et sera à mettre à jour en cas d'équilibrage.
 describe('constantes de jeu (SPEC.md §4.2, §4.7, §4.10)', () => {
   it('ont les valeurs de la spécification', () => {
-    expect(VICTORY_VP).toBe(20);
+    expect(VICTORY_VP).toBe(30);
     expect(BASE_MANA_PER_TURN).toBe(3);
     expect(PLAYER2_FIRST_TURN_BONUS_MANA).toBe(1);
     expect(MANA_PER_CONTROLLED_ZONE).toBe(1);

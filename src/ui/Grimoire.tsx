@@ -1,12 +1,15 @@
 // Grimoire du joueur actif (SPEC.md §7) : coût, type, nombre d'exemplaires, caractéristiques, en trois sections
 // (monstres, sorts, terrains ; une section vide disparaît).
-// Fond teinté selon le type (monstre rouge, sort bleu, terrain vert) : pastel clair si la carte est jouable, sombre sinon.
 // Quatre affichages, choisis par les boutons de l'en-tête : tuiles à 3, 2 ou 1 par ligne, ou liste compacte (une ligne
-// par carte, sans illustration : la fiche au survol la montre). L'affichage règle aussi la largeur de la colonne.
+// par carte, sans illustration : la fiche la montre). L'affichage règle aussi la largeur de la colonne.
+// Tuiles illustrées au format 3:4 (handoff V8, lot 9) : l'illustration cadrée sur les yeux, coût en haut à gauche, type
+// et exemplaires en haut à droite, nom et caractéristiques en bas. Jouable : liseré vert ; injouable : ternie ;
+// choisie : anneau doré ; montrée par la fiche : anneau blanc. En liste, fond teinté selon le type (monstre rouge, sort
+// bleu, terrain vert), vif si la carte est jouable, sombre sinon.
 import type { CSSProperties, MouseEvent } from 'react';
 import { getCard } from '../engine';
 import type { Card, CardId, PlayerView } from '../engine';
-import { CARD_ART } from './art';
+import { CARD_ART, TILE_FRAME, artFit, fitBackground } from './art';
 import { groupCards } from './cardText';
 import { Icon } from './Icon';
 import type { IconName } from './Icon';
@@ -17,6 +20,8 @@ import type { GrimoireLayout } from './settings';
 interface GrimoireProps {
   view: PlayerView;
   selectedCard: CardId | null;
+  /** Carte montrée par la fiche. */
+  focusedCard?: CardId | null;
   layout: GrimoireLayout;
   onLayout: (layout: GrimoireLayout) => void;
   onCardClick: (cardId: CardId) => void;
@@ -71,7 +76,7 @@ function Stats({ card }: { card: Card }) {
   );
 }
 
-export function Grimoire({ view, selectedCard, layout, onLayout, onCardClick, onCardHover }: GrimoireProps) {
+export function Grimoire({ view, selectedCard, focusedCard = null, layout, onLayout, onCardClick, onCardHover }: GrimoireProps) {
   const { grimoire } = view.me;
   const columns = { '--grimoire-cols': GRIMOIRE_DISPLAY[layout].columns } as CSSProperties;
   const groups = groupCards(grimoire);
@@ -117,6 +122,7 @@ export function Grimoire({ view, selectedCard, layout, onLayout, onCardClick, on
                     list={layout === 'list'}
                     playable={canPlay(view, cardId)}
                     selected={selectedCard === cardId}
+                    focused={focusedCard === cardId}
                     onCardClick={onCardClick}
                     onCardHover={onCardHover}
                   />
@@ -137,19 +143,27 @@ interface TileProps {
   list: boolean;
   playable: boolean;
   selected: boolean;
+  focused: boolean;
   onCardClick: (cardId: CardId) => void;
   onCardHover: (cardId: CardId | null, rect?: DOMRect) => void;
 }
 
-function Tile({ cardId, count, list, playable, selected, onCardClick, onCardHover }: TileProps) {
+function Tile({ cardId, count, list, playable, selected, focused, onCardClick, onCardHover }: TileProps) {
   const card = getCard(cardId);
   const art = CARD_ART[cardId];
-  const classes = ['tile', `tile--${card.kind}`, list && 'tile--row', playable && 'tile--playable', selected && 'is-selected']
+  const classes = [
+    'tile',
+    `tile--${card.kind}`,
+    list ? 'tile--row' : 'tile--card',
+    playable && 'tile--playable',
+    selected && 'is-selected',
+    focused && 'is-focused',
+  ]
     .filter(Boolean)
     .join(' ');
   const cost = (
     <span className="tile__cost" title="Coût en mana">
-      <Icon name="crystal-growth" />
+      <Icon name="water-drop" />
       {card.cost}
     </span>
   );
@@ -181,10 +195,19 @@ function Tile({ cardId, count, list, playable, selected, onCardClick, onCardHove
           </>
         ) : (
           <>
-            <span className="tile__art art" style={art ? { backgroundImage: `url(${art})` } : undefined}>
-              {cost}
-              {kind}
+            {/* La tuile est le conteneur : le cadrage s'écrit en cqw. */}
+            <span className="tile__art" aria-hidden="true">
+              {art ? (
+                <span
+                  className="art-fit"
+                  style={{ background: `${fitBackground(art, artFit(art, TILE_FRAME), 'cqw')}, oklch(0.2 0.014 60)` }}
+                />
+              ) : (
+                <Icon name={KIND_ICONS[card.kind]} />
+              )}
             </span>
+            {cost}
+            {kind}
             <span className="tile__body">
               <span className="tile__name">{card.name}</span>
               {card.kind !== 'spell' && <Stats card={card} />}

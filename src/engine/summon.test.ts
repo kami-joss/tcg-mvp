@@ -47,6 +47,8 @@ describe('invocation (SPEC.md §4.5)', () => {
       rangeBonus: 0,
       auraHp: 0,
       mobilityLeft: 3,
+      froze: 0,
+      boost: 0,
       hasAttacked: false,
       hasUsedEffect: false,
       hasRiposted: false,

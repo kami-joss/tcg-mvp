@@ -12,9 +12,11 @@ import type { Session, SessionEvent } from './session';
 interface SessionScreenProps {
   session: Session;
   dispatch: (event: SessionEvent) => void;
+  /** Retour à l'accueil, pour régler une nouvelle partie. */
+  onHome: () => void;
 }
 
-export function SessionScreen({ session, dispatch }: SessionScreenProps) {
+export function SessionScreen({ session, dispatch, onHome }: SessionScreenProps) {
   const { game, previous } = session;
   const viewer = viewerOf(session);
   const view = useMemo(() => getPlayerView(game, viewer), [game, viewer]);
@@ -45,7 +47,8 @@ export function SessionScreen({ session, dispatch }: SessionScreenProps) {
       log={session.log}
       onAction={(action) => dispatch({ type: 'play', action })}
       setup={session.setup}
-      onRestart={(setup) => dispatch({ type: 'restart', setup })}
+      onRestart={() => dispatch({ type: 'restart' })}
+      onHome={onHome}
       autoPlay={aiTurn ? aiStep : null}
     />
   );

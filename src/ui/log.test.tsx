@@ -1,8 +1,11 @@
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { applyAction, getPlayerView } from '../engine';
 import type { Action, GameState } from '../engine';
 import { at, gameWith } from '../engine/test-utils';
-import { describeAction } from './log';
+import { ActionLog } from './ActionLog';
+import { describeAction, logEntry } from './log';
+import type { LogEntry } from './log';
 
 /** Joue l'action et renvoie les lignes du journal, vues par le joueur actif. */
 function logOf(state: GameState, action: Action): string[] {
@@ -37,13 +40,13 @@ describe('journal des actions (SPEC.md §7)', () => {
         { monster: 'milicien', owner: 1, at: at(8, 1) },
         { monster: 'eclaireur', owner: 2, at: at(8, 2) },
       ],
-      { players: { 1: { vp: 19 } } },
+      { players: { 1: { vp: 29 } } },
     );
     expect(logOf(state, { type: 'attack', unitId: 'u1', targetId: 'u2', advance: true })).toEqual([
       'Milicien de J1 attaque Éclaireur de J2.',
       'Éclaireur de J2 est détruit.',
       'Milicien de J1 avance en (8, 2).',
-      'J1 gagne 1 VP (20 au total).',
+      'J1 gagne 1 VP (30 au total).',
       'J1 remporte la partie !',
     ]);
   });
@@ -161,5 +164,69 @@ describe('journal des actions (SPEC.md §7)', () => {
       'Dragon élémentaire de vent de J1 lance Vent violent vers la droite (recul de 2).',
       'Golem de J2 recule sur la Ferme.',
     ]);
+  });
+});
+
+describe('journal : une entrée par action, avec ses icônes', () => {
+  const entryOf = (state: GameState, action: Action) => {
+    const viewer = state.activePlayer;
+    return logEntry(getPlayerView(state, viewer), action, getPlayerView(applyAction(state, action), viewer));
+  };
+
+  it('icône de l’action, camp qui agit, conséquences colorées', () => {
+    const state = gameWith(
+      [
+        { monster: 'milicien', owner: 1, at: at(8, 1) },
+        { monster: 'eclaireur', owner: 2, at: at(8, 2) },
+        { monster: 'archer', owner: 1, at: at(6, 2) },
+      ],
+      { players: { 1: { vp: 3 } } },
+    );
+    expect(entryOf(state, { type: 'attack', unitId: 'u1', targetId: 'u2', advance: false })).toEqual({
+      kind: 'action',
+      player: 1,
+      icon: 'broadsword',
+      text: 'Milicien de J1 attaque Éclaireur de J2.',
+      items: [
+        { icon: 'death-skull', text: 'Éclaireur de J2 est détruit.', tone: 'hurt' },
+        { icon: 'laurels', text: 'J1 gagne 1 VP (4 au total).', tone: 'vp' },
+      ],
+    });
+    // Tir à distance, invocation, déplacement.
+    expect(entryOf(state, { type: 'attack', unitId: 'u3', targetId: 'u2', advance: false }).icon).toBe('high-shot');
+    expect(entryOf(state, { type: 'playCard', cardId: 'milicien', target: { kind: 'cell', pos: at(0, 4) } }).icon).toBe('dragon-head');
+    expect(entryOf(state, { type: 'move', unitId: 'u3', to: at(5, 2) }).icon).toBe('walking-boot');
+  });
+
+  it('fin de tour : un séparateur de tour, avec le mana et les VP reçus', () => {
+    const state = gameWith([{ monster: 'milicien', owner: 2, at: at(5, 4) }]);
+    expect(entryOf(state, { type: 'endTurn' })).toMatchObject({
+      kind: 'turn',
+      player: 2,
+      text: 'J1 termine son tour.',
+      turn: { number: 2, player: 2, mana: 5, vp: 1 },
+      items: [],
+    });
+  });
+});
+
+describe('journal : affichage', () => {
+  it('une ligne par action : pastille du camp, phrase et étiquettes ; séparateur de tour', () => {
+    const entries: LogEntry[] = [
+      { kind: 'turn', player: 1, icon: 'water-drop', text: 'J1 commence avec 3 mana.', items: [], turn: { number: 1, player: 1, mana: 3, vp: 0 } },
+      {
+        kind: 'action',
+        player: 1,
+        icon: 'broadsword',
+        text: 'Milicien de J1 attaque Éclaireur de J2.',
+        items: [{ icon: 'death-skull', text: 'Éclaireur de J2 est détruit.', tone: 'hurt' }],
+      },
+    ];
+    const html = renderToStaticMarkup(<ActionLog entries={entries} opponentUsed={[]} />);
+    expect(html.match(/<li/g)).toHaveLength(2);
+    expect(html).toContain('class="log__turn log__turn--p1"');
+    expect(html).toContain('Tour 1 · J1');
+    expect(html).toContain('class="log__entry log__entry--action log__entry--p1"');
+    expect(html).toMatch(/class="log__item log__item--hurt">.*?<\/svg>Éclaireur de J2 est détruit<\/span>/);
   });
 });

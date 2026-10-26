@@ -24,14 +24,14 @@ import {
   statusAmount,
 } from '../engine';
 import type { Board as BoardData, Direction, MonsterUnit, PlayerView, Position, Status, StatusKind, TerrainUnit, Trap, Unit, UnitId } from '../engine';
-import { CARD_ART, boardArt, shortName } from './art';
+import { CARD_ART, boardArt, fitBackground, shortName, tokenFit } from './art';
 import { Icon } from './Icon';
 import { isExhausted, posKey } from './interaction';
 import type { AttackPreview, Highlight } from './interaction';
 import { trapLabel } from './cardText';
 import { IsoDecor } from './iso/IsoDecor';
-import { EDGE, boardMetrics, fitCell, tiltGeometry } from './boardGeometry';
-import { ISO, ISO_TILT, isWater, isoCamera, isoFloor, isoScenery } from './iso/scenery';
+import { boardMetrics, fitCell, tiltGeometry } from './boardGeometry';
+import { ISO_TILT, isoCamera, isoFloor, isoScenery, planSize, waterKind } from './iso/scenery';
 import { DEFAULT_TOKEN_STATS } from './settings';
 import type { BoardView, TokenStats } from './settings';
 import { STATUS_ICONS, diceLayout, getZoneMarks } from './zoneMarks';
@@ -42,6 +42,8 @@ interface BoardProps {
   highlights: ReadonlyMap<string, Highlight>;
   attacks: ReadonlyMap<string, AttackPreview>;
   selectedUnitId: UnitId | null;
+  /** Unité montrée par la fiche : son jeton grossit un peu (lot 9). */
+  focusedUnitId?: UnitId | null;
   /** Atténuer les cases qui ne sont pas des cibles. */
   focused: boolean;
   /** Chemin prévu sous la souris, dans l'ordre des pas. */
@@ -197,25 +199,29 @@ export function Board(props: BoardProps) {
   const scenery = isoScenery(view.board);
   const iso = mode === 'iso' && scenery !== null;
   const tilted = mode === 'tilt';
-  const art = showArt && !iso ? boardArt(view.board) : undefined;
+  // Décor 2,5D (rochers, eau, mana zones modélisées, enclaves, bordure) : vues isométrique et inclinée, s'il existe.
+  const decor = (iso || tilted) && scenery !== null;
+  const art = showArt && !decor ? boardArt(view.board) : undefined;
   const zoomView = useZoomViewport(zoom, mode);
   const area = useElementSize(zoomView.ref);
   const { rows, cols } = view.board;
   // Vues de dessus et inclinée : la plus grande case pour laquelle la scène tient dans la zone (le zoom s'y ajoute).
-  const metrics = boardMetrics(fitCell(area.width - FIT_MARGIN, area.height - FIT_MARGIN, rows, cols, tilted), rows, cols);
-  const geometry = tiltGeometry(metrics, rows);
-  const camera = isoCamera(area.width, area.height, zoom);
+  const tiltDecor = tilted && decor;
+  const metrics = boardMetrics(fitCell(area.width - FIT_MARGIN, area.height - FIT_MARGIN, rows, cols, tilted, tiltDecor), rows, cols);
+  const geometry = tiltGeometry(metrics, rows, tiltDecor);
+  const plan = planSize(Math.max(rows, cols));
+  const camera = isoCamera(plan, area.width, area.height, zoom);
   const sceneHeight = tilted ? geometry.sceneHeight : metrics.height;
   const sceneStyle: CSSProperties = iso
     ? { width: camera.width, height: camera.height, perspective: 'none' }
     : {
-        width: metrics.width,
+        width: tilted ? geometry.sceneWidth : metrics.width,
         height: sceneHeight,
-        perspectiveOrigin: `${metrics.width / 2}px ${tilted ? sceneHeight - EDGE - geometry.originY : metrics.height - geometry.originY}px`,
+        perspectiveOrigin: tilted ? `${geometry.originX}px ${geometry.originY}px` : `${metrics.width / 2}px ${metrics.height / 2}px`,
         // En vue de dessus ou inclinée, le zoom agrandit toute la scène.
         ...(zoom !== 1 ? { zoom } : {}),
       };
-  const half = ISO.board / 2;
+  const half = plan / 2;
   const boardVars: Record<string, string | number> = {
     '--cols': view.board.cols,
     '--rows': view.board.rows,
@@ -228,7 +234,12 @@ export function Board(props: BoardProps) {
           transform: `scale(${camera.k.toFixed(4)}) rotateX(${ISO_TILT}deg) rotateZ(45deg)`,
           background: isoFloor(scenery!, flipped, view.board.rows, view.board.cols),
         }
-      : { '--cell': `${metrics.cell}px`, top: tilted ? sceneHeight - EDGE - metrics.height : 0 }),
+      : {
+          '--cell': `${metrics.cell}px`,
+          top: tilted ? geometry.boardTop : 0,
+          left: tilted ? geometry.boardLeft : 0,
+          ...(decor ? { background: isoFloor(scenery!, flipped, rows, cols, metrics.pitch) } : {}),
+        }),
     ...(art ? { backgroundImage: `url(${art})` } : {}),
   };
   const boardStyle = boardVars as CSSProperties;
@@ -257,19 +268,30 @@ export function Board(props: BoardProps) {
     >
       <div className={`scene scene--${iso ? 'iso' : mode === 'iso' ? 'tilt' : mode}`} style={sceneStyle} data-scene>
         <div
-          className={['board', art && 'board--art', tilted && 'board--tilt', iso && 'board--iso'].filter(Boolean).join(' ')}
+          className={['board', art && 'board--art', tilted && 'board--tilt', iso && 'board--iso', decor && 'board--decor']
+            .filter(Boolean)
+            .join(' ')}
           style={boardStyle}
           data-lift={iso ? camera.lift.toFixed(1) : undefined}
           onMouseLeave={() => onCellHover(null)}
         >
-          {iso && scenery && (
-            <IsoDecor board={view.board} scenery={scenery} flipped={flipped} controllers={controllers} animated={animated} />
+          {decor && scenery && (
+            <IsoDecor
+              board={view.board}
+              scenery={scenery}
+              flipped={flipped}
+              controllers={controllers}
+              animated={animated}
+              camera={iso ? 'iso' : 'tilt'}
+              pitch={iso ? undefined : metrics.pitch}
+            />
           )}
           {positions.map((pos) => (
             <BoardCell
               key={posKey(pos)}
               {...props}
               mode={iso ? 'iso' : tilted ? 'tilt' : 'top'}
+              decor={decor}
               pos={pos}
               step={steps.get(posKey(pos))}
               marks={zoneMarks.get(posKey(pos))}
@@ -292,6 +314,7 @@ function BoardCell({
   highlights,
   attacks,
   selectedUnitId,
+  focusedUnitId = null,
   focused,
   reach,
   mode,
@@ -299,23 +322,26 @@ function BoardCell({
   stats = DEFAULT_TOKEN_STATS,
   onCellClick,
   onCellHover,
-}: BoardProps & { pos: Position; step: number | undefined; marks: readonly ZoneMark[] | undefined; standScale: number }) {
+  decor,
+}: BoardProps & { pos: Position; step: number | undefined; marks: readonly ZoneMark[] | undefined; standScale: number; decor: boolean }) {
   const cell = getCell(view.board, pos);
   const dataCell = `${pos.row},${pos.col}`;
   if (cell.kind === 'offBoard') return <div className="cell cell--off" aria-hidden="true" data-cell={dataCell} />;
   const hover = (event: MouseEvent<HTMLElement>) => onCellHover(pos, event.currentTarget.getBoundingClientRect());
   const iso = mode === 'iso';
-  // En iso, les falaises ne sont plus des barres : les enclaves sont modélisées dans le décor.
-  const cliffs = iso ? null : <Cliffs board={view.board} pos={pos} flipped={flipped} />;
+  // Avec le décor 2,5D, les falaises ne sont plus des barres : les enclaves sont modélisées.
+  const cliffs = decor ? null : <Cliffs board={view.board} pos={pos} flipped={flipped} />;
   const parity = (pos.row + pos.col) % 2 ? ' cell--odd' : '';
 
   if (cell.kind === 'blocked') {
-    const water = isWater(view.board, pos);
+    // Eau : une bande horizontale (rivière) ou verticale (étang de plusieurs cases).
+    const water = waterKind(view.board, pos);
+    const waterClass = water ? ` cell--water${water === 'pond' ? ' cell--pond' : ''}` : '';
     return (
       <div
-        className={`cell cell--blocked${water ? ' cell--water' : ''}${parity}${focused ? ' is-dim' : ''}`}
+        className={`cell cell--blocked${waterClass}${parity}${focused ? ' is-dim' : ''}`}
         onMouseEnter={hover}
-        aria-label={water ? 'Rivière' : 'Case bloquée'}
+        aria-label={water === 'pond' ? 'Étang' : water ? 'Rivière' : 'Case bloquée'}
         data-cell={dataCell}
       >
         {cliffs}
@@ -333,6 +359,7 @@ function BoardCell({
   const attack = attacks.get(key);
   const trap = view.traps.find((t) => samePos(t.pos, pos));
   const isSelected = (unit: Unit | undefined) => unit !== undefined && unit.id === selectedUnitId;
+  const isFocus = (unit: Unit | undefined) => unit !== undefined && unit.id === focusedUnitId;
   const dim = focused && !highlight && !step && !isSelected(monster) && !isSelected(terrain);
   // En vue inclinée ou isométrique, les unités sont debout : une cible posée sur un monstre s'affiche sur le jeton.
   const upright = mode !== 'top';
@@ -373,7 +400,9 @@ function BoardCell({
       {reach.get(key) === 'move' && <span className="layer layer--reach" />}
       {reach.get(key) === 'strike' && <span className="layer layer--threat" />}
       {trap && !monster && <TrapMarker trap={trap} />}
-      {terrain && <TerrainPlaque terrain={terrain} alone={!monster} selected={isSelected(terrain)} upright={upright} />}
+      {terrain && (
+        <TerrainPlaque terrain={terrain} alone={!monster} selected={isSelected(terrain)} focus={isFocus(terrain)} upright={upright} />
+      )}
       {upright && (monster || terrain) && (
         <span
           className={`token-shadow${terrain ? ' token-shadow--light' : ''}${monster ? '' : ' token-shadow--crest'}`}
@@ -383,6 +412,7 @@ function BoardCell({
         <TerrainCrest
           terrain={terrain}
           small={monster !== undefined}
+          focus={isFocus(terrain)}
           standScale={standScale}
           target={!monster && highlight === 'target'}
         />
@@ -394,11 +424,13 @@ function BoardCell({
           requiem={requiemCountdown(monster, view.turn, view.activePlayer)}
           active={monster.owner === view.activePlayer}
           selected={isSelected(monster)}
+          focus={isFocus(monster)}
           exhausted={isExhausted(view, monster.id)}
           hidden={view.hiddenFromOpponent.includes(monster.id)}
           onZone={zone !== null}
           angle={(iso ? ISO_ANGLES : FLAT_ANGLES)[flipped ? FLIP_DIRECTION[monster.facing] : monster.facing]}
           stats={stats}
+          mobilityBonus={view.board.mobilityBonus}
           standScale={standScale}
           bobDelay={bobDelay}
           target={onToken ? (highlight === 'attack' || attack ? 'attack' : highlight === 'target' ? 'card' : null) : null}
@@ -483,6 +515,8 @@ interface MonsterTokenProps {
   /** Monstre du joueur dont c'est le tour : sa mobilité restante est affichée. */
   active: boolean;
   selected: boolean;
+  /** Montré par la fiche. */
+  focus: boolean;
   exhausted: boolean;
   /** Un de ses monstres `invisible` que l'adversaire ne voit pas en ce moment. */
   hidden: boolean;
@@ -491,6 +525,8 @@ interface MonsterTokenProps {
   angle: number;
   /** Stats à afficher sous (ou sur) la goutte. */
   stats: TokenStats;
+  /** Mobilité en plus sur ce plateau (13 × 13), comptée dans celle affichée pour l'adversaire. */
+  mobilityBonus: number;
   /** Grossissement du jeton debout en vue inclinée. */
   standScale: number;
   bobDelay: string;
@@ -507,19 +543,20 @@ interface MonsterTokenProps {
  * jeton : le support et le corps sont plus grands que lui, pour que rien de ce qui dépasse ne soit rogné en 3D.
  */
 function MonsterToken(props: MonsterTokenProps) {
-  const { monster, atk, requiem, active, selected, exhausted, hidden, onZone, angle, stats, standScale, bobDelay, target, damage } =
-    props;
+  const { monster, atk, requiem, active, selected, focus, exhausted, hidden, onZone, angle, stats, mobilityBonus, standScale } = props;
+  const { bobDelay, target, damage } = props;
   const card = getCard(monster.cardId);
   const art = CARD_ART[monster.cardId];
   const above = statsAbove(angle);
   const path = dropPath(angle);
   const showMobility = active ? stats.mobility : stats.enemyMobility;
-  const mobility = active ? monster.mobilityLeft : getMonsterCard(monster.cardId).mobility;
+  const mobility = active ? monster.mobilityLeft : getMonsterCard(monster.cardId).mobility + mobilityBonus;
   const classes = [
     'token',
     `token--p${monster.owner}`,
     onZone && 'token--on-zone',
     selected && 'is-selected',
+    focus && 'is-focus',
     exhausted && 'is-exhausted',
     hidden && 'is-hidden',
   ];
@@ -541,8 +578,12 @@ function MonsterToken(props: MonsterTokenProps) {
                 {selected && <path className="token__halo" d={path} />}
                 <path className="token__rim" d={path} />
               </svg>
-              <span className="token__art art" style={art ? { backgroundImage: `url(${art})` } : undefined}>
-                {!art && <span className="token__label">{shortName(monster.cardId, card.name)}</span>}
+              <span className="token__art art">
+                {art ? (
+                  <span className="art-fit" style={{ background: fitBackground(art, tokenFit(art), 'cqw') }} />
+                ) : (
+                  <span className="token__label">{shortName(monster.cardId, card.name)}</span>
+                )}
               </span>
               {stats.statuses && <Statuses statuses={monster.statuses} requiem={requiem} />}
               <span className={statsClasses.filter(Boolean).join(' ')}>
@@ -585,11 +626,12 @@ function MonsterToken(props: MonsterTokenProps) {
   );
 }
 
-function TerrainPlaque(props: { terrain: TerrainUnit; alone: boolean; selected: boolean; upright: boolean }) {
-  const { terrain, alone, selected, upright } = props;
+function TerrainPlaque(props: { terrain: TerrainUnit; alone: boolean; selected: boolean; focus: boolean; upright: boolean }) {
+  const { terrain, alone, selected, focus, upright } = props;
   // Debout (vues inclinée et isométrique), le terrain est un blason : la plaque au sol n'est plus qu'un socle.
+  const classes = ['plaque', `plaque--p${terrain.owner}`, selected && 'is-selected', focus && alone && !upright && 'is-focus'];
   return (
-    <span className={`plaque plaque--p${terrain.owner}${selected ? ' is-selected' : ''}`} data-tid={upright ? undefined : terrain.id}>
+    <span className={classes.filter(Boolean).join(' ')} data-tid={upright ? undefined : terrain.id}>
       <span className="plaque__glow" />
       {alone && !upright && (
         <>
@@ -608,17 +650,19 @@ function TerrainPlaque(props: { terrain: TerrainUnit; alone: boolean; selected: 
  * petit blason au-dessus de sa tête (iso) ou sur son coin haut-droit (inclinée), et redescend avec un rebond quand le
  * monstre part. Il ne flotte pas.
  */
-function TerrainCrest(props: { terrain: TerrainUnit; small: boolean; standScale: number; target: boolean }) {
-  const { terrain, small, standScale, target } = props;
+function TerrainCrest(props: { terrain: TerrainUnit; small: boolean; focus: boolean; standScale: number; target: boolean }) {
+  const { terrain, small, focus, standScale, target } = props;
   const card = getCard(terrain.cardId);
   const art = CARD_ART[terrain.cardId];
   return (
-    <span className={`crest crest--p${terrain.owner}${small ? ' is-small' : ''}`}>
+    <span className={`crest crest--p${terrain.owner}${small ? ' is-small' : ''}${focus ? ' is-focus' : ''}`}>
       <span className="crest__stand" style={{ '--stand': standScale.toFixed(3) } as CSSProperties}>
         <span className="crest__body" data-tid={terrain.id} title={card.name}>
           <span className="crest__rim" />
           {art ? (
-            <span className="crest__face crest__face--art" style={{ backgroundImage: `url(${art})` }} />
+            <span className="crest__face crest__face--art">
+              <span className="art-fit" style={{ background: fitBackground(art, tokenFit(art), 'cqw') }} />
+            </span>
           ) : (
             <span className="crest__face">
               <Icon name="castle" />

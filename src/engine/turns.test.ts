@@ -198,7 +198,7 @@ describe('début de tour : les monstres récupèrent (SPEC.md §4.2)', () => {
 });
 
 describe('victoire (SPEC.md §4.10)', () => {
-  it('atteindre 20 VP en détruisant un monstre fait gagner immédiatement', () => {
+  it('atteindre 30 VP en détruisant un monstre fait gagner immédiatement', () => {
     const state = gameWith(
       [
         { monster: 'milicien', owner: 1, at: at(8, 1) },
@@ -222,7 +222,7 @@ describe('victoire (SPEC.md §4.10)', () => {
     expect(applyAction(state, attack('u1', 'u2')).winner).toBe(2);
   });
 
-  it('atteindre ou dépasser 20 VP au début du tour grâce aux zones fait gagner immédiatement', () => {
+  it('atteindre ou dépasser 30 VP au début du tour grâce aux zones fait gagner immédiatement', () => {
     const state = gameWith(
       [
         { monster: 'milicien', owner: 1, at: FORGE },
@@ -235,7 +235,7 @@ describe('victoire (SPEC.md §4.10)', () => {
     expect(turn.winner).toBe(1);
   });
 
-  it('en dessous de 20 VP, personne ne gagne', () => {
+  it('en dessous de 30 VP, personne ne gagne', () => {
     const state = gameWith([{ monster: 'milicien', owner: 1, at: FORGE }], {
       activePlayer: 2,
       players: { 1: { vp: VICTORY_VP - 2 } },
@@ -262,7 +262,7 @@ describe('victoire (SPEC.md §4.10)', () => {
     expect(() => applyAction(won, move('u3', at(9, 2)))).toThrow(/partie est terminée/);
   });
 
-  it('le premier joueur à atteindre 20 VP reste le vainqueur', () => {
+  it('le premier joueur à atteindre 30 VP reste le vainqueur', () => {
     const won = addVp(gameWith([], { players: { 1: { vp: VICTORY_VP - 1 } } }), 1, 1);
     expect(won.winner).toBe(1);
     expect(addVp(won, 2, VICTORY_VP).winner).toBe(1);

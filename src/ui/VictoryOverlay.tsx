@@ -1,15 +1,13 @@
-// Écran de victoire (SPEC.md §7).
+// Écran de victoire (SPEC.md §7) : rejouer avec les mêmes réglages, ou revenir à l'accueil pour en changer.
 import type { PlayerId, PlayerView } from '../engine';
-import type { Setup } from './session';
-import { NewGameControl } from './NewGameControl';
 
 interface VictoryOverlayProps {
   view: PlayerView;
-  setup: Setup;
-  onRestart: (setup: Setup) => void;
+  onRestart: () => void;
+  onHome: () => void;
 }
 
-export function VictoryOverlay({ view, setup, onRestart }: VictoryOverlayProps) {
+export function VictoryOverlay({ view, onRestart, onHome }: VictoryOverlayProps) {
   if (view.winner === null) return null;
   const vp = (player: PlayerId) => (player === view.viewer ? view.me.vp : view.opponent.vp);
 
@@ -22,7 +20,14 @@ export function VictoryOverlay({ view, setup, onRestart }: VictoryOverlayProps) 
         <p className="overlay__score">
           J1 : {vp(1)} VP · J2 : {vp(2)} VP
         </p>
-        <NewGameControl current={setup} confirm={false} onRestart={onRestart} />
+        <div className="overlay__actions">
+          <button type="button" className="btn btn--gold" onClick={onRestart}>
+            Rejouer
+          </button>
+          <button type="button" className="btn btn--ghost" onClick={onHome}>
+            Nouvelle partie
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import type { IconName } from './Icon';
 import type { DisplaySettings } from './settings';
 
 const ICONS: [IconName, string][] = [
-  ['crystal-growth', 'Mana'],
+  ['water-drop', 'Mana'],
   ['laurels', 'VP'],
   ['magic-swirl', 'Effet actif'],
   ['broadsword', 'ATK'],

@@ -58,11 +58,13 @@ export function startTurn(state: GameState): GameState {
   }
 
   for (const monster of [...getMonsters(next, 1), ...getMonsters(next, 2)]) {
-    // Mobilité de la carte, moins les slow ; 0 si stun ou immobilisé (§5 bis).
+    // Mobilité de la carte, plus les auras et le bonus du plateau, moins les slow ; 0 si stun ou immobilisé (§5 bis).
     const refreshed =
       monster.owner === player
         ? {
-            mobilityLeft: turnMobility(monster, auraMobility(next, monster)),
+            mobilityLeft: turnMobility(monster, auraMobility(next, monster) + next.board.mobilityBonus),
+            froze: statusTotal(monster, 'slow'),
+            boost: 0,
             hasAttacked: false,
             hasUsedEffect: false,
           }

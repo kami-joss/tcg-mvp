@@ -66,7 +66,7 @@ describe('textes des cartes Bodybuilder', () => {
   it('fiche d’une carte du grimoire : type, passifs', () => {
     const sheet = getSheet(activeView(gameWith([])), { kind: 'card', cardId: 'ki-ne' })!;
     expect(sheet.type).toBe('Carte monstre · Bodybuilder');
-    expect(sheet.keywords).toEqual([
+    expect(sheet.passive?.items).toEqual([
       {
         name: 'Début de tour',
         text: 'Bodybuilders alliés adjacents · soin 1 : au début de chacun de vos tours, après les revenus et le burn, sans dépasser leurs PV max.',
@@ -108,8 +108,8 @@ describe('Dopage (Jean Bon) : un clic sur lui-même', () => {
     const view = activeView(doped);
     expect(renderBoard(view)).toMatch(/class="stat stat--atk is-boosted" title="ATK 7 \(5 \+ 2\)">.*?<\/svg>7<\/span>/);
     const sheet = cellSheet(doped, 8, 1);
-    expect(sheet.stats?.[0]).toEqual({ icon: 'broadsword', label: 'ATK', value: '7' });
-    expect(sheet.chips).toContainEqual({ text: '+2 ATK jusqu’à la fin du tour', tone: 'ok' });
+    expect(sheet.stats[0]).toEqual({ icon: 'broadsword', label: 'ATK', value: '7', delta: 2, hurt: false });
+    expect(sheet.status).toContainEqual({ icon: 'broadsword', text: '+2 ATK jusqu’à la fin du tour', kind: 'boost' });
     expect(getAttackPreviews(view, { kind: 'unit', unitId: 'u1', mode: 'act' }).get(posKey(at(8, 2)))?.damage).toBe(7);
   });
 });
@@ -127,8 +127,8 @@ describe('Arnold : l’aura se voit sur le jeton et dans la fiche', () => {
     expect(html.match(/stat--atk is-boosted/g)).toHaveLength(1);
     const sheet = cellSheet(state, 8, 1);
     expect(sheet.type).toBe('Monstre · Bodybuilder · Joueur 1');
-    expect(sheet.stats?.[0]?.value).toBe('4');
-    expect(sheet.chips).toContainEqual({ text: '+2 ATK (aura : Arnold)', tone: 'ok' });
+    expect(sheet.stats[0]).toMatchObject({ value: '4', delta: 2 });
+    expect(sheet.status).toContainEqual({ icon: 'aura', text: '+2 ATK (aura : Arnold)', kind: 'boost' });
     expect(getAttackPreviews(view, { kind: 'unit', unitId: 'u2', mode: 'act' }).get(posKey(at(7, 1)))?.damage).toBe(4);
   });
 });
@@ -155,16 +155,16 @@ describe('Seringue et requiem', () => {
     expect(renderBoard(activeView(injected))).toMatch(
       /class="status status--requiem" title="Requiem : meurt au début du 2e prochain tour de son camp">.*?<\/svg>2<\/span>/,
     );
-    expect(cellSheet(injected, 2, 4).chips).toContainEqual({
+    expect(cellSheet(injected, 2, 4).status).toContainEqual({
+      icon: 'death-skull',
       text: 'Requiem : meurt au début de son 2e prochain tour, sans VP pour personne',
-      tone: 'warn',
+      kind: 'warn',
     });
     const later = applyAction(applyAction(injected, END_TURN), END_TURN);
     expect(renderBoard(activeView(later))).toMatch(/title="Requiem : meurt au début du prochain tour de son camp">.*?<\/svg>1<\/span>/);
-    expect(cellSheet(later, 2, 4).chips).toContainEqual({
-      text: 'Requiem : meurt au début de son prochain tour, sans VP pour personne',
-      tone: 'warn',
-    });
+    expect(cellSheet(later, 2, 4).status?.map((c) => c.text)).toContain(
+      'Requiem : meurt au début de son prochain tour, sans VP pour personne',
+    );
   });
 
   it('au terme : « succombe », animation et son de mort', () => {

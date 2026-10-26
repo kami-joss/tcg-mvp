@@ -335,9 +335,8 @@ export function getEnemyReach(view: PlayerView, unitId: UnitId): Threat {
   if (unit?.kind !== 'monster' || unit.owner === view.viewer) return NO_THREAT;
   const next = ownerNextTurn(view.turn, view.activePlayer, unit.owner);
   if (unit.statuses.some((s) => s.kind === 'stun' && s.expiresAtTurn > next)) return NO_THREAT;
-  const moves = getMoveDestinations(view, { ...unit, mobilityLeft: getNextTurnMobility(unit, view.turn, view.activePlayer) }).map(
-    (d) => d.pos,
-  );
+  const nextMobility = getNextTurnMobility(unit, view.turn, view.activePlayer, view.board.mobilityBonus);
+  const moves = getMoveDestinations(view, { ...unit, mobilityLeft: nextMobility }).map((d) => d.pos);
   // Il ne se gêne pas lui-même : son tir part de chaque case possible comme si la sienne était libre.
   const { [unitId]: _self, ...others } = view.units;
   const board = { board: view.board, units: others };

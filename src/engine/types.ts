@@ -37,6 +37,27 @@ export interface Cliff {
   readonly flyingPasses: boolean;
 }
 
+/**
+ * Enclave d'une mana zone, pour le rendu seulement : creux de la Scierie (`hollow`, talus) ou carrière de la Mine
+ * (`quarry`, remparts). Rectangle de cases (lignes `r0` à `r1`, colonnes `c0` à `c1`) ; le côté « intérieur » d'une
+ * falaise est la case la plus proche de `zone`.
+ */
+export interface Enclave {
+  readonly type: 'hollow' | 'quarry';
+  readonly r0: number;
+  readonly r1: number;
+  readonly c0: number;
+  readonly c1: number;
+  readonly zone: Position;
+}
+
+/** Décor d'un plateau (rendu seulement, les règles n'en tiennent pas compte) : il permet la vue isométrique. */
+export interface BoardScenery {
+  /** Cases bloquées dessinées en eau : règles d'une case bloquée. */
+  readonly water: readonly Position[];
+  readonly enclaves: readonly Enclave[];
+}
+
 export interface Board {
   readonly name: string;
   readonly rows: number;
@@ -44,6 +65,10 @@ export interface Board {
   /** `cells[row][col]` */
   readonly cells: readonly (readonly Cell[])[];
   readonly cliffs: readonly Cliff[];
+  /** Mobilité en plus pour chaque monstre sur ce plateau (SPEC.md §3) ; 0 en général. */
+  readonly mobilityBonus: number;
+  /** Décor de la vue isométrique ; `null` : pas de vue isométrique pour ce plateau. */
+  readonly scenery: BoardScenery | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -391,6 +416,10 @@ export interface MonsterUnit extends UnitBase {
   /** PV donnés par les auras (Origine), déjà compris dans `hp` et `maxHp` : ce qu'il perd en quittant l'aura. */
   readonly auraHp: number;
   readonly mobilityLeft: number;
+  /** Mobilité retirée pour ce tour par slow (Givre, Terrain piégé…) ; recalculée au début de son tour. */
+  readonly froze: number;
+  /** Mobilité ajoutée pour ce tour (Charge) ; remise à 0 au début de son tour. */
+  readonly boost: number;
   readonly hasAttacked: boolean;
   readonly hasUsedEffect: boolean;
   /** `riposte` déjà déclenchée ce tour : une seule par tour (SPEC.md §10). */

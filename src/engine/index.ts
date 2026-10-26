@@ -20,3 +20,11 @@ export { getFreeSummonCells, getTerrainCells } from './play-card';
 export { auraAtk, auraHp, auraMobility, auraSources, getAtk, getKeyword, getRange, getMonsterAt, getMonsters, getUnitsAt, hasKeyword } from './units';
 export { getControlledZones, getZoneController, getZoneMana } from './zones';
 export { getHiddenUnitIds, isHiddenFrom } from './stealth';
+export {
+  attackAvailability,
+  cardAvailability,
+  effectAvailability,
+  type Availability,
+  type MissingTarget,
+  type UnavailableReason,
+} from './availability';

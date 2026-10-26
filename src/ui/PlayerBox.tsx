@@ -1,4 +1,4 @@
-// Encart d'un joueur (SPEC.md §7) : nom, VP sur 20, deck, cartes restantes et mana. Celui du joueur qui regarde est
+// Encart d'un joueur (SPEC.md §7) : nom, VP sur 30, deck, cartes restantes et mana. Celui du joueur qui regarde est
 // sous son grimoire (en bas à droite), celui de l'adversaire au-dessus de la fiche (en haut à gauche). Les compteurs
 // portent `data-vp` et `data-mana` : les animations y font voler les gains.
 import { useEffect, useRef, useState } from 'react';
@@ -63,7 +63,7 @@ export function PlayerBox({ view, player, deckName, ai = false }: { view: Player
       <div className="player__mana" data-mana={player}>
         <strong>{mana}</strong>
         <span>
-          <Icon name="crystal-growth" />
+          <Icon name="water-drop" />
           mana
         </span>
       </div>

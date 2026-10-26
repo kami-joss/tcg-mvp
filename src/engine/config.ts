@@ -1,7 +1,7 @@
 // Constantes de jeu ajustables (SPEC.md §4.10).
 
 /** VP à atteindre pour gagner immédiatement. */
-export const VICTORY_VP = 20;
+export const VICTORY_VP = 30;
 
 /** Mana gagné par le joueur actif à chaque début de tour, avant les mana zones. */
 export const BASE_MANA_PER_TURN = 3;

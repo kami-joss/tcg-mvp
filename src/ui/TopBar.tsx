@@ -1,16 +1,14 @@
-// Barre du haut, aussi fine que possible : le tour, puis la vue du plateau, les stats des jetons (lot 6), le zoom, le son, la nouvelle partie et
-// « Fin du tour » (handoff, lots 3 à 5). Les encarts des joueurs (SPEC.md §7) sont dans les colonnes (`PlayerBox`).
+// Barre du haut, aussi fine que possible : le tour, puis la vue du plateau, les stats des jetons (lot 6), le zoom, le son, la nouvelle partie
+// (retour à l'accueil) et « Fin du tour » (handoff, lots 3 à 5). Les encarts des joueurs (SPEC.md §7) sont dans les colonnes (`PlayerBox`).
+import { useState } from 'react';
 import type { PlayerView } from '../engine';
 import { Icon } from './Icon';
-import { NewGameControl } from './NewGameControl';
-import type { Setup } from './session';
 import { StatsControl } from './StatsControl';
 import { ZOOMS, stepZoom } from './settings';
 import type { BoardView, TokenStats } from './settings';
 
 interface TopBarProps {
   view: PlayerView;
-  setup: Setup;
   /** Une animation se joue : « Fin du tour » attend. */
   busy: boolean;
   boardView: BoardView;
@@ -26,7 +24,8 @@ interface TopBarProps {
   sound: boolean;
   onSound: (on: boolean) => void;
   onEndTurn: () => void;
-  onRestart: (setup: Setup) => void;
+  /** Retour à l'accueil, pour régler une nouvelle partie. */
+  onHome: () => void;
 }
 
 const VIEWS: [BoardView, string][] = [
@@ -36,8 +35,8 @@ const VIEWS: [BoardView, string][] = [
 ];
 
 export function TopBar(props: TopBarProps) {
-  const { view, setup, busy, boardView, isoAvailable, onView, stats, onStats, peek, onPeek, zoom, onZoom, sound, onSound } = props;
-  const { onEndTurn, onRestart } = props;
+  const { view, busy, boardView, isoAvailable, onView, stats, onStats, peek, onPeek, zoom, onZoom, sound, onSound } = props;
+  const { onEndTurn, onHome } = props;
   const myTurn = view.activePlayer === view.viewer && view.winner === null;
   const zoomIndex = ZOOMS.indexOf(zoom);
   return (
@@ -78,11 +77,34 @@ export function TopBar(props: TopBarProps) {
           <Icon name={sound ? 'speaker' : 'speaker-off'} />
           Son
         </button>
-        <NewGameControl current={setup} confirm={view.winner === null} onRestart={onRestart} compact />
+        <NewGameButton confirm={view.winner === null} onHome={onHome} />
         <button type="button" className="btn btn--end-turn" disabled={!myTurn || busy} onClick={onEndTurn}>
           Fin du tour
         </button>
       </div>
     </header>
+  );
+}
+
+/** « Nouvelle partie » : retour à l'accueil ; en cours de partie, une confirmation évite d'abandonner par erreur. */
+function NewGameButton({ confirm, onHome }: { confirm: boolean; onHome: () => void }) {
+  const [confirming, setConfirming] = useState(false);
+  return (
+    <div className="new-game-button">
+      <button type="button" className="btn btn--ghost" onClick={() => (confirm ? setConfirming(!confirming) : onHome())}>
+        Nouvelle partie
+      </button>
+      {confirming && (
+        <div className="new-game new-game--popover" role="dialog" aria-label="Nouvelle partie">
+          <span>Abandonner la partie en cours ?</span>
+          <button type="button" className="btn btn--gold" onClick={onHome}>
+            Oui, retour à l’accueil
+          </button>
+          <button type="button" className="btn btn--ghost" onClick={() => setConfirming(false)}>
+            Non
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

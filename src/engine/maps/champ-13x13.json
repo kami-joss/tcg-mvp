@@ -1,0 +1,227 @@
+{
+  "taille": 13,
+  "legende": {
+    "1": "invocation J1",
+    "2": "invocation J2",
+    "P": "case libre",
+    "X": "bloquée (rocher, ou eau si listée dans eau)",
+    "F": "Forge",
+    "E": "Écurie",
+    "S": "Scierie",
+    "M": "Mine",
+    "R": "Ferme"
+  },
+  "lignes": [
+    "1 1 P P P P P P P P P P P",
+    "1 P P P P P P P P P P S P",
+    "P P P P P P X P P P P P P",
+    "P P P X X P X P X P P P P",
+    "P E P X X P P P X X P P P",
+    "P P P P P P P P P X P P P",
+    "P P P X P P F P P X P P P",
+    "P P P X P P P P P P P P P",
+    "P P P X X P P P X X P R P",
+    "P P P P X P X P X X P P P",
+    "P P P P P P X P P P P P P",
+    "P M P P P P P P P P P P 2",
+    "P P P P P P P P P P P 2 2"
+  ],
+  "eau": [
+    "2,6",
+    "3,6",
+    "9,6",
+    "10,6"
+  ],
+  "falaises": [
+    {
+      "entre": [
+        [
+          3,
+          12
+        ],
+        [
+          4,
+          12
+        ]
+      ],
+      "type": "basse"
+    },
+    {
+      "entre": [
+        [
+          3,
+          10
+        ],
+        [
+          4,
+          10
+        ]
+      ],
+      "type": "basse"
+    },
+    {
+      "entre": [
+        [
+          2,
+          11
+        ],
+        [
+          3,
+          11
+        ]
+      ],
+      "type": "basse"
+    },
+    {
+      "entre": [
+        [
+          1,
+          9
+        ],
+        [
+          1,
+          10
+        ]
+      ],
+      "type": "basse"
+    },
+    {
+      "entre": [
+        [
+          2,
+          8
+        ],
+        [
+          2,
+          9
+        ]
+      ],
+      "type": "basse"
+    },
+    {
+      "entre": [
+        [
+          0,
+          8
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "type": "basse"
+    },
+    {
+      "entre": [
+        [
+          8,
+          0
+        ],
+        [
+          9,
+          0
+        ]
+      ],
+      "type": "haute"
+    },
+    {
+      "entre": [
+        [
+          8,
+          2
+        ],
+        [
+          9,
+          2
+        ]
+      ],
+      "type": "haute"
+    },
+    {
+      "entre": [
+        [
+          9,
+          1
+        ],
+        [
+          10,
+          1
+        ]
+      ],
+      "type": "haute"
+    },
+    {
+      "entre": [
+        [
+          11,
+          2
+        ],
+        [
+          11,
+          3
+        ]
+      ],
+      "type": "haute"
+    },
+    {
+      "entre": [
+        [
+          10,
+          3
+        ],
+        [
+          10,
+          4
+        ]
+      ],
+      "type": "haute"
+    },
+    {
+      "entre": [
+        [
+          12,
+          3
+        ],
+        [
+          12,
+          4
+        ]
+      ],
+      "type": "haute"
+    }
+  ],
+  "enclaves": [
+    {
+      "type": "scierie",
+      "falaise": "basse",
+      "lignes": [
+        0,
+        3
+      ],
+      "colonnes": [
+        9,
+        12
+      ],
+      "zone": [
+        1,
+        11
+      ]
+    },
+    {
+      "type": "mine",
+      "falaise": "haute",
+      "lignes": [
+        9,
+        12
+      ],
+      "colonnes": [
+        0,
+        3
+      ],
+      "zone": [
+        11,
+        1
+      ]
+    }
+  ]
+}
