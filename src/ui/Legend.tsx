@@ -1,8 +1,8 @@
-// Aide, sous le plateau (la colonne centrale défile, le plateau ne rétrécit pas) : réglages, commandes, qui est qui,
-// obstacles, icônes et surbrillances.
+// Aide (handoff V11, lot 13 §5) : panneau flottant en haut du plateau, ouvert par l'icône de la barre du haut, fermé par
+// cette icône, sa croix ou Échap. Commandes, qui est qui, obstacles, icônes, statuts et surbrillances ; les réglages
+// sont dans le menu d'options.
 import { Icon } from './Icon';
 import type { IconName } from './Icon';
-import type { DisplaySettings } from './settings';
 
 const ICONS: [IconName, string][] = [
   ['water-drop', 'Mana'],
@@ -17,45 +17,12 @@ const ICONS: [IconName, string][] = [
   ['castle', 'Terrain'],
 ];
 
-interface LegendProps {
-  settings: DisplaySettings;
-  onChange: (patch: Partial<DisplaySettings>) => void;
-  onClose: () => void;
-}
-
-export function Legend({ settings, onChange, onClose }: LegendProps) {
+export function Legend({ onClose }: { onClose: () => void }) {
   return (
     <section className="legend" aria-label="Aide">
       <button type="button" className="legend__close" title="Fermer l’aide (Échap)" onClick={onClose}>
         ×
       </button>
-      <div className="legend__group legend__settings">
-        <h3>Réglages</h3>
-        <label>
-          <input type="checkbox" checked={settings.animations} onChange={(e) => onChange({ animations: e.target.checked })} />
-          Animations
-        </label>
-        <label>
-          <input type="checkbox" checked={settings.flip} onChange={(e) => onChange({ flip: e.target.checked })} />
-          Plateau tourné vers le joueur qui joue
-        </label>
-        <label>
-          <input type="checkbox" checked={settings.sound} onChange={(e) => onChange({ sound: e.target.checked })} />
-          Son
-        </label>
-        <label className="legend__volume">
-          Volume
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={settings.volume}
-            disabled={!settings.sound}
-            onChange={(e) => onChange({ volume: Number(e.target.value) })}
-          />
-        </label>
-      </div>
       <div className="legend__group">
         <h3>Commandes</h3>
         <p>Clic sur ton monstre : ses déplacements (turquoise) et ses cibles (cadre blanc).</p>

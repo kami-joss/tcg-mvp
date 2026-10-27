@@ -6,7 +6,6 @@ import { at, gameWith } from '../engine/test-utils';
 import { Board, dropPath, statsAbove } from './Board';
 import { ALL_TOKEN_STATS, DEFAULT_TOKEN_STATS } from './settings';
 import type { BoardView, TokenStats } from './settings';
-import { StatsControl } from './StatsControl';
 
 // Jetons lisibles (handoff, lot 6) : goutte orientée, stats au choix du joueur, menu « Stats ».
 
@@ -108,25 +107,5 @@ describe('stats sur les jetons', () => {
     const html = render(burnt, { stats: none });
     expect(html).not.toContain('class="stat ');
     expect(html).not.toContain('status--burn');
-  });
-});
-
-describe('menu « Stats »', () => {
-  it('cinq cases, cochées selon le choix, et le rappel de la touche Alt', () => {
-    const html = renderToStaticMarkup(
-      <StatsControl stats={DEFAULT_TOKEN_STATS} onChange={() => {}} peek={false} onPeek={() => {}} initialOpen />,
-    );
-    expect(html.match(/type="checkbox"/g)).toHaveLength(5);
-    expect(html.match(/checked=""/g)).toHaveLength(3);
-    for (const label of ['PV', 'Mobilité restante (mes monstres)', 'Mobilité (adversaire)', 'Attaque', 'Statuts (brûlure, givre…)']) {
-      expect(html).toContain(label);
-    }
-    expect(html).toContain('Maintenez Alt pour tout afficher');
-  });
-
-  it('le bouton s’éclaire pendant Alt', () => {
-    const html = renderToStaticMarkup(<StatsControl stats={DEFAULT_TOKEN_STATS} onChange={() => {}} peek onPeek={() => {}} />);
-    expect(html).toContain('class="stats-toggle is-peeking"');
-    expect(html).not.toContain('stats-menu');
   });
 });

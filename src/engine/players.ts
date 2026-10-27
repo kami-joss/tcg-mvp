@@ -1,7 +1,7 @@
 // Mise à jour immuable de l'état d'un joueur.
 import { VICTORY_VP } from './config';
 import { emit } from './events';
-import type { CardId, GameState, PlayerId, PlayerState, Position } from './types';
+import type { CardId, GameState, PlayerId, PlayerState, Position, Unit } from './types';
 
 export function opponent(player: PlayerId): PlayerId {
   return player === 1 ? 2 : 1;
@@ -25,12 +25,31 @@ export function addMana(state: GameState, id: PlayerId, amount: number, pos: Pos
   return updatePlayer(emit(state, { type: 'mana', player: id, amount, pos }), id, { mana: state.players[id].mana + amount });
 }
 
-/** Déplace un exemplaire de la carte du grimoire du joueur actif vers sa pile « utilisées », sans rien payer. */
+/** Sans le premier `cardId` de la liste. */
+const withoutOne = (cards: readonly CardId[], cardId: CardId): readonly CardId[] => {
+  const index = cards.indexOf(cardId);
+  return index < 0 ? cards : [...cards.slice(0, index), ...cards.slice(index + 1)];
+};
+
+/** L'exemplaire de cette carte que le joueur jouerait maintenant est brillant (ils partent en premier). */
+export function isShinyCopy(state: GameState, id: PlayerId, cardId: CardId): boolean {
+  return state.players[id].shiny?.includes(cardId) ?? false;
+}
+
+/**
+ * Déplace un exemplaire de la carte du grimoire du joueur actif vers sa pile « utilisées », sans rien payer ; un
+ * exemplaire brillant d'abord, s'il en a un.
+ */
 export function takeFromGrimoire(state: GameState, cardId: CardId): GameState {
   const player = state.players[state.activePlayer];
-  const index = player.grimoire.indexOf(cardId);
   return updatePlayer(state, player.id, {
-    grimoire: [...player.grimoire.slice(0, index), ...player.grimoire.slice(index + 1)],
+    grimoire: withoutOne(player.grimoire, cardId),
     used: [...player.used, cardId],
+    ...(player.shiny?.includes(cardId) ? { shiny: withoutOne(player.shiny, cardId) } : {}),
   });
+}
+
+/** L'unité, brillante si l'exemplaire joué l'était. */
+export function shine<T extends Unit>(unit: T, shiny: boolean): T {
+  return shiny ? { ...unit, shiny: true } : unit;
 }

@@ -6,7 +6,7 @@ import { at, gameWith } from '../engine/test-utils';
 import { Board } from './Board';
 import type { BoardView } from './settings';
 
-const render = (view: PlayerView, mode: BoardView, zoom = 1) =>
+const render = (view: PlayerView, mode: BoardView, zoom = 1, margins?: { left: number; right: number }) =>
   renderToStaticMarkup(
     <Board
       view={view}
@@ -21,6 +21,7 @@ const render = (view: PlayerView, mode: BoardView, zoom = 1) =>
       zoom={zoom}
       animated={false}
       flipped={false}
+      margins={margins}
       onCellClick={() => {}}
       onCellHover={() => {}}
     />,
@@ -65,5 +66,16 @@ describe('plateau : vues du handoff (lots 3 et 5)', () => {
     expect(render(battlefield(), 'top', 1)).not.toContain('is-scrollable');
     expect(render(battlefield(), 'top', 0.65)).toContain('zoom:0.65');
     expect(render(battlefield(), 'top', 0.65)).toContain('overflow-x:hidden;overflow-y:hidden');
+  });
+});
+
+describe('marges de glisse (handoff V11, lot 13 §1)', () => {
+  it('un espace vide de chaque côté de la scène, dans le cadre qui défile ; aucun sans marges', () => {
+    const html = render(battlefield(), 'iso', 1, { left: 296, right: 316 });
+    expect(html).toMatch(/<div class="board-viewport__glide" style="width:296px" aria-hidden="true"><\/div><div class="scene/);
+    expect(html).toMatch(/<\/div><div class="board-viewport__glide" style="width:316px" aria-hidden="true"><\/div><\/div><\/div>$/);
+    // Zone de 900 px de large : la scène iso calée sur sa largeur, plus les marges, la dépasse et le cadre défile.
+    expect(html).toContain('overflow-x:auto');
+    expect(render(battlefield(), 'iso')).not.toContain('board-viewport__glide');
   });
 });

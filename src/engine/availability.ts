@@ -7,9 +7,10 @@ import type { CardId, PlayerView, UnitId } from './types';
 
 /**
  * Ce qui manque : une case libre dans sa zone d'invocation (monstre), une zone de mana (terrain), une case pour l'effet,
- * un monstre à viser, une carte d'évolution dans le grimoire, un monstre qu'il peut payer à invoquer.
+ * un monstre à viser, une carte d'évolution dans le grimoire, un monstre qu'il peut payer à invoquer, une case où il
+ * est passé ce tour (retour).
  */
-export type MissingTarget = 'summonZone' | 'manaZone' | 'cell' | 'monster' | 'evolution' | 'summonCard';
+export type MissingTarget = 'summonZone' | 'manaZone' | 'cell' | 'monster' | 'evolution' | 'summonCard' | 'trail';
 
 export type UnavailableReason =
   /** Ce n'est pas son tour (ou la partie est finie). */
@@ -53,17 +54,20 @@ export function attackAvailability(view: PlayerView, unitId: UnitId): Availabili
   return no({ kind: 'noTarget', target: 'monster' });
 }
 
-/** Son monstre peut-il utiliser son effet actif, et sinon pourquoi ; `null` s'il n'en a pas. */
-export function effectAvailability(view: PlayerView, unitId: UnitId): Availability | null {
+/**
+ * Son monstre peut-il utiliser son effet actif de rang `effect` (0 : le premier), et sinon pourquoi ; `null` s'il ne l'a
+ * pas.
+ */
+export function effectAvailability(view: PlayerView, unitId: UnitId, effect = 0): Availability | null {
   const unit = view.units[unitId];
   if (unit?.kind !== 'monster') return null;
-  const ability = getMonsterCard(unit.cardId).activated;
+  const ability = getMonsterCard(unit.cardId).activated[effect];
   if (!ability) return null;
   if (!myTurn(view) || unit.owner !== view.viewer) return no({ kind: 'notYourTurn' });
   if (isStunned(unit)) return no({ kind: 'stunned' });
-  if (unit.hasUsedEffect) return no({ kind: 'alreadyUsed' });
+  if (unit.usedEffects.includes(effect)) return no({ kind: 'alreadyUsed' });
   if (view.me.mana < ability.manaCost) return no({ kind: 'mana', missing: ability.manaCost - view.me.mana });
-  if (view.legalActions.some((a) => a.type === 'activateEffect' && a.unitId === unitId)) return OK;
+  if (view.legalActions.some((a) => a.type === 'activateEffect' && a.unitId === unitId && (a.effect ?? 0) === effect)) return OK;
   const { targeting, effects } = ability;
   if (effects.some((e) => e.type === 'evolve')) {
     return no(unit.summonedOnTurn === view.turn ? { kind: 'justSummoned' } : { kind: 'noTarget', target: 'evolution' });
@@ -76,6 +80,7 @@ export function effectAvailability(view: PlayerView, unitId: UnitId): Availabili
     });
     return no({ kind: 'noTarget', target: affordable ? 'cell' : 'summonCard' });
   }
+  if (targeting.type === 'trail') return no({ kind: 'noTarget', target: 'trail' });
   const cell = targeting.type === 'emptyAdjacentCell' || targeting.type === 'emptyCell';
   return no({ kind: 'noTarget', target: cell ? 'cell' : 'monster' });
 }

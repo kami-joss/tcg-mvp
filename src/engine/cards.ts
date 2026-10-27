@@ -6,7 +6,7 @@ function monster(
   name: string,
   stats: { cost: number; atk: number; hp: number; mobility: number; range: number },
   keywords: readonly KeywordSpec[] = [],
-  activated: ActivatedAbility | null = null,
+  activated: ActivatedAbility | readonly ActivatedAbility[] | null = null,
   evolvesFrom: CardId | null = null,
 ): MonsterCard {
   return {
@@ -15,7 +15,7 @@ function monster(
     name,
     ...stats,
     keywords,
-    activated,
+    activated: activated === null ? [] : Array.isArray(activated) ? activated : [activated as ActivatedAbility],
     evolvesFrom,
     family: null,
     onKill: null,
@@ -75,6 +75,9 @@ const AN_ENEMY: Targeting = { type: 'monster', side: 'enemy', reach: { type: 'an
 const FRONT3: Targeting = { type: 'zone', zone: 'front3' };
 const LINE3: Targeting = { type: 'zone', zone: 'line3' };
 const EMPTY_ADJACENT_CELL: Targeting = { type: 'emptyAdjacentCell' };
+const ADJACENT_ENEMY: Targeting = { type: 'monster', side: 'enemy', reach: { type: 'adjacent' } };
+/** Retour (Explorateur du temps) : 1 mana, il se téléporte sur une case libre où il a été ce tour, puis ne bouge plus (§10). */
+const RETURN: ActivatedAbility = { manaCost: 1, targeting: { type: 'trail' }, effects: [{ type: 'returnOnTrail' }] };
 
 export const CARDS: Readonly<Record<CardId, Card>> = {
   // Monstres
@@ -109,29 +112,29 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   dragonnet: monster('dragonnet', 'Dragonnet', { cost: 6, atk: 5, hp: 6, mobility: 4, range: 1 }, [VOL]),
 
   // Deck Archers
-  'archer-leger': archer('archer-leger', 'Archer léger', { cost: 1, atk: 1, hp: 3, mobility: 5, range: 2 }, {
+  'archer-leger': archer('archer-leger', 'Archer léger - Archers', { cost: 1, atk: 1, hp: 3, mobility: 5, range: 2 }, {
     keyword: 'trophee',
     amount: 1,
   }),
-  'archer-lourd': archer('archer-lourd', 'Archer lourd', { cost: 3, atk: 3, hp: 3, mobility: 3, range: 2 }, {
+  'archer-lourd': archer('archer-lourd', 'Archer lourd - Archers', { cost: 3, atk: 3, hp: 3, mobility: 3, range: 2 }, {
     keyword: 'pillage',
     amount: 1,
   }),
-  'archer-de-glace': archer('archer-de-glace', 'Archer de glace', { cost: 3, atk: 2, hp: 3, mobility: 3, range: 2 }, {
+  'archer-de-glace': archer('archer-de-glace', 'Archer de glace - Archers', { cost: 3, atk: 2, hp: 3, mobility: 3, range: 2 }, {
     keyword: 'givre',
     amount: 1,
     turns: 1,
   }),
-  'archer-du-feu': archer('archer-du-feu', 'Archer du feu', { cost: 3, atk: 2, hp: 3, mobility: 3, range: 2 }, {
+  'archer-du-feu': archer('archer-du-feu', 'Archer du feu - Archers', { cost: 3, atk: 2, hp: 3, mobility: 3, range: 2 }, {
     keyword: 'brulure',
     amount: 1,
     turns: 1,
   }),
   // Pas de la famille Archer (§10).
-  trebuchet: monster('trebuchet', 'Trébuchet', { cost: 5, atk: 4, hp: 1, mobility: 2, range: 5 }, [
+  trebuchet: monster('trebuchet', 'Trébuchet - Archers', { cost: 5, atk: 4, hp: 1, mobility: 2, range: 5 }, [
     { keyword: 'siege', multiplier: 2 },
   ]),
-  'fleche-divine': spell('fleche-divine', 'Flèche divine', 2, {
+  'fleche-divine': spell('fleche-divine', 'Flèche divine - Archers', 2, {
     targeting: { type: 'monster', side: 'ally', reach: { type: 'anywhere' }, family: 'archer' },
     effects: [
       { type: 'addAtkThisTurn', amount: 1 },
@@ -142,7 +145,7 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   // Deck Pièges : les 4 monstres sont de la famille Piège (« monstres piège », §10).
   'poseur-de-piege': inFamily(
     'piege',
-    monster('poseur-de-piege', 'Poseur de piège', { cost: 1, atk: 1, hp: 1, mobility: 7, range: 1 }, [], {
+    monster('poseur-de-piege', 'Poseur de piège - Pièges', { cost: 1, atk: 1, hp: 1, mobility: 7, range: 1 }, [], {
       manaCost: 1,
       targeting: EMPTY_ADJACENT_CELL,
       effects: [{ type: 'placeTrap', effects: [{ type: 'status', kind: 'immobilise', turns: 0 }] }],
@@ -150,14 +153,14 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   ),
   farceur: inFamily(
     'piege',
-    monster('farceur', 'Farceur', { cost: 2, atk: 2, hp: 1, mobility: 6, range: 1 }, [
+    monster('farceur', 'Farceur - Pièges', { cost: 2, atk: 2, hp: 1, mobility: 6, range: 1 }, [
       { keyword: 'invisible', amount: 2 },
       { keyword: 'sournois', amount: 1 },
     ]),
   ),
   'poseur-de-bombe': inFamily(
     'piege',
-    monster('poseur-de-bombe', 'Poseur de bombe', { cost: 1, atk: 2, hp: 1, mobility: 7, range: 1 }, [], {
+    monster('poseur-de-bombe', 'Poseur de bombe - Pièges', { cost: 1, atk: 2, hp: 1, mobility: 7, range: 1 }, [], {
       manaCost: 2,
       targeting: EMPTY_ADJACENT_CELL,
       effects: [{ type: 'placeTrap', effects: [{ type: 'damage', amount: 3 }] }],
@@ -165,11 +168,11 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   ),
   'clown-assassin': inFamily(
     'piege',
-    monster('clown-assassin', 'Clown assassin', { cost: 4, atk: 2, hp: 2, mobility: 7, range: 1 }, [
+    monster('clown-assassin', 'Clown assassin - Pièges', { cost: 4, atk: 2, hp: 2, mobility: 7, range: 1 }, [
       { keyword: 'assassin', multiplier: 3 },
     ]),
   ),
-  penombre: spell('penombre', 'Pénombre', 5, {
+  penombre: spell('penombre', 'Pénombre - Pièges', 5, {
     targeting: { type: 'allies', family: 'piege' },
     effects: [{ type: 'status', kind: 'invisible', amount: 2, turns: 1 }],
   }),
@@ -177,14 +180,14 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   // Deck Dragons : famille Dragon élémentaire, Jeune dragon compris (§10).
   'jeune-dragon': inFamily(
     'dragon',
-    monster('jeune-dragon', 'Jeune dragon élémentaire', { cost: 2, atk: 3, hp: 2, mobility: 4, range: 1 }, [], {
+    monster('jeune-dragon', 'Jeune dragon élémentaire - Dragons', { cost: 2, atk: 3, hp: 2, mobility: 4, range: 1 }, [], {
       name: 'Évolution',
       manaCost: 2,
       targeting: { type: 'self' },
       effects: [{ type: 'evolve' }],
     }),
   ),
-  'dragon-feu': dragon('dragon-feu', 'Dragon élémentaire de feu', { atk: 5, hp: 5, mobility: 5 }, {
+  'dragon-feu': dragon('dragon-feu', 'Dragon élémentaire de feu - Dragons', { atk: 5, hp: 5, mobility: 5 }, {
     name: 'Déflagration',
     targeting: FRONT3,
     effects: [
@@ -192,35 +195,35 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
       { type: 'status', kind: 'burn', amount: 1, turns: 1 },
     ],
   }),
-  'dragon-eau': dragon('dragon-eau', 'Dragon élémentaire d’eau', { atk: 4, hp: 7, mobility: 4 }, {
+  'dragon-eau': dragon('dragon-eau', 'Dragon élémentaire d’eau - Dragons', { atk: 4, hp: 7, mobility: 4 }, {
     name: 'Raz de marée',
     targeting: LINE3,
     effects: [{ type: 'status', kind: 'stun', turns: 1 }],
   }),
-  'dragon-vent': dragon('dragon-vent', 'Dragon élémentaire de vent', { atk: 4, hp: 4, mobility: 7 }, {
+  'dragon-vent': dragon('dragon-vent', 'Dragon élémentaire de vent - Dragons', { atk: 4, hp: 4, mobility: 7 }, {
     name: 'Vent violent',
     targeting: LINE3,
     effects: [{ type: 'push', distance: 3, direction: 'forward', chooseDistance: true }],
   }),
-  'dragon-terre': dragon('dragon-terre', 'Dragon élémentaire de terre', { atk: 6, hp: 5, mobility: 4 }, {
+  'dragon-terre': dragon('dragon-terre', 'Dragon élémentaire de terre - Dragons', { atk: 6, hp: 5, mobility: 4 }, {
     name: 'Tremblement de terre',
     targeting: { type: 'zone', zone: 'adjacent2' },
     effects: [{ type: 'damage', amount: 3 }],
   }),
   // Vol, mais pas d'évolution : elle s'invoque pour 10 mana (§10).
   'dragon-origine': {
-    ...inFamily('dragon', monster('dragon-origine', 'Dragon élémentaire - Origine', { cost: 10, atk: 7, hp: 7, mobility: 7, range: 1 }, [VOL])),
+    ...inFamily('dragon', monster('dragon-origine', 'Origine - Dragons', { cost: 10, atk: 7, hp: 7, mobility: 7, range: 1 }, [VOL])),
     aura: { zone: 'adjacent', family: 'dragon', atk: 1, hp: 1, mobility: 1 },
   },
 
   // Deck Sorciers du feu : famille Sorcier du feu (§10). Brûlure 1, 2 tours : à l'attaque, burn 1 pendant 2 tours.
   apprenti: inFamily(
     'sorcier',
-    monster('apprenti', 'Apprenti', { cost: 2, atk: 1, hp: 3, mobility: 4, range: 2 }, [BRULURE_2]),
+    monster('apprenti', 'Apprenti - Sorciers du feu', { cost: 2, atk: 1, hp: 3, mobility: 4, range: 2 }, [BRULURE_2]),
   ),
   'lutin-brasier': inFamily(
     'sorcier',
-    monster('lutin-brasier', 'Lutin brasier', { cost: 4, atk: 2, hp: 4, mobility: 4, range: 2 }, [BRULURE_2], {
+    monster('lutin-brasier', 'Lutin brasier - Sorciers du feu', { cost: 4, atk: 2, hp: 4, mobility: 4, range: 2 }, [BRULURE_2], {
       manaCost: 1,
       targeting: { type: 'emptyCell', zone: 'adjacent2' },
       effects: [
@@ -237,16 +240,53 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   ),
   archimage: inFamily(
     'sorcier',
-    monster('archimage', 'Archimage', { cost: 6, atk: 3, hp: 5, mobility: 4, range: 2 }, [BRULURE_2], {
+    monster('archimage', 'Archimage - Sorciers du feu', { cost: 6, atk: 3, hp: 5, mobility: 4, range: 2 }, [BRULURE_2], {
       manaCost: 1,
       targeting: { type: 'zone', zone: 'adjacent' },
       effects: [{ type: 'status', kind: 'burn', amount: 2, turns: 2 }],
     }),
   ),
   'golem-de-lave': {
-    ...inFamily('sorcier', monster('golem-de-lave', 'Golem de lave', { cost: 5, atk: 2, hp: 8, mobility: 2, range: 1 })),
+    ...inFamily('sorcier', monster('golem-de-lave', 'Golem de lave - Sorciers du feu', { cost: 5, atk: 2, hp: 8, mobility: 2, range: 1 })),
     passage: { zone: 'adjacent', effects: [{ type: 'status', kind: 'burn', amount: 1, turns: 1 }] },
   },
+
+  // Deck Explorateur du temps : famille Explorateur du temps (§10). Retour : il revient sur une case où il a été ce tour.
+  'apprenti-temps': inFamily(
+    'temps',
+    monster('apprenti-temps', 'Apprenti - Explorateur du temps', { cost: 1, atk: 2, hp: 2, mobility: 4, range: 1 }, [], RETURN),
+  ),
+  chronomancienne: inFamily(
+    'temps',
+    monster('chronomancienne', 'Chronomancienne - Explorateur du temps', { cost: 4, atk: 3, hp: 4, mobility: 4, range: 1 }, [], [
+      RETURN,
+      { manaCost: 2, targeting: EMPTY_ADJACENT_CELL, effects: [{ type: 'placeTrap', effects: [{ type: 'rewind', steps: 3 }] }] },
+    ]),
+  ),
+  'dragonnet-temps': inFamily(
+    'temps',
+    monster('dragonnet-temps', 'Dragonnet - Explorateur du temps', { cost: 3, atk: 3, hp: 3, mobility: 5, range: 1 }, [], [
+      RETURN,
+      { manaCost: 2, targeting: ADJACENT_ENEMY, effects: [{ type: 'status', kind: 'stun', turns: 1 }] },
+    ]),
+  ),
+  'maitre-des-heures': {
+    ...inFamily(
+      'temps',
+      monster('maitre-des-heures', 'Maître des heures - Explorateur du temps', { cost: 7, atk: 5, hp: 6, mobility: 4, range: 1 }, [], [
+        RETURN,
+        { manaCost: 2, targeting: ADJACENT_ENEMY, effects: [{ type: 'status', kind: 'requiem', turns: 2 }] },
+      ]),
+    ),
+    flavor: 'Un ancien explorateur, qui s’est perdu entre les époques. Physiquement jeune, mais très vieux dans les faits.',
+  },
+  'piege-temporel': spell('piege-temporel', 'Piège temporel - Explorateur du temps', 3, {
+    targeting: { type: 'enemies' },
+    effects: [{ type: 'status', kind: 'immobilise', turns: 1 }],
+  }),
+  'fissure-temporelle': terrain('fissure-temporelle', 'Fissure temporelle - Explorateur du temps', { cost: 3, hp: 4 }, {
+    passage: { zone: 'adjacent', effects: [{ type: 'status', kind: 'immobilise', turns: 0 }] },
+  }),
 
   // Cartes communes (§6 ter)
   invocateur: monster('invocateur', 'Invocateur', { cost: 4, atk: 1, hp: 3, mobility: 3, range: 2 }, [], {
@@ -261,27 +301,29 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   }),
 
   // Deck Bodybuilder
-  'jeune-gomuscu': bodybuilder('jeune-gomuscu', 'Jeune Gomuscu', { cost: 2, atk: 2, hp: 2, mobility: 3, range: 1 }, {
+  'jeune-gomuscu': bodybuilder('jeune-gomuscu', 'Jeune Gomuscu - Bodybuilder', { cost: 2, atk: 2, hp: 2, mobility: 3, range: 1 }, {
     onKill: [{ type: 'addStats', atk: 1, hp: 1 }],
   }),
-  'jean-bon': bodybuilder('jean-bon', 'Jean Bon', { cost: 3, atk: 5, hp: 3, mobility: 3, range: 1 }, {
-    activated: {
-      name: 'Dopage',
-      manaCost: 2,
-      targeting: { type: 'self' },
-      effects: [
-        { type: 'addAtkThisTurn', amount: 2 },
-        { type: 'status', kind: 'burn', amount: 1, turns: 2 },
-      ],
-    },
+  'jean-bon': bodybuilder('jean-bon', 'Jean Bon - Bodybuilder', { cost: 3, atk: 5, hp: 3, mobility: 3, range: 1 }, {
+    activated: [
+      {
+        name: 'Dopage',
+        manaCost: 2,
+        targeting: { type: 'self' },
+        effects: [
+          { type: 'addAtkThisTurn', amount: 2 },
+          { type: 'status', kind: 'burn', amount: 1, turns: 2 },
+        ],
+      },
+    ],
   }),
-  arnold: bodybuilder('arnold', 'Arnold', { cost: 7, atk: 7, hp: 5, mobility: 3, range: 1 }, {
+  arnold: bodybuilder('arnold', 'Arnold - Bodybuilder', { cost: 7, atk: 7, hp: 5, mobility: 3, range: 1 }, {
     aura: { zone: 'adjacent', family: 'bodybuilder', atk: 2, hp: 0, mobility: 0 },
   }),
-  'ki-ne': bodybuilder('ki-ne', 'Ki né', { cost: 3, atk: 2, hp: 3, mobility: 4, range: 1 }, {
+  'ki-ne': bodybuilder('ki-ne', 'Ki né - Bodybuilder', { cost: 3, atk: 2, hp: 3, mobility: 4, range: 1 }, {
     turnStart: { zone: 'adjacent', family: 'bodybuilder', effects: [{ type: 'heal', amount: 1 }] },
   }),
-  seringue: spell('seringue', 'Seringue', 2, {
+  seringue: spell('seringue', 'Seringue - Bodybuilder', 2, {
     targeting: { type: 'monster', side: 'ally', reach: { type: 'anywhere' }, family: 'bodybuilder' },
     effects: [
       { type: 'multiplyAtkThisTurn', multiplier: 2 },
@@ -375,6 +417,9 @@ export const DECKS: readonly Deck[] = [
   {
     id: 'archers',
     name: 'Archers',
+    // Démo des exemplaires brillants (handoff V11) : un Archer de glace (ses propres images) et un Archer du feu
+    // (shiny générique).
+    shiny: ['archer-de-glace', 'archer-du-feu'],
     cards: expand([
       ['archer-leger', 3],
       ['archer-lourd', 3],
@@ -447,6 +492,8 @@ export const DECKS: readonly Deck[] = [
     // Composition proposée, à ajuster dans le doc.
     id: 'sorciers-du-feu',
     name: 'Sorciers du feu',
+    // Démo des exemplaires brillants : un Apprenti (images « Flamme bleue » de son overframe).
+    shiny: ['apprenti'],
     cards: expand([
       ['apprenti', 3],
       ['lutin-brasier', 3],
@@ -459,6 +506,24 @@ export const DECKS: readonly Deck[] = [
       ['benediction', 1],
       ['autel-de-mana', 1],
       ['bastion', 1],
+      ...COMMONS_ONCE,
+    ]),
+  },
+  {
+    // Composition proposée, à ajuster dans le doc.
+    id: 'explorateur-du-temps',
+    name: 'Explorateur du temps',
+    cards: expand([
+      ['apprenti-temps', 3],
+      ['chronomancienne', 3],
+      ['dragonnet-temps', 3],
+      ['maitre-des-heures', 2],
+      ['piege-temporel', 2],
+      ['fissure-temporelle', 2],
+      ['boule-de-feu', 1],
+      ['charge', 2],
+      ['benediction', 1],
+      ['autel-de-mana', 1],
       ...COMMONS_ONCE,
     ]),
   },

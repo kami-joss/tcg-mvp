@@ -1,0 +1,64 @@
+{
+  "_doc": "Coordonnées en px CSS dans le repère de la fiche 280 × 498 (origine = coin haut-gauche du cadre). y négatif = au-dessus du cadre. scale = taille affichée / taille du fichier. Les fichiers shiny ont le même nom + suffixe _shiny et exactement les mêmes dimensions.",
+  "archer_glace": {
+    "headroom": 118,
+    "breathAnchor": [150, 150],
+    "art":  { "src": "archer_glace.jpg", "w": 1008, "h": 1792, "x": -17, "y": -126, "scale": 0.35 },
+    "pop":  { "src": "archer_glace_buste.png", "w": 710, "h": 337, "x": 35.5, "y": -112, "scale": 0.35 },
+    "sides": null,
+    "parts": [],
+    "glow": { "layer": "inside", "x": 190, "y": 36, "size": 170 },
+    "particles": "snow",
+    "sweep": "white",
+    "looks": {
+      "normal": {
+        "glow": ["oklch(0.88 0.1 225 / .75)", "oklch(0.72 0.15 240 / .25)"],
+        "popFilter": "drop-shadow(0 0 .6px oklch(0.25 0.06 250 / .9)) drop-shadow(0 3px 4px oklch(0 0 0 / .4))"
+      },
+      "shiny": {
+        "glow": ["oklch(0.88 0.13 330 / .8)", "oklch(0.7 0.2 310 / .28)"],
+        "popFilter": "drop-shadow(0 0 .6px oklch(0.25 0.08 320 / .9)) drop-shadow(0 0 8px oklch(0.75 0.2 330 / .45)) drop-shadow(0 3px 4px oklch(0 0 0 / .4))"
+      }
+    }
+  },
+  "archer_feu": {
+    "headroom": 152,
+    "breathAnchor": [140, 150],
+    "art":  { "src": "archer_feu_v2.jpg", "w": 1008, "h": 1792, "x": -100, "y": -243.6, "scale": 0.42 },
+    "pop":  { "src": "feu2_pop.png", "w": 908, "h": 369, "x": -58, "y": -149.1, "scale": 0.42 },
+    "sides": { "src": "feu2_cotes.png", "w": 908, "h": 250, "x": -58, "y": 0, "scale": 0.42 },
+    "parts": [
+      { "id": "tresseG", "src": "feu2_tresse_g.png", "w": 908, "h": 369, "x": 0, "y": 0, "scale": 0.42, "origin": [96.6, 86.1], "anim": "swayL" },
+      { "id": "tresseD", "src": "feu2_tresse_d.png", "w": 908, "h": 369, "x": 0, "y": 0, "scale": 0.42, "origin": [220.5, 81.9], "anim": "swayR" },
+      { "id": "yeux",    "src": "feu2_yeux_fermes.png", "w": 180, "h": 88, "x": 117.6, "y": 70.56, "scale": 0.42, "anim": "blink" }
+    ],
+    "_partsDoc": "Les parts sont posées DANS le calque pop (x/y relatifs au coin haut-gauche du pop), au-dessus de lui, dans cet ordre.",
+    "glow": { "layer": "outside", "x": 185, "y": -116, "size": 160 },
+    "particles": "embers",
+    "sweep": "warm",
+    "looks": {
+      "normal": {
+        "glow": ["oklch(0.92 0.14 80 / .8)", "oklch(0.75 0.2 45 / .3)"],
+        "popFilter": "drop-shadow(0 0 .6px oklch(0.25 0.06 40 / .9)) drop-shadow(0 0 8px oklch(0.75 0.18 50 / .3)) drop-shadow(0 3px 4px oklch(0 0 0 / .4))"
+      },
+      "shiny": {
+        "label": "Flamme bleue",
+        "glow": ["oklch(0.88 0.12 230 / .85)", "oklch(0.65 0.18 255 / .3)"],
+        "popFilter": "drop-shadow(0 0 .6px oklch(0.25 0.06 250 / .9)) drop-shadow(0 0 8px oklch(0.75 0.16 240 / .45)) drop-shadow(0 3px 4px oklch(0 0 0 / .4))"
+      }
+    }
+  },
+  "particleSets": {
+    "_doc": "Générées une fois, avec une graine fixe (aucun hasard à chaque rendu). Plages [min, max]. dist > 0 = chute, < 0 = montée. startY relatif au haut du conteneur (arrière : le cadre ; avant : le cadre étendu de headroom vers le haut).",
+    "snow":   { "back": { "n": 16, "size": [1.5, 4], "dur": [7, 13], "dist": 540, "drift": [-30, 30], "op": [0.35, 0.8], "startY": -20 },
+                "front": { "n": 6, "size": [3, 6], "dur": [5, 11], "dist": 640, "drift": [-30, 30], "op": [0.5, 0.8], "startY": -30 },
+                "shape": "round", "color": "oklch(0.98 0.01 240)", "glow": "0 0 4px oklch(0.95 0.03 230 / .8)", "blurAbove": 4, "rotate": 0 },
+    "embers": { "back": { "n": 14, "size": [2, 4.5], "dur": [5, 9], "dist": -540, "drift": [-35, 35], "op": [0.55, 0.95], "startY": 505 },
+                "front": { "n": 6, "size": [3, 6], "dur": [4, 8], "dist": -640, "drift": [-35, 35], "op": [0.7, 1], "startY": 600 },
+                "shape": "round", "color": "oklch(0.88 0.16 H)", "hue": [45, 80], "glow": "0 0 6px 1px oklch(0.75 0.19 H-10 / .9)", "rotate": 0 },
+    "sparks": { "back": { "n": 14, "size": [4, 9], "dur": [8, 14], "dist": 540, "drift": [-25, 25], "op": [0.5, 0.9], "startY": -20 },
+                "front": { "n": 6, "size": [7, 13], "dur": [6, 12], "dist": 640, "drift": [-25, 25], "op": [0.7, 1], "startY": -30 },
+                "shape": "star4", "clipPath": "polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%)",
+                "color": "oklch(0.95 0.1 H)", "hueCycle": [350, 85, 305, 170], "glow": "drop-shadow(0 0 3px oklch(0.85 0.16 H))", "rotate": 180 }
+  }
+}

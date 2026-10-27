@@ -46,7 +46,8 @@ export function createMonsterUnit(
     froze: 0,
     boost: 0,
     hasAttacked: false,
-    hasUsedEffect: false,
+    usedEffects: [],
+    trail: [pos],
     hasRiposted: false,
     summonedOnTurn: turn,
     facing: INITIAL_FACING[owner],
@@ -116,9 +117,17 @@ export function getActiveMonster(state: GameState, unitId: UnitId): MonsterUnit 
   return unit;
 }
 
-/** Ajoute ou remplace une unité. */
+/**
+ * Ajoute ou remplace une unité. Un monstre qui change de case l'ajoute à son chemin du tour (`trail`), quelle que soit
+ * la façon dont il y arrive (déplacement, recul, avancée, téléportation, retour).
+ */
 export function setUnit(state: GameState, unit: Unit): GameState {
-  return { ...state, units: { ...state.units, [unit.id]: unit } };
+  const previous = state.units[unit.id];
+  const last = unit.kind === 'monster' ? unit.trail.at(-1) : undefined;
+  const moved =
+    unit.kind === 'monster' && previous !== undefined && (previous.pos.row !== unit.pos.row || previous.pos.col !== unit.pos.col);
+  const next = moved && (!last || last.row !== unit.pos.row || last.col !== unit.pos.col) ? { ...unit, trail: [...unit.trail, unit.pos] } : unit;
+  return { ...state, units: { ...state.units, [unit.id]: next } };
 }
 
 /** Pose une nouvelle unité avec le prochain identifiant (u1, u2…). */

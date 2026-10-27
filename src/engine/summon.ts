@@ -2,7 +2,7 @@
 import { getSummonZone } from './board';
 import { getTerrainCard } from './cards';
 import { emit } from './events';
-import { addMana, takeFromGrimoire } from './players';
+import { addMana, shine, takeFromGrimoire } from './players';
 import { NEW_MOVEMENT, enterCell } from './traps';
 import { addUnit, createMonsterUnit, getMonsterAt, getUnitsAt } from './units';
 import type { BoardState, GameState, MonsterCard, PlayerId, Position } from './types';
@@ -25,9 +25,15 @@ export function getFreeSummonCells(state: BoardState, player: PlayerId): Positio
  * Pose le monstre de `card` pour `player` en `pos` : il peut agir aussitôt (§4.5). Il entre sur sa case : un piège
  * ennemi ou un terrain « Passage » s'y déclenche (§10).
  */
-export function placeSummonedMonster(state: GameState, player: PlayerId, card: MonsterCard, pos: Position): GameState {
+export function placeSummonedMonster(
+  state: GameState,
+  player: PlayerId,
+  card: MonsterCard,
+  pos: Position,
+  shiny = false,
+): GameState {
   const id = `u${state.nextUnitId}`;
-  const unit = createMonsterUnit(id, card, player, pos, state.turn, state.board.mobilityBonus);
+  const unit = shine(createMonsterUnit(id, card, player, pos, state.turn, state.board.mobilityBonus), shiny);
   return enterCell(addUnit(emit(state, { type: 'summon', unit }), () => unit), id, NEW_MOVEMENT).state;
 }
 

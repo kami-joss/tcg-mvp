@@ -50,12 +50,15 @@ import {
   abilityExplanation,
   auraBonusText,
   capitalize,
+  cardTitle,
   describeCard,
+  effectName,
   durationText,
   effectText,
   keywordLabel,
   keywordText,
   passiveLines,
+  splitCardName,
   trapLabel,
 } from './cardText';
 import type { IconName } from './Icon';
@@ -120,6 +123,10 @@ export interface SheetChip {
 
 export interface SheetData {
   readonly title: string;
+  /** Archétype d'une carte de deck (« Sorciers du feu »), sous le nom ; vide sinon. */
+  readonly archetype: string;
+  /** Texte d'ambiance de la carte, s'il y en a un. */
+  readonly flavor: string | null;
   readonly cost: number | null;
   /** Couleur du cadre : un joueur, ou un type de case. */
   readonly frame: PlayerId | 'card' | 'zone' | 'blocked' | 'trap';
@@ -130,13 +137,19 @@ export interface SheetData {
    * terrain, carte) a la taille fixe d'une carte ; les autres (zone, piège, case) prennent la hauteur de leur texte.
    */
   readonly art: { readonly cardId: CardId; readonly owner: PlayerId | null } | null;
+  /**
+   * Exemplaire brillant (handoff V11) : l'unité, ou la carte du grimoire dont un exemplaire brillant reste (il sera
+   * joué en premier). Cadre doré, reflets, badge « ★ Brillante ».
+   */
+  readonly shiny: boolean;
   readonly typeIcon: IconName | null;
   readonly type: string;
   readonly stats: readonly SheetStat[];
   readonly lines: readonly SheetLine[];
   readonly text: readonly string[];
   readonly passive: SheetPassive | null;
-  readonly active: SheetActive | null;
+  /** Effets actifs, dans l'ordre de la carte. */
+  readonly active: readonly SheetActive[];
   /** Effets en cours ; `null` : pas de pied (cases, cartes du grimoire). */
   readonly status: readonly SheetChip[] | null;
 }
@@ -152,19 +165,21 @@ export const ZONE_ICONS: Readonly<Record<ManaZoneId, IconName>> = {
   mine: 'mining',
 };
 
-const empty = (title: string, frame: SheetData['frame'], type: string): SheetData => ({
-  title,
+const empty = (name: string, frame: SheetData['frame'], type: string): SheetData => ({
+  ...splitCardName(name),
+  flavor: null,
   cost: null,
   frame,
   kind: null,
   art: null,
+  shiny: false,
   typeIcon: null,
   type,
   stats: [],
   lines: [],
   text: [],
   passive: null,
-  active: null,
+  active: [],
   status: null,
 });
 
@@ -199,9 +214,14 @@ const familySuffix = (card: Card) => (card.kind === 'monster' && card.family ? `
 
 const hasRiposte = (card: MonsterCard) => card.keywords.some((spec) => spec.keyword === 'riposte');
 
-function activeBlock(card: MonsterCard, foot: SheetStatus | null): SheetActive | null {
-  if (!card.activated) return null;
-  return { name: card.activated.name ?? null, cost: card.activated.manaCost, text: abilityExplanation(card.activated), foot };
+/** Un bloc par effet actif ; `foot` : sa disponibilité (sur le plateau, pendant son tour), par rang d'effet. */
+function activeBlocks(card: MonsterCard, foot: (effect: number) => SheetStatus | null = () => null): SheetActive[] {
+  return card.activated.map((ability, i) => ({
+    name: ability.name ?? (card.activated.length > 1 ? effectName(ability) : null),
+    cost: ability.manaCost,
+    text: abilityExplanation(ability),
+    foot: foot(i),
+  }));
 }
 
 const OK: SheetStatus = { text: 'Disponible', tone: 'ok' };
@@ -235,6 +255,8 @@ export function reasonStatus(reason: UnavailableReason, used: string): SheetStat
           return { text: 'Aucune carte d’évolution dans le grimoire', tone: 'off' };
         case 'summonCard':
           return { text: 'Aucun monstre que tu peux payer', tone: 'warn' };
+        case 'trail':
+          return { text: 'Aucune case où revenir : il n’a pas bougé ce tour', tone: 'off' };
       }
   }
 }
@@ -283,7 +305,14 @@ const CARD_VERBS: Readonly<Record<Card['kind'], string>> = { monster: 'Invocatio
 
 function cardSheet(view: PlayerView, cardId: CardId): SheetData {
   const card = getCard(cardId);
-  const base = { ...empty(card.name, 'card', ''), kind: card.kind, cost: card.cost, art: { cardId, owner: null } };
+  const base = {
+    ...empty(card.name, 'card', ''),
+    kind: card.kind,
+    cost: card.cost,
+    art: { cardId, owner: null },
+    shiny: view.me.shiny?.includes(cardId) ?? false,
+    flavor: card.flavor ?? null,
+  };
   const used = 'Déjà lancé ce tour : un même sort une fois par tour';
   const lines: SheetLine[] = [
     { icon: 'card-play', label: CARD_VERBS[card.kind], status: availabilityStatus(cardAvailability(view, cardId), used) },
@@ -305,7 +334,7 @@ function cardSheet(view: PlayerView, cardId: CardId): SheetData {
         lines,
         text: card.evolvesFrom ? [evolutionLine(card.evolvesFrom)] : [],
         passive: passiveBlock(keywordItems(card), null),
-        active: activeBlock(card, null),
+        active: activeBlocks(card),
         // Le bonus du plateau le suivra dès qu'il sera posé.
         status: bonus > 0 ? [{ icon: 'walking-boot', text: boardMobilityText(view), kind: 'boost' }] : null,
       };
@@ -316,7 +345,7 @@ function cardSheet(view: PlayerView, cardId: CardId): SheetData {
         typeIcon: 'spell-book',
         type: 'Carte sort · effet immédiat',
         lines,
-        active: { name: null, cost: null, text: describeCard(card).join(' '), foot: null },
+        active: [{ name: null, cost: null, text: describeCard(card).join(' '), foot: null }],
       };
     case 'terrain':
       return {
@@ -422,7 +451,10 @@ function monsterSheet(view: PlayerView, monster: MonsterUnit): SheetData {
     lines.push({ icon: 'crosshair', label: 'Menace', status: { text: 'Hachures au survol', tone: 'info' } });
   }
 
-  const effect = myTurn ? effectAvailability(view, monster.id) : null;
+  const effectFoot = (i: number) => {
+    const availability = myTurn ? effectAvailability(view, monster.id, i) : null;
+    return availability ? availabilityStatus(availability, 'Déjà utilisé ce tour') : null;
+  };
   const riposte = hasRiposte(card)
     ? monster.hasRiposted
       ? { text: 'Riposte utilisée ce tour', tone: 'off' as const }
@@ -431,9 +463,11 @@ function monsterSheet(view: PlayerView, monster: MonsterUnit): SheetData {
 
   return {
     ...empty(card.name, monster.owner, `Monstre${familySuffix(card)} · Joueur ${monster.owner}${mine ? '' : ' (adversaire)'}`),
+    flavor: card.flavor ?? null,
     cost: card.cost,
     kind: 'monster',
     art: { cardId: card.id, owner: monster.owner },
+    shiny: monster.shiny === true,
     typeIcon: 'dragon-head',
     stats,
     lines,
@@ -443,7 +477,7 @@ function monsterSheet(view: PlayerView, monster: MonsterUnit): SheetData {
           `À son prochain tour : hachures orange, là où il pourra aller (mobilité ${getNextTurnMobility(monster, view.turn, view.activePlayer, view.board.mobilityBonus)}) ; rouges, là où il pourra frapper (portée ${card.range}).`,
         ],
     passive: passiveBlock(keywordItems(card), riposte),
-    active: activeBlock(card, effect ? availabilityStatus(effect, 'Déjà utilisé ce tour') : null),
+    active: activeBlocks(card, effectFoot),
     status: monsterChips(view, monster, terrain),
   };
 }
@@ -497,6 +531,7 @@ function terrainSheet(view: PlayerView, terrain: TerrainUnit): SheetData {
     kind: 'terrain',
     cost: card.cost,
     art: { cardId: card.id, owner: terrain.owner },
+    shiny: terrain.shiny === true,
     typeIcon: 'castle',
     stats: [stat('hearts', 'PV', `${terrain.hp}/${terrain.maxHp}`, 0, terrain.hp < terrain.maxHp)],
     passive: passiveBlock(terrainItems(card), null),
@@ -584,6 +619,7 @@ function statusText(view: PlayerView, unit: Unit, status: Status): string {
 /** Une carte qui peut aussi arriver par l'évolution d'un autre monstre (dragons élémentaires). */
 function evolutionLine(from: CardId): string {
   const source = getMonsterCard(from);
-  const cost = source.activated ? ` (${source.activated.manaCost} mana)` : '';
-  return `Ou par l’effet ${source.activated?.name ?? 'actif'} d’un ${source.name}${cost} : il apparaît à sa place, sans payer ce coût, et n’agit qu’au tour suivant.`;
+  const evolve = source.activated.find((ability) => ability.effects.some((effect) => effect.type === 'evolve'));
+  const cost = evolve ? ` (${evolve.manaCost} mana)` : '';
+  return `Ou par l’effet ${evolve?.name ?? 'actif'} d’un ${cardTitle(from)}${cost} : il apparaît à sa place, sans payer ce coût, et n’agit qu’au tour suivant.`;
 }

@@ -3,7 +3,10 @@
 // fiche, tuile du grimoire, carte qui vole) les cadre seul sur les yeux du personnage (ou le point d'intérêt d'un sort
 // ou d'un terrain), d'après la taille de l'image et la position des yeux notées ici.
 import type { Board, CardId } from '../engine';
+import apprentiShiny from '../assets/art/apprenti-shiny.jpg';
+import apprentiTemps from '../assets/art/apprenti-temps.jpg';
 import apprenti from '../assets/art/apprenti.jpg';
+import archerDeGlaceShiny from '../assets/art/archer-de-glace-shiny.jpg';
 import archerDeGlace from '../assets/art/archer-de-glace.jpg';
 import archerDuFeu from '../assets/art/archer-du-feu.jpg';
 import archerLeger from '../assets/art/archer-leger.jpg';
@@ -16,13 +19,16 @@ import benediction from '../assets/art/benediction.jpg';
 import bouleDeFeu from '../assets/art/boule-de-feu.jpg';
 import bourrasque from '../assets/art/bourrasque.jpg';
 import charge from '../assets/art/charge.jpg';
+import chronomancienne from '../assets/art/chronomancienne.jpg';
 import clownAssassin from '../assets/art/clown-assassin.jpg';
 import dragonEau from '../assets/art/dragon-eau.jpg';
 import dragonFeu from '../assets/art/dragon-feu.jpg';
 import dragonOrigine from '../assets/art/dragon-origine.jpg';
 import dragonTerre from '../assets/art/dragon-terre.jpg';
 import dragonVent from '../assets/art/dragon-vent.jpg';
+import dragonnetTemps from '../assets/art/dragonnet-temps.jpg';
 import farceur from '../assets/art/farceur.jpg';
+import fissureTemporelle from '../assets/art/fissure-temporelle.jpg';
 import flecheDivine from '../assets/art/fleche-divine.jpg';
 import golemDeLave from '../assets/art/golem-de-lave.jpg';
 import invocateur from '../assets/art/invocateur.jpg';
@@ -31,7 +37,9 @@ import jeuneDragon from '../assets/art/jeune-dragon.jpg';
 import jeuneGomuscu from '../assets/art/jeune-gomuscu.jpg';
 import kiNe from '../assets/art/ki-ne.jpg';
 import lutinBrasier from '../assets/art/lutin-brasier.jpg';
+import maitreDesHeures from '../assets/art/maitre-des-heures.jpg';
 import penombre from '../assets/art/penombre.jpg';
+import piegeTemporel from '../assets/art/piege-temporel.jpg';
 import poseurDeBombe from '../assets/art/poseur-de-bombe.jpg';
 import poseurDePiege from '../assets/art/poseur-de-piege.jpg';
 import seringue from '../assets/art/seringue.jpg';
@@ -86,6 +94,14 @@ export const CARD_ART: Partial<Record<CardId, CardArt>> = {
   'lutin-brasier': art(lutinBrasier, 1024, 559, [49.9, 28.6], 23),
   archimage: art(archimage, 1024, 559, [52.7, 24.3], 16),
   'golem-de-lave': art(golemDeLave, 1024, 559, [49.7, 16.5], 28),
+  // Deck Explorateur du temps
+  'apprenti-temps': art(apprentiTemps, 576, 1024, [50.6, 11.2], 23),
+  chronomancienne: art(chronomancienne, 576, 1024, [48.2, 20.2], 22),
+  'dragonnet-temps': art(dragonnetTemps, 576, 1024, [64.6, 40.3], 24),
+  'maitre-des-heures': art(maitreDesHeures, 576, 1024, [55.6, 20.8], 22),
+  // Scènes en 9:16 : le point d'intérêt au niveau du bandeau, l'image couvre toute la fiche (pas de bande floue).
+  'piege-temporel': art(piegeTemporel, 576, 1024, [49.6, 13], 60),
+  'fissure-temporelle': art(fissureTemporelle, 576, 1024, [51, 13], 55),
   // Cartes communes
   invocateur: art(invocateur, 1024, 559, [40.3, 24], 17),
   teleporteur: art(teleporteur, 1024, 559, [37.2, 23.7], 18),
@@ -100,6 +116,22 @@ export const CARD_ART: Partial<Record<CardId, CardArt>> = {
   'terrain-piege': art(terrainPiege, 1024, 559, [48, 52], 45),
   'zone-invocation': art(zoneInvocation, 1024, 559, [55, 45], 45),
 };
+
+/**
+ * Illustration d'un exemplaire brillant (handoff V11), même image recolorée et même cadrage que `CARD_ART` ; une carte
+ * absente d'ici garde son illustration, avec le shiny générique par-dessus.
+ */
+export const CARD_ART_SHINY: Partial<Record<CardId, string>> = {
+  'archer-de-glace': archerDeGlaceShiny,
+  apprenti: apprentiShiny,
+};
+
+/** L'illustration à montrer pour un exemplaire, brillant ou non. */
+export function cardArtFor(cardId: CardId, shiny: boolean): CardArt | undefined {
+  const base = CARD_ART[cardId];
+  const src = shiny ? CARD_ART_SHINY[cardId] : undefined;
+  return base && src ? { ...base, src } : base;
+}
 
 /**
  * Comment cadrer une illustration dans une boîte : `ratio` = hauteur / largeur de la boîte, les yeux à `eyeAt` de sa
@@ -186,6 +218,13 @@ const SHORT_NAMES: Partial<Record<CardId, string>> = {
   'dragon-vent': 'Dragon vent',
   'dragon-terre': 'Dragon terre',
   'dragon-origine': 'Origine',
+  'apprenti-temps': 'Apprenti',
+  chronomancienne: 'Chronomanc.',
+  'dragonnet-temps': 'Dragonnet',
 };
 
-export const shortName = (cardId: CardId, name: string): string => SHORT_NAMES[cardId] ?? name;
+/** Nom court sur un jeton sans illustration : le sien, sinon le nom de la carte sans son archétype. */
+export const shortName = (cardId: CardId, name: string): string => {
+  const at = name.lastIndexOf(' - ');
+  return SHORT_NAMES[cardId] ?? (at < 0 ? name : name.slice(0, at));
+};

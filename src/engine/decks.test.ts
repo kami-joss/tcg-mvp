@@ -29,8 +29,8 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
   const deck = (id: string) => DECKS.find((d) => d.id === id)!;
   const count = (cards: readonly CardId[], id: CardId) => cards.filter((c) => c === id).length;
 
-  it('six decks de 25 cartes : classique, archers, pièges, bodybuilder, dragons, sorciers du feu', () => {
-    expect(DECKS.map((d) => d.id)).toEqual(['classique', 'archers', 'pieges', 'bodybuilder', 'dragons', 'sorciers-du-feu']);
+  it('sept decks de 25 cartes : classique, archers, pièges, bodybuilder, dragons, sorciers du feu, explorateur du temps', () => {
+    expect(DECKS.map((d) => d.id)).toEqual(['classique', 'archers', 'pieges', 'bodybuilder', 'dragons', 'sorciers-du-feu', 'explorateur-du-temps']);
     for (const d of DECKS) expect(d.cards, d.id).toHaveLength(25);
     expect(deck('classique').cards).toBe(TEST_GRIMOIRE);
   });
@@ -143,7 +143,7 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
     expect(CARDS['clown-assassin']).toMatchObject({ cost: 4, atk: 2, range: 1, mobility: 7, hp: 2 });
     const ability = (id: CardId) => {
       const card = getCard(id);
-      return card.kind === 'monster' ? card.activated : null;
+      return card.kind === 'monster' ? (card.activated[0] ?? null) : null;
     };
     expect(ability('poseur-de-piege')?.manaCost).toBe(1);
     expect(ability('farceur')).toBeNull();

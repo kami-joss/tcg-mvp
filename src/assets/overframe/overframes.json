@@ -1,0 +1,714 @@
+{
+  "_doc": "Coordonnées en px CSS dans le repère de la fiche 280 × 498 (origine = coin haut-gauche du cadre). y négatif = au-dessus du cadre. scale = taille affichée / taille du fichier. Les fichiers shiny ont le même nom + suffixe _shiny et exactement les mêmes dimensions.",
+  "archer_glace": {
+    "headroom": 118,
+    "breathAnchor": [
+      150,
+      150
+    ],
+    "art": {
+      "src": "archer_glace.jpg",
+      "w": 1008,
+      "h": 1792,
+      "x": -17,
+      "y": -126,
+      "scale": 0.35
+    },
+    "pop": {
+      "src": "archer_glace_buste.png",
+      "w": 710,
+      "h": 337,
+      "x": 35.5,
+      "y": -112,
+      "scale": 0.35
+    },
+    "sides": null,
+    "parts": [],
+    "glow": {
+      "layer": "inside",
+      "x": 190,
+      "y": 36,
+      "size": 170
+    },
+    "particles": "snow",
+    "sweep": "white",
+    "looks": {
+      "normal": {
+        "glow": [
+          "oklch(0.88 0.1 225 / .75)",
+          "oklch(0.72 0.15 240 / .25)"
+        ],
+        "popFilter": "drop-shadow(0 0 .6px oklch(0.25 0.06 250 / .9)) drop-shadow(0 3px 4px oklch(0 0 0 / .4))"
+      },
+      "shiny": {
+        "glow": [
+          "oklch(0.88 0.13 330 / .8)",
+          "oklch(0.7 0.2 310 / .28)"
+        ],
+        "popFilter": "drop-shadow(0 0 .6px oklch(0.25 0.08 320 / .9)) drop-shadow(0 0 8px oklch(0.75 0.2 330 / .45)) drop-shadow(0 3px 4px oklch(0 0 0 / .4))"
+      }
+    }
+  },
+  "archer_feu": {
+    "headroom": 152,
+    "breathAnchor": [
+      140,
+      150
+    ],
+    "art": {
+      "src": "archer_feu_v2.jpg",
+      "w": 1008,
+      "h": 1792,
+      "x": -100,
+      "y": -243.6,
+      "scale": 0.42
+    },
+    "pop": {
+      "src": "feu2_pop.png",
+      "w": 908,
+      "h": 369,
+      "x": -58,
+      "y": -149.1,
+      "scale": 0.42
+    },
+    "sides": {
+      "src": "feu2_cotes.png",
+      "w": 908,
+      "h": 250,
+      "x": -58,
+      "y": 0,
+      "scale": 0.42
+    },
+    "parts": [
+      {
+        "id": "tresseG",
+        "src": "feu2_tresse_g.png",
+        "w": 908,
+        "h": 369,
+        "x": 0,
+        "y": 0,
+        "scale": 0.42,
+        "origin": [
+          96.6,
+          86.1
+        ],
+        "anim": "swayL"
+      },
+      {
+        "id": "tresseD",
+        "src": "feu2_tresse_d.png",
+        "w": 908,
+        "h": 369,
+        "x": 0,
+        "y": 0,
+        "scale": 0.42,
+        "origin": [
+          220.5,
+          81.9
+        ],
+        "anim": "swayR"
+      },
+      {
+        "id": "yeux",
+        "src": "feu2_yeux_fermes.png",
+        "w": 180,
+        "h": 88,
+        "x": 117.6,
+        "y": 70.56,
+        "scale": 0.42,
+        "anim": "blink"
+      }
+    ],
+    "_partsDoc": "Les parts sont posées DANS le calque pop (x/y relatifs au coin haut-gauche du pop), au-dessus de lui, dans cet ordre.",
+    "glow": {
+      "layer": "outside",
+      "x": 185,
+      "y": -116,
+      "size": 160
+    },
+    "particles": "embers",
+    "sweep": "warm",
+    "looks": {
+      "normal": {
+        "glow": [
+          "oklch(0.92 0.14 80 / .8)",
+          "oklch(0.75 0.2 45 / .3)"
+        ],
+        "popFilter": "drop-shadow(0 0 .6px oklch(0.25 0.06 40 / .9)) drop-shadow(0 0 8px oklch(0.75 0.18 50 / .3)) drop-shadow(0 3px 4px oklch(0 0 0 / .4))"
+      },
+      "shiny": {
+        "label": "Flamme bleue",
+        "glow": [
+          "oklch(0.88 0.12 230 / .85)",
+          "oklch(0.65 0.18 255 / .3)"
+        ],
+        "popFilter": "drop-shadow(0 0 .6px oklch(0.25 0.06 250 / .9)) drop-shadow(0 0 8px oklch(0.75 0.16 240 / .45)) drop-shadow(0 3px 4px oklch(0 0 0 / .4))"
+      }
+    }
+  },
+  "particleSets": {
+    "_doc": "Générées une fois, avec une graine fixe (aucun hasard à chaque rendu). Plages [min, max]. dist > 0 = chute, < 0 = montée. startY relatif au haut du conteneur (arrière : le cadre ; avant : le cadre étendu de headroom vers le haut).",
+    "snow": {
+      "back": {
+        "n": 16,
+        "size": [
+          1.5,
+          4
+        ],
+        "dur": [
+          7,
+          13
+        ],
+        "dist": 540,
+        "drift": [
+          -30,
+          30
+        ],
+        "op": [
+          0.35,
+          0.8
+        ],
+        "startY": -20
+      },
+      "front": {
+        "n": 6,
+        "size": [
+          3,
+          6
+        ],
+        "dur": [
+          5,
+          11
+        ],
+        "dist": 640,
+        "drift": [
+          -30,
+          30
+        ],
+        "op": [
+          0.5,
+          0.8
+        ],
+        "startY": -30
+      },
+      "shape": "round",
+      "color": "oklch(0.98 0.01 240)",
+      "glow": "0 0 4px oklch(0.95 0.03 230 / .8)",
+      "blurAbove": 4,
+      "rotate": 0
+    },
+    "embers": {
+      "back": {
+        "n": 14,
+        "size": [
+          2,
+          4.5
+        ],
+        "dur": [
+          5,
+          9
+        ],
+        "dist": -540,
+        "drift": [
+          -35,
+          35
+        ],
+        "op": [
+          0.55,
+          0.95
+        ],
+        "startY": 505
+      },
+      "front": {
+        "n": 6,
+        "size": [
+          3,
+          6
+        ],
+        "dur": [
+          4,
+          8
+        ],
+        "dist": -640,
+        "drift": [
+          -35,
+          35
+        ],
+        "op": [
+          0.7,
+          1
+        ],
+        "startY": 600
+      },
+      "shape": "round",
+      "color": "oklch(0.88 0.16 H)",
+      "hue": [
+        45,
+        80
+      ],
+      "glow": "0 0 6px 1px oklch(0.75 0.19 H-10 / .9)",
+      "rotate": 0
+    },
+    "sparks": {
+      "back": {
+        "n": 14,
+        "size": [
+          4,
+          9
+        ],
+        "dur": [
+          8,
+          14
+        ],
+        "dist": 540,
+        "drift": [
+          -25,
+          25
+        ],
+        "op": [
+          0.5,
+          0.9
+        ],
+        "startY": -20
+      },
+      "front": {
+        "n": 6,
+        "size": [
+          7,
+          13
+        ],
+        "dur": [
+          6,
+          12
+        ],
+        "dist": 640,
+        "drift": [
+          -25,
+          25
+        ],
+        "op": [
+          0.7,
+          1
+        ],
+        "startY": -30
+      },
+      "shape": "star4",
+      "clipPath": "polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%)",
+      "color": "oklch(0.95 0.1 H)",
+      "hueCycle": [
+        350,
+        85,
+        305,
+        170
+      ],
+      "glow": "drop-shadow(0 0 3px oklch(0.85 0.16 H))",
+      "rotate": 180
+    },
+    "motesGold": {
+      "_doc": "Poussière d'or qui monte. Générée une fois avec une graine fixe (maquette : graine 47). Une particule sur 4 est une étoile.",
+      "back": {
+        "n": 14,
+        "startX": [
+          0,
+          280
+        ],
+        "startY": [
+          110,
+          490
+        ]
+      },
+      "front": {
+        "n": 8,
+        "startX": [
+          -30,
+          310
+        ],
+        "startY": [
+          60,
+          620
+        ]
+      },
+      "size": {
+        "dot": {
+          "back": [
+            1.5,
+            3.5
+          ],
+          "front": [
+            2.5,
+            5
+          ]
+        },
+        "star": {
+          "back": [
+            6,
+            10
+          ],
+          "front": [
+            9,
+            14
+          ]
+        }
+      },
+      "dur": [
+        6,
+        12
+      ],
+      "delay": [
+        0,
+        12
+      ],
+      "drift": [
+        -21,
+        49
+      ],
+      "dist": [
+        -260,
+        -90
+      ],
+      "op": [
+        0.55,
+        1
+      ],
+      "color": "oklch(0.95 0.1 H)",
+      "hue": [
+        75,
+        95
+      ],
+      "dotGlow": "0 0 5px 1px oklch(0.82 0.14 H-5 / .85)",
+      "starClip": "polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%)",
+      "rotate": 180
+    },
+    "motesAmethyst": {
+      "_doc": "Comme motesGold (maquette : graine 31), mais une particule sur 3 est améthyste (teinte 300 à 315).",
+      "back": {
+        "n": 14,
+        "startX": [
+          0,
+          280
+        ],
+        "startY": [
+          110,
+          490
+        ]
+      },
+      "front": {
+        "n": 8,
+        "startX": [
+          -30,
+          310
+        ],
+        "startY": [
+          60,
+          620
+        ]
+      },
+      "size": {
+        "dot": {
+          "back": [
+            1.5,
+            3.5
+          ],
+          "front": [
+            2.5,
+            5
+          ]
+        },
+        "star": {
+          "back": [
+            6,
+            10
+          ],
+          "front": [
+            9,
+            14
+          ]
+        }
+      },
+      "dur": [
+        6,
+        12
+      ],
+      "delay": [
+        0,
+        12
+      ],
+      "drift": [
+        -21,
+        49
+      ],
+      "dist": [
+        -260,
+        -90
+      ],
+      "op": [
+        0.55,
+        1
+      ],
+      "color": "oklch(0.95 0.1 H)",
+      "hue": [
+        75,
+        95
+      ],
+      "dotGlow": "0 0 5px 1px oklch(0.82 0.14 H-5 / .85)",
+      "starClip": "polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%)",
+      "rotate": 0,
+      "amethystEvery": 3,
+      "amethystHue": [
+        300,
+        315
+      ]
+    }
+  },
+  "chronomancienne": {
+    "headroom": 186,
+    "breathAnchor": [
+      140,
+      150
+    ],
+    "art": {
+      "src": "chrono.jpg",
+      "w": 1008,
+      "h": 1792,
+      "x": -63,
+      "y": -200,
+      "scale": 0.4
+    },
+    "pop": {
+      "src": "chrono_pop.png",
+      "w": 725,
+      "h": 505,
+      "x": -14.6,
+      "y": -172.8,
+      "scale": 0.4
+    },
+    "sides": null,
+    "parts": [
+      {
+        "id": "meches",
+        "src": "chrono_meches.png",
+        "w": 725,
+        "h": 505,
+        "x": 0,
+        "y": 0,
+        "scale": 0.4,
+        "origin": [
+          99.6,
+          136.8
+        ],
+        "anim": "hairWind"
+      },
+      {
+        "id": "yeux",
+        "src": "chrono_yeux_fermes.png",
+        "w": 168,
+        "h": 90,
+        "x": 113.2,
+        "y": 99.6,
+        "scale": 0.4,
+        "anim": "blink"
+      }
+    ],
+    "shine": {
+      "src": "art",
+      "opacity": 0.75,
+      "filter": "brightness(.75) contrast(4) saturate(1.4)",
+      "blend": "screen",
+      "mask": "linear-gradient(115deg, transparent 40%, #000 50%, transparent 60%)",
+      "maskSize": "300% 100%",
+      "anim": "shine"
+    },
+    "dial": null,
+    "glow": {
+      "layer": "outside",
+      "x": 196,
+      "y": -6,
+      "size": 150
+    },
+    "particles": "motesAmethyst",
+    "sweep": "warm",
+    "sweepMs": 6500,
+    "looks": {
+      "normal": {
+        "glow": [
+          "oklch(0.9 0.1 310 / .7)",
+          "oklch(0.7 0.18 300 / .25)"
+        ],
+        "glowStop": "60%",
+        "popFilter": "drop-shadow(0 0 .6px oklch(0.22 0.03 60 / .9)) drop-shadow(0 0 8px oklch(0.8 0.13 300 / .3)) drop-shadow(0 3px 4px oklch(0 0 0 / .4))"
+      },
+      "shiny": "generic"
+    },
+    "sheet": {
+      "title": "Chronomancienne",
+      "cost": 3,
+      "type": "Monstre",
+      "stats": {
+        "ATK": 1,
+        "PV": 2,
+        "PAS": 2,
+        "POR": 3
+      },
+      "passive": [
+        "Temps suspendu",
+        "La cible ne peut pas se déplacer à son prochain tour."
+      ]
+    }
+  },
+  "maitre_des_heures": {
+    "headroom": 162,
+    "breathAnchor": [
+      140,
+      150
+    ],
+    "art": {
+      "src": "temporel.jpg",
+      "w": 1008,
+      "h": 1792,
+      "x": -80,
+      "y": -215,
+      "scale": 0.42
+    },
+    "pop": {
+      "src": "temporel_pop.png",
+      "w": 582,
+      "h": 604,
+      "x": -21.2,
+      "y": -148.64,
+      "scale": 0.42
+    },
+    "sides": null,
+    "parts": [
+      {
+        "id": "meches",
+        "src": "temporel_meches.png",
+        "w": 582,
+        "h": 604,
+        "x": 0,
+        "y": 0,
+        "scale": 0.42,
+        "origin": [
+          170.1,
+          89.04
+        ],
+        "anim": "hairWind"
+      },
+      {
+        "id": "yeux",
+        "src": "temporel_yeux_fermes.png",
+        "w": 141,
+        "h": 54,
+        "x": 147.84,
+        "y": 80.64,
+        "scale": 0.42,
+        "anim": "blink"
+      }
+    ],
+    "shine": {
+      "src": "art",
+      "opacity": 0.7,
+      "filter": "brightness(.75) contrast(4) saturate(1.4)",
+      "blend": "screen",
+      "mask": "linear-gradient(115deg, transparent 40%, #000 50%, transparent 60%)",
+      "maskSize": "300% 100%",
+      "anim": "shine"
+    },
+    "dial": {
+      "x": 161.4,
+      "y": 32.7,
+      "size": 80,
+      "transform": "rotate(-18deg) scaleY(.8)",
+      "outer": {
+        "background": "repeating-conic-gradient(oklch(0.93 0.12 85) 0 2.2deg, transparent 2.2deg 30deg)",
+        "mask": "radial-gradient(closest-side, transparent 80%, #000 82%, #000 95%, transparent 97%)",
+        "opacity": 0.9,
+        "anim": "tick"
+      },
+      "inner": {
+        "inset": 7,
+        "background": "repeating-conic-gradient(oklch(0.9 0.1 80 / .85) 0 .9deg, transparent .9deg 6deg)",
+        "mask": "radial-gradient(closest-side, transparent 88%, #000 90%, #000 97%, transparent 99%)",
+        "opacity": 0.6,
+        "anim": "spinBack"
+      },
+      "rim": "0 0 0 1px oklch(0.9 0.12 85 / .45), 0 0 12px oklch(0.85 0.14 80 / .35)"
+    },
+    "glow": {
+      "layer": "inside",
+      "x": 151.4,
+      "y": 22.7,
+      "size": 100
+    },
+    "particles": "motesGold",
+    "sweep": "warm",
+    "sweepMs": 4200,
+    "looks": {
+      "normal": {
+        "glow": [
+          "oklch(0.95 0.1 85 / .7)",
+          "oklch(0.8 0.14 75 / .25)"
+        ],
+        "glowStop": "55%",
+        "popFilter": "drop-shadow(0 0 .6px oklch(0.22 0.03 60 / .9)) drop-shadow(0 0 8px oklch(0.85 0.13 80 / .3)) drop-shadow(0 3px 4px oklch(0 0 0 / .4))"
+      },
+      "shiny": "generic"
+    },
+    "sheet": {
+      "title": "Maître des heures",
+      "cost": 4,
+      "type": "Monstre",
+      "stats": {
+        "ATK": 2,
+        "PV": 3,
+        "PAS": 2,
+        "POR": 2
+      },
+      "passive": [
+        "Contretemps",
+        "Au début de ton tour, un monstre allié adjacent récupère 1 pas."
+      ]
+    }
+  },
+  "animations": {
+    "_doc": "Animations nommées utilisées par les parts, shine et dial.",
+    "hairWind": {
+      "keyframes": [
+        "rotate(0deg) scaleX(1)",
+        "rotate(-2.2deg) scaleX(1.015) @35%",
+        "rotate(1.4deg) scaleX(.995) @70%",
+        "rotate(0deg) scaleX(1)"
+      ],
+      "ms": 3800,
+      "easing": "ease-in-out"
+    },
+    "shine": {
+      "keyframes": [
+        "mask-position 100% 0 @0%",
+        "mask-position 0% 0 @40%",
+        "mask-position 0% 0 @100%"
+      ],
+      "ms": 6000,
+      "easing": "ease-in-out",
+      "delayMs": 600
+    },
+    "tick": {
+      "keyframes": [
+        "rotate(0deg)",
+        "rotate(360deg)"
+      ],
+      "ms": 60000,
+      "easing": "steps(60)"
+    },
+    "spinBack": {
+      "keyframes": [
+        "rotate(0deg)",
+        "rotate(-360deg)"
+      ],
+      "ms": 24000,
+      "easing": "linear"
+    },
+    "blink": {
+      "see": "README §3, clignement"
+    }
+  }
+}

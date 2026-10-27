@@ -5,7 +5,6 @@
 // des aperçus du moteur : la bulle ne calcule rien elle-même.
 import { cardAvailability, effectAvailability, getCard, getMonsterCard, previewAttack } from '../engine';
 import type {
-  ActivatedAbility,
   Action,
   CardId,
   Direction,
@@ -16,7 +15,7 @@ import type {
   StatusSpec,
   UnitId,
 } from '../engine';
-import { abilityExplanation } from './cardText';
+import { abilityExplanation, cardTitle, effectName } from './cardText';
 import type { IconName } from './Icon';
 import { getEffectActions, getPushChoices, getSummonChoices } from './interaction';
 import type { Selection } from './interaction';
@@ -129,16 +128,25 @@ function attackBubble(view: PlayerView, selection: Extract<Selection, { kind: 'a
         ? 'À distance : il ne peut pas avancer'
         : 'Il ne peut pas prendre sa case';
 
-  const effect = effectAvailability(view, attacker.id);
+  // Ses effets actifs : combien sont disponibles, sinon la raison du premier.
+  const effects = getMonsterCard(attacker.cardId).activated.map((_, i) => effectAvailability(view, attacker.id, i)!);
+  const ready = effects.filter((a) => a.ok).length;
+  const first = effects[0];
   const effectRow: BubbleRow = {
     key: 'effects',
     icon: 'magic-swirl',
     tone: 'effect',
     title: 'Effets',
-    subtitle: !effect ? 'Aucun effet actif' : effect.ok ? '1 disponible ›' : reasonText(effect.reason, 'Déjà utilisé ce tour'),
+    subtitle: !first
+      ? 'Aucun effet actif'
+      : ready > 0
+        ? `${ready} disponible${ready > 1 ? 's' : ''} ›`
+        : first.ok
+          ? ''
+          : reasonText(first.reason, 'Déjà utilisé ce tour'),
     cost: null,
-    enabled: effect?.ok ?? false,
-    warn: effect?.ok === false && effect.reason.kind === 'mana',
+    enabled: ready > 0,
+    warn: ready === 0 && first?.ok === false && first.reason.kind === 'mana',
     pick: { selection: { ...selection, page: 'effects' } },
   };
 
@@ -176,30 +184,6 @@ function attackBubble(view: PlayerView, selection: Extract<Selection, { kind: 'a
   };
 }
 
-/** Nom d'un effet actif dans la bulle : le sien, sinon ce qu'il fait (« Poser une bombe », « Poser un filet »…). */
-export function effectName(ability: ActivatedAbility): string {
-  if (ability.name) return ability.name;
-  const effect = ability.effects[0];
-  switch (effect?.type) {
-    case 'placeTrap':
-      return effect.effects.some((e) => e.type === 'damage') ? 'Poser une bombe' : 'Poser un filet';
-    case 'burnCell':
-      return 'Mettre le feu';
-    case 'heal':
-      return 'Soigner';
-    case 'damage':
-      return 'Frapper';
-    case 'summon':
-      return 'Invoquer';
-    case 'teleport':
-      return 'Téléporter';
-    case 'status':
-      return effect.kind === 'burn' ? 'Embraser' : 'Effet actif';
-    default:
-      return 'Effet actif';
-  }
-}
-
 /** Raison d'indisponibilité, en court pour la bulle (« Il te manque 2 mana »). */
 function reasonText(reason: Parameters<typeof reasonStatus>[0], used: string): string {
   return reason.kind === 'mana' ? `Il te manque ${reason.missing} mana` : reasonStatus(reason, used).text;
@@ -216,7 +200,6 @@ function effectsBubble(
   const unit = view.units[selection.unitId];
   if (unit?.kind !== 'monster') return null;
   const card = getMonsterCard(unit.cardId);
-  const ability = card.activated;
   const fromAttack = selection.kind === 'attack';
   const actions = getEffectActions(view, unit.id);
   const anchorUnit = fromAttack ? view.units[selection.targetId] : unit;
@@ -235,7 +218,7 @@ function effectsBubble(
             key: evolved.id,
             icon: 'dragon-head',
             tone: 'effect',
-            title: evolved.name,
+            title: cardTitle(evolved.id),
             subtitle: statsLine(evolved),
             cost: null,
             enabled: true,
@@ -247,11 +230,12 @@ function effectsBubble(
     };
   }
 
-  const availability = effectAvailability(view, unit.id);
-  const rows: BubbleRow[] = ability
-    ? [
-        {
-          key: 'effect',
+  // Une ligne par effet actif, dans l'ordre de la carte.
+  const rows: BubbleRow[] = card.activated.length
+    ? card.activated.map((ability, i): BubbleRow => {
+        const availability = effectAvailability(view, unit.id, i);
+        return {
+          key: `effect-${i}`,
           icon: 'magic-swirl',
           tone: 'effect',
           title: effectName(ability),
@@ -259,9 +243,9 @@ function effectsBubble(
           cost: ability.manaCost,
           enabled: availability?.ok ?? false,
           warn: availability?.ok === false && availability.reason.kind === 'mana',
-          pick: availability?.ok ? effectPick(view, unit.id, selection) : null,
-        },
-      ]
+          pick: availability?.ok ? effectPick(view, unit.id, selection, i) : null,
+        };
+      })
     : [
         {
           key: 'none',
@@ -281,14 +265,22 @@ function effectsBubble(
   return { anchor, anchorUnit: anchorUnit?.id ?? unit.id, header, rows };
 }
 
-/** Choisir un effet : le lancer s'il n'a qu'une forme (soi, zone autour), choisir une carte, ou cibler sur le plateau. */
-function effectPick(view: PlayerView, unitId: UnitId, selection: Extract<Selection, { kind: 'attack' | 'effects' }>): BubblePick {
-  const actions = getEffectActions(view, unitId);
+/**
+ * Choisir l'effet de rang `effect` : le lancer s'il n'a qu'une forme (soi, zone autour), choisir une carte, ou cibler
+ * sur le plateau (cases violettes).
+ */
+function effectPick(
+  view: PlayerView,
+  unitId: UnitId,
+  selection: Extract<Selection, { kind: 'attack' | 'effects' }>,
+  effect: number,
+): BubblePick {
+  const actions = getEffectActions(view, unitId, effect);
   if (actions.some((a) => a.target.kind === 'card')) return { selection: { ...selection, page: 'evolve' } };
   const only = actions.length === 1 ? actions[0]! : null;
   const direct = only && (only.target.kind === 'all' || (only.target.kind === 'area' && !only.target.direction) || (only.target.kind === 'unit' && only.target.unitId === unitId));
   if (direct) return { action: only };
-  return { selection: { kind: 'unit', unitId, mode: 'effect' } };
+  return { selection: { kind: 'unit', unitId, mode: 'effect', ...(effect > 0 ? { effect } : {}) } };
 }
 
 const CARD_ROWS = {
@@ -362,7 +354,11 @@ function pushBubble(view: PlayerView, selection: Extract<Selection, { kind: 'pus
 /** Invocateur : la case est choisie, le monstre à y invoquer ; chaque ligne coûte l'effet plus le monstre. */
 function summonBubble(view: PlayerView, selection: Extract<Selection, { kind: 'summonAt' }>): BubbleModel {
   const summoner = view.units[selection.unitId];
-  const effectCost = summoner?.kind === 'monster' ? (getMonsterCard(summoner.cardId).activated?.manaCost ?? 0) : 0;
+  const summonAbility =
+    summoner?.kind === 'monster'
+      ? getMonsterCard(summoner.cardId).activated.find((ability) => ability.effects.some((effect) => effect.type === 'summon'))
+      : undefined;
+  const effectCost = summonAbility?.manaCost ?? 0;
   return {
     anchor: selection.pos,
     anchorUnit: null,
@@ -373,7 +369,7 @@ function summonBubble(view: PlayerView, selection: Extract<Selection, { kind: 's
         key: cardId,
         icon: 'dragon-head',
         tone: 'plain',
-        title: card.name,
+        title: cardTitle(card.id),
         subtitle: statsLine(card),
         cost: effectCost + card.cost,
         enabled: true,
@@ -387,7 +383,7 @@ function summonBubble(view: PlayerView, selection: Extract<Selection, { kind: 's
 /** Zone en ligne avec un recul au choix (Vent violent) : la direction est choisie, reste la distance. */
 function distanceBubble(view: PlayerView, selection: Extract<Selection, { kind: 'areaDirection' }>, flipped: boolean): BubbleModel | null {
   const unit = view.units[selection.unitId];
-  const ability = unit?.kind === 'monster' ? getMonsterCard(unit.cardId).activated : null;
+  const ability = unit?.kind === 'monster' ? getMonsterCard(unit.cardId).activated.find((a) => a.targeting.type === 'zone') : undefined;
   if (!unit || !ability) return null;
   const screen = flipped ? SCREEN_DIRECTION[selection.direction] : selection.direction;
   const name = ability.name ?? 'Effet';

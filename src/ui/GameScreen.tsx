@@ -2,16 +2,18 @@
 // Après chaque action, il rejoue en animation les événements de la vue (handoff, lot 2) : pendant la lecture, l'écran
 // montre un état intermédiaire et les clics sont bloqués ; à la fin, il reprend la vraie vue. Les sons (lot 4) suivent
 // la même file d'événements ; sans animation, chaque événement joue seulement son son.
-// Mise en page (handoff V10, lot 11) : l'écran occupe toute la hauteur de la fenêtre et ne défile jamais ; ce sont les
-// colonnes qui défilent. À gauche, l'adversaire, la fiche et le journal ; au centre, le plateau, ajusté à sa zone, et
-// l'aide dessous quand elle est ouverte ; à droite, « Aide » et « Fin du tour », le grimoire (3, 2 ou 1 carte par ligne,
-// ou liste : la colonne s'élargit en conséquence) et, dessous, l'encart du joueur qui regarde.
+// Mise en page : l'écran occupe toute la hauteur de la fenêtre et ne défile jamais (handoff V10, lot 11). En haut
+// (handoff V11, lot 12), les scores de J1 et J2 de part et d'autre de « Fin du tour », le tour, l'aide et les options.
+// Dessous, la zone de jeu (lot 13) : le plateau sur toute la largeur, et par-dessus, des panneaux flottants : à gauche
+// la fiche et le journal (le plateau reste cliquable entre eux), à droite le grimoire (3, 2 ou 1 carte par ligne, ou
+// liste : le panneau s'élargit en conséquence), repliable par son onglet ; l'aide flotte en haut du plateau. Des
+// marges de glisse de part et d'autre du plateau permettent d'en sortir chaque bord de sous un panneau.
 // Les choix passent par la bulle d'action (`ActionBubble`) : attaque d'une cible, effets (clic droit sur son monstre),
 // carte du grimoire (clic droit : l'invoquer, la lancer, la poser), choix en plusieurs temps. Échap annule.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, RefObject } from 'react';
 import { flushSync } from 'react-dom';
-import type { Action, CardId, GameEvent, PlayerId, PlayerView, Position } from '../engine';
+import type { Action, CardId, GameEvent, PlayerView, Position } from '../engine';
 import type { Setup } from './session';
 import { ActionBubble } from './ActionBubble';
 import { ActionLog } from './ActionLog';
@@ -20,8 +22,8 @@ import { bubbleBack, getBubble } from './bubble';
 import type { BubbleRow } from './bubble';
 import { applyEvent } from './fx/patch';
 import { playEvents } from './fx/player';
-import { GRIMOIRE_DISPLAY, Grimoire } from './Grimoire';
-import { HoverSheet, SheetPlaceholder } from './HoverSheet';
+import { GRIMOIRE_DISPLAY, Grimoire, GrimoireTab } from './Grimoire';
+import { HoverSheet, SheetPreview, overframeFit, sheetOverframe, sheetPlacement } from './HoverSheet';
 import {
   NO_SELECTION,
   clickCard,
@@ -40,13 +42,13 @@ import {
 import type { Selection } from './interaction';
 import { isoScenery } from './iso/scenery';
 import { Legend } from './Legend';
-import { PlayerBox } from './PlayerBox';
+import { MAX_HEADROOM } from './overframes';
 import { ALL_TOKEN_STATS, loadSettings, prefersReducedMotion, saveSettings } from './settings';
 import type { BoardView, DisplaySettings } from './settings';
 import { eventSounds } from './sfx/events';
 import { configureSound, sfx, unlockAudio } from './sfx/sound';
 import { getSheet, sameSubject, subjectAt } from './sheet';
-import type { HoverSubject } from './sheet';
+import type { HoverSubject, SheetData } from './sheet';
 import type { LogEntry } from './log';
 import { TopBar } from './TopBar';
 import { VictoryOverlay } from './VictoryOverlay';
@@ -64,6 +66,43 @@ interface GameScreenProps {
   onHome: () => void;
   /** Tour de l'IA : l'action suivante à jouer, appelée quand l'écran a fini d'animer la précédente. */
   autoPlay?: (() => void) | null;
+}
+
+/**
+ * Marges de glisse du plateau (lot 13 §1) : à gauche la largeur de la colonne de la fiche, à droite celle du grimoire
+ * ouvert (ou un peu d'air quand il est replié) ; aucune sous 900 px de large.
+ */
+const GLIDE_LEFT = 296;
+const GLIDE_GAP = 12;
+const GLIDE_COLLAPSED = 20;
+const GLIDE_MIN_WIDTH = 900;
+
+/** La fenêtre fait moins de `width` px de large (suivi au redimensionnement). */
+function useNarrow(width: number): boolean {
+  const query = `(max-width: ${width - 0.02}px)`;
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.matchMedia?.(query).matches === true);
+  useEffect(() => {
+    const media = window.matchMedia?.(query);
+    if (!media) return;
+    const update = () => setNarrow(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, [query]);
+  return narrow;
+}
+
+/** Hauteur d'un élément, suivie au redimensionnement ; `Infinity` tant qu'elle n'est pas mesurée. */
+function useHeight(ref: RefObject<HTMLElement | null>): number {
+  const [height, setHeight] = useState(Infinity);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => setHeight(el.clientHeight));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+  return height;
 }
 
 /** Pause entre deux actions de l'IA, pour qu'on puisse les suivre. */
@@ -86,6 +125,10 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
   focusRef.current = focus;
   const focusTimer = useRef<number | undefined>(undefined);
   const [helpOpen, setHelpOpen] = useState(false);
+  /** Fiche à overframe ouverte en grand (clic sur la fiche) ; Échap ou un clic sur le fond la referme. */
+  const [preview, setPreview] = useState<SheetData | null>(null);
+  const previewRef = useRef(preview);
+  previewRef.current = preview;
   /** Trajet montré au survol d'une ligne de la bulle (« Attaquer et avancer »), pour la sélection où il a été montré. */
   const [bubblePath, setBubblePath] = useState<{ selection: Selection; path: readonly Position[] } | null>(null);
   const [settings, setSettings] = useState<DisplaySettings>(loadSettings);
@@ -97,7 +140,6 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
   const played = useRef<PlayerView | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const layerRef = useRef<HTMLDivElement>(null);
-  const legendRef = useRef<HTMLDivElement>(null);
 
   const busy = shown !== null;
   const display = shown ?? view;
@@ -134,6 +176,21 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
     [bubble, bubblePath, display, activeSelection, hovered],
   );
   const sheet = focus ? getSheet(display, focus) : null;
+  // Fiche : le haut du cadre toujours au même endroit (place du plus grand débordement réservée au-dessus) ; fenêtre
+  // basse, place et overframes réduites pour laisser la sienne au journal.
+  const leftRef = useRef<HTMLElement>(null);
+  const leftHeight = useHeight(leftRef);
+  const sheetOf = sheet ? sheetOverframe(sheet) : undefined;
+  const sheetFit = overframeFit(leftHeight, MAX_HEADROOM);
+  const grimoireWidth = GRIMOIRE_DISPLAY[settings.grimoireLayout].width;
+  const narrow = useNarrow(GLIDE_MIN_WIDTH);
+  const glide = useMemo(
+    () =>
+      narrow
+        ? { left: 0, right: 0 }
+        : { left: GLIDE_LEFT, right: settings.grimoireOpen ? grimoireWidth + GLIDE_GAP : GLIDE_COLLAPSED },
+    [narrow, settings.grimoireOpen, grimoireWidth],
+  );
   const myTurn = view.activePlayer === view.viewer && view.winner === null;
 
   const changeSettings = (patch: Partial<DisplaySettings>) =>
@@ -186,6 +243,10 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
       const active = document.activeElement;
       if (active instanceof HTMLElement && active.dataset.cell && /^(Escape|Backspace|[1-9])$/.test(event.key)) active.blur();
       if (event.key === 'Escape') {
+        if (previewRef.current) {
+          setPreview(null);
+          return;
+        }
         if (model) {
           setSelection(bubbleBack(model) ?? NO_SELECTION);
           return;
@@ -228,14 +289,6 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
     document.addEventListener('pointerdown', close);
     return () => document.removeEventListener('pointerdown', close);
   }, [bubbleOpen]);
-
-  // L'aide s'ouvre sous le plateau, qui ne rétrécit pas : la colonne défile pour la montrer sur la moitié basse.
-  useEffect(() => {
-    const legend = legendRef.current;
-    const column = legend?.parentElement;
-    if (!helpOpen || !legend || !column) return;
-    column.scrollTo({ top: Math.max(0, legend.offsetTop - column.clientHeight * 0.45), behavior: 'smooth' });
-  }, [helpOpen]);
 
   // Alt maintenu : toutes les stats ; relâcher, ou quitter la fenêtre, revient au choix du joueur.
   useEffect(() => {
@@ -383,24 +436,22 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
     activeSelection.kind === 'card' || activeSelection.kind === 'cardMenu' || activeSelection.kind === 'push'
       ? activeSelection.cardId
       : null;
-  const opponent: PlayerId = display.viewer === 1 ? 2 : 1;
 
   const classes = ['game', animated && 'game--anim', busy && 'is-busy'].filter(Boolean).join(' ');
-  const layout = { '--grimoire-w': `${GRIMOIRE_DISPLAY[settings.grimoireLayout].width}px` } as CSSProperties;
+  const layout = { '--grimoire-w': `${grimoireWidth}px` } as CSSProperties;
   return (
     <div className={classes} ref={rootRef} style={layout}>
       <TopBar
         view={display}
+        setup={setup}
+        canEndTurn={myTurn && !busy}
+        onEndTurn={endTurn}
+        helpOpen={helpOpen}
+        onHelp={() => setHelpOpen((open) => !open)}
+        settings={settings}
         boardView={mode}
         isoAvailable={isoAvailable}
-        onView={(next) => changeSettings({ view: next })}
-        stats={settings.tokenStats}
-        onStats={(tokenStats) => changeSettings({ tokenStats })}
-        peek={peek}
-        onPeek={setPeek}
-        zoom={settings.zoom}
-        onZoom={(zoom) => changeSettings({ zoom })}
-        sound={settings.sound}
+        onSettings={changeSettings}
         onSound={(sound) => {
           changeSettings({ sound });
           if (sound) {
@@ -409,17 +460,11 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
           }
         }}
         onHome={onHome}
+        animated={animated}
       />
 
-      <div className="game__main">
-        {/* Colonne de gauche : l'adversaire, la fiche (jamais sur le plateau), le journal. */}
-        <aside className="game__left">
-          <PlayerBox view={display} player={opponent} deckName={setup.decks[opponent].name} ai={setup.ai === opponent} />
-          <div className="game__sheet">{sheet ? <HoverSheet sheet={sheet} /> : <SheetPlaceholder />}</div>
-          <ActionLog entries={log} opponentUsed={display.opponent.used} />
-        </aside>
-
-        {/* Colonne centrale : le plateau garde sa taille ; l'aide s'ouvre dessous, la colonne défile. */}
+      <div className="game__zone">
+        {/* Le plateau, sur toute la largeur ; l'aide flotte par-dessus, en haut (lot 13 §5). */}
         <main className="game__play">
           <Board
             view={display}
@@ -436,26 +481,33 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
             animated={animated}
             flipped={flipped}
             stats={peek ? ALL_TOKEN_STATS : settings.tokenStats}
+            margins={glide}
             onCellClick={handleCellClick}
             onCellContextMenu={handleCellContextMenu}
             onCellHover={handleCellHover}
           />
-          {helpOpen && (
-            <div ref={legendRef} className="game__legend">
-              <Legend settings={settings} onChange={changeSettings} onClose={() => setHelpOpen(false)} />
-            </div>
-          )}
+          {helpOpen && <Legend onClose={() => setHelpOpen(false)} />}
         </main>
 
-        <aside className="game__side">
-          <div className="side-actions">
-            <button type="button" className="btn btn--ghost btn--help" aria-pressed={helpOpen} onClick={() => setHelpOpen((open) => !open)}>
-              Aide
-            </button>
-            <button type="button" className="btn btn--end-turn" disabled={!myTurn || busy} onClick={endTurn}>
-              Fin du tour
-            </button>
-          </div>
+        {/* À gauche, par-dessus le plateau : la fiche (rien sans fiche), le journal en bas. */}
+        <aside ref={leftRef} className="game__left">
+          {sheet && (
+            <div
+              className={`game__sheet${sheetOf ? ' game__sheet--of' : ''}`}
+              style={sheetPlacement(sheetOf, sheetFit)}
+            >
+              <HoverSheet sheet={sheet} animated={animated} onOpen={() => setPreview(sheet)} />
+            </div>
+          )}
+          <ActionLog entries={log} opponentUsed={display.opponent.used} />
+        </aside>
+
+        {/* À droite, par-dessus le plateau : le grimoire, repliable par son onglet. */}
+        <aside className={`game__side${settings.grimoireOpen ? '' : ' is-collapsed'}`}>
+          <GrimoireTab
+            open={settings.grimoireOpen}
+            onToggle={() => changeSettings({ grimoireOpen: !settings.grimoireOpen })}
+          />
           <Grimoire
             view={display}
             selectedCard={selectedCard}
@@ -465,21 +517,22 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
             onCardClick={handleCardClick}
             onCardContextMenu={handleCardContextMenu}
             onCardHover={handleCardHover}
+            animated={animated}
           />
-          <PlayerBox view={display} player={display.viewer} deckName={setup.decks[display.viewer].name} />
         </aside>
       </div>
 
       {bubble && (
         <ActionBubble
           model={bubble}
-          layoutKey={`${mode}|${settings.zoom}|${flipped}|${settings.grimoireLayout}`}
+          layoutKey={`${mode}|${settings.zoom}|${flipped}|${settings.grimoireLayout}|${settings.grimoireOpen}`}
           onPick={pickRow}
           onBack={() => setSelection(bubbleBack(bubble) ?? NO_SELECTION)}
           onClose={() => setSelection(NO_SELECTION)}
           onHoverPath={(hoverPath) => setBubblePath(hoverPath ? { selection: activeSelection, path: hoverPath } : null)}
         />
       )}
+      {preview && <SheetPreview sheet={preview} animated={animated} onClose={() => setPreview(null)} />}
       {!busy && <VictoryOverlay view={view} onRestart={onRestart} onHome={onHome} />}
       <div className="fx-stage" ref={layerRef} aria-hidden="true" />
     </div>

@@ -171,7 +171,7 @@ describe('début de tour : mana zones contrôlées (SPEC.md §4.2, §4.4)', () =
 });
 
 describe('début de tour : les monstres récupèrent (SPEC.md §4.2)', () => {
-  const exhausted = { mobilityLeft: 0, hasAttacked: true, hasUsedEffect: true };
+  const exhausted = { mobilityLeft: 0, hasAttacked: true, usedEffects: [0] };
 
   it('les monstres du joueur actif récupèrent mobilité, attaque et effet activé ; pas ceux de l’adversaire', () => {
     const state = gameWith(
@@ -182,7 +182,7 @@ describe('début de tour : les monstres récupèrent (SPEC.md §4.2)', () => {
       { activePlayer: 2 },
     );
     const turn = endTurns(state, 1);
-    expect(turn.units.u1).toMatchObject({ mobilityLeft: 3, hasAttacked: false, hasUsedEffect: false });
+    expect(turn.units.u1).toMatchObject({ mobilityLeft: 3, hasAttacked: false, usedEffects: [] });
     expect(turn.units.u2).toMatchObject(exhausted);
   });
 

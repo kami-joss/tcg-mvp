@@ -32,9 +32,9 @@ describe('Flèche divine et famille Archer', () => {
 
   it('journal : +1 ATK et +1 portée ce tour', () => {
     expect(describeAction(view(state), ARROW, view(after))).toEqual([
-      'J1 lance Flèche divine sur Archer léger de J1.',
-      'Archer léger de J1 : +1 ATK ce tour.',
-      'Archer léger de J1 : +1 portée ce tour.',
+      'J1 lance Flèche divine - Archers sur Archer léger - Archers de J1.',
+      'Archer léger - Archers de J1 : +1 ATK ce tour.',
+      'Archer léger - Archers de J1 : +1 portée ce tour.',
     ]);
   });
 

@@ -1,7 +1,7 @@
 // Pendant qu'une animation se joue, l'écran montre un état intermédiaire : la vue d'avant l'action, à laquelle on
 // applique les événements un par un. Pure et testée : à la fin, l'écran reprend la vraie vue.
 import { directionBetween, samePos } from '../../engine';
-import type { GameEvent, PlayerId, PlayerView, Unit } from '../../engine';
+import type { GameEvent, PlayerId, PlayerView, Position, Unit } from '../../engine';
 
 function setPlayer(view: PlayerView, player: PlayerId, patch: { mana?: number; vp?: number }): PlayerView {
   return player === view.viewer ? { ...view, me: { ...view.me, ...patch } } : { ...view, opponent: { ...view.opponent, ...patch } };
@@ -12,6 +12,20 @@ const publicOf = (view: PlayerView, player: PlayerId) => (player === view.viewer
 function updateUnit(view: PlayerView, unitId: string, update: (unit: Unit) => Unit): PlayerView {
   const unit = view.units[unitId];
   return unit ? { ...view, units: { ...view.units, [unitId]: update(unit) } } : view;
+}
+
+/**
+ * L'unité posée sur `to`, avec son chemin du tour comme le tient le moteur : il s'allonge pour ses propres monstres (un
+ * retour le coupe à la case retrouvée) ; un monstre adverse ne montre que sa case.
+ */
+function moveTo(view: PlayerView, unit: Unit, to: Position, rewind = false): Unit {
+  if (unit.kind !== 'monster') return { ...unit, pos: to };
+  if (unit.owner !== view.viewer) return { ...unit, pos: to, trail: [to] };
+  const last = unit.trail.at(-1);
+  const index = rewind ? unit.trail.findIndex((cell) => samePos(cell, to)) : -1;
+  const trail =
+    index >= 0 ? unit.trail.slice(0, index + 1) : last && samePos(last, to) ? unit.trail : [...unit.trail, to];
+  return { ...unit, pos: to, trail };
 }
 
 /** La vue `view` après l'événement `event`. `final` (la vraie vue d'après l'action) complète ce qui manque. */
@@ -33,20 +47,25 @@ export function applyEvent(view: PlayerView, event: GameEvent, final: PlayerView
     case 'revealed':
       return { ...view, units: { ...view.units, [event.unit.id]: final.units[event.unit.id] ?? event.unit } };
     case 'step':
-      return updateUnit(view, event.unitId, (unit) =>
-        unit.kind === 'monster'
+      return updateUnit(view, event.unitId, (unit) => {
+        const moved = moveTo(view, unit, event.to);
+        return moved.kind === 'monster'
           ? {
-              ...unit,
-              pos: event.to,
-              facing: event.kind === 'push' ? unit.facing : directionBetween(event.from, event.to),
-              mobilityLeft: event.kind === 'walk' ? Math.max(0, unit.mobilityLeft - 1) : unit.mobilityLeft,
+              ...moved,
+              facing: event.kind === 'push' ? moved.facing : directionBetween(event.from, event.to),
+              mobilityLeft: event.kind === 'walk' ? Math.max(0, moved.mobilityLeft - 1) : moved.mobilityLeft,
             }
-          : { ...unit, pos: event.to },
-      );
+          : moved;
+      });
     case 'stopped':
-      return updateUnit(view, event.unitId, (unit) => ({ ...unit, pos: event.pos }));
+      return updateUnit(view, event.unitId, (unit) => moveTo(view, unit, event.pos));
     case 'teleport':
-      return updateUnit(view, event.unitId, (unit) => ({ ...unit, pos: event.to }));
+      return updateUnit(view, event.unitId, (unit) => moveTo(view, unit, event.to));
+    case 'rewind':
+      return updateUnit(view, event.unitId, (unit) => {
+        const moved = moveTo(view, unit, event.to, true);
+        return moved.kind === 'monster' ? { ...moved, mobilityLeft: 0 } : moved;
+      });
     case 'attack':
       return updateUnit(view, event.unitId, (unit) => (unit.kind === 'monster' ? { ...unit, hasAttacked: true } : unit));
     case 'damage':
@@ -97,7 +116,9 @@ export function applyEvent(view: PlayerView, event: GameEvent, final: PlayerView
     case 'effect':
       // L'effet est utilisé ; zone en ligne : la source se tourne vers la direction choisie.
       return updateUnit(view, event.unitId, (unit) =>
-        unit.kind === 'monster' ? { ...unit, hasUsedEffect: true, ...(event.facing ? { facing: event.facing } : {}) } : unit,
+        unit.kind === 'monster'
+          ? { ...unit, usedEffects: [...unit.usedEffects, event.effect ?? 0], ...(event.facing ? { facing: event.facing } : {}) }
+          : unit,
       );
     case 'cellBurned':
       return { ...view, burningCells: [...view.burningCells, event.cell] };

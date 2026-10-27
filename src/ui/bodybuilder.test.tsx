@@ -96,7 +96,7 @@ describe('Dopage (Jean Bon) : un clic sur lui-même', () => {
   });
 
   it('journal, animation et son', () => {
-    expect(logOf(state, DOPAGE)).toEqual(['Jean Bon de J1 utilise Dopage.', 'Jean Bon de J1 : +2 ATK ce tour.']);
+    expect(logOf(state, DOPAGE)).toEqual(['Jean Bon - Bodybuilder de J1 utilise Dopage.', 'Jean Bon - Bodybuilder de J1 : +2 ATK ce tour.']);
     const after = getPlayerView(applyAction(state, DOPAGE), 1);
     const boost = after.events.find((e) => e.type === 'boost')!;
     expect(applyEvent(view, boost, after).units.u1).toMatchObject({ atk: 5, atkBonus: 2 });
@@ -128,7 +128,7 @@ describe('Arnold : l’aura se voit sur le jeton et dans la fiche', () => {
     const sheet = cellSheet(state, 8, 1);
     expect(sheet.type).toBe('Monstre · Bodybuilder · Joueur 1');
     expect(sheet.stats[0]).toMatchObject({ value: '4', delta: 2 });
-    expect(sheet.status).toContainEqual({ icon: 'aura', text: '+2 ATK (aura : Arnold)', kind: 'boost' });
+    expect(sheet.status).toContainEqual({ icon: 'aura', text: '+2 ATK (aura : Arnold - Bodybuilder)', kind: 'boost' });
     expect(getAttackPreviews(view, { kind: 'unit', unitId: 'u2', mode: 'act' }).get(posKey(at(7, 1)))?.damage).toBe(4);
   });
 });
@@ -145,9 +145,9 @@ describe('Seringue et requiem', () => {
 
   it('journal : ATK doublée pour ce tour, requiem 2', () => {
     expect(logOf(state, INJECT)).toEqual([
-      'J1 lance Seringue sur Jean Bon de J1.',
-      'Jean Bon de J1 : +5 ATK ce tour.',
-      'Jean Bon de J1 : requiem 2.',
+      'J1 lance Seringue - Bodybuilder sur Jean Bon - Bodybuilder de J1.',
+      'Jean Bon - Bodybuilder de J1 : +5 ATK ce tour.',
+      'Jean Bon - Bodybuilder de J1 : requiem 2.',
     ]);
   });
 
@@ -169,7 +169,7 @@ describe('Seringue et requiem', () => {
 
   it('au terme : « succombe », animation et son de mort', () => {
     const before = applyAction(applyAction(applyAction(injected, END_TURN), END_TURN), END_TURN);
-    expect(logOf(before, END_TURN)).toContain('Jean Bon de J1 succombe (requiem).');
+    expect(logOf(before, END_TURN)).toContain('Jean Bon - Bodybuilder de J1 succombe (requiem).');
     const after = getPlayerView(applyAction(before, END_TURN), 1);
     const requiem = after.events.find((e) => e.type === 'requiem')!;
     expect(applyEvent(getPlayerView(before, 1), requiem, after).units.u1).toBeUndefined();

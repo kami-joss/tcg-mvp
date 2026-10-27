@@ -1,7 +1,7 @@
 // Effets visuels dessinés à la main (Web Animations API, sans bibliothèque), repris de la maquette « Plateau v4 » :
 // particules, projectiles, cartes qui volent, secousses. Tout est dessiné dans un calque fixe plein écran, positionné
 // depuis les cases à l'écran : cela marche pareil en vue de dessus et en vue inclinée.
-import { ICON_PATHS } from '../iconPaths';
+import { ICON_PATHS, MDI_PATHS } from '../iconPaths';
 import type { IconName } from '../Icon';
 import type { Position } from '../../engine';
 
@@ -80,7 +80,9 @@ export function spawn(
 }
 
 export function iconSvg(name: IconName, color: string, size: number): string {
-  return `<svg viewBox="0 0 512 512" width="${size}" height="${size}" style="display:block"><path fill="${color}" d="${ICON_PATHS[name]}"/></svg>`;
+  const mdi = name in MDI_PATHS;
+  const d = mdi ? MDI_PATHS[name as keyof typeof MDI_PATHS] : ICON_PATHS[name as keyof typeof ICON_PATHS];
+  return `<svg viewBox="${mdi ? '0 0 24 24' : '0 0 512 512'}" width="${size}" height="${size}" style="display:block"><path fill="${color}" d="${d}"/></svg>`;
 }
 
 const TEXT_SHADOW = '0 2px 0 oklch(0.15 0.01 60), 0 0 8px oklch(0 0 0 / .6)';

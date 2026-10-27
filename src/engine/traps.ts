@@ -3,16 +3,18 @@
 // monstre ennemi qui entre sur leur case. Une unité « Passage » (terrain, ou Golem de lave) agit sur chaque monstre
 // ennemi qui entre dans sa zone (ses 8 cases adjacentes), une fois par mouvement. Une case brûlée, publique, agit sur
 // chaque monstre ennemi qui y entre, et reste.
-import { isAdjacent, samePos } from './board';
+import { isAdjacent, isPlayable, samePos } from './board';
 import { getCard } from './cards';
 import { dealDamage } from './damage';
 import { emit } from './events';
 import { addStatus } from './statuses';
+import { getUnitsAt, setUnit } from './units';
 import type { GameState, PlayerId, TerrainPassage, TrapEffect, Unit, UnitId } from './types';
 
 /**
- * Un mouvement : un déplacement, un recul, une avancée, une invocation ou une téléportation. `passages` : les unités
- * « Passage » qui se sont déjà déclenchées sur le monstre pendant ce mouvement (une fois chacune, §10).
+ * Un mouvement : un déplacement, un recul, une avancée ou une invocation (une téléportation n'entre pas sur sa case :
+ * rien ne s'y déclenche, §10). `passages` : les unités « Passage » qui se sont déjà déclenchées sur le monstre pendant
+ * ce mouvement (une fois chacune).
  */
 export interface Movement {
   readonly passages: readonly UnitId[];
@@ -28,7 +30,8 @@ export interface EnterResult {
   readonly movement: Movement;
 }
 
-const stops = (effect: TrapEffect) => effect.type === 'status' && (effect.kind === 'immobilise' || effect.kind === 'stun');
+const stops = (effect: TrapEffect) =>
+  effect.type === 'rewind' || (effect.type === 'status' && (effect.kind === 'immobilise' || effect.kind === 'stun'));
 
 /** Les effets d'un piège ou d'un terrain, dans l'ordre (§5.4) ; le VP d'une destruction revient à `by`. */
 function applyEnterEffects(state: GameState, unitId: UnitId, effects: readonly TrapEffect[], by: PlayerId, trap: boolean): GameState {
@@ -38,7 +41,9 @@ function applyEnterEffects(state: GameState, unitId: UnitId, effects: readonly T
     next =
       effect.type === 'damage'
         ? dealDamage(next, unitId, effect.amount, by, trap ? 'trap' : 'passage')
-        : addStatus(next, unitId, effect);
+        : effect.type === 'rewind'
+          ? rewindMonster(next, unitId, effect.steps).state
+          : addStatus(next, unitId, effect);
   }
   return next;
 }
@@ -59,7 +64,7 @@ export function getPassageSources(state: Pick<GameState, 'board' | 'units'>, mon
 }
 
 /**
- * Le monstre `unitId` vient d'entrer sur sa case actuelle (déplacement, recul, avancée, invocation ou téléportation) :
+ * Le monstre `unitId` vient d'entrer sur sa case actuelle (déplacement, recul, avancée ou invocation) :
  * les pièges ennemis de cette case se déclenchent, puis disparaissent ; ensuite les terrains ennemis « Passage » dont
  * il entre dans la zone, s'ils ne se sont pas déjà déclenchés pendant ce mouvement.
  */
@@ -78,6 +83,9 @@ export function enterCell(state: GameState, unitId: UnitId, movement: Movement =
       // Un statut qui empêche de bouger arrête le monstre sur la case piégée (filet du Poseur de piège).
       stopped ||= trap.effects.some(stops);
     }
+    // Renvoyé en arrière par un piège (Chronomancienne) : il n'est plus sur cette case, rien d'autre ne s'y déclenche.
+    const after = next.units[unitId];
+    if (!after || !samePos(after.pos, unit.pos)) return { state: next, stopped: true, movement };
   }
 
   let passages = movement.passages;
@@ -99,6 +107,30 @@ export function enterCell(state: GameState, unitId: UnitId, movement: Movement =
   }
 
   return { state: next, stopped: stopped || next.units[unitId] === undefined, movement: { passages } };
+}
+
+/**
+ * Remonte N cases (piège de la Chronomancienne) : le monstre revient de `steps` cases en arrière sur son chemin (les cases
+ * où il a été depuis le début du tour de son camp), ou à son début s'il est plus court ; une case occupée entre-temps
+ * est sautée, vers la case d'où il revient. C'est une téléportation : il garde son orientation, rien ne se déclenche
+ * sur la case d'arrivée (ni piège, ni Passage, ni case brûlée, §10) et il n'a plus de mobilité ce tour. Son chemin
+ * s'arrête à cette case.
+ */
+export function rewindMonster(state: GameState, unitId: UnitId, steps: number): EnterResult {
+  const monster = state.units[unitId];
+  if (monster?.kind !== 'monster') return { state, stopped: true, movement: NEW_MOVEMENT };
+  const { trail, pos } = monster;
+  const last = trail.length - 1;
+  const free = (cell: (typeof trail)[number]) =>
+    isPlayable(state.board, cell) &&
+    getUnitsAt(state, cell).every((unit) => unit.id === unitId || (unit.kind === 'terrain' && unit.owner === monster.owner));
+  let index = Math.max(0, last - steps);
+  while (index < last && !free(trail[index]!)) index++;
+  const to = trail[index] ?? pos;
+  const kept = trail.slice(0, index + 1);
+  if (samePos(to, pos)) return { state: setUnit(state, { ...monster, mobilityLeft: 0 }), stopped: true, movement: NEW_MOVEMENT };
+  const moved = setUnit(emit(state, { type: 'rewind', unitId, from: pos, to }), { ...monster, pos: to, trail: kept, mobilityLeft: 0 });
+  return { state: moved, stopped: true, movement: NEW_MOVEMENT };
 }
 
 /** Au début du tour `turn`, les cases brûlées arrivées à échéance s'éteignent. */

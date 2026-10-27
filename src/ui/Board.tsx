@@ -7,9 +7,9 @@
 // (ou l'échelle de la vue isométrique) est choisie pour que toute la scène y tienne, jusqu'à ×1,35 sans que les jetons
 // grossissent (lot 11 : plus d'espace autour des monstres). La zone défile dès que la scène la dépasse (zoom, ou vue
 // isométrique calée sur la largeur), à la molette ou en la faisant glisser.
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
-import type { CSSProperties, MouseEvent, PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties, MouseEvent } from 'react';
 import {
   MANA_ZONE_NAMES,
   allPositions,
@@ -60,8 +60,13 @@ interface BoardProps {
   animated: boolean;
   /** Plateau retourné : la case (0, 0) est en bas à droite. */
   flipped: boolean;
-  /** Stats affichées sur les jetons (menu « Stats », Alt pour tout voir). */
+  /** Stats affichées sur les jetons (menu d'options, Alt pour tout voir). */
   stats?: TokenStats;
+  /**
+   * Marges de glisse (handoff V11, lot 13 §1) : espaces vides à gauche et à droite de la scène, dans le cadre qui défile,
+   * pour sortir chaque bord du plateau de sous un panneau flottant (fiche à gauche, grimoire à droite).
+   */
+  margins?: { readonly left: number; readonly right: number };
   onCellClick: (pos: Position) => void;
   /** Clic droit sur une case (le menu du navigateur est bloqué). */
   onCellContextMenu?: (pos: Position) => void;
@@ -70,6 +75,11 @@ interface BoardProps {
 
 /** Marge laissée autour de la scène de dessus ou inclinée, pour son ombre. */
 const FIT_MARGIN = 12;
+
+/** Au-delà de ce déplacement (px) bouton enfoncé, c'est un glisser du plateau, plus un clic (lot 13 §2). */
+const DRAG_THRESHOLD = 6;
+
+const NO_MARGINS = { left: 0, right: 0 } as const;
 
 const FLIP_DIRECTION: Readonly<Record<Direction, Direction>> = { up: 'down', down: 'up', left: 'right', right: 'left' };
 
@@ -118,9 +128,9 @@ function useElementSize(ref: RefObject<HTMLElement | null>): { width: number; he
 }
 
 /**
- * Cadre du plateau (lot 11) : il défile, sur chaque axe où la scène le dépasse (zoom, vue isométrique calée sur la
- * largeur), à la molette ou en la faisant glisser ; sinon la scène y est centrée, sans défilement (le décor qui déborde
- * de la scène n'ouvre pas de défilement). Un glisser n'est pas compté comme un clic sur une case. Au chargement et au
+ * Cadre du plateau (lot 11) : il défile, sur chaque axe où la scène et ses marges de glisse le dépassent (zoom, vue
+ * isométrique calée sur la largeur, lot 13), à la molette ou en la faisant glisser ; sinon la scène y est centrée entre
+ * ses marges, sans défilement (le décor qui déborde de la scène n'ouvre pas de défilement). Un glisser n'est pas compté comme un clic sur une case. Au chargement et au
  * changement de vue, la vue est recentrée sur le plateau (`focusY` : hauteur de son centre dans la scène, de 0 à 1) ;
  * en changeant de zoom, le point de la scène au centre de la vue est conservé.
  */
@@ -130,10 +140,14 @@ function useZoomViewport(
   scroll: { readonly x: boolean; readonly y: boolean },
   ref: RefObject<HTMLDivElement | null>,
 ) {
-  const drag = useRef<{ x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
-  const suppressClick = useRef(false);
   /** Point de la scène au centre de la vue, en fractions de sa largeur et de sa hauteur. */
   const center = useRef<{ x: number; y: number } | null>(null);
+  /**
+   * Le joueur a fait défiler le cadre (molette, glisser, barre de défilement) depuis le dernier recentrage : seulement
+   * alors, le point au centre de la vue est retenu. Les défilements du plateau lui-même (mise en place, transition de vue)
+   * ne déplacent pas le centrage.
+   */
+  const userMoved = useRef(false);
   const shownMode = useRef(mode);
   /** Hauteur du centre du plateau dans la scène (de 0 à 1), tenue à jour par le plateau à chaque rendu. */
   const focusY = useRef(0.5);
@@ -147,6 +161,7 @@ function useZoomViewport(
     if (shownMode.current !== mode) {
       shownMode.current = mode;
       center.current = null;
+      userMoved.current = false;
     }
     /** La scène dans le repère de défilement du cadre. */
     const box = () => {
@@ -162,61 +177,97 @@ function useZoomViewport(
       el.scrollTop = axes.current.y ? b.top + fy * b.height - el.clientHeight / 2 : 0;
     };
     apply();
-    // Le passage d'une vue à l'autre est animé : on recentre une fois la transition finie.
+    // Le passage d'une vue à l'autre est animé, et la scène prend sa taille après la première mesure de la zone : on
+    // recentre à chaque changement de taille de la scène, et une fois la transition finie.
     const timer = window.setTimeout(apply, 650);
+    const resized = new ResizeObserver(apply);
+    resized.observe(scene);
     const remember = () => {
+      if (!userMoved.current) return;
       const b = box();
       center.current = {
         x: (el.scrollLeft + el.clientWidth / 2 - b.left) / b.width,
         y: (el.scrollTop + el.clientHeight / 2 - b.top) / b.height,
       };
     };
+    const touched = () => {
+      userMoved.current = true;
+    };
     el.addEventListener('scroll', remember);
+    el.addEventListener('wheel', touched, { passive: true });
+    el.addEventListener('pointerdown', touched);
     return () => {
       window.clearTimeout(timer);
+      resized.disconnect();
       el.removeEventListener('scroll', remember);
+      el.removeEventListener('wheel', touched);
+      el.removeEventListener('pointerdown', touched);
     };
   }, [zoom, mode, scroll.x, scroll.y]);
 
-  const handlers = {
-    onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => {
-      const el = ref.current;
-      if (!el || event.button !== 0 || !(axes.current.x || axes.current.y)) return;
-      drag.current = { x: event.clientX, y: event.clientY, left: el.scrollLeft, top: el.scrollTop, moved: false };
-    },
-    onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => {
-      const el = ref.current;
-      const d = drag.current;
-      if (!el || !d) return;
-      const dx = event.clientX - d.x;
-      const dy = event.clientY - d.y;
-      if (!d.moved && Math.hypot(dx, dy) < 6) return;
-      d.moved = true;
-      el.classList.add('is-dragging');
-      if (axes.current.x) el.scrollLeft = d.left - dx;
-      if (axes.current.y) el.scrollTop = d.top - dy;
-    },
-    onPointerUp: () => {
-      ref.current?.classList.remove('is-dragging');
-      suppressClick.current = drag.current?.moved ?? false;
-      drag.current = null;
-    },
-    onPointerLeave: () => {
-      ref.current?.classList.remove('is-dragging');
-      drag.current = null;
-    },
-    onClickCapture: (event: MouseEvent<HTMLDivElement>) => {
-      if (!suppressClick.current) return;
-      suppressClick.current = false;
+  // Glisser le plateau (handoff V11, lot 13 §2) : clic gauche maintenu n'importe où dans le cadre (cases comprises, pas sur
+  // un autre bouton), puis déplacement. Sous 6 px, c'est un clic ordinaire ; au-delà, le cadre suit la souris, le curseur
+  // devient une main fermée et le clic qui suit le relâchement est annulé. Les mouvements sont suivis sur toute la
+  // fenêtre, pour ne pas lâcher le plateau quand la souris sort du cadre ; tout est retiré au démontage.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let drag: { x: number; y: number; left: number; top: number; moved: boolean } | null = null;
+    let suppressClick = false;
+    const down = (event: PointerEvent) => {
+      if (event.button !== 0 || !(axes.current.x || axes.current.y)) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest('button:not([data-cell]), a, input, select, textarea, label')) return;
+      drag = { x: event.clientX, y: event.clientY, left: el.scrollLeft, top: el.scrollTop, moved: false };
+    };
+    const move = (event: PointerEvent) => {
+      if (!drag) return;
+      const dx = event.clientX - drag.x;
+      const dy = event.clientY - drag.y;
+      if (!drag.moved) {
+        if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+        drag.moved = true;
+        userMoved.current = true;
+        el.classList.add('is-dragging');
+      }
+      event.preventDefault();
+      if (axes.current.x) el.scrollLeft = drag.left - dx;
+      if (axes.current.y) el.scrollTop = drag.top - dy;
+    };
+    const up = () => {
+      if (!drag) return;
+      el.classList.remove('is-dragging');
+      suppressClick = drag.moved;
+      drag = null;
+      // Le clic arrive juste après le relâchement ; relâché hors du cadre, il ne vient pas : on oublie l'annulation.
+      if (suppressClick) window.setTimeout(() => (suppressClick = false), 0);
+    };
+    const click = (event: globalThis.MouseEvent) => {
+      if (!suppressClick) return;
+      suppressClick = false;
       event.stopPropagation();
       event.preventDefault();
-    },
-  };
-  return { handlers, focusY, scroll };
+    };
+    el.addEventListener('pointerdown', down);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    el.addEventListener('click', click, true);
+    return () => {
+      el.classList.remove('is-dragging');
+      el.removeEventListener('pointerdown', down);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      el.removeEventListener('click', click, true);
+    };
+  }, [ref]);
+
+  return { focusY, scroll };
 }
 
 export function Board(props: BoardProps) {
-  const { view, path, showArt, mode, zoom, animated, flipped, onCellHover } = props;
+  const { view, path, showArt, mode, zoom, animated, flipped, onCellHover, margins = NO_MARGINS } = props;
   const scenery = isoScenery(view.board);
   const iso = mode === 'iso' && scenery !== null;
   const tilted = mode === 'tilt';
@@ -233,10 +284,16 @@ export function Board(props: BoardProps) {
   const plan = planSize(Math.max(rows, cols));
   const camera = isoCamera(plan, area.width - FIT_MARGIN, area.height - FIT_MARGIN, zoom);
   const sceneHeight = tilted ? geometry.sceneHeight : metrics.height;
-  // Taille de la scène à l'écran (zoom compris) : le cadre ne défile que sur les axes où elle le dépasse.
+  // Taille de la scène à l'écran (zoom compris) : le cadre ne défile que sur les axes où elle le dépasse, marges de glisse
+  // comprises.
   const shownWidth = iso ? camera.width : (tilted ? geometry.sceneWidth : metrics.width) * zoom;
   const shownHeight = iso ? camera.height : sceneHeight * zoom;
-  const zoomView = useZoomViewport(zoom, mode, { x: shownWidth > area.width + 1, y: shownHeight > area.height + 1 }, viewportRef);
+  const zoomView = useZoomViewport(
+    zoom,
+    mode,
+    { x: shownWidth + margins.left + margins.right > area.width + 1, y: shownHeight > area.height + 1 },
+    viewportRef,
+  );
   zoomView.focusY.current = iso ? camera.centerY / camera.height : tilted ? geometry.originY / geometry.sceneHeight : 0.5;
   const sceneStyle: CSSProperties = iso
     ? { width: camera.width, height: camera.height, perspective: 'none' }
@@ -291,43 +348,47 @@ export function Board(props: BoardProps) {
       className={`board-viewport${scrollable ? ' is-scrollable' : ''}`}
       style={{ overflowX: zoomView.scroll.x ? 'auto' : 'hidden', overflowY: zoomView.scroll.y ? 'auto' : 'hidden' }}
       data-viewport
-      {...zoomView.handlers}
+      onDragStart={(event) => event.preventDefault()}
     >
-      <div className={`scene scene--${iso ? 'iso' : mode === 'iso' ? 'tilt' : mode}`} style={sceneStyle} data-scene>
-        <div
-          className={['board', art && 'board--art', tilted && 'board--tilt', iso && 'board--iso', decor && 'board--decor']
-            .filter(Boolean)
-            .join(' ')}
-          style={boardStyle}
-          data-lift={iso ? camera.lift.toFixed(1) : undefined}
-          onMouseLeave={() => onCellHover(null)}
-        >
-          {decor && scenery && (
-            <IsoDecor
-              board={view.board}
-              scenery={scenery}
-              flipped={flipped}
-              controllers={controllers}
-              animated={animated}
-              camera={iso ? 'iso' : 'tilt'}
-              pitch={iso ? undefined : metrics.pitch}
-            />
-          )}
-          {positions.map((pos) => (
-            <BoardCell
-              key={posKey(pos)}
-              {...props}
-              mode={iso ? 'iso' : tilted ? 'tilt' : 'top'}
-              decor={decor}
-              pos={pos}
-              step={steps.get(posKey(pos))}
-              marks={zoneMarks.get(posKey(pos))}
-              isAnchor={props.anchor ? samePos(props.anchor, pos) : false}
-              standScale={tilted ? geometry.standScale(displayRow(pos)) : 1}
-            />
-          ))}
-          <span className="board__edge" aria-hidden="true" />
+      <div className="board-viewport__content">
+        {margins.left > 0 && <div className="board-viewport__glide" style={{ width: margins.left }} aria-hidden="true" />}
+        <div className={`scene scene--${iso ? 'iso' : mode === 'iso' ? 'tilt' : mode}`} style={sceneStyle} data-scene>
+          <div
+            className={['board', art && 'board--art', tilted && 'board--tilt', iso && 'board--iso', decor && 'board--decor']
+              .filter(Boolean)
+              .join(' ')}
+            style={boardStyle}
+            data-lift={iso ? camera.lift.toFixed(1) : undefined}
+            onMouseLeave={() => onCellHover(null)}
+          >
+            {decor && scenery && (
+              <IsoDecor
+                board={view.board}
+                scenery={scenery}
+                flipped={flipped}
+                controllers={controllers}
+                animated={animated}
+                camera={iso ? 'iso' : 'tilt'}
+                pitch={iso ? undefined : metrics.pitch}
+              />
+            )}
+            {positions.map((pos) => (
+              <BoardCell
+                key={posKey(pos)}
+                {...props}
+                mode={iso ? 'iso' : tilted ? 'tilt' : 'top'}
+                decor={decor}
+                pos={pos}
+                step={steps.get(posKey(pos))}
+                marks={zoneMarks.get(posKey(pos))}
+                isAnchor={props.anchor ? samePos(props.anchor, pos) : false}
+                standScale={tilted ? geometry.standScale(displayRow(pos)) : 1}
+              />
+            ))}
+            <span className="board__edge" aria-hidden="true" />
+          </div>
         </div>
+        {margins.right > 0 && <div className="board-viewport__glide" style={{ width: margins.right }} aria-hidden="true" />}
       </div>
     </div>
   );

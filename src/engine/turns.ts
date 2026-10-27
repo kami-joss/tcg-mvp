@@ -66,7 +66,9 @@ export function startTurn(state: GameState): GameState {
             froze: statusTotal(monster, 'slow'),
             boost: 0,
             hasAttacked: false,
-            hasUsedEffect: false,
+            usedEffects: [],
+            // Le chemin du tour repart de sa case (retour, piège qui fait remonter le temps).
+            trail: [monster.pos],
           }
         : {};
     // Les bonus du tour précédent (ATK : Dopage, Seringue ; portée : Flèche divine) sont finis.

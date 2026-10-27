@@ -5,10 +5,10 @@ import { DIRECTION_OFFSETS, DIRECTIONS, adjacentCells, distance, hasCliff, isAdj
 import { getLineOfSightCells } from './combat';
 import { dealDamage } from './damage';
 import { emit } from './events';
-import { opponent, takeFromGrimoire } from './players';
+import { isShinyCopy, opponent, shine, takeFromGrimoire } from './players';
 import { addStatus, statusExpiry } from './statuses';
 import { perceived, perceivedBy, reveal } from './stealth';
-import { NEW_MOVEMENT, enterCell } from './traps';
+import { NEW_MOVEMENT, enterCell, rewindMonster } from './traps';
 import { getCard, getMonsterCard } from './cards';
 import { payCard, placeSummonedMonster } from './summon';
 import { addUnit, createMonsterUnit, getMonsterAt, getMonsters, getUnitsAt, removeUnit, setUnit } from './units';
@@ -179,6 +179,20 @@ function getSummonTargets(state: GameState, ability: Ability, player: PlayerId, 
   );
 }
 
+/**
+ * Cases où la source peut revenir (retour) : celles de son chemin du tour, sa case de départ comprise, sauf sa case
+ * actuelle ; libres (sans monstre, ni terrain adverse) et jouables.
+ */
+export function getTrailCells(state: BoardState, source: MonsterUnit): Position[] {
+  const cells = new Map<string, Position>();
+  for (const pos of source.trail) {
+    if (samePos(pos, source.pos) || !isPlayable(state.board, pos)) continue;
+    const free = getUnitsAt(state, pos).every((unit) => unit.kind === 'terrain' && unit.owner === source.owner);
+    if (free) cells.set(`${pos.row},${pos.col}`, pos);
+  }
+  return [...cells.values()];
+}
+
 /** Le recul de l'effet, s'il en a un. */
 function findPush(effects: readonly Effect[]): PushEffect | undefined {
   return effects.find((effect): effect is PushEffect => effect.type === 'push');
@@ -204,6 +218,11 @@ export function getEffectTargets(
     case 'allies':
       // Pénombre : tous ses monstres de la famille, s'il en a au moins un.
       return alliesOf(state, player, targeting.family).length > 0 ? [{ kind: 'all' }] : [];
+    case 'enemies':
+      // Piège temporel : tous les monstres ennemis qu'il voit, s'il y en a au moins un.
+      return getMonsters(state, opponent(player)).length > 0 ? [{ kind: 'all' }] : [];
+    case 'trail':
+      return getTrailCells(state, requireSource(source)).map((pos): EffectTarget => ({ kind: 'cell', pos }));
     case 'self':
       // Évolution : un choix de carte ; sinon (Dopage), la source elle-même.
       if (effects.some((effect) => effect.type === 'evolve')) return getEvolveTargets(state, player, requireSource(source));
@@ -323,6 +342,14 @@ export function resolveAbility(
     case 'allies':
       // Ses monstres de la famille au moment où le sort est lancé ; ceux qui arrivent ensuite n'ont rien.
       return alliesOf(state, by, targeting.family).reduce((next, m) => applyEffects(next, effects, m.id, { by, source }), state);
+    case 'enemies':
+      // Les monstres ennemis que voit le lanceur (jamais un monstre invisible pour lui), au moment du sort.
+      return getMonsters(perceivedBy(state, by), opponent(by)).reduce((next, m) => applyEffects(next, effects, m.id, { by, source }), state);
+    case 'trail': {
+      if (target.kind !== 'cell') throw new Error('Le retour vise une case');
+      const from = requireSource(source);
+      return applyEffects(state, effects, from.id, { by, source: from, destination: target.pos });
+    }
     case 'self':
       if (effects.some((effect) => effect.type === 'evolve')) return resolveEvolve(state, target, requireSource(source));
       return applyEffects(state, effects, requireSource(source).id, { by, source });
@@ -402,12 +429,24 @@ function applyEffect(state: GameState, effect: Effect, monster: MonsterUnit, con
       return push(state, monster, direction, chosen);
     }
     case 'teleport': {
-      // Pas un déplacement : il garde sa mobilité, son attaque et son orientation ; il entre sur sa nouvelle case.
+      // Pas un déplacement : il garde sa mobilité, son attaque et son orientation. Il apparaît sur sa nouvelle case sans
+      // y entrer : ni piège, ni Passage, ni case brûlée (§10).
       const to = context.destination;
       if (!to) throw new Error('Une téléportation demande une case');
-      const moved = setUnit(emit(state, { type: 'teleport', unitId, from: pos, to }), { ...monster, pos: to });
-      return enterCell(moved, unitId, NEW_MOVEMENT).state;
+      return setUnit(emit(state, { type: 'teleport', unitId, from: pos, to }), { ...monster, pos: to });
     }
+    case 'returnOnTrail': {
+      // Retour : une téléportation sur une case de son chemin du tour (sans piège, Passage ni case brûlée) ; il garde son
+      // attaque et son orientation, mais ne se déplace plus ce tour. Son chemin s'arrête à cette case (ce qui suivait est
+      // effacé).
+      const to = context.destination;
+      if (!to) throw new Error('Un retour demande une case');
+      const index = monster.trail.findIndex((cell) => samePos(cell, to));
+      const trail = index >= 0 ? monster.trail.slice(0, index + 1) : [...monster.trail, to];
+      return setUnit(emit(state, { type: 'rewind', unitId, from: pos, to }), { ...monster, pos: to, trail, mobilityLeft: 0 });
+    }
+    case 'rewind':
+      return rewindMonster(state, unitId, effect.steps).state;
     case 'placeTrap':
     case 'burnCell':
     case 'evolve':
@@ -437,8 +476,9 @@ function resolveSummon(state: GameState, target: Extract<EffectTarget, { kind: '
   const card = getCard(target.cardId);
   if (card.kind !== 'monster') throw new Error(`« ${target.cardId} » n'est pas un monstre`);
   const pos = { row: target.pos.row, col: target.pos.col };
+  const shiny = isShinyCopy(state, by, card.id);
   const paid = payCard(emit(state, { type: 'cardPlayed', player: by, cardId: card.id, pos }), by, card);
-  return placeSummonedMonster(paid, by, card, pos);
+  return placeSummonedMonster(paid, by, card, pos, shiny);
 }
 
 /** Recul case par case : un piège sur le chemin se déclenche, même pour un monstre `vol` (§10). */
@@ -488,15 +528,16 @@ function resolveEvolve(state: GameState, target: EffectTarget, source: MonsterUn
   const card = getCard(target.cardId);
   if (card.kind !== 'monster') throw new Error(`« ${target.cardId} » n'est pas un monstre`);
   const { pos, owner, facing } = source;
+  const shiny = isShinyCopy(state, owner, card.id);
   let next = removeUnit(emit(state, { type: 'sacrifice', unitId: source.id, pos }), source.id);
   next = takeFromGrimoire(emit(next, { type: 'cardPlayed', player: owner, cardId: card.id, pos }), card.id);
   const id = `u${next.nextUnitId}`;
   const unit = {
-    ...createMonsterUnit(id, card, owner, pos, state.turn),
+    ...shine(createMonsterUnit(id, card, owner, pos, state.turn), shiny),
     facing,
     mobilityLeft: 0,
     hasAttacked: true,
-    hasUsedEffect: true,
+    usedEffects: card.activated.map((_, i) => i),
   };
   return addUnit(emit(next, { type: 'summon', unit }), () => unit);
 }

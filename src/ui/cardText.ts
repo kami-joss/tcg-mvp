@@ -3,6 +3,7 @@
 import { getCard } from '../engine';
 import type {
   Ability,
+  ActivatedAbility,
   AreaZone,
   Card,
   AllyZoneEffect,
@@ -109,7 +110,20 @@ export const FAMILY_NAMES: Readonly<Record<Family, { readonly title: string; rea
   dragon: { title: 'Dragon élémentaire', one: 'dragon élémentaire', many: 'dragons élémentaires' },
   piege: { title: 'Piège', one: 'monstre piège', many: 'monstres piège' },
   sorcier: { title: 'Sorcier du feu', one: 'sorcier du feu', many: 'sorciers du feu' },
+  temps: { title: 'Explorateur du temps', one: 'explorateur du temps', many: 'explorateurs du temps' },
 };
+
+/**
+ * Nom d'une carte de deck, « Nom - Archétype » (« Apprenti - Sorciers du feu ») : le nom seul, et l'archétype (vide
+ * pour une carte de base ou commune). L'interface les affiche sur deux lignes.
+ */
+export function splitCardName(name: string): { readonly title: string; readonly archetype: string } {
+  const at = name.lastIndexOf(' - ');
+  return at < 0 ? { title: name, archetype: '' } : { title: name.slice(0, at), archetype: name.slice(at + 3) };
+}
+
+/** Le nom d'une carte sans son archétype, pour une phrase : « un Jeune dragon élémentaire ». */
+export const cardTitle = (cardId: CardId): string => splitCardName(getCard(cardId).name).title;
 
 /** Le monstre visé : « un allié adjacent », « un ennemi en ligne, portée 2 », « un allié bodybuilder ». */
 function monsterTargetText({ side, reach, family }: Extract<Targeting, { type: 'monster' }>): string {
@@ -141,6 +155,10 @@ export function targetText(targeting: Targeting): string {
       return `tous les ${FAMILY_NAMES[targeting.family].many} alliés`;
     case 'emptyCell':
       return 'une case libre, rayon 2';
+    case 'enemies':
+      return 'tous les ennemis';
+    case 'trail':
+      return 'une case de son chemin du tour';
   }
 }
 
@@ -191,6 +209,10 @@ export function effectText(effect: Effect): string {
       return 'invocation';
     case 'teleport':
       return 'téléportation sur une case adjacente libre';
+    case 'returnOnTrail':
+      return 'retour';
+    case 'rewind':
+      return `remonte ${effect.steps} case${effect.steps > 1 ? 's' : ''}`;
     case 'evolve':
       return '';
   }
@@ -218,9 +240,10 @@ function effectsText(effects: readonly Effect[]): string {
  * burn 1 pendant 1 tour ». `named` : commencer par le nom de l'effet, s'il en a un.
  */
 export function abilityText(ability: Ability, named = true): string {
-  // L'évolution s'écrit seule (« Actif (2 mana) · Évolution ») : sa cible, la source, va de soi.
-  const evolve = ability.effects.some((effect) => effect.type === 'evolve');
-  const target = evolve ? '' : targetText(ability.targeting);
+  // L'évolution et le retour s'écrivent seuls (« Actif (2 mana) · Évolution », « Actif (1 mana) · retour ») : leur
+  // cible va de soi.
+  const alone = ability.effects.some((effect) => effect.type === 'evolve' || effect.type === 'returnOnTrail');
+  const target = alone ? '' : targetText(ability.targeting);
   const trap = ability.effects.some((effect) => effect.type === 'placeTrap');
   const parts = [
     named ? ability.name : undefined,
@@ -231,6 +254,33 @@ export function abilityText(ability: Ability, named = true): string {
   return parts.filter(Boolean).join(' · ');
 }
 
+/** Nom d'un effet actif (bulle, fiche) : le sien, sinon ce qu'il fait (« Poser une bombe », « Poser un filet », « Retour »…). */
+export function effectName(ability: ActivatedAbility): string {
+  if (ability.name) return ability.name;
+  const effect = ability.effects[0];
+  switch (effect?.type) {
+    case 'placeTrap':
+      if (effect.effects.some((e) => e.type === 'rewind')) return 'Poser un sablier';
+      return effect.effects.some((e) => e.type === 'damage') ? 'Poser une bombe' : 'Poser un filet';
+    case 'returnOnTrail':
+      return 'Retour';
+    case 'burnCell':
+      return 'Mettre le feu';
+    case 'heal':
+      return 'Soigner';
+    case 'damage':
+      return 'Frapper';
+    case 'summon':
+      return 'Invoquer';
+    case 'teleport':
+      return 'Téléporter';
+    case 'status':
+      return effect.kind === 'burn' ? 'Embraser' : effect.kind === 'stun' ? 'Stun' : effect.kind === 'requiem' ? 'Requiem' : 'Effet actif';
+    default:
+      return 'Effet actif';
+  }
+}
+
 /** Définition de l'évolution (§5.4, §10), sans majuscule initiale. */
 export const EVOLVE_TEXT =
   'sacrifie ce monstre pour invoquer à sa place un monstre de ton grimoire qui en évolue, sans payer son coût ; le nouveau monstre ne peut pas agir ce tour. Pas le tour où ce monstre est invoqué.';
@@ -238,6 +288,14 @@ export const EVOLVE_TEXT =
 /** Définition de l'invocation (§5.4, §10), sans majuscule initiale. */
 export const SUMMON_TEXT =
   'invoque sur une case adjacente libre un monstre de ton grimoire, en payant aussi son coût ; il peut agir aussitôt.';
+
+/** Définition du retour (§5.4, §10), sans majuscule initiale. */
+export const RETURN_TEXT =
+  'se téléporte sur une case libre où il a été ce tour. Ne peut plus se déplacer après l’activation de cet effet.';
+
+/** Définition de « remonte N cases » (§5.4, §10), sans majuscule initiale. */
+export const rewindText = (steps: number) =>
+  `l’ennemi qui y entre revient de ${steps} cases en arrière sur son chemin du tour (ou à son départ), en téléportation ; son déplacement s’arrête, sans plus de mobilité ce tour.`;
 
 /** Définition de la téléportation (§5.4, §10), sans majuscule initiale. */
 export const TELEPORT_TEXT =
@@ -249,14 +307,17 @@ export const TELEPORT_TEXT =
  */
 export function abilityExplanation(ability: Ability): string {
   if (ability.effects.some((effect) => effect.type === 'evolve')) return capitalize(EVOLVE_TEXT);
+  if (ability.effects.some((effect) => effect.type === 'returnOnTrail')) return capitalize(RETURN_TEXT);
+  const rewind = ability.effects.flatMap((effect) => (effect.type === 'placeTrap' ? effect.effects : [])).find((e) => e.type === 'rewind');
+  if (rewind?.type === 'rewind') return `Piège une case adjacente libre : ${rewindText(rewind.steps)}`;
   if (ability.effects.some((effect) => effect.type === 'summon')) return capitalize(SUMMON_TEXT);
   if (ability.effects.some((effect) => effect.type === 'teleport')) return capitalize(TELEPORT_TEXT);
   return capitalize(abilityText(ability, false));
 }
 
-/** Déclencheur et effet d'un effet actif : « Actif (3 mana) · Déflagration · … ». */
-export function activatedText(card: MonsterCard): string | null {
-  return card.activated ? `Actif (${card.activated.manaCost} mana) · ${abilityText(card.activated)}` : null;
+/** Déclencheur et effet de chaque effet actif, dans l'ordre de la carte : « Actif (3 mana) · Déflagration · … ». */
+export function activatedTexts(card: MonsterCard): string[] {
+  return card.activated.map((ability) => `Actif (${ability.manaCost} mana) · ${abilityText(ability)}`);
 }
 
 /** Déclencheur « Quand il détruit une unité » (§5.2) : « Quand il détruit une unité · +1 ATK +1 PV (définitivement) ». */
@@ -344,7 +405,7 @@ export function cardEffectLine(card: Card): string {
         auraText(card),
         turnStartText(card),
         passageText(card),
-        activatedText(card),
+        ...activatedTexts(card),
       ].filter(Boolean);
       return parts.length > 0 ? parts.join(' ; ') : '—';
     }
@@ -370,9 +431,10 @@ export function passageText(card: TerrainCard | MonsterCard): string | null {
   return `Passage · ${ZONE_TEXT[card.passage.zone]} · ${card.passage.effects.map(effectText).join(' + ')}`;
 }
 
-/** Nom court d'un piège : « Bombe » s'il fait des dégâts, « Filet » s'il immobilise. */
+/** Nom court d'un piège : « Bombe » s'il fait des dégâts, « Filet » s'il immobilise, « Sablier » s'il fait remonter le temps. */
 export function trapLabel(trap: Trap): string {
   if (trap.effects.some((effect) => effect.type === 'damage')) return 'Bombe';
+  if (trap.effects.some((effect) => effect.type === 'rewind')) return 'Sablier';
   if (trap.effects.some((effect) => effect.type === 'status' && effect.kind === 'immobilise')) return 'Filet';
   return 'Piège';
 }
@@ -391,14 +453,13 @@ export function groupCards(cardIds: readonly CardId[]): { cardId: CardId; count:
 export function describeCard(card: Card): string[] {
   switch (card.kind) {
     case 'monster': {
-      const activated = activatedText(card);
       return [
         `ATK ${card.atk} · PV ${card.hp} · Mob. ${card.mobility} · Portée ${card.range}`,
         ...(card.family ? [`Famille ${FAMILY_NAMES[card.family].title}.`] : []),
-        ...(card.evolvesFrom ? [`Peut aussi apparaître par l’évolution d’un ${getCard(card.evolvesFrom).name}.`] : []),
+        ...(card.evolvesFrom ? [`Peut aussi apparaître par l’évolution d’un ${cardTitle(card.evolvesFrom)}.`] : []),
         ...card.keywords.map((spec) => `Passif · ${keywordLabel(spec)} : ${keywordText(spec)}`),
         ...passiveLines(card).map((line) => `Passif · ${line.name} · ${line.rule} : ${line.explain}`),
-        ...(activated ? [activated] : []),
+        ...activatedTexts(card),
       ];
     }
     case 'spell':

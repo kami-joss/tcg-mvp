@@ -79,18 +79,18 @@ describe('fiche (lot 9)', () => {
     const guard = gameWith([{ monster: 'gardien', owner: 1, at: at(8, 1) }]);
     expect(cellSheet(guard, 1, 8, 1)?.passive?.foot).toEqual({ text: 'Riposte prête · une fois par tour', tone: 'ok' });
     const poor = gameWith([{ monster: 'invocateur', owner: 1, at: at(5, 4) }], { players: { 1: { mana: 0 } } });
-    expect(cellSheet(poor, 1, 5, 4)?.active).toMatchObject({ cost: 1, foot: { text: 'Mana insuffisant · il te manque 1', tone: 'warn' } });
+    expect(cellSheet(poor, 1, 5, 4)?.active[0]).toMatchObject({ cost: 1, foot: { text: 'Mana insuffisant · il te manque 1', tone: 'warn' } });
   });
 
   it('effet actif et mots-clés : écrits avec le lexique', () => {
     const sheet = getSheet(getPlayerView(state, 1), { kind: 'card', cardId: 'dragon-feu' });
     expect(sheet?.passive?.items).toEqual([{ name: 'Vol', text: 'En se déplaçant, survole les cases X et les falaises de la Scierie (pas celles de la Mine, zone fermée), mais pas les ennemis.' }]);
-    expect(sheet?.active).toEqual({
+    expect(sheet?.active).toEqual([{
       name: 'Déflagration',
       cost: 3,
       text: '3 cases devant · 2 dégâts + burn 1 pendant 1 tour',
       foot: null,
-    });
+    }]);
   });
 
   it('le type de la carte donne le fond de la fiche (rubis, saphir, émeraude) ; rien pour une case vide', () => {
@@ -125,7 +125,7 @@ describe('fiche (lot 9)', () => {
   it('sort du grimoire : « Lancer », son effet en effet actif (coût en haut de la fiche)', () => {
     const sheet = getSheet(getPlayerView(gameWith([], { players: { 1: { mana: 5 } } }), 1), { kind: 'card', cardId: 'charge' });
     expect(sheet?.lines[0]).toEqual({ icon: 'card-play', label: 'Lancer', status: { text: 'Aucune cible à portée', tone: 'off' } });
-    expect(sheet?.active).toMatchObject({ cost: null, name: null });
+    expect(sheet?.active[0]).toMatchObject({ cost: null, name: null });
     expect(sheet?.cost).toBe(1);
   });
 

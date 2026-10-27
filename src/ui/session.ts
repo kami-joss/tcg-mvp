@@ -46,7 +46,11 @@ export type SessionEvent =
 
 export function newSession(id: number, setup: Setup = DEFAULT_SETUP): Session {
   const { board, decks } = setup;
-  const game = createGame(board, { 1: decks[1].cards, 2: decks[2].cards });
+  const game = createGame(
+    board,
+    { 1: decks[1].cards, 2: decks[2].cards },
+    { 1: decks[1].shiny ?? [], 2: decks[2].shiny ?? [] },
+  );
   const first = game.players[game.activePlayer];
   return {
     id,

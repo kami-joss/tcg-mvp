@@ -51,7 +51,7 @@ describe('Dragon élémentaire - Origine', () => {
       ['6', 1],
       ['6/6', 1],
     ]);
-    expect(sheet.status?.map((c) => c.text)).toContain('+1 ATK +1 PV +1 mobilité (aura : Dragon élémentaire - Origine)');
+    expect(sheet.status?.map((c) => c.text)).toContain('+1 ATK +1 PV +1 mobilité (aura : Origine - Dragons)');
     const aura = view(after).events.find((e) => e.type === 'auraHp')!;
     const before = { ...view(after), units: { ...view(after).units, u2: { ...view(after).units.u2!, hp: 5, maxHp: 5, auraHp: 0 } } };
     expect(applyEvent(before, aura, view(after)).units.u2).toMatchObject({ hp: 6, maxHp: 6, auraHp: 1 });
@@ -83,7 +83,7 @@ describe('Pénombre', () => {
 
   it('journal, fiche et pastille du statut invisible', () => {
     const after = applyAction(state, PENOMBRE);
-    expect(describeAction(view(state), PENOMBRE, view(after))[0]).toBe('J1 lance Pénombre.');
+    expect(describeAction(view(state), PENOMBRE, view(after))[0]).toBe('J1 lance Pénombre - Pièges.');
     const chips = getSheet(view(after), { kind: 'cell', pos: at(1, 1) })!.status;
     expect(chips).toContainEqual({
       icon: 'eye-slash',

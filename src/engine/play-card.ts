@@ -5,6 +5,7 @@ import { getEffectTargets, resolveAbility, sameEffectTarget } from './effects';
 import { IllegalActionError } from './errors';
 import { perceived } from './stealth';
 import { emit } from './events';
+import { isShinyCopy, shine } from './players';
 import { getFreeSummonCells, payCard, placeSummonedMonster } from './summon';
 import { addUnit, createTerrainUnit, getMonsterAt, getUnitsAt } from './units';
 import type { Action, Card, CardTarget, GameState, PlayerId, Position } from './types';
@@ -86,14 +87,15 @@ export function applyPlayCard(state: GameState, action: PlayCardAction): GameSta
       : target.kind === 'unit' || target.kind === 'unitAndDirection'
         ? (state.units[target.unitId]?.pos ?? { row: 0, col: 0 })
         : { row: 0, col: 0 };
+  const shiny = isShinyCopy(state, player.id, card.id);
   const paid = payCard(emit(state, { type: 'cardPlayed', player: player.id, cardId: card.id, pos }), player.id, card);
   const id = `u${paid.nextUnitId}`;
   switch (card.kind) {
     case 'monster':
       // Un ennemi invoqué sur une case piégée déclenche le piège, comme s'il y entrait (§10).
-      return placeSummonedMonster(paid, player.id, card, cellOf(target));
+      return placeSummonedMonster(paid, player.id, card, cellOf(target), shiny);
     case 'terrain': {
-      const unit = createTerrainUnit(id, card, player.id, cellOf(target));
+      const unit = shine(createTerrainUnit(id, card, player.id, cellOf(target)), shiny);
       return addUnit(emit(paid, { type: 'summon', unit }), () => unit);
     }
     case 'spell': {

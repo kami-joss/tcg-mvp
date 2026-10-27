@@ -81,7 +81,7 @@ describe('effet actif d’un monstre', () => {
   it('utilisable ; puis déjà utilisé ce tour', () => {
     const state = gameWith([{ monster: 'invocateur', owner: 1, at: at(5, 4) }], me({ mana: 5 }));
     expect(effectAvailability(view(state), 'u1')).toEqual({ ok: true });
-    const used = { ...state, units: { ...state.units, u1: { ...(state.units.u1 as MonsterUnit), hasUsedEffect: true } } };
+    const used = { ...state, units: { ...state.units, u1: { ...(state.units.u1 as MonsterUnit), usedEffects: [0] } } };
     expect(effectAvailability(view(used), 'u1')).toEqual({ ok: false, reason: { kind: 'alreadyUsed' } });
   });
 

@@ -152,8 +152,8 @@ describe('Invocateur (SPEC.md §5.4, Invocation)', () => {
     const after = applyAction(summoner(5), { type: 'activateEffect', unitId: 'u1', target: { kind: 'cellAndCard', pos: at(3, 3), cardId: 'golem' } });
     expect(after.players[1].mana).toBe(0);
     expect(after.players[1].used).toEqual(['golem']);
-    expect(monster(after, 'u2')).toMatchObject({ cardId: 'golem', pos: at(3, 3), mobilityLeft: 2, hasAttacked: false, hasUsedEffect: false });
-    expect(monster(after, 'u1').hasUsedEffect).toBe(true);
+    expect(monster(after, 'u2')).toMatchObject({ cardId: 'golem', pos: at(3, 3), mobilityLeft: 2, hasAttacked: false, usedEffects: [] });
+    expect(monster(after, 'u1').usedEffects).toEqual([0]);
     expect(targets(after)).toEqual([]);
   });
 
@@ -188,7 +188,7 @@ describe('Téléporteur (SPEC.md §5.4, Téléportation)', () => {
     expect(after.events.find((e) => e.type === 'teleport')).toEqual({ type: 'teleport', unitId: 'u2', from: at(9, 0), to: at(1, 1) });
   });
 
-  it('même un allié immobilisé ; la case d’arrivée déclenche pièges et Passage', () => {
+  it('même un allié immobilisé ; rien ne se déclenche sur la case d’arrivée (ni piège, ni Passage, §10)', () => {
     const state = gameWith(
       [
         { monster: 'teleporteur', owner: 1, at: at(3, 3) },
@@ -203,8 +203,10 @@ describe('Téléporteur (SPEC.md §5.4, Téléportation)', () => {
       units: { ...state.units, u2: { ...monster(state, 'u2'), statuses: [{ kind: 'immobilise', turns: 1, expiresAtTurn: 4 }] } },
     };
     const after = applyAction(netted, teleport('u2', at(4, 3)));
-    // Bombe (3) puis Terrain drainant (1).
-    expect(monster(after, 'u2')).toMatchObject({ pos: at(4, 3), hp: 3 });
+    // Ni la bombe ni le Terrain drainant (sa case d'arrivée est dans la zone) ne se déclenchent.
+    expect(monster(after, 'u2')).toMatchObject({ pos: at(4, 3), hp: monster(netted, 'u2').hp });
+    expect(after.traps).toHaveLength(1);
+    expect(after.events.map((e) => e.type)).toEqual(['effect', 'mana', 'teleport']);
   });
 });
 

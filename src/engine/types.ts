@@ -132,13 +132,20 @@ export type CardId =
   | 'apprenti'
   | 'lutin-brasier'
   | 'archimage'
-  | 'golem-de-lave';
+  | 'golem-de-lave'
+  // Deck Explorateur du temps
+  | 'apprenti-temps'
+  | 'chronomancienne'
+  | 'dragonnet-temps'
+  | 'maitre-des-heures'
+  | 'piege-temporel'
+  | 'fissure-temporelle';
 
 /**
- * Famille de cartes (SPEC.md §5.1) : « Arnold - Bodybuilder », « Archer léger - Archer », les dragons élémentaires
- * (Jeune dragon compris), les monstres piège (les 4 monstres du deck Pièges).
+ * Famille de cartes (SPEC.md §5.1) : les bodybuilders, les archers (sauf le Trébuchet), les dragons élémentaires (Jeune
+ * dragon compris), les monstres piège (les 4 monstres du deck Pièges), les sorciers du feu, les explorateurs du temps.
  */
-export type Family = 'bodybuilder' | 'archer' | 'dragon' | 'piege' | 'sorcier';
+export type Family = 'bodybuilder' | 'archer' | 'dragon' | 'piege' | 'sorcier' | 'temps';
 
 /**
  * Mots-clés (SPEC.md §5.6) et leurs paramètres : chaque carte porte ses propres valeurs (« Givre 1 », « Assassin ×3 »).
@@ -240,7 +247,11 @@ export type Targeting =
   /** Une case jouable sans unité ni case brûlée, dans une zone autour de la source (Lutin brasier : rayon 2). */
   | { readonly type: 'emptyCell'; readonly zone: 'adjacent2' }
   /** Tous ses monstres d'une famille, sans choix (Pénombre) ; jouable s'il en a au moins un. */
-  | { readonly type: 'allies'; readonly family: Family };
+  | { readonly type: 'allies'; readonly family: Family }
+  /** Tous les monstres ennemis qu'il voit, sans choix (Piège temporel) ; jouable s'il y en a au moins un. */
+  | { readonly type: 'enemies' }
+  /** Une case libre où la source a été pendant ce tour, sa case de départ comprise (retour, Explorateur du temps). */
+  | { readonly type: 'trail' };
 
 /** Effets (SPEC.md §5.4), appliqués dans l'ordre à chaque cible. */
 export type Effect =
@@ -293,12 +304,23 @@ export type Effect =
   | { readonly type: 'summon' }
   /**
    * Téléportation (Téléporteur) : le monstre visé est posé sur une case adjacente libre de la source, choisie par le
-   * joueur. Ce n'est pas un déplacement : il garde sa mobilité, son attaque et son orientation ; il entre sur la case.
+   * joueur. Ce n'est pas un déplacement : il garde sa mobilité, son attaque et son orientation ; rien ne se déclenche sur la case.
    */
-  | { readonly type: 'teleport' };
+  | { readonly type: 'teleport' }
+  /**
+   * Retour (Explorateur du temps) : la source se téléporte sur la case visée, une case où elle a été ce tour (rien ne s'y
+   * déclenche) ; elle garde son attaque, mais ne se déplace plus ce tour.
+   */
+  | { readonly type: 'returnOnTrail' }
+  /**
+   * Remonte N cases (piège de la Chronomancienne) : le monstre revient de `steps` cases en arrière sur son chemin (les
+   * cases où il a été depuis le début du tour de son camp), en téléportation ; son déplacement s'arrête, sans plus de
+   * mobilité ce tour.
+   */
+  | { readonly type: 'rewind'; readonly steps: number };
 
 /** Effets possibles d'un piège, ou d'un terrain « Passage », sur le monstre qui entre sur sa case ou dans sa zone. */
-export type TrapEffect = Extract<Effect, { readonly type: 'damage' | 'status' }>;
+export type TrapEffect = Extract<Effect, { readonly type: 'damage' | 'status' | 'rewind' }>;
 
 /**
  * « Passage » (SPEC.md §5.2) : quand un monstre ennemi entre sur une case de la zone du terrain (ses 8 cases
@@ -317,15 +339,18 @@ export interface Ability {
   readonly effects: readonly Effect[];
 }
 
-/** Effet actif d'un monstre : une fois par tour, en payant `manaCost`. */
+/** Effet actif d'un monstre : chacun une fois par tour, en payant `manaCost`. */
 export interface ActivatedAbility extends Ability {
   readonly manaCost: number;
 }
 
 interface CardBase {
   readonly id: CardId;
+  /** Nom affiché ; une carte de deck s'écrit « Nom - Archétype » (« Apprenti - Sorciers du feu »). */
   readonly name: string;
   readonly cost: number;
+  /** Texte d'ambiance, sans effet de règle (Maître des heures). */
+  readonly flavor?: string;
 }
 
 /** Effet sur ses monstres d'une famille, dans une zone autour de la source (pas la source elle-même). */
@@ -355,7 +380,8 @@ export interface MonsterCard extends CardBase {
   readonly mobility: number;
   readonly range: number;
   readonly keywords: readonly KeywordSpec[];
-  readonly activated: ActivatedAbility | null;
+  /** Effets actifs, dans l'ordre de la carte (aucun, un ou deux) : chacun utilisable une fois par tour. */
+  readonly activated: readonly ActivatedAbility[];
   /** Évolution : carte qu'un monstre de cette carte-là peut faire apparaître à sa place, par son effet `evolve`. */
   readonly evolvesFrom: CardId | null;
   /** « Quand il détruit une unité » (monstre ou terrain) : effets sur lui-même (Jeune Gomuscu). */
@@ -398,6 +424,11 @@ interface UnitBase {
   readonly cardId: CardId;
   readonly owner: PlayerId;
   readonly pos: Position;
+  /**
+   * Exemplaire brillant (« shiny », handoff V11) : la carte qui l'a fait venir l'était. Purement visuel, sans effet sur
+   * les règles ; absent sinon.
+   */
+  readonly shiny?: true;
   /** Points de vie actuels (les dégâts restent). */
   readonly hp: number;
   readonly maxHp: number;
@@ -421,7 +452,13 @@ export interface MonsterUnit extends UnitBase {
   /** Mobilité ajoutée pour ce tour (Charge) ; remise à 0 au début de son tour. */
   readonly boost: number;
   readonly hasAttacked: boolean;
-  readonly hasUsedEffect: boolean;
+  /** Effets actifs déjà utilisés ce tour, par leur rang sur la carte (0 : le premier). */
+  readonly usedEffects: readonly number[];
+  /**
+   * Cases où il a été depuis le début du tour de son camp (ou son arrivée), dans l'ordre, sa case actuelle à la fin :
+   * le retour et le piège qui fait remonter le temps s'en servent (Explorateur du temps).
+   */
+  readonly trail: readonly Position[];
   /** `riposte` déjà déclenchée ce tour : une seule par tour (SPEC.md §10). */
   readonly hasRiposted: boolean;
   /** Tour où il est arrivé sur le plateau (l'évolution n'est pas possible ce tour-là). */
@@ -453,6 +490,11 @@ export interface PlayerState {
   readonly used: readonly CardId[];
   /** Sorts lancés depuis le début de son tour : un même sort ne se lance qu'une fois par tour (§4.3). */
   readonly spellsThisTurn: readonly CardId[];
+  /**
+   * Exemplaires brillants encore dans son grimoire (purement visuel) : une carte jouée l'est d'abord dans un exemplaire
+   * brillant, s'il en reste. Absent : aucun.
+   */
+  readonly shiny?: readonly CardId[];
 }
 
 export interface GameState {
@@ -501,6 +543,8 @@ export type GameEvent =
       readonly cells: readonly Position[];
       /** Direction choisie pour une zone en ligne : la source se tourne vers elle. */
       readonly facing?: Direction;
+      /** Rang de l'effet sur la carte (0 si absent : le premier). */
+      readonly effect?: number;
     }
   /** Monstre sacrifié pour une évolution : il quitte le plateau, sans être détruit (pas de VP). */
   | { readonly type: 'sacrifice'; readonly unitId: UnitId; readonly pos: Position }
@@ -514,6 +558,8 @@ export type GameEvent =
     }
   /** Téléportation : le monstre passe de `from` à `to` sans traverser les cases entre les deux. */
   | { readonly type: 'teleport'; readonly unitId: UnitId; readonly from: Position; readonly to: Position }
+  /** Retour dans le temps (retour, ou piège qui fait remonter) : le monstre revient de `from` à `to`, sur son chemin. */
+  | { readonly type: 'rewind'; readonly unitId: UnitId; readonly from: Position; readonly to: Position }
   /** Un terrain « Passage » se déclenche sur le monstre ennemi qui vient d'entrer dans sa zone (`pos` : sa case). */
   | { readonly type: 'passage'; readonly sourceId: UnitId; readonly unitId: UnitId; readonly pos: Position }
   /** Une case brûle (Lutin brasier). */
@@ -584,6 +630,8 @@ export interface Deck {
   readonly id: string;
   readonly name: string;
   readonly cards: readonly CardId[];
+  /** Exemplaires brillants parmi ses cartes (purement visuel, handoff V11). */
+  readonly shiny?: readonly CardId[];
 }
 
 /** Plateau et unités : informations publiques, communes à `GameState` et `PlayerView`. */
@@ -672,5 +720,6 @@ export type Action =
   | { readonly type: 'move'; readonly unitId: UnitId; readonly to: Position; readonly path?: readonly Position[] }
   /** `advance` : prendre la place de la cible détruite (avancée, SPEC.md §4.7). */
   | { readonly type: 'attack'; readonly unitId: UnitId; readonly targetId: UnitId; readonly advance: boolean }
-  | { readonly type: 'activateEffect'; readonly unitId: UnitId; readonly target: EffectTarget }
+  /** `effect` : rang de l'effet actif sur la carte (absent : le premier). */
+  | { readonly type: 'activateEffect'; readonly unitId: UnitId; readonly effect?: number; readonly target: EffectTarget }
   | { readonly type: 'endTurn' };

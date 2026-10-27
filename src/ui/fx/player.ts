@@ -49,6 +49,8 @@ const GOLD = 'oklch(0.85 0.13 85)';
 const DAMAGE = 'oklch(0.9 0.12 60)';
 const MANA = 'oklch(0.82 0.1 195)';
 const VIOLET = 'oklch(0.72 0.15 300)';
+/** Retour dans le temps (Explorateur du temps) : turquoise. */
+const TIME_COLOR = 'oklch(0.82 0.11 195)';
 const REQUIEM = 'oklch(0.7 0.06 300)';
 
 /** Son de l'effet de zone de chaque dragon. */
@@ -170,7 +172,7 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
       case 'effect': {
         const source = monsterOf(shown(), event.unitId);
         if (!source) break;
-        const ability = getMonsterCard(source.cardId).activated;
+        const ability = getMonsterCard(source.cardId).activated[event.effect ?? 0];
         recoil(stage, source.id);
         if (event.cells.length > 0) {
           sfx(AREA_SOUNDS[source.cardId] ?? 'spell');
@@ -244,6 +246,16 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
         await wait(260);
         await patch(event);
         await drop(stage, event.unitId, event.to, VIOLET);
+        break;
+      }
+
+      case 'rewind': {
+        // Retour dans le temps : le monstre s'efface dans une gerbe turquoise et réapparaît sur une case de son chemin.
+        sfx('spell');
+        rise(stage, event.from, TIME_COLOR);
+        await wait(260);
+        await patch(event);
+        await drop(stage, event.unitId, event.to, TIME_COLOR);
         break;
       }
 

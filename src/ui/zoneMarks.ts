@@ -44,6 +44,7 @@ export function getZoneMarks(view: Pick<PlayerView, 'board' | 'units'> & Partial
     const effects: Omit<ZoneMark, 'sourceId' | 'owner'>[] = passage.effects.map((effect) => {
       const title = `${name} de J${unit.owner} : ${effectText(effect)} à l’ennemi qui entre ici (une fois par mouvement).`;
       if (effect.type === 'damage') return { icon: 'hearts', label: `−${effect.amount}`, title };
+      if (effect.type === 'rewind') return { icon: 'compass', label: `−${effect.steps}`, title };
       const amount = 'amount' in effect ? effect.amount : 0;
       return { icon: STATUS_ICONS[effect.kind], label: amount > 1 ? String(amount) : null, title };
     });

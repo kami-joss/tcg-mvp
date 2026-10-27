@@ -51,8 +51,10 @@ export interface DisplaySettings {
   readonly volume: number;
   /** Zoom du plateau, un des `ZOOMS`. */
   readonly zoom: number;
-  /** Affichage du grimoire (il règle aussi la largeur de sa colonne). */
+  /** Affichage du grimoire (il règle aussi la largeur de son panneau). */
   readonly grimoireLayout: GrimoireLayout;
+  /** Panneau du grimoire ouvert, ou replié contre le bord droit (handoff V11, lot 13 §4). */
+  readonly grimoireOpen: boolean;
   /** Stats sur les jetons. */
   readonly tokenStats: TokenStats;
 }
@@ -65,6 +67,7 @@ export const DEFAULT_SETTINGS: DisplaySettings = {
   volume: 0.7,
   zoom: 1,
   grimoireLayout: 'grid2',
+  grimoireOpen: true,
   tokenStats: DEFAULT_TOKEN_STATS,
 };
 
@@ -76,6 +79,7 @@ const KEYS = {
   volume: 'tcg-plateau-volume',
   zoom: 'tcg-plateau-zoom-v5',
   grimoireLayout: 'tcg-grimoire-affichage',
+  grimoireOpen: 'tcg-grimoire-ouvert',
   tokenStats: 'tcg-plateau-stats-v6',
 } as const;
 
@@ -115,6 +119,7 @@ export function loadSettings(): DisplaySettings {
   const volume = Number.parseFloat(read(KEYS.volume) ?? '');
   const zoom = Number.parseFloat(read(KEYS.zoom) ?? '');
   const grimoireLayout = read(KEYS.grimoireLayout);
+  const grimoireOpen = read(KEYS.grimoireOpen);
   return {
     view: (Object.keys(VIEW_VALUES) as BoardView[]).find((v) => VIEW_VALUES[v] === view) ?? DEFAULT_SETTINGS.view,
     flip: flip === null ? DEFAULT_SETTINGS.flip : flip === '1',
@@ -123,6 +128,7 @@ export function loadSettings(): DisplaySettings {
     volume: Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : DEFAULT_SETTINGS.volume,
     zoom: ZOOMS.includes(zoom) ? zoom : DEFAULT_SETTINGS.zoom,
     grimoireLayout: GRIMOIRE_LAYOUTS.find((l) => LAYOUT_VALUES[l] === grimoireLayout) ?? DEFAULT_SETTINGS.grimoireLayout,
+    grimoireOpen: grimoireOpen === null ? DEFAULT_SETTINGS.grimoireOpen : grimoireOpen === '1',
     tokenStats: readTokenStats(),
   };
 }
@@ -136,6 +142,7 @@ export function saveSettings(settings: DisplaySettings): void {
     window.localStorage.setItem(KEYS.volume, String(settings.volume));
     window.localStorage.setItem(KEYS.zoom, String(settings.zoom));
     window.localStorage.setItem(KEYS.grimoireLayout, LAYOUT_VALUES[settings.grimoireLayout]);
+    window.localStorage.setItem(KEYS.grimoireOpen, settings.grimoireOpen ? '1' : '0');
     const stats = Object.fromEntries((Object.keys(STAT_KEYS) as (keyof TokenStats)[]).map((k) => [STAT_KEYS[k], settings.tokenStats[k]]));
     window.localStorage.setItem(KEYS.tokenStats, JSON.stringify(stats));
   } catch {

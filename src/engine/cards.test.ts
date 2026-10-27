@@ -18,9 +18,9 @@ describe('cartes (SPEC.md §6)', () => {
   it('cartes communes (§6 ter) : Invocateur, Téléporteur, Terrain drainant, Terrain piégé, Zone d’invocation', () => {
     expect(COMMON_CARDS).toEqual(['invocateur', 'teleporteur', 'terrain-drainant', 'terrain-piege', 'zone-invocation']);
     expect(CARDS.invocateur).toMatchObject({ cost: 4, atk: 1, hp: 3, mobility: 3, range: 2 });
-    expect(CARDS.invocateur).toMatchObject({ activated: { manaCost: 1, targeting: { type: 'emptyAdjacentCell' }, effects: [{ type: 'summon' }] } });
+    expect(CARDS.invocateur).toMatchObject({ activated: [{ manaCost: 1, targeting: { type: 'emptyAdjacentCell' }, effects: [{ type: 'summon' }] }] });
     expect(CARDS.teleporteur).toMatchObject({ cost: 4, atk: 1, hp: 3, mobility: 3, range: 2 });
-    expect(CARDS.teleporteur).toMatchObject({ activated: { manaCost: 1, targeting: { type: 'monster', side: 'ally' }, effects: [{ type: 'teleport' }] } });
+    expect(CARDS.teleporteur).toMatchObject({ activated: [{ manaCost: 1, targeting: { type: 'monster', side: 'ally' }, effects: [{ type: 'teleport' }] }] });
     expect(CARDS['terrain-drainant']).toMatchObject({ cost: 1, hp: 4, passage: { zone: 'adjacent', effects: [{ type: 'damage', amount: 1 }] } });
     expect(CARDS['terrain-piege']).toMatchObject({
       cost: 1,
@@ -45,7 +45,7 @@ describe('cartes (SPEC.md §6)', () => {
       // Un sort n'a pas de monstre source : ni zone, ni case autour de lui, ni portée relative, ni recul vers l'avant.
       if (card.kind !== 'spell') continue;
       const { targeting, effects } = card.ability;
-      expect(['monster', 'allies'], card.id).toContain(targeting.type);
+      expect(['monster', 'allies', 'enemies'], card.id).toContain(targeting.type);
       if (targeting.type === 'monster') expect(['adjacent', 'line'], card.id).not.toContain(targeting.reach.type);
       for (const effect of effects) {
         expect(['placeTrap', 'evolve'], card.id).not.toContain(effect.type);

@@ -32,12 +32,12 @@ describe('deck Dragons (SPEC.md §6 bis)', () => {
 
   it('caractéristiques', () => {
     expect(CARDS['jeune-dragon']).toMatchObject({ cost: 2, atk: 3, range: 1, mobility: 4, hp: 2, keywords: [] });
-    expect(CARDS['jeune-dragon']).toMatchObject({ activated: { name: 'Évolution', manaCost: 2, targeting: { type: 'self' }, effects: [{ type: 'evolve' }] } });
+    expect(CARDS['jeune-dragon']).toMatchObject({ activated: [{ name: 'Évolution', manaCost: 2, targeting: { type: 'self' }, effects: [{ type: 'evolve' }] }] });
     expect(CARDS['dragon-feu']).toMatchObject({ cost: 7, atk: 5, mobility: 5, hp: 5, keywords: [{ keyword: 'vol' }], evolvesFrom: 'jeune-dragon' });
     expect(CARDS['dragon-eau']).toMatchObject({ cost: 7, atk: 4, mobility: 4, hp: 7 });
     expect(CARDS['dragon-vent']).toMatchObject({ cost: 7, atk: 4, mobility: 7, hp: 4 });
     expect(CARDS['dragon-terre']).toMatchObject({ cost: 7, atk: 6, mobility: 4, hp: 5 });
-    for (const id of DRAGONS) expect(CARDS[id], id).toMatchObject({ activated: { manaCost: 3 } });
+    for (const id of DRAGONS) expect(CARDS[id], id).toMatchObject({ activated: [{ manaCost: 3 }] });
   });
 });
 
@@ -62,7 +62,7 @@ describe('Jeune dragon : évolution (effet actif, 2 mana)', () => {
       facing: 'right',
       mobilityLeft: 0,
       hasAttacked: true,
-      hasUsedEffect: true,
+      usedEffects: [0],
     });
     expect(after.players[1]).toMatchObject({ mana: 0, vp: 0, grimoire: ['jeune-dragon', 'dragon-feu', 'dragon-eau', 'dragon-vent'] });
     expect(after.players[1].used).toContain('dragon-terre');

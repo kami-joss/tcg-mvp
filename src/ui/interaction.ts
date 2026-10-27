@@ -19,8 +19,11 @@ import type { Action, CardId, Direction, PlayerView, Position, UnitId } from '..
 
 export type Selection =
   | { readonly kind: 'none' }
-  /** Un de ses monstres : ses déplacements et attaques (`act`), ou les cibles de son effet activé (`effect`). */
-  | { readonly kind: 'unit'; readonly unitId: UnitId; readonly mode: 'act' | 'effect' }
+  /**
+   * Un de ses monstres : ses déplacements et attaques (`act`), ou les cibles d'un de ses effets actifs (`effect`, de rang
+   * `effect` sur la carte : 0 si absent).
+   */
+  | { readonly kind: 'unit'; readonly unitId: UnitId; readonly mode: 'act' | 'effect'; readonly effect?: number }
   /** Une carte de son grimoire, en attente de sa cible. */
   | { readonly kind: 'card'; readonly cardId: CardId }
   /** Bulle d'une carte du grimoire (clic droit) : l'invoquer, la lancer ou la poser. */
@@ -89,11 +92,21 @@ function targetPos(view: PlayerView, target: ActionOf<'playCard'>['target']): Po
 /** Case visée par une carte : la case elle-même (invocation, terrain) ou celle du monstre ciblé (sort). */
 const cardTargetPos = (view: PlayerView, action: ActionOf<'playCard'>) => targetPos(view, action.target);
 
-/** Cases des monstres que touche un sort sans choix de cible (Pénombre : tous ses monstres d'une famille). */
+/**
+ * Cases des monstres que touche un sort sans choix de cible : tous ses monstres d'une famille (Pénombre), ou tous les
+ * monstres ennemis qu'il voit (Piège temporel). Un clic sur l'un d'eux lance le sort.
+ */
 export function getSpellAllies(view: PlayerView, cardId: CardId): Position[] {
   const card = getCard(cardId);
-  if (card.kind !== 'spell' || card.ability.targeting.type !== 'allies') return [];
-  const { family } = card.ability.targeting;
+  if (card.kind !== 'spell') return [];
+  const { targeting } = card.ability;
+  if (targeting.type === 'enemies') {
+    return Object.values(view.units)
+      .filter((u) => u.kind === 'monster' && u.owner !== view.viewer)
+      .map((u) => u.pos);
+  }
+  if (targeting.type !== 'allies') return [];
+  const { family } = targeting;
   return Object.values(view.units)
     .filter((u) => u.kind === 'monster' && u.owner === view.viewer && getMonsterCard(u.cardId).family === family)
     .map((u) => u.pos);
@@ -103,8 +116,10 @@ export function getSpellAllies(view: PlayerView, cardId: CardId): Position[] {
 const effectTargetPos = (view: PlayerView, action: ActionOf<'activateEffect'>) => targetPos(view, action.target);
 
 /** Directions proposées pour un effet de zone en ligne (Raz de marée, Vent violent), dans l'ordre des actions. */
-export function getAreaDirections(view: PlayerView, unitId: UnitId): Direction[] {
-  const directions = getEffectActions(view, unitId).flatMap((a) => (a.target.kind === 'area' && a.target.direction ? [a.target.direction] : []));
+export function getAreaDirections(view: PlayerView, unitId: UnitId, effect = 0): Direction[] {
+  const directions = getEffectActions(view, unitId, effect).flatMap((a) =>
+    a.target.kind === 'area' && a.target.direction ? [a.target.direction] : [],
+  );
   return [...new Set(directions)];
 }
 
@@ -112,20 +127,20 @@ export function getAreaDirections(view: PlayerView, unitId: UnitId): Direction[]
  * Cases d'un effet de zone (affichées en violet), pour le monstre sélectionné en mode effet. Zone en ligne : les lignes
  * de toutes les directions proposées, ou de la seule `direction` donnée.
  */
-export function getEffectArea(view: PlayerView, unitId: UnitId, direction?: Direction): Position[] {
+export function getEffectArea(view: PlayerView, unitId: UnitId, direction?: Direction, effect = 0): Position[] {
   const unit = view.units[unitId];
-  if (unit?.kind !== 'monster' || !getEffectActions(view, unitId).some((a) => a.target.kind === 'area')) return [];
-  const targeting = getMonsterCard(unit.cardId).activated?.targeting;
+  if (unit?.kind !== 'monster' || !getEffectActions(view, unitId, effect).some((a) => a.target.kind === 'area')) return [];
+  const targeting = getMonsterCard(unit.cardId).activated[effect]?.targeting;
   if (targeting?.type !== 'zone') return [];
   if (targeting.zone !== 'line3') return getAreaCells(view, unit, targeting.zone);
-  return getAreaDirections(view, unitId)
+  return getAreaDirections(view, unitId, effect)
     .filter((d) => !direction || d === direction)
     .flatMap((d) => getAreaCells(view, { ...unit, facing: d }, 'line3'));
 }
 
 /** Direction de la ligne qui passe par `pos`, pour un effet de zone en ligne. */
-function areaDirectionAt(view: PlayerView, unitId: UnitId, pos: Position): Direction | undefined {
-  return getAreaDirections(view, unitId).find((d) => getEffectArea(view, unitId, d).some((cell) => samePos(cell, pos)));
+function areaDirectionAt(view: PlayerView, unitId: UnitId, pos: Position, effect = 0): Direction | undefined {
+  return getAreaDirections(view, unitId, effect).find((d) => getEffectArea(view, unitId, d, effect).some((cell) => samePos(cell, pos)));
 }
 
 /** Unité mise en avant par la sélection. */
@@ -160,8 +175,9 @@ export function getHighlights(view: PlayerView, selection: Selection): Map<strin
         for (const a of actionsOf(view, 'move')) if (a.unitId === selection.unitId) mark(a.to, 'move');
         for (const a of actionsOf(view, 'attack')) if (a.unitId === selection.unitId) mark(unitPos(view, a.targetId), 'attack');
       } else {
-        for (const a of getEffectActions(view, selection.unitId)) mark(effectTargetPos(view, a), 'effect');
-        for (const pos of getEffectArea(view, selection.unitId)) mark(pos, 'effect');
+        const effect = selection.effect ?? 0;
+        for (const a of getEffectActions(view, selection.unitId, effect)) mark(effectTargetPos(view, a), 'effect');
+        for (const pos of getEffectArea(view, selection.unitId, undefined, effect)) mark(pos, 'effect');
       }
       break;
     case 'card':
@@ -230,8 +246,9 @@ export function clickCell(view: PlayerView, selection: Selection, pos: Position)
     if (teleport) return { action: teleport };
   }
 
+  const effect = selection.kind === 'unit' ? (selection.effect ?? 0) : undefined;
   if (selection.kind === 'teleport' || (selection.kind === 'unit' && selection.mode === 'effect')) {
-    const here = getEffectActions(view, selection.unitId).filter((a) => isHere(effectTargetPos(view, a)));
+    const here = getEffectActions(view, selection.unitId, effect).filter((a) => isHere(effectTargetPos(view, a)));
     // Invocation : la case est choisie, le monstre se choisit dans la bulle.
     if (here[0]?.target.kind === 'cellAndCard') return { selection: { kind: 'summonAt', unitId: selection.unitId, pos } };
     // Téléportation : l'allié est choisi, la case se choisit ensuite sur le plateau.
@@ -240,13 +257,15 @@ export function clickCell(view: PlayerView, selection: Selection, pos: Position)
   }
 
   if (selection.kind === 'unit' && selection.mode === 'effect') {
-    const effect = getEffectActions(view, selection.unitId).find((a) => isHere(effectTargetPos(view, a)));
-    if (effect) return { action: effect };
+    const action = getEffectActions(view, selection.unitId, effect).find((a) => isHere(effectTargetPos(view, a)));
+    if (action) return { action };
     // Effet de zone : un clic sur la zone le lance, s'il n'y a plus rien à choisir. En ligne, le clic choisit d'abord
     // la direction de la ligne cliquée ; s'il reste une distance de recul à choisir, elle se choisit dans la bulle.
-    if (getEffectArea(view, selection.unitId).some(isHere)) {
-      const direction = areaDirectionAt(view, selection.unitId, pos);
-      const area = getEffectActions(view, selection.unitId).filter((a) => a.target.kind === 'area' && a.target.direction === direction);
+    if (getEffectArea(view, selection.unitId, undefined, effect).some(isHere)) {
+      const direction = areaDirectionAt(view, selection.unitId, pos, effect);
+      const area = getEffectActions(view, selection.unitId, effect).filter(
+        (a) => a.target.kind === 'area' && a.target.direction === direction,
+      );
       if (area.length === 1) return { action: area[0]! };
       if (direction) return { selection: { kind: 'areaDirection', unitId: selection.unitId, direction } };
       return { selection };
@@ -304,8 +323,9 @@ export function clickCard(view: PlayerView, selection: Selection, cardId: CardId
   return canPlay(view, cardId) ? { kind: 'card', cardId } : selection;
 }
 
-export function getEffectActions(view: PlayerView, unitId: UnitId): ActionOf<'activateEffect'>[] {
-  return actionsOf(view, 'activateEffect').filter((a) => a.unitId === unitId);
+/** Actions d'effet actif du monstre ; `effect` : seulement celles de cet effet (rang sur la carte, 0 : le premier). */
+export function getEffectActions(view: PlayerView, unitId: UnitId, effect?: number): ActionOf<'activateEffect'>[] {
+  return actionsOf(view, 'activateEffect').filter((a) => a.unitId === unitId && (effect === undefined || (a.effect ?? 0) === effect));
 }
 
 /** Monstres que l'Invocateur peut invoquer sur la case choisie, avec l'action correspondante. */

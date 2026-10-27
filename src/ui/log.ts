@@ -60,11 +60,16 @@ const publicInfo = (view: PlayerView, player: PlayerId) => (player === view.view
 /** Le monstre est invisible pour l'adversaire de celui qui regarde : sa case ne doit pas apparaître. */
 const isSecret = (view: PlayerView, unitId: UnitId) => view.hiddenFromOpponent.includes(unitId);
 
-/** Nom de l'effet actif d'un monstre (« Dopage »), ou « son effet ». */
-function effectName(view: PlayerView, unitId: UnitId): string {
+/** L'effet actif de rang `effect` d'un monstre, s'il l'a. */
+function abilityOf(view: PlayerView, unitId: UnitId, effect = 0) {
   const unit = view.units[unitId];
   const card = unit ? getCard(unit.cardId) : null;
-  return card?.kind === 'monster' && card.activated?.name ? card.activated.name : 'son effet';
+  return card?.kind === 'monster' ? card.activated[effect] : undefined;
+}
+
+/** Nom de l'effet actif d'un monstre (« Dopage »), ou « son effet ». */
+function effectName(view: PlayerView, unitId: UnitId, effect = 0): string {
+  return abilityOf(view, unitId, effect)?.name ?? 'son effet';
 }
 
 function describeIntent(view: PlayerView, action: Action, after: PlayerView): string {
@@ -104,6 +109,10 @@ function describeIntent(view: PlayerView, action: Action, after: PlayerView): st
     case 'activateEffect':
       // Un piège reste secret : sa case n'apparaît pas dans le journal, que les deux joueurs lisent.
       if (action.target.kind === 'cell') {
+        // Retour (Explorateur du temps) : il revient sur une case de son chemin, que tout le monde voit.
+        if (abilityOf(view, action.unitId, action.effect)?.effects.some((effect) => effect.type === 'returnOnTrail')) {
+          return `${name(action.unitId)} revient dans le temps ${place(view.board, action.target.pos)}.`;
+        }
         // Une case brûlée est publique ; un piège reste secret.
         const burned = after.events.find((event) => event.type === 'cellBurned');
         if (burned) return `${name(action.unitId)} met le feu ${place(view.board, action.target.pos)}.`;
@@ -122,14 +131,14 @@ function describeIntent(view: PlayerView, action: Action, after: PlayerView): st
       if (action.target.kind === 'card') {
         return `${name(action.unitId)} évolue en ${getCard(action.target.cardId).name} ${place(view.board, view.units[action.unitId]?.pos ?? { row: 0, col: 0 })}.`;
       }
-      if (action.target.kind === 'all') return `${name(action.unitId)} utilise ${effectName(view, action.unitId)}.`;
+      if (action.target.kind === 'all') return `${name(action.unitId)} utilise ${effectName(view, action.unitId, action.effect)}.`;
       if (action.target.kind === 'area') {
         const direction = action.target.direction ? ` vers ${DIRECTION_NAMES[action.target.direction]}` : '';
         const distance = action.target.distance ? ` (recul de ${action.target.distance})` : '';
-        return `${name(action.unitId)} lance ${effectName(view, action.unitId)}${direction}${distance}.`;
+        return `${name(action.unitId)} lance ${effectName(view, action.unitId, action.effect)}${direction}${distance}.`;
       }
       // Effet sur lui-même (Dopage).
-      if (action.target.unitId === action.unitId) return `${name(action.unitId)} utilise ${effectName(view, action.unitId)}.`;
+      if (action.target.unitId === action.unitId) return `${name(action.unitId)} utilise ${effectName(view, action.unitId, action.effect)}.`;
       return `${name(action.unitId)} utilise son effet sur ${name(action.target.unitId)}.`;
     case 'endTurn':
       return `${actor} termine son tour.`;
@@ -214,9 +223,12 @@ function describeUnitChanges(before: PlayerView, action: Action, after: PlayerVi
       lines.push(item('walking-boot', `${unitName(unit)} : +${next.mobilityLeft - unit.mobilityLeft} mobilité ce tour.`, 'good'));
     }
     const teleported = action.type === 'activateEffect' && action.target.kind === 'unitAndCell' && action.target.unitId === unit.id;
-    if (!samePos(next.pos, unit.pos) && action.type !== 'move' && !teleported) {
+    const returned = action.type === 'activateEffect' && action.target.kind === 'cell' && action.unitId === unit.id;
+    if (!samePos(next.pos, unit.pos) && action.type !== 'move' && !teleported && !returned) {
       const where = isSecret(after, unit.id) ? '' : ` ${place(after.board, next.pos)}`;
-      lines.push(item('walking-boot', `${unitName(unit)} ${action.type === 'attack' ? 'avance' : 'recule'}${where}.`, 'info'));
+      const rewound = after.events.some((event) => event.type === 'rewind' && event.unitId === unit.id);
+      const verb = rewound ? 'remonte le temps et revient' : action.type === 'attack' ? 'avance' : 'recule';
+      lines.push(item('walking-boot', `${unitName(unit)} ${verb}${where}.`, 'info'));
     }
   }
   return lines;
@@ -236,6 +248,9 @@ function describeTrap(before: PlayerView, action: Action, after: PlayerView, blo
     if (!moved) return [];
     if (!samePos(moved.pos, action.to) && blockers.length > 0) {
       return [item('eye', `${unitName(unit)} est arrêté ${place(after.board, moved.pos)} et ne peut plus bouger de ce tour.`, 'hurt')];
+    }
+    if (after.events.some((event) => event.type === 'rewind' && event.unitId === action.unitId)) {
+      return [item('fishing-net', `${unitName(unit)} déclenche un sablier : il remonte le temps ${place(after.board, moved.pos)} et ne peut plus bouger de ce tour.`, 'hurt')];
     }
     if (!samePos(moved.pos, action.to)) {
       return [item('fishing-net', `${unitName(unit)} est pris au piège ${place(after.board, moved.pos)} et ne peut plus bouger de ce tour.`, 'hurt')];

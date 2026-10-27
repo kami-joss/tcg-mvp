@@ -27,7 +27,7 @@ describe('effets activés (SPEC.md §4.8)', () => {
   it('coûtent leur mana et ne servent qu’une fois par tour', () => {
     const state = applyAction(chamanWithWoundedGolem(), activate('u1', 'u2'));
     expect(state.players[1].mana).toBe(9);
-    expect(state.units.u1).toMatchObject({ hasUsedEffect: true });
+    expect(state.units.u1).toMatchObject({ usedEffects: [0] });
     expect(() => applyAction(state, activate('u1', 'u2'))).toThrow(/déjà utilisé/);
     expect(effectActions(state)).toEqual([]);
   });

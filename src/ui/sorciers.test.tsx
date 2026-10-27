@@ -56,7 +56,7 @@ describe('Lutin brasier : brûler une case', () => {
   });
 
   it('journal, animation, son ; marque au sol et fiche visibles des deux joueurs', () => {
-    expect(describeAction(view(state), BURN, view(burned))[0]).toBe('Lutin brasier de J1 met le feu sur l’Écurie.');
+    expect(describeAction(view(state), BURN, view(burned))[0]).toBe('Lutin brasier - Sorciers du feu de J1 met le feu sur l’Écurie.');
     const event = view(burned).events.find((e) => e.type === 'cellBurned')!;
     expect(applyEvent(view(state), event, view(burned)).burningCells).toHaveLength(1);
     expect(eventSounds([event]).map(([sound]) => sound)).toEqual(['fire']);

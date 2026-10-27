@@ -123,7 +123,7 @@ describe('bulle : effets', () => {
     const state = gameWith([{ monster: 'jean-bon', owner: 1, at: at(5, 4) }], { players: { 1: { mana: 4 } } });
     const model = bubble(state, { kind: 'effects', unitId: 'u1', page: 'effects' });
     expect(model).toMatchObject({ anchor: at(5, 4), anchorUnit: 'u1' });
-    expect(model.header).toEqual({ kind: 'unit', name: 'Jean Bon', owner: 1, hp: null, note: 'Effets · 4 mana' });
+    expect(model.header).toEqual({ kind: 'unit', name: 'Jean Bon - Bodybuilder', owner: 1, hp: null, note: 'Effets · 4 mana' });
     expect(model.rows[0]).toMatchObject({
       title: 'Dopage',
       cost: 2,

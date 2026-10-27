@@ -26,6 +26,7 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
       volume: 0.7,
       zoom: 1,
       grimoireLayout: 'grid2',
+      grimoireOpen: true,
       tokenStats: { hp: true, mobility: true, enemyMobility: false, atk: false, statuses: true },
     });
   });
@@ -40,6 +41,7 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
       volume: 0.4,
       zoom: 1.5,
       grimoireLayout: 'list',
+      grimoireOpen: false,
       tokenStats: { ...DEFAULT_TOKEN_STATS, atk: true, statuses: false },
     } as const;
     saveSettings(saved);
@@ -47,6 +49,7 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
     expect(data.get('tcg-plateau-son')).toBe('0');
     expect(data.get('tcg-plateau-zoom-v5')).toBe('1.5');
     expect(data.get('tcg-grimoire-affichage')).toBe('liste');
+    expect(data.get('tcg-grimoire-ouvert')).toBe('0');
     expect(JSON.parse(data.get('tcg-plateau-stats-v6')!)).toEqual({ pv: true, mob: true, mobE: false, atk: true, st: false });
     expect(loadSettings()).toEqual(saved);
   });

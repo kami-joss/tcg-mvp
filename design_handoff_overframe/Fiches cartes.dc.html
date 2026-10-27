@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700;800&family=Alegreya+Sans+SC:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;background:oklch(0.2 0.014 60);}
+a{color:oklch(0.82 0.13 85);} a:hover{color:oklch(0.9 0.1 85);}
+</style>
+</helmet>
+
+<section data-screen-label="Overframe Maître des heures" style="padding:48px 48px 8px; display:flex; flex-direction:column; gap:22px; color:oklch(0.95 0.01 85); font-family:'Alegreya Sans', sans-serif;">
+  <div style="display:flex; flex-direction:column; gap:10px; max-width:980px;">
+    <div style="font:800 13px/1 'Alegreya Sans SC'; letter-spacing:.1em; color:oklch(0.82 0.13 85);">Tour 4 · Overframe animée</div>
+    <div style="font:800 40px/1.05 'Alegreya Sans';">Maître des heures</div>
+  </div>
+  <div style="display:flex; flex-wrap:wrap; gap:28px 56px; align-items:flex-start;">
+    <div id="4a" style="display:flex; flex-direction:column; gap:10px; width:280px; margin:0 48px 0 72px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="padding:4px 8px; border-radius:6px; background:oklch(0.82 0.13 85); color:oklch(0.2 0.014 60); font:800 13px/1 'Alegreya Sans';">4a</span>
+        <span style="font:700 14px/1.3 'Alegreya Sans'; color:oklch(0.85 0.015 80);">Clignement, cadran qui avance · survole-la</span>
+      </div>
+      <div ref="{{ rStage6 }}" onMouseMove="{{ heroMove6 }}" onMouseLeave="{{ heroLeave6 }}" style="position:relative; width:280px; padding-top:162px;">
+        <div ref="{{ rFloat6 }}" style="position:relative; width:280px; height:498px;">
+          <div ref="{{ rTilt6 }}" style="position:relative; width:280px; height:498px; transition:transform .35s cubic-bezier(.2,.8,.2,1); will-change:transform;">
+            <div style="position:absolute; inset:0; display:flex; flex-direction:column; border-radius:12px; overflow:hidden; isolation:isolate; background:oklch(0.2 0.014 60); color:oklch(0.97 0.01 85); text-shadow:0 1px 2px oklch(0 0 0 / .9); box-shadow:0 0 0 2px oklch(0.56 0.15 255), 0 16px 36px oklch(0 0 0 / .5);">
+              <div ref="{{ rArt6 }}" style="position:absolute; z-index:-1; left:-80px; top:-215px; width:423.36px; height:752.64px; background:url('assets/art/temporel.jpg') 0 0 / 100% 100% no-repeat; transform-origin:220px 365px;">
+                <div ref="{{ rShine6 }}" style="position:absolute; inset:0; background:url('assets/art/temporel.jpg') 0 0 / 100% 100% no-repeat; mix-blend-mode:screen; filter:brightness(.75) contrast(4) saturate(1.4); opacity:.7; -webkit-mask-image:linear-gradient(115deg, transparent 40%, #000 50%, transparent 60%); mask-image:linear-gradient(115deg, transparent 40%, #000 50%, transparent 60%); -webkit-mask-size:300% 100%; mask-size:300% 100%; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; -webkit-mask-position:100% 0; mask-position:100% 0;"></div>
+              </div>
+              <div style="position:absolute; z-index:-1; inset:0; pointer-events:none;">
+                <sc-for list="{{ motesBack2 }}" as="f" hint-placeholder-count="0"><div data-flake="1" data-dur="{{ f.dur }}" data-delay="{{ f.delay }}" data-drift="{{ f.drift }}" data-dist="{{ f.dist }}" data-op="{{ f.op }}" style="{{ f.style }}"></div></sc-for>
+              </div>
+              <div style="position:absolute; z-index:-1; inset:0; pointer-events:none; background:linear-gradient(180deg, oklch(0.12 0.01 60 / 0) 0, oklch(0.12 0.01 60 / 0) 88px, oklch(0.12 0.01 60 / .75) 136px, oklch(0.12 0.01 60 / .75) 100%);"></div>
+              <div ref="{{ rGlow6 }}" style="position:absolute; z-index:-1; left:151.4px; top:22.7px; width:100px; height:100px; border-radius:50%; background:radial-gradient(closest-side, oklch(0.95 0.1 85 / .7), oklch(0.8 0.14 75 / .25) 55%, transparent); mix-blend-mode:screen; opacity:.5; pointer-events:none;"></div>
+              <div style="position:absolute; z-index:-1; left:161.4px; top:32.7px; width:80px; height:80px; transform:rotate(-18deg) scaleY(.8); pointer-events:none;">
+                <div ref="{{ rRing6 }}" style="position:absolute; inset:0; border-radius:50%; background:repeating-conic-gradient(oklch(0.93 0.12 85) 0 2.2deg, transparent 2.2deg 30deg); -webkit-mask-image:radial-gradient(closest-side, transparent 80%, #000 82%, #000 95%, transparent 97%); mask-image:radial-gradient(closest-side, transparent 80%, #000 82%, #000 95%, transparent 97%); opacity:.9;"></div>
+                <div ref="{{ rRingIn6 }}" style="position:absolute; inset:7px; border-radius:50%; background:repeating-conic-gradient(oklch(0.9 0.1 80 / .85) 0 .9deg, transparent .9deg 6deg); -webkit-mask-image:radial-gradient(closest-side, transparent 88%, #000 90%, #000 97%, transparent 99%); mask-image:radial-gradient(closest-side, transparent 88%, #000 90%, #000 97%, transparent 99%); opacity:.6;"></div>
+                <div style="position:absolute; inset:0; border-radius:50%; box-shadow:0 0 0 1px oklch(0.9 0.12 85 / .45), 0 0 12px oklch(0.85 0.14 80 / .35);"></div>
+              </div>
+              <div style="position:absolute; z-index:-1; inset:0; overflow:hidden; pointer-events:none;"><div ref="{{ rSweep6 }}" style="position:absolute; top:0; bottom:0; left:-50%; width:200%; background:linear-gradient(105deg, transparent 44%, oklch(0.95 0.08 85 / .22) 50%, transparent 56%); mix-blend-mode:screen; transform:translateX(-60%);"></div></div>
+
+              <div style="position:relative; height:112px; flex:none;">
+                <div style="position:absolute; right:10px; top:10px; display:flex; align-items:center; gap:3px; height:28px; padding:0 10px 0 7px; border-radius:14px; background:linear-gradient(160deg, oklch(0.6 0.16 262), oklch(0.42 0.17 264)); box-shadow:inset 0 1px 0 oklch(0.82 0.09 255 / .6), 0 0 0 1px oklch(0.28 0.12 264), 0 3px 8px oklch(0 0 0 / .5); color:white; font:800 15px/1 'Alegreya Sans'; text-shadow:none;"><div style="width:15px; height:15px; background:center / contain no-repeat url('https://api.iconify.design/game-icons/water-drop.svg?color=%23ffffff');"></div><span>{{ hero4.cost }}</span></div>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; padding:10px 12px; flex:none;">
+                <div style="flex:1; font:800 18px/1.1 'Alegreya Sans';">{{ hero4.title }}</div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:9px; padding:0 12px 16px; flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; -webkit-mask-image:linear-gradient(180deg, #000 calc(100% - 16px), transparent); mask-image:linear-gradient(180deg, #000 calc(100% - 16px), transparent);">
+                <div style="display:flex; align-items:center; gap:6px;"><div style="{{ hero4.typeIcon }}"></div><div style="font:800 12px/1 'Alegreya Sans SC'; letter-spacing:.06em; color:oklch(0.88 0.02 85);">{{ hero4.type }}</div></div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(52px, 1fr)); gap:5px; padding-top:4px;">
+                  <sc-for list="{{ hero4.stats }}" as="s" hint-placeholder-count="4">
+                    <div style="position:relative; padding:6px 2px 5px; border-radius:7px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .12); text-align:center;">
+                      <div style="{{ s.icon }}"></div>
+                      <div style="{{ s.vStyle }}">{{ s.v }}</div>
+                      <div style="font:700 10px/1.3 'Alegreya Sans SC'; letter-spacing:.03em; color:oklch(0.85 0.015 80);">{{ s.l }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <sc-for list="{{ hero4.avail }}" as="a" hint-placeholder-count="1">
+                  <div style="display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; padding:6px 8px 6px 9px; border-radius:8px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .1);">
+                    <div style="{{ a.icon }}"></div>
+                    <span style="font:800 13px/1.2 'Alegreya Sans';">{{ a.label }}</span>
+                    <span style="{{ a.st }}"><span style="{{ a.dot }}"></span>{{ a.t }}</span>
+                  </div>
+                </sc-for>
+                <div style="{{ pasBox }}">
+                  <div style="{{ pasHead }}"><div style="{{ pasIcon }}"></div>Effet passif</div>
+                  <sc-for list="{{ hero4.passive.items }}" as="p" hint-placeholder-count="1"><div style="font-size:14px; line-height:1.4; text-wrap:pretty;"><b>{{ p.name }}</b> · {{ p.text }}</div></sc-for>
+                </div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:6px; padding:9px 12px 11px; flex:none; background:oklch(0.13 0.012 60 / .76); box-shadow:inset 0 1px 0 oklch(0.38 0.014 60);">
+                <div style="font:800 11px/1 'Alegreya Sans SC'; letter-spacing:.08em; color:oklch(0.72 0.015 80);">Effets en cours</div>
+                <div style="display:flex; flex-wrap:wrap; gap:5px;">
+                  <sc-for list="{{ hero4.status }}" as="x" hint-placeholder-count="1"><div style="{{ x.style }}"><div style="{{ x.icon }}"></div><span>{{ x.t }}</span></div></sc-for>
+                </div>
+              </div>
+              <div ref="{{ rGlare6 }}" style="position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .3s ease; mix-blend-mode:soft-light;"></div>
+            </div>
+            <div ref="{{ rPop6 }}" style="position:absolute; left:-21.2px; top:-148.64px; width:244.44px; height:253.68px; background:url('assets/art/temporel_pop.png') 0 0 / 100% 100% no-repeat; transform-origin:161.2px 298.64px; filter:drop-shadow(0 0 .6px oklch(0.22 0.03 60 / .9)) drop-shadow(0 0 8px oklch(0.85 0.13 80 / .3)) drop-shadow(0 3px 4px oklch(0 0 0 / .4)); pointer-events:none;">
+              <div ref="{{ rHair6 }}" style="position:absolute; inset:0; background:url('assets/art/temporel_meches.png') 0 0 / 100% 100% no-repeat; transform-origin:170.1px 89.04px;"></div>
+              <div ref="{{ rBlink6 }}" style="position:absolute; left:147.84px; top:80.64px; width:59.22px; height:22.68px; background:url('assets/art/temporel_yeux_fermes.png') 0 0 / 100% 100% no-repeat; opacity:0;"></div>
+            </div>
+            <div style="position:absolute; left:0; right:0; top:-162px; bottom:0; pointer-events:none;">
+              <sc-for list="{{ motesFront2 }}" as="f" hint-placeholder-count="0"><div data-flake="1" data-dur="{{ f.dur }}" data-delay="{{ f.delay }}" data-drift="{{ f.drift }}" data-dist="{{ f.dist }}" data-op="{{ f.op }}" style="{{ f.style }}"></div></sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:10px; max-width:360px; padding-top:162px; font:500 15px/1.4 'Alegreya Sans'; color:oklch(0.85 0.01 80);">
+      <div style="font:800 12px/1.2 'Alegreya Sans SC'; letter-spacing:.08em; color:oklch(0.75 0.015 80);">Ce qui bouge</div>
+      <div style="display:flex; gap:8px;"><span style="color:oklch(0.82 0.13 85);">◆</span><span style="text-wrap:pretty;">La tête et les pointes du col passent devant le cadre ; le vortex reste dans la carte.</span></div>
+      <div style="display:flex; gap:8px;"><span style="color:oklch(0.82 0.13 85);">◆</span><span style="text-wrap:pretty;">Il cligne des yeux, ses cheveux bougent au vent, il respire, la carte flotte.</span></div>
+      <div style="display:flex; gap:8px;"><span style="color:oklch(0.82 0.13 85);">◆</span><span style="text-wrap:pretty;">Autour de la montre, un cadran doré avance d’un cran chaque seconde ; la montre pulse, des braises d’or flottent.</span></div>
+      <div style="margin-top:6px; font:500 13px/1.4 'Alegreya Sans'; color:oklch(0.68 0.012 80); text-wrap:pretty;">Yeux ouverts tirés de l’illustration, yeux fermés et détourage tirés de la troisième image.</div>
+    </div>
+  </div>
+</section>
+
+<section data-screen-label="Overframe Chronomancienne" style="padding:48px 48px 8px; display:flex; flex-direction:column; gap:22px; color:oklch(0.95 0.01 85); font-family:'Alegreya Sans', sans-serif;">
+  <div style="display:flex; flex-direction:column; gap:10px; max-width:980px;">
+    <div style="font:800 13px/1 'Alegreya Sans SC'; letter-spacing:.1em; color:oklch(0.82 0.13 85);">Tour 3 · Overframe animée</div>
+    <div style="font:800 40px/1.05 'Alegreya Sans';">Chronomancienne</div>
+  </div>
+  <div style="display:flex; flex-wrap:wrap; gap:28px 56px; align-items:flex-start;">
+    <div id="3a" style="display:flex; flex-direction:column; gap:10px; width:280px; margin:0 48px 0 72px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="padding:4px 8px; border-radius:6px; background:oklch(0.82 0.13 85); color:oklch(0.2 0.014 60); font:800 13px/1 'Alegreya Sans';">3a</span>
+        <span style="font:700 14px/1.3 'Alegreya Sans'; color:oklch(0.85 0.015 80);">Clignement, mèches au vent · survole-la</span>
+      </div>
+      <div ref="{{ rStage5 }}" onMouseMove="{{ heroMove5 }}" onMouseLeave="{{ heroLeave5 }}" style="position:relative; width:280px; padding-top:186px;">
+        <div ref="{{ rFloat5 }}" style="position:relative; width:280px; height:498px;">
+          <div ref="{{ rTilt5 }}" style="position:relative; width:280px; height:498px; transition:transform .35s cubic-bezier(.2,.8,.2,1); will-change:transform;">
+            <div style="position:absolute; inset:0; display:flex; flex-direction:column; border-radius:12px; overflow:hidden; isolation:isolate; background:oklch(0.2 0.014 60); color:oklch(0.97 0.01 85); text-shadow:0 1px 2px oklch(0 0 0 / .9); box-shadow:0 0 0 2px oklch(0.56 0.15 255), 0 16px 36px oklch(0 0 0 / .5);">
+              <div ref="{{ rArt5 }}" style="position:absolute; z-index:-1; left:-63px; top:-200px; width:403.2px; height:716.8px; background:url('assets/art/chrono.jpg') 0 0 / 100% 100% no-repeat; transform-origin:203px 350px;">
+                <div ref="{{ rShine5 }}" style="position:absolute; inset:0; background:url('assets/art/chrono.jpg') 0 0 / 100% 100% no-repeat; mix-blend-mode:screen; filter:brightness(.75) contrast(4) saturate(1.4); opacity:.75; -webkit-mask-image:linear-gradient(115deg, transparent 40%, #000 50%, transparent 60%); mask-image:linear-gradient(115deg, transparent 40%, #000 50%, transparent 60%); -webkit-mask-size:300% 100%; mask-size:300% 100%; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; -webkit-mask-position:100% 0; mask-position:100% 0;"></div>
+              </div>
+              <div style="position:absolute; z-index:-1; inset:0; pointer-events:none;">
+                <sc-for list="{{ motesBack }}" as="f" hint-placeholder-count="0"><div data-flake="1" data-dur="{{ f.dur }}" data-delay="{{ f.delay }}" data-drift="{{ f.drift }}" data-dist="{{ f.dist }}" data-op="{{ f.op }}" style="{{ f.style }}"></div></sc-for>
+              </div>
+              <div style="position:absolute; z-index:-1; inset:0; pointer-events:none; background:linear-gradient(180deg, oklch(0.12 0.01 60 / 0) 0, oklch(0.12 0.01 60 / 0) 88px, oklch(0.12 0.01 60 / .75) 136px, oklch(0.12 0.01 60 / .75) 100%);"></div>
+              <div style="position:absolute; z-index:-1; inset:0; overflow:hidden; pointer-events:none;"><div ref="{{ rSweep5 }}" style="position:absolute; top:0; bottom:0; left:-50%; width:200%; background:linear-gradient(105deg, transparent 44%, oklch(0.95 0.08 85 / .22) 50%, transparent 56%); mix-blend-mode:screen; transform:translateX(-60%);"></div></div>
+
+              <div style="position:relative; height:112px; flex:none;">
+                <div style="position:absolute; right:10px; top:10px; display:flex; align-items:center; gap:3px; height:28px; padding:0 10px 0 7px; border-radius:14px; background:linear-gradient(160deg, oklch(0.6 0.16 262), oklch(0.42 0.17 264)); box-shadow:inset 0 1px 0 oklch(0.82 0.09 255 / .6), 0 0 0 1px oklch(0.28 0.12 264), 0 3px 8px oklch(0 0 0 / .5); color:white; font:800 15px/1 'Alegreya Sans'; text-shadow:none;"><div style="width:15px; height:15px; background:center / contain no-repeat url('https://api.iconify.design/game-icons/water-drop.svg?color=%23ffffff');"></div><span>{{ hero3.cost }}</span></div>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; padding:10px 12px; flex:none;">
+                <div style="flex:1; font:800 18px/1.1 'Alegreya Sans';">{{ hero3.title }}</div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:9px; padding:0 12px 16px; flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; -webkit-mask-image:linear-gradient(180deg, #000 calc(100% - 16px), transparent); mask-image:linear-gradient(180deg, #000 calc(100% - 16px), transparent);">
+                <div style="display:flex; align-items:center; gap:6px;"><div style="{{ hero3.typeIcon }}"></div><div style="font:800 12px/1 'Alegreya Sans SC'; letter-spacing:.06em; color:oklch(0.88 0.02 85);">{{ hero3.type }}</div></div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(52px, 1fr)); gap:5px; padding-top:4px;">
+                  <sc-for list="{{ hero3.stats }}" as="s" hint-placeholder-count="4">
+                    <div style="position:relative; padding:6px 2px 5px; border-radius:7px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .12); text-align:center;">
+                      <div style="{{ s.icon }}"></div>
+                      <div style="{{ s.vStyle }}">{{ s.v }}</div>
+                      <div style="font:700 10px/1.3 'Alegreya Sans SC'; letter-spacing:.03em; color:oklch(0.85 0.015 80);">{{ s.l }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <sc-for list="{{ hero3.avail }}" as="a" hint-placeholder-count="1">
+                  <div style="display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; padding:6px 8px 6px 9px; border-radius:8px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .1);">
+                    <div style="{{ a.icon }}"></div>
+                    <span style="font:800 13px/1.2 'Alegreya Sans';">{{ a.label }}</span>
+                    <span style="{{ a.st }}"><span style="{{ a.dot }}"></span>{{ a.t }}</span>
+                  </div>
+                </sc-for>
+                <div style="{{ pasBox }}">
+                  <div style="{{ pasHead }}"><div style="{{ pasIcon }}"></div>Effet passif</div>
+                  <sc-for list="{{ hero3.passive.items }}" as="p" hint-placeholder-count="1"><div style="font-size:14px; line-height:1.4; text-wrap:pretty;"><b>{{ p.name }}</b> · {{ p.text }}</div></sc-for>
+                </div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:6px; padding:9px 12px 11px; flex:none; background:oklch(0.13 0.012 60 / .76); box-shadow:inset 0 1px 0 oklch(0.38 0.014 60);">
+                <div style="font:800 11px/1 'Alegreya Sans SC'; letter-spacing:.08em; color:oklch(0.72 0.015 80);">Effets en cours</div>
+                <div style="display:flex; flex-wrap:wrap; gap:5px;">
+                  <sc-for list="{{ hero3.status }}" as="x" hint-placeholder-count="1"><div style="{{ x.style }}"><div style="{{ x.icon }}"></div><span>{{ x.t }}</span></div></sc-for>
+                </div>
+              </div>
+              <div ref="{{ rGlare5 }}" style="position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .3s ease; mix-blend-mode:soft-light;"></div>
+            </div>
+            <div ref="{{ rPop5 }}" style="position:absolute; left:-14.6px; top:-172.8px; width:290px; height:202px; background:url('assets/art/chrono_pop.png') 0 0 / 100% 100% no-repeat; transform-origin:154.6px 322.8px; filter:drop-shadow(0 0 .6px oklch(0.22 0.03 60 / .9)) drop-shadow(0 0 8px oklch(0.8 0.13 300 / .3)) drop-shadow(0 3px 4px oklch(0 0 0 / .4)); pointer-events:none;">
+              <div ref="{{ rHair5 }}" style="position:absolute; inset:0; background:url('assets/art/chrono_meches.png') 0 0 / 100% 100% no-repeat; transform-origin:99.6px 136.8px;"></div>
+              <div ref="{{ rBlink5 }}" style="position:absolute; left:113.2px; top:99.6px; width:67.2px; height:36px; background:url('assets/art/chrono_yeux_fermes.png') 0 0 / 100% 100% no-repeat; opacity:0;"></div>
+            </div>
+            <div ref="{{ rGlow5 }}" style="position:absolute; left:196px; top:-6px; width:150px; height:150px; border-radius:50%; background:radial-gradient(closest-side, oklch(0.9 0.1 310 / .7), oklch(0.7 0.18 300 / .25) 60%, transparent); mix-blend-mode:screen; opacity:.5; pointer-events:none;"></div>
+            <div style="position:absolute; left:0; right:0; top:-186px; bottom:0; pointer-events:none;">
+              <sc-for list="{{ motesFront }}" as="f" hint-placeholder-count="0"><div data-flake="1" data-dur="{{ f.dur }}" data-delay="{{ f.delay }}" data-drift="{{ f.drift }}" data-dist="{{ f.dist }}" data-op="{{ f.op }}" style="{{ f.style }}"></div></sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:10px; max-width:360px; padding-top:186px; font:500 15px/1.4 'Alegreya Sans'; color:oklch(0.85 0.01 80);">
+      <div style="font:800 12px/1.2 'Alegreya Sans SC'; letter-spacing:.08em; color:oklch(0.75 0.015 80);">Ce qui bouge</div>
+      <div style="display:flex; gap:8px;"><span style="color:oklch(0.82 0.13 85);">◆</span><span style="text-wrap:pretty;">Le chapeau, le visage et les mèches passent devant le cadre ; l’horloge et les volutes restent dans la carte.</span></div>
+      <div style="display:flex; gap:8px;"><span style="color:oklch(0.82 0.13 85);">◆</span><span style="text-wrap:pretty;">Elle cligne des yeux, ses mèches ondulent au vent, elle respire, la carte flotte.</span></div>
+      <div style="display:flex; gap:8px;"><span style="color:oklch(0.82 0.13 85);">◆</span><span style="text-wrap:pretty;">Un reflet doré parcourt les volutes ; poussière d’or et d’améthyste devant et derrière elle.</span></div>
+      <div style="margin-top:6px; font:500 13px/1.4 'Alegreya Sans'; color:oklch(0.68 0.012 80); text-wrap:pretty;">Yeux et bouche ouverts pris dans l’illustration, paupières fermées et détourage dans les deux autres images.</div>
+    </div>
+  </div>
+</section>
+
+<section data-screen-label="Overframe animée" style="padding:48px 48px 8px; display:flex; flex-direction:column; gap:22px; color:oklch(0.95 0.01 85); font-family:'Alegreya Sans', sans-serif;">
+  <div style="display:flex; flex-direction:column; gap:10px; max-width:980px;">
+    <div style="font:800 13px/1 'Alegreya Sans SC'; letter-spacing:.1em; color:oklch(0.82 0.13 85);">Tour 2 · Overframe animée</div>
+    <div style="font:800 40px/1.05 'Alegreya Sans';">Le haut du personnage sort du cadre</div>
+  </div>
+  <div style="display:flex; flex-wrap:wrap; gap:28px 56px; align-items:flex-start;">
+    <div id="2a" style="display:flex; flex-direction:column; gap:10px; width:280px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="padding:4px 8px; border-radius:6px; background:oklch(0.82 0.13 85); color:oklch(0.2 0.014 60); font:800 13px/1 'Alegreya Sans';">2a</span>
+        <span style="font:700 14px/1.3 'Alegreya Sans'; color:oklch(0.85 0.015 80);">Archer de glace · survole-la</span>
+      </div>
+      <div ref="{{ rStage }}" onMouseMove="{{ heroMove }}" onMouseLeave="{{ heroLeave }}" style="position:relative; width:280px; padding-top:118px;">
+        <div ref="{{ rFloat }}" style="position:relative; width:280px; height:498px;">
+          <div ref="{{ rTilt }}" style="position:relative; width:280px; height:498px; transition:transform .35s cubic-bezier(.2,.8,.2,1); will-change:transform;">
+            <div style="position:absolute; inset:0; display:flex; flex-direction:column; border-radius:12px; overflow:hidden; isolation:isolate; background:oklch(0.2 0.014 60); color:oklch(0.97 0.01 85); text-shadow:0 1px 2px oklch(0 0 0 / .9); box-shadow:0 0 0 2px oklch(0.56 0.15 255), 0 16px 36px oklch(0 0 0 / .5);">
+              <div ref="{{ rArt }}" style="position:absolute; z-index:-1; left:-17px; top:-126px; width:352.8px; height:627.2px; background:url('assets/art/archer_glace.jpg') 0 0 / 100% 100% no-repeat; transform-origin:167px 276px;"></div>
+              <div ref="{{ rGlow }}" style="position:absolute; z-index:-1; left:190px; top:36px; width:170px; height:170px; border-radius:50%; background:radial-gradient(closest-side, oklch(0.88 0.1 225 / .75), oklch(0.72 0.15 240 / .25) 60%, transparent); mix-blend-mode:screen; opacity:.5; pointer-events:none;"></div>
+              <div style="position:absolute; z-index:-1; inset:0; pointer-events:none;">
+                <sc-for list="{{ flakesBack }}" as="f" hint-placeholder-count="0"><div data-flake="1" data-dur="{{ f.dur }}" data-delay="{{ f.delay }}" data-drift="{{ f.drift }}" data-dist="{{ f.dist }}" data-op="{{ f.op }}" style="{{ f.style }}"></div></sc-for>
+              </div>
+              <div style="position:absolute; z-index:-1; inset:0; pointer-events:none; background:linear-gradient(180deg, oklch(0.12 0.01 60 / 0) 0, oklch(0.12 0.01 60 / 0) 88px, oklch(0.12 0.01 60 / .75) 136px, oklch(0.12 0.01 60 / .75) 100%);"></div>
+              <div style="position:absolute; z-index:-1; inset:0; overflow:hidden; pointer-events:none;"><div ref="{{ rSweep }}" style="position:absolute; top:0; bottom:0; left:-50%; width:200%; background:linear-gradient(105deg, transparent 44%, oklch(1 0 0 / .2) 50%, transparent 56%); mix-blend-mode:screen; transform:translateX(-60%);"></div></div>
+
+              <div style="position:relative; height:112px; flex:none;">
+                <div style="position:absolute; right:10px; top:10px; display:flex; align-items:center; gap:3px; height:28px; padding:0 10px 0 7px; border-radius:14px; background:linear-gradient(160deg, oklch(0.6 0.16 262), oklch(0.42 0.17 264)); box-shadow:inset 0 1px 0 oklch(0.82 0.09 255 / .6), 0 0 0 1px oklch(0.28 0.12 264), 0 3px 8px oklch(0 0 0 / .5); color:white; font:800 15px/1 'Alegreya Sans'; text-shadow:none;"><div style="width:15px; height:15px; background:center / contain no-repeat url('https://api.iconify.design/game-icons/water-drop.svg?color=%23ffffff');"></div><span>{{ hero.cost }}</span></div>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; padding:10px 12px; flex:none;">
+                <div style="flex:1; font:800 18px/1.1 'Alegreya Sans';">{{ hero.title }}</div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:9px; padding:0 12px 16px; flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; -webkit-mask-image:linear-gradient(180deg, #000 calc(100% - 16px), transparent); mask-image:linear-gradient(180deg, #000 calc(100% - 16px), transparent);">
+                <div style="display:flex; align-items:center; gap:6px;"><div style="{{ hero.typeIcon }}"></div><div style="font:800 12px/1 'Alegreya Sans SC'; letter-spacing:.06em; color:oklch(0.88 0.02 85);">{{ hero.type }}</div></div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(52px, 1fr)); gap:5px; padding-top:4px;">
+                  <sc-for list="{{ hero.stats }}" as="s" hint-placeholder-count="4">
+                    <div style="position:relative; padding:6px 2px 5px; border-radius:7px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .12); text-align:center;">
+                      <div style="{{ s.icon }}"></div>
+                      <div style="{{ s.vStyle }}">{{ s.v }}</div>
+                      <div style="font:700 10px/1.3 'Alegreya Sans SC'; letter-spacing:.03em; color:oklch(0.85 0.015 80);">{{ s.l }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <sc-for list="{{ hero.avail }}" as="a" hint-placeholder-count="1">
+                  <div style="display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; padding:6px 8px 6px 9px; border-radius:8px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .1);">
+                    <div style="{{ a.icon }}"></div>
+                    <span style="font:800 13px/1.2 'Alegreya Sans';">{{ a.label }}</span>
+                    <span style="{{ a.st }}"><span style="{{ a.dot }}"></span>{{ a.t }}</span>
+                  </div>
+                </sc-for>
+                <div style="{{ pasBox }}">
+                  <div style="{{ pasHead }}"><div style="{{ pasIcon }}"></div>Effet passif</div>
+                  <sc-for list="{{ hero.passive.items }}" as="p" hint-placeholder-count="1"><div style="font-size:14px; line-height:1.4; text-wrap:pretty;"><b>{{ p.name }}</b> · {{ p.text }}</div></sc-for>
+                </div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:6px; padding:9px 12px 11px; flex:none; background:oklch(0.13 0.012 60 / .76); box-shadow:inset 0 1px 0 oklch(0.38 0.014 60);">
+                <div style="font:800 11px/1 'Alegreya Sans SC'; letter-spacing:.08em; color:oklch(0.72 0.015 80);">Effets en cours</div>
+                <div style="display:flex; flex-wrap:wrap; gap:5px;">
+                  <sc-for list="{{ hero.status }}" as="x" hint-placeholder-count="1"><div style="{{ x.style }}"><div style="{{ x.icon }}"></div><span>{{ x.t }}</span></div></sc-for>
+                </div>
+              </div>
+              <div ref="{{ rGlare }}" style="position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .3s ease; mix-blend-mode:soft-light;"></div>
+            </div>
+            <div ref="{{ rPop }}" style="position:absolute; left:35.5px; top:-112px; width:248.5px; height:117.95px; background:url('assets/art/archer_glace_buste.png') 0 0 / 100% 100% no-repeat; transform-origin:114.5px 262px; filter:drop-shadow(0 0 .6px oklch(0.25 0.06 250 / .9)) drop-shadow(0 3px 4px oklch(0 0 0 / .4)); pointer-events:none;"></div>
+            <div style="position:absolute; left:0; right:0; top:-118px; bottom:0; pointer-events:none;">
+              <sc-for list="{{ flakesFront }}" as="f" hint-placeholder-count="0"><div data-flake="1" data-dur="{{ f.dur }}" data-delay="{{ f.delay }}" data-drift="{{ f.drift }}" data-dist="{{ f.dist }}" data-op="{{ f.op }}" style="{{ f.style }}"></div></sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="2c" style="display:flex; flex-direction:column; gap:10px; width:280px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="padding:4px 8px; border-radius:6px; background:oklch(0.82 0.13 85); color:oklch(0.2 0.014 60); font:800 13px/1 'Alegreya Sans';">2c</span>
+        <span style="font:700 14px/1.3 'Alegreya Sans'; color:oklch(0.85 0.015 80);">Version brillante · survole-la</span>
+      </div>
+      <div ref="{{ rStage2 }}" onMouseMove="{{ heroMove2 }}" onMouseLeave="{{ heroLeave2 }}" style="position:relative; width:280px; padding-top:118px;">
+        <div ref="{{ rFloat2 }}" style="position:relative; width:280px; height:498px;">
+          <div ref="{{ rTilt2 }}" style="position:relative; width:280px; height:498px; transition:transform .35s cubic-bezier(.2,.8,.2,1); will-change:transform;">
+            <div style="position:absolute; inset:0; display:flex; flex-direction:column; border-radius:12px; overflow:hidden; isolation:isolate; background:oklch(0.2 0.014 60); color:oklch(0.97 0.01 85); text-shadow:0 1px 2px oklch(0 0 0 / .9); box-shadow:0 0 0 2px oklch(0.86 0.13 85), 0 0 22px oklch(0.7 0.2 330 / .45), 0 16px 36px oklch(0 0 0 / .5);">
+              <div ref="{{ rArt2 }}" style="position:absolute; z-index:-1; left:-17px; top:-126px; width:352.8px; height:627.2px; background:url('assets/art/archer_glace_shiny.jpg') 0 0 / 100% 100% no-repeat; transform-origin:167px 276px;"></div>
+              <div ref="{{ rGlow2 }}" style="position:absolute; z-index:-1; left:190px; top:36px; width:170px; height:170px; border-radius:50%; background:radial-gradient(closest-side, oklch(0.88 0.13 330 / .8), oklch(0.7 0.2 310 / .28) 60%, transparent); mix-blend-mode:screen; opacity:.5; pointer-events:none;"></div>
+              <div style="position:absolute; z-index:-1; inset:0; pointer-events:none;">
+                <sc-for list="{{ flakesBack2 }}" as="f" hint-placeholder-count="0"><div data-flake="1" data-dur="{{ f.dur }}" data-delay="{{ f.delay }}" data-drift="{{ f.drift }}" data-dist="{{ f.dist }}" data-op="{{ f.op }}" style="{{ f.style }}"></div></sc-for>
+              </div>
+              <div style="position:absolute; z-index:-1; inset:0; pointer-events:none; background:linear-gradient(180deg, oklch(0.12 0.01 60 / 0) 0, oklch(0.12 0.01 60 / 0) 88px, oklch(0.12 0.01 60 / .75) 136px, oklch(0.12 0.01 60 / .75) 100%);"></div>
+              <div ref="{{ rHolo2 }}" style="position:absolute; z-index:-1; inset:0; pointer-events:none; background:linear-gradient(115deg, oklch(0.8 0.16 350), oklch(0.88 0.14 85), oklch(0.85 0.13 165), oklch(0.78 0.13 240), oklch(0.75 0.17 305), oklch(0.8 0.16 350)) 0% 50% / 300% 300%; mix-blend-mode:color-dodge; opacity:.22;"></div>
+              <div style="position:absolute; z-index:-1; inset:0; overflow:hidden; pointer-events:none;"><div ref="{{ rSweep2 }}" style="position:absolute; top:0; bottom:0; left:-50%; width:200%; background:linear-gradient(105deg, transparent 38%, oklch(0.9 0.14 350 / .4) 44%, oklch(0.93 0.13 90 / .4) 50%, oklch(0.9 0.12 170 / .4) 56%, transparent 62%); mix-blend-mode:screen; transform:translateX(-60%);"></div></div>
+
+              <div style="position:relative; height:112px; flex:none;">
+                <div style="position:absolute; right:10px; top:10px; display:flex; align-items:center; gap:3px; height:28px; padding:0 10px 0 7px; border-radius:14px; background:linear-gradient(160deg, oklch(0.6 0.16 262), oklch(0.42 0.17 264)); box-shadow:inset 0 1px 0 oklch(0.82 0.09 255 / .6), 0 0 0 1px oklch(0.28 0.12 264), 0 3px 8px oklch(0 0 0 / .5); color:white; font:800 15px/1 'Alegreya Sans'; text-shadow:none;"><div style="width:15px; height:15px; background:center / contain no-repeat url('https://api.iconify.design/game-icons/water-drop.svg?color=%23ffffff');"></div><span>{{ hero.cost }}</span></div>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; padding:10px 12px; flex:none;">
+                <div style="flex:1; font:800 18px/1.1 'Alegreya Sans';">{{ hero.title }}</div>
+                <div style="display:flex; align-items:center; gap:4px; height:20px; padding:0 8px; border-radius:10px; background:linear-gradient(110deg, oklch(0.78 0.16 350), oklch(0.88 0.14 85), oklch(0.82 0.13 170)); color:oklch(0.22 0.03 330); font:800 11px/1 'Alegreya Sans SC'; letter-spacing:.06em; text-shadow:none; flex:none;">★ Brillante</div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:9px; padding:0 12px 16px; flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; -webkit-mask-image:linear-gradient(180deg, #000 calc(100% - 16px), transparent); mask-image:linear-gradient(180deg, #000 calc(100% - 16px), transparent);">
+                <div style="display:flex; align-items:center; gap:6px;"><div style="{{ hero.typeIcon }}"></div><div style="font:800 12px/1 'Alegreya Sans SC'; letter-spacing:.06em; color:oklch(0.88 0.02 85);">{{ hero.type }}</div></div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(52px, 1fr)); gap:5px; padding-top:4px;">
+                  <sc-for list="{{ hero.stats }}" as="s" hint-placeholder-count="4">
+                    <div style="position:relative; padding:6px 2px 5px; border-radius:7px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .12); text-align:center;">
+                      <div style="{{ s.icon }}"></div>
+                      <div style="{{ s.vStyle }}">{{ s.v }}</div>
+                      <div style="font:700 10px/1.3 'Alegreya Sans SC'; letter-spacing:.03em; color:oklch(0.85 0.015 80);">{{ s.l }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <sc-for list="{{ hero.avail }}" as="a" hint-placeholder-count="1">
+                  <div style="display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; padding:6px 8px 6px 9px; border-radius:8px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .1);">
+                    <div style="{{ a.icon }}"></div>
+                    <span style="font:800 13px/1.2 'Alegreya Sans';">{{ a.label }}</span>
+                    <span style="{{ a.st }}"><span style="{{ a.dot }}"></span>{{ a.t }}</span>
+                  </div>
+                </sc-for>
+                <div style="{{ pasBox }}">
+                  <div style="{{ pasHead }}"><div style="{{ pasIcon }}"></div>Effet passif</div>
+                  <sc-for list="{{ hero.passive.items }}" as="p" hint-placeholder-count="1"><div style="font-size:14px; line-height:1.4; text-wrap:pretty;"><b>{{ p.name }}</b> · {{ p.text }}</div></sc-for>
+                </div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:6px; padding:9px 12px 11px; flex:none; background:oklch(0.13 0.012 60 / .76); box-shadow:inset 0 1px 0 oklch(0.38 0.014 60);">
+                <div style="font:800 11px/1 'Alegreya Sans SC'; letter-spacing:.08em; color:oklch(0.72 0.015 80);">Effets en cours</div>
+                <div style="display:flex; flex-wrap:wrap; gap:5px;">
+                  <sc-for list="{{ hero.status }}" as="x" hint-placeholder-count="1"><div style="{{ x.style }}"><div style="{{ x.icon }}"></div><span>{{ x.t }}</span></div></sc-for>
+                </div>
+              </div>
+              <div ref="{{ rGlare2 }}" style="position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .3s ease; mix-blend-mode:soft-light;"></div>
+            </div>
+            <div ref="{{ rPop2 }}" style="position:absolute; left:35.5px; top:-112px; width:248.5px; height:117.95px; background:url('assets/art/archer_glace_buste_shiny.png') 0 0 / 100% 100% no-repeat; transform-origin:114.5px 262px; filter:drop-shadow(0 0 .6px oklch(0.25 0.08 320 / .9)) drop-shadow(0 0 8px oklch(0.75 0.2 330 / .45)) drop-shadow(0 3px 4px oklch(0 0 0 / .4)); pointer-events:none;"></div>
+            <div style="position:absolute; left:0; right:0; top:-118px; bottom:0; pointer-events:none;">
+              <sc-for list="{{ flakesFront2 }}" as="f" hint-placeholder-count="0"><div data-flake="1" data-dur="{{ f.dur }}" data-delay="{{ f.delay }}" data-drift="{{ f.drift }}" data-dist="{{ f.dist }}" data-op="{{ f.op }}" style="{{ f.style }}"></div></sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="2b" style="display:flex; flex-direction:column; gap:10px; width:280px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="padding:4px 8px; border-radius:6px; background:oklch(0.82 0.13 85); color:oklch(0.2 0.014 60); font:800 13px/1 'Alegreya Sans';">2b</span>
+        <span style="font:700 14px/1.3 'Alegreya Sans'; color:oklch(0.85 0.015 80);">Archer de glace · statique</span>
+      </div>
+      <div style="position:relative; width:280px; padding-top:118px;">
+        <div style="position:relative; width:280px; height:498px;">
+          <div style="position:relative; width:280px; height:498px;">
+            <div style="position:absolute; inset:0; display:flex; flex-direction:column; border-radius:12px; overflow:hidden; isolation:isolate; background:oklch(0.2 0.014 60); color:oklch(0.97 0.01 85); text-shadow:0 1px 2px oklch(0 0 0 / .9); box-shadow:0 0 0 2px oklch(0.56 0.15 255), 0 16px 36px oklch(0 0 0 / .5);">
+              <div style="position:absolute; z-index:-1; left:-17px; top:-126px; width:352.8px; height:627.2px; background:url('assets/art/archer_glace.jpg') 0 0 / 100% 100% no-repeat; transform-origin:167px 276px;"></div>
+              <div style="position:absolute; z-index:-1; inset:0; pointer-events:none; background:linear-gradient(180deg, oklch(0.12 0.01 60 / 0) 0, oklch(0.12 0.01 60 / 0) 88px, oklch(0.12 0.01 60 / .75) 136px, oklch(0.12 0.01 60 / .75) 100%);"></div>
+
+              <div style="position:relative; height:112px; flex:none;">
+                <div style="position:absolute; right:10px; top:10px; display:flex; align-items:center; gap:3px; height:28px; padding:0 10px 0 7px; border-radius:14px; background:linear-gradient(160deg, oklch(0.6 0.16 262), oklch(0.42 0.17 264)); box-shadow:inset 0 1px 0 oklch(0.82 0.09 255 / .6), 0 0 0 1px oklch(0.28 0.12 264), 0 3px 8px oklch(0 0 0 / .5); color:white; font:800 15px/1 'Alegreya Sans'; text-shadow:none;"><div style="width:15px; height:15px; background:center / contain no-repeat url('https://api.iconify.design/game-icons/water-drop.svg?color=%23ffffff');"></div><span>{{ hero.cost }}</span></div>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; padding:10px 12px; flex:none;">
+                <div style="flex:1; font:800 18px/1.1 'Alegreya Sans';">{{ hero.title }}</div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:9px; padding:0 12px 16px; flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; -webkit-mask-image:linear-gradient(180deg, #000 calc(100% - 16px), transparent); mask-image:linear-gradient(180deg, #000 calc(100% - 16px), transparent);">
+                <div style="display:flex; align-items:center; gap:6px;"><div style="{{ hero.typeIcon }}"></div><div style="font:800 12px/1 'Alegreya Sans SC'; letter-spacing:.06em; color:oklch(0.88 0.02 85);">{{ hero.type }}</div></div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(52px, 1fr)); gap:5px; padding-top:4px;">
+                  <sc-for list="{{ hero.stats }}" as="s" hint-placeholder-count="4">
+                    <div style="position:relative; padding:6px 2px 5px; border-radius:7px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .12); text-align:center;">
+                      <div style="{{ s.icon }}"></div>
+                      <div style="{{ s.vStyle }}">{{ s.v }}</div>
+                      <div style="font:700 10px/1.3 'Alegreya Sans SC'; letter-spacing:.03em; color:oklch(0.85 0.015 80);">{{ s.l }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <sc-for list="{{ hero.avail }}" as="a" hint-placeholder-count="1">
+                  <div style="display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; padding:6px 8px 6px 9px; border-radius:8px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .1);">
+                    <div style="{{ a.icon }}"></div>
+                    <span style="font:800 13px/1.2 'Alegreya Sans';">{{ a.label }}</span>
+                    <span style="{{ a.st }}"><span style="{{ a.dot }}"></span>{{ a.t }}</span>
+                  </div>
+                </sc-for>
+                <div style="{{ pasBox }}">
+                  <div style="{{ pasHead }}"><div style="{{ pasIcon }}"></div>Effet passif</div>
+                  <sc-for list="{{ hero.passive.items }}" as="p" hint-placeholder-count="1"><div style="font-size:14px; line-height:1.4; text-wrap:pretty;"><b>{{ p.name }}</b> · {{ p.text }}</div></sc-for>
+                </div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:6px; padding:9px 12px 11px; flex:none; background:oklch(0.13 0.012 60 / .76); box-shadow:inset 0 1px 0 oklch(0.38 0.014 60);">
+                <div style="font:800 11px/1 'Alegreya Sans SC'; letter-spacing:.08em; color:oklch(0.72 0.015 80);">Effets en cours</div>
+                <div style="display:flex; flex-wrap:wrap; gap:5px;">
+                  <sc-for list="{{ hero.status }}" as="x" hint-placeholder-count="1"><div style="{{ x.style }}"><div style="{{ x.icon }}"></div><span>{{ x.t }}</span></div></sc-for>
+                </div>
+              </div>
+            </div>
+            <div style="position:absolute; left:35.5px; top:-112px; width:248.5px; height:117.95px; background:url('assets/art/archer_glace_buste.png') 0 0 / 100% 100% no-repeat; transform-origin:114.5px 262px; filter:drop-shadow(0 0 .6px oklch(0.25 0.06 250 / .9)) drop-shadow(0 3px 4px oklch(0 0 0 / .4)); pointer-events:none;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="2d" style="display:flex; flex-direction:column; gap:10px; width:280px; margin:0 48px 0 60px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="padding:4px 8px; border-radius:6px; background:oklch(0.82 0.13 85); color:oklch(0.2 0.014 60); font:800 13px/1 'Alegreya Sans';">2d</span>
+        <span style="font:700 14px/1.3 'Alegreya Sans'; color:oklch(0.85 0.015 80);">Archer du feu · cligne des yeux</span>
+      </div>
+      <div ref="{{ rStage3 }}" onMouseMove="{{ heroMove3 }}" onMouseLeave="{{ heroLeave3 }}" style="position:relative; width:280px; padding-top:152px;">
+        <div ref="{{ rFloat3 }}" style="position:relative; width:280px; height:498px;">
+          <div ref="{{ rTilt3 }}" style="position:relative; width:280px; height:498px; transition:transform .35s cubic-bezier(.2,.8,.2,1); will-change:transform;">
+            <div style="position:absolute; inset:0; display:flex; flex-direction:column; border-radius:12px; overflow:hidden; isolation:isolate; background:oklch(0.2 0.014 60); color:oklch(0.97 0.01 85); text-shadow:0 1px 2px oklch(0 0 0 / .9); box-shadow:0 0 0 2px oklch(0.56 0.15 255), 0 16px 36px oklch(0 0 0 / .5);">
+              <div ref="{{ rArt3 }}" style="position:absolute; z-index:-1; left:-100px; top:-243.6px; width:423.36px; height:752.64px; background:url('assets/art/archer_feu_v2.jpg') 0 0 / 100% 100% no-repeat; transform-origin:240px 393.6px;"></div>
+              <div style="position:absolute; z-index:-1; inset:0; pointer-events:none;">
+                <sc-for list="{{ embersBack }}" as="f" hint-placeholder-count="0"><div data-flake="1" data-dur="{{ f.dur }}" data-delay="{{ f.delay }}" data-drift="{{ f.drift }}" data-dist="{{ f.dist }}" data-op="{{ f.op }}" style="{{ f.style }}"></div></sc-for>
+              </div>
+              <div style="position:absolute; z-index:-1; inset:0; pointer-events:none; background:linear-gradient(180deg, oklch(0.12 0.01 60 / 0) 0, oklch(0.12 0.01 60 / 0) 88px, oklch(0.12 0.01 60 / .75) 136px, oklch(0.12 0.01 60 / .75) 100%);"></div>
+              <div style="position:absolute; z-index:-1; inset:0; overflow:hidden; pointer-events:none;"><div ref="{{ rSweep3 }}" style="position:absolute; top:0; bottom:0; left:-50%; width:200%; background:linear-gradient(105deg, transparent 44%, oklch(0.95 0.09 70 / .24) 50%, transparent 56%); mix-blend-mode:screen; transform:translateX(-60%);"></div></div>
+
+              <div style="position:relative; height:112px; flex:none;">
+                <div style="position:absolute; right:10px; top:10px; display:flex; align-items:center; gap:3px; height:28px; padding:0 10px 0 7px; border-radius:14px; background:linear-gradient(160deg, oklch(0.6 0.16 262), oklch(0.42 0.17 264)); box-shadow:inset 0 1px 0 oklch(0.82 0.09 255 / .6), 0 0 0 1px oklch(0.28 0.12 264), 0 3px 8px oklch(0 0 0 / .5); color:white; font:800 15px/1 'Alegreya Sans'; text-shadow:none;"><div style="width:15px; height:15px; background:center / contain no-repeat url('https://api.iconify.design/game-icons/water-drop.svg?color=%23ffffff');"></div><span>{{ hero2.cost }}</span></div>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; padding:10px 12px; flex:none;">
+                <div style="flex:1; font:800 18px/1.1 'Alegreya Sans';">{{ hero2.title }}</div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:9px; padding:0 12px 16px; flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; -webkit-mask-image:linear-gradient(180deg, #000 calc(100% - 16px), transparent); mask-image:linear-gradient(180deg, #000 calc(100% - 16px), transparent);">
+                <div style="display:flex; align-items:center; gap:6px;"><div style="{{ hero2.typeIcon }}"></div><div style="font:800 12px/1 'Alegreya Sans SC'; letter-spacing:.06em; color:oklch(0.88 0.02 85);">{{ hero2.type }}</div></div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(52px, 1fr)); gap:5px; padding-top:4px;">
+                  <sc-for list="{{ hero2.stats }}" as="s" hint-placeholder-count="4">
+                    <div style="position:relative; padding:6px 2px 5px; border-radius:7px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .12); text-align:center;">
+                      <div style="{{ s.icon }}"></div>
+                      <div style="{{ s.vStyle }}">{{ s.v }}</div>
+                      <div style="font:700 10px/1.3 'Alegreya Sans SC'; letter-spacing:.03em; color:oklch(0.85 0.015 80);">{{ s.l }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <sc-for list="{{ hero2.avail }}" as="a" hint-placeholder-count="1">
+                  <div style="display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; padding:6px 8px 6px 9px; border-radius:8px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .1);">
+                    <div style="{{ a.icon }}"></div>
+                    <span style="font:800 13px/1.2 'Alegreya Sans';">{{ a.label }}</span>
+                    <span style="{{ a.st }}"><span style="{{ a.dot }}"></span>{{ a.t }}</span>
+                  </div>
+                </sc-for>
+                <div style="{{ pasBox }}">
+                  <div style="{{ pasHead }}"><div style="{{ pasIcon }}"></div>Effet passif</div>
+                  <sc-for list="{{ hero2.passive.items }}" as="p" hint-placeholder-count="1"><div style="font-size:14px; line-height:1.4; text-wrap:pretty;"><b>{{ p.name }}</b> · {{ p.text }}</div></sc-for>
+                </div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:6px; padding:9px 12px 11px; flex:none; background:oklch(0.13 0.012 60 / .76); box-shadow:inset 0 1px 0 oklch(0.38 0.014 60);">
+                <div style="font:800 11px/1 'Alegreya Sans SC'; letter-spacing:.08em; color:oklch(0.72 0.015 80);">Effets en cours</div>
+                <div style="display:flex; flex-wrap:wrap; gap:5px;">
+                  <sc-for list="{{ hero2.status }}" as="x" hint-placeholder-count="1"><div style="{{ x.style }}"><div style="{{ x.icon }}"></div><span>{{ x.t }}</span></div></sc-for>
+                </div>
+              </div>
+              <div ref="{{ rGlare3 }}" style="position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .3s ease; mix-blend-mode:soft-light;"></div>
+            </div>
+            <div ref="{{ rPop3 }}" style="position:absolute; left:-58px; top:-149.1px; width:381.36px; height:154.98px; background:url('assets/art/feu2_pop.png') 0 0 / 100% 100% no-repeat; transform-origin:198px 299.1px; filter:drop-shadow(0 0 .6px oklch(0.25 0.06 40 / .9)) drop-shadow(0 0 8px oklch(0.75 0.18 50 / .3)) drop-shadow(0 3px 4px oklch(0 0 0 / .4)); pointer-events:none;">
+              <div ref="{{ rBraidL3 }}" style="position:absolute; inset:0; background:url('assets/art/feu2_tresse_g.png') 0 0 / 100% 100% no-repeat; transform-origin:96.6px 86.1px;"></div>
+              <div ref="{{ rBraidR3 }}" style="position:absolute; inset:0; background:url('assets/art/feu2_tresse_d.png') 0 0 / 100% 100% no-repeat; transform-origin:220.5px 81.9px;"></div>
+              <div ref="{{ rBlink3 }}" style="position:absolute; left:117.6px; top:70.56px; width:75.6px; height:36.96px; background:url('assets/art/feu2_yeux_fermes.png') 0 0 / 100% 100% no-repeat; opacity:0;"></div>
+            </div>
+            <div ref="{{ rSides3 }}" style="position:absolute; left:-58px; top:0px; width:381.36px; height:105px; background:url('assets/art/feu2_cotes.png') 0 0 / 100% 100% no-repeat; transform-origin:198px 150px; pointer-events:none;"></div>
+            <div ref="{{ rGlow3 }}" style="position:absolute; left:185px; top:-116px; width:160px; height:160px; border-radius:50%; background:radial-gradient(closest-side, oklch(0.92 0.14 80 / .8), oklch(0.75 0.2 45 / .3) 60%, transparent); mix-blend-mode:screen; opacity:.5; pointer-events:none;"></div>
+            <div style="position:absolute; left:0; right:0; top:-152px; bottom:0; pointer-events:none;">
+              <sc-for list="{{ embersFront }}" as="f" hint-placeholder-count="0"><div data-flake="1" data-dur="{{ f.dur }}" data-delay="{{ f.delay }}" data-drift="{{ f.drift }}" data-dist="{{ f.dist }}" data-op="{{ f.op }}" style="{{ f.style }}"></div></sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="2f" style="display:flex; flex-direction:column; gap:10px; width:280px; margin:0 48px 0 60px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="padding:4px 8px; border-radius:6px; background:oklch(0.82 0.13 85); color:oklch(0.2 0.014 60); font:800 13px/1 'Alegreya Sans';">2f</span>
+        <span style="font:700 14px/1.3 'Alegreya Sans'; color:oklch(0.85 0.015 80);">Archer du feu · statique</span>
+      </div>
+      <div style="position:relative; width:280px; padding-top:152px;">
+        <div style="position:relative; width:280px; height:498px;">
+          <div style="position:relative; width:280px; height:498px;">
+            <div style="position:absolute; inset:0; display:flex; flex-direction:column; border-radius:12px; overflow:hidden; isolation:isolate; background:oklch(0.2 0.014 60); color:oklch(0.97 0.01 85); text-shadow:0 1px 2px oklch(0 0 0 / .9); box-shadow:0 0 0 2px oklch(0.56 0.15 255), 0 16px 36px oklch(0 0 0 / .5);">
+              <div style="position:absolute; z-index:-1; left:-100px; top:-243.6px; width:423.36px; height:752.64px; background:url('assets/art/archer_feu_v2.jpg') 0 0 / 100% 100% no-repeat; transform-origin:240px 393.6px;"></div>
+              <div style="position:absolute; z-index:-1; inset:0; pointer-events:none; background:linear-gradient(180deg, oklch(0.12 0.01 60 / 0) 0, oklch(0.12 0.01 60 / 0) 88px, oklch(0.12 0.01 60 / .75) 136px, oklch(0.12 0.01 60 / .75) 100%);"></div>
+
+              <div style="position:relative; height:112px; flex:none;">
+                <div style="position:absolute; right:10px; top:10px; display:flex; align-items:center; gap:3px; height:28px; padding:0 10px 0 7px; border-radius:14px; background:linear-gradient(160deg, oklch(0.6 0.16 262), oklch(0.42 0.17 264)); box-shadow:inset 0 1px 0 oklch(0.82 0.09 255 / .6), 0 0 0 1px oklch(0.28 0.12 264), 0 3px 8px oklch(0 0 0 / .5); color:white; font:800 15px/1 'Alegreya Sans'; text-shadow:none;"><div style="width:15px; height:15px; background:center / contain no-repeat url('https://api.iconify.design/game-icons/water-drop.svg?color=%23ffffff');"></div><span>{{ hero2.cost }}</span></div>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; padding:10px 12px; flex:none;">
+                <div style="flex:1; font:800 18px/1.1 'Alegreya Sans';">{{ hero2.title }}</div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:9px; padding:0 12px 16px; flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; -webkit-mask-image:linear-gradient(180deg, #000 calc(100% - 16px), transparent); mask-image:linear-gradient(180deg, #000 calc(100% - 16px), transparent);">
+                <div style="display:flex; align-items:center; gap:6px;"><div style="{{ hero2.typeIcon }}"></div><div style="font:800 12px/1 'Alegreya Sans SC'; letter-spacing:.06em; color:oklch(0.88 0.02 85);">{{ hero2.type }}</div></div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(52px, 1fr)); gap:5px; padding-top:4px;">
+                  <sc-for list="{{ hero2.stats }}" as="s" hint-placeholder-count="4">
+                    <div style="position:relative; padding:6px 2px 5px; border-radius:7px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .12); text-align:center;">
+                      <div style="{{ s.icon }}"></div>
+                      <div style="{{ s.vStyle }}">{{ s.v }}</div>
+                      <div style="font:700 10px/1.3 'Alegreya Sans SC'; letter-spacing:.03em; color:oklch(0.85 0.015 80);">{{ s.l }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <sc-for list="{{ hero2.avail }}" as="a" hint-placeholder-count="1">
+                  <div style="display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; padding:6px 8px 6px 9px; border-radius:8px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .1);">
+                    <div style="{{ a.icon }}"></div>
+                    <span style="font:800 13px/1.2 'Alegreya Sans';">{{ a.label }}</span>
+                    <span style="{{ a.st }}"><span style="{{ a.dot }}"></span>{{ a.t }}</span>
+                  </div>
+                </sc-for>
+                <div style="{{ pasBox }}">
+                  <div style="{{ pasHead }}"><div style="{{ pasIcon }}"></div>Effet passif</div>
+                  <sc-for list="{{ hero2.passive.items }}" as="p" hint-placeholder-count="1"><div style="font-size:14px; line-height:1.4; text-wrap:pretty;"><b>{{ p.name }}</b> · {{ p.text }}</div></sc-for>
+                </div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:6px; padding:9px 12px 11px; flex:none; background:oklch(0.13 0.012 60 / .76); box-shadow:inset 0 1px 0 oklch(0.38 0.014 60);">
+                <div style="font:800 11px/1 'Alegreya Sans SC'; letter-spacing:.08em; color:oklch(0.72 0.015 80);">Effets en cours</div>
+                <div style="display:flex; flex-wrap:wrap; gap:5px;">
+                  <sc-for list="{{ hero2.status }}" as="x" hint-placeholder-count="1"><div style="{{ x.style }}"><div style="{{ x.icon }}"></div><span>{{ x.t }}</span></div></sc-for>
+                </div>
+              </div>
+            </div>
+            <div style="position:absolute; left:-58px; top:-149.1px; width:381.36px; height:154.98px; background:url('assets/art/feu2_pop.png') 0 0 / 100% 100% no-repeat; transform-origin:198px 299.1px; filter:drop-shadow(0 0 .6px oklch(0.25 0.06 40 / .9)) drop-shadow(0 0 8px oklch(0.75 0.18 50 / .3)) drop-shadow(0 3px 4px oklch(0 0 0 / .4)); pointer-events:none;">
+              <div style="position:absolute; inset:0; background:url('assets/art/feu2_tresse_g.png') 0 0 / 100% 100% no-repeat; transform-origin:96.6px 86.1px;"></div>
+              <div style="position:absolute; inset:0; background:url('assets/art/feu2_tresse_d.png') 0 0 / 100% 100% no-repeat; transform-origin:220.5px 81.9px;"></div>
+            </div>
+            <div style="position:absolute; left:-58px; top:0px; width:381.36px; height:105px; background:url('assets/art/feu2_cotes.png') 0 0 / 100% 100% no-repeat; transform-origin:198px 150px; pointer-events:none;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="2e" style="display:flex; flex-direction:column; gap:10px; width:280px; margin:0 48px 0 60px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="padding:4px 8px; border-radius:6px; background:oklch(0.82 0.13 85); color:oklch(0.2 0.014 60); font:800 13px/1 'Alegreya Sans';">2e</span>
+        <span style="font:700 14px/1.3 'Alegreya Sans'; color:oklch(0.85 0.015 80);">Flamme bleue · version brillante</span>
+      </div>
+      <div ref="{{ rStage4 }}" onMouseMove="{{ heroMove4 }}" onMouseLeave="{{ heroLeave4 }}" style="position:relative; width:280px; padding-top:152px;">
+        <div ref="{{ rFloat4 }}" style="position:relative; width:280px; height:498px;">
+          <div ref="{{ rTilt4 }}" style="position:relative; width:280px; height:498px; transition:transform .35s cubic-bezier(.2,.8,.2,1); will-change:transform;">
+            <div style="position:absolute; inset:0; display:flex; flex-direction:column; border-radius:12px; overflow:hidden; isolation:isolate; background:oklch(0.2 0.014 60); color:oklch(0.97 0.01 85); text-shadow:0 1px 2px oklch(0 0 0 / .9); box-shadow:0 0 0 2px oklch(0.86 0.13 85), 0 0 22px oklch(0.7 0.2 330 / .45), 0 16px 36px oklch(0 0 0 / .5);">
+              <div ref="{{ rArt4 }}" style="position:absolute; z-index:-1; left:-100px; top:-243.6px; width:423.36px; height:752.64px; background:url('assets/art/archer_feu_v2_shiny.jpg') 0 0 / 100% 100% no-repeat; transform-origin:240px 393.6px;"></div>
+              <div style="position:absolute; z-index:-1; inset:0; pointer-events:none;">
+                <sc-for list="{{ flakesBack2 }}" as="f" hint-placeholder-count="0"><div data-flake="1" data-dur="{{ f.dur }}" data-delay="{{ f.delay }}" data-drift="{{ f.drift }}" data-dist="{{ f.dist }}" data-op="{{ f.op }}" style="{{ f.style }}"></div></sc-for>
+              </div>
+              <div style="position:absolute; z-index:-1; inset:0; pointer-events:none; background:linear-gradient(180deg, oklch(0.12 0.01 60 / 0) 0, oklch(0.12 0.01 60 / 0) 88px, oklch(0.12 0.01 60 / .75) 136px, oklch(0.12 0.01 60 / .75) 100%);"></div>
+              <div ref="{{ rHolo4 }}" style="position:absolute; z-index:-1; inset:0; pointer-events:none; background:linear-gradient(115deg, oklch(0.8 0.16 350), oklch(0.88 0.14 85), oklch(0.85 0.13 165), oklch(0.78 0.13 240), oklch(0.75 0.17 305), oklch(0.8 0.16 350)) 0% 50% / 300% 300%; mix-blend-mode:color-dodge; opacity:.22;"></div>
+              <div style="position:absolute; z-index:-1; inset:0; overflow:hidden; pointer-events:none;"><div ref="{{ rSweep4 }}" style="position:absolute; top:0; bottom:0; left:-50%; width:200%; background:linear-gradient(105deg, transparent 38%, oklch(0.9 0.14 350 / .4) 44%, oklch(0.93 0.13 90 / .4) 50%, oklch(0.9 0.12 170 / .4) 56%, transparent 62%); mix-blend-mode:screen; transform:translateX(-60%);"></div></div>
+
+              <div style="position:relative; height:112px; flex:none;">
+                <div style="position:absolute; right:10px; top:10px; display:flex; align-items:center; gap:3px; height:28px; padding:0 10px 0 7px; border-radius:14px; background:linear-gradient(160deg, oklch(0.6 0.16 262), oklch(0.42 0.17 264)); box-shadow:inset 0 1px 0 oklch(0.82 0.09 255 / .6), 0 0 0 1px oklch(0.28 0.12 264), 0 3px 8px oklch(0 0 0 / .5); color:white; font:800 15px/1 'Alegreya Sans'; text-shadow:none;"><div style="width:15px; height:15px; background:center / contain no-repeat url('https://api.iconify.design/game-icons/water-drop.svg?color=%23ffffff');"></div><span>{{ hero2.cost }}</span></div>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; padding:10px 12px; flex:none;">
+                <div style="flex:1; font:800 18px/1.1 'Alegreya Sans';">{{ hero2.title }}</div>
+                <div style="display:flex; align-items:center; gap:4px; height:20px; padding:0 8px; border-radius:10px; background:linear-gradient(110deg, oklch(0.78 0.16 350), oklch(0.88 0.14 85), oklch(0.82 0.13 170)); color:oklch(0.22 0.03 330); font:800 11px/1 'Alegreya Sans SC'; letter-spacing:.06em; text-shadow:none; flex:none;">★ Brillante</div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:9px; padding:0 12px 16px; flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; -webkit-mask-image:linear-gradient(180deg, #000 calc(100% - 16px), transparent); mask-image:linear-gradient(180deg, #000 calc(100% - 16px), transparent);">
+                <div style="display:flex; align-items:center; gap:6px;"><div style="{{ hero2.typeIcon }}"></div><div style="font:800 12px/1 'Alegreya Sans SC'; letter-spacing:.06em; color:oklch(0.88 0.02 85);">{{ hero2.type }}</div></div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(52px, 1fr)); gap:5px; padding-top:4px;">
+                  <sc-for list="{{ hero2.stats }}" as="s" hint-placeholder-count="4">
+                    <div style="position:relative; padding:6px 2px 5px; border-radius:7px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .12); text-align:center;">
+                      <div style="{{ s.icon }}"></div>
+                      <div style="{{ s.vStyle }}">{{ s.v }}</div>
+                      <div style="font:700 10px/1.3 'Alegreya Sans SC'; letter-spacing:.03em; color:oklch(0.85 0.015 80);">{{ s.l }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <sc-for list="{{ hero2.avail }}" as="a" hint-placeholder-count="1">
+                  <div style="display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; padding:6px 8px 6px 9px; border-radius:8px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .1);">
+                    <div style="{{ a.icon }}"></div>
+                    <span style="font:800 13px/1.2 'Alegreya Sans';">{{ a.label }}</span>
+                    <span style="{{ a.st }}"><span style="{{ a.dot }}"></span>{{ a.t }}</span>
+                  </div>
+                </sc-for>
+                <div style="{{ pasBox }}">
+                  <div style="{{ pasHead }}"><div style="{{ pasIcon }}"></div>Effet passif</div>
+                  <sc-for list="{{ hero2.passive.items }}" as="p" hint-placeholder-count="1"><div style="font-size:14px; line-height:1.4; text-wrap:pretty;"><b>{{ p.name }}</b> · {{ p.text }}</div></sc-for>
+                </div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:6px; padding:9px 12px 11px; flex:none; background:oklch(0.13 0.012 60 / .76); box-shadow:inset 0 1px 0 oklch(0.38 0.014 60);">
+                <div style="font:800 11px/1 'Alegreya Sans SC'; letter-spacing:.08em; color:oklch(0.72 0.015 80);">Effets en cours</div>
+                <div style="display:flex; flex-wrap:wrap; gap:5px;">
+                  <sc-for list="{{ hero2.status }}" as="x" hint-placeholder-count="1"><div style="{{ x.style }}"><div style="{{ x.icon }}"></div><span>{{ x.t }}</span></div></sc-for>
+                </div>
+              </div>
+              <div ref="{{ rGlare4 }}" style="position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .3s ease; mix-blend-mode:soft-light;"></div>
+            </div>
+            <div ref="{{ rPop4 }}" style="position:absolute; left:-58px; top:-149.1px; width:381.36px; height:154.98px; background:url('assets/art/feu2_pop_shiny.png') 0 0 / 100% 100% no-repeat; transform-origin:198px 299.1px; filter:drop-shadow(0 0 .6px oklch(0.25 0.06 250 / .9)) drop-shadow(0 0 8px oklch(0.75 0.16 240 / .45)) drop-shadow(0 3px 4px oklch(0 0 0 / .4)); pointer-events:none;">
+              <div ref="{{ rBraidL4 }}" style="position:absolute; inset:0; background:url('assets/art/feu2_tresse_g_shiny.png') 0 0 / 100% 100% no-repeat; transform-origin:96.6px 86.1px;"></div>
+              <div ref="{{ rBraidR4 }}" style="position:absolute; inset:0; background:url('assets/art/feu2_tresse_d_shiny.png') 0 0 / 100% 100% no-repeat; transform-origin:220.5px 81.9px;"></div>
+              <div ref="{{ rBlink4 }}" style="position:absolute; left:117.6px; top:70.56px; width:75.6px; height:36.96px; background:url('assets/art/feu2_yeux_fermes_shiny.png') 0 0 / 100% 100% no-repeat; opacity:0;"></div>
+            </div>
+            <div ref="{{ rSides4 }}" style="position:absolute; left:-58px; top:0px; width:381.36px; height:105px; background:url('assets/art/feu2_cotes_shiny.png') 0 0 / 100% 100% no-repeat; transform-origin:198px 150px; pointer-events:none;"></div>
+            <div ref="{{ rGlow4 }}" style="position:absolute; left:185px; top:-116px; width:160px; height:160px; border-radius:50%; background:radial-gradient(closest-side, oklch(0.88 0.12 230 / .85), oklch(0.65 0.18 255 / .3) 60%, transparent); mix-blend-mode:screen; opacity:.5; pointer-events:none;"></div>
+            <div style="position:absolute; left:0; right:0; top:-152px; bottom:0; pointer-events:none;">
+              <sc-for list="{{ flakesFront2 }}" as="f" hint-placeholder-count="0"><div data-flake="1" data-dur="{{ f.dur }}" data-delay="{{ f.delay }}" data-drift="{{ f.drift }}" data-dist="{{ f.dist }}" data-op="{{ f.op }}" style="{{ f.style }}"></div></sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:10px; max-width:360px; padding-top:150px; font:500 15px/1.4 'Alegreya Sans'; color:oklch(0.85 0.01 80);">
+      <div style="font:800 12px/1.2 'Alegreya Sans SC'; letter-spacing:.08em; color:oklch(0.75 0.015 80);">Ce qui bouge</div>
+      <div style="display:flex; gap:8px;"><span style="color:oklch(0.82 0.13 85);">◆</span><span style="text-wrap:pretty;">La tête, les épaules de glace et le haut de l’arc passent devant le cadre ; le décor reste dans la carte.</span></div>
+      <div style="display:flex; gap:8px;"><span style="color:oklch(0.82 0.13 85);">◆</span><span style="text-wrap:pretty;">Le personnage respire, la carte flotte.</span></div>
+      <div style="display:flex; gap:8px;"><span style="color:oklch(0.82 0.13 85);">◆</span><span style="text-wrap:pretty;">Neige derrière et devant le personnage, lueur sur les flèches, reflet qui balaie la carte.</span></div>
+      <div style="display:flex; gap:8px;"><span style="color:oklch(0.82 0.13 85);">◆</span><span style="text-wrap:pretty;">Au survol, la carte s’incline et accroche la lumière.</span></div>
+      <div style="margin-top:6px; font:500 13px/1.4 'Alegreya Sans'; color:oklch(0.68 0.012 80); text-wrap:pretty;"><a href="#2a">2a</a> est animée, <a href="#2b">2b</a> est la même carte, fixe, <a href="#2c">2c</a> est la version brillante. <a href="#2d">2d</a>, <a href="#2f">2f</a> et <a href="#2e">2e</a> : l’Archer du feu animé (clignement, tresses, braises), fixe, et en version brillante « Flamme bleue ». Il faut, en plus de l’illustration, un PNG transparent du haut du personnage (ici 710 × 337 px, détouré).</div>
+    </div>
+  </div>
+</section>
+
+<section data-screen-label="Fiches de carte" style="padding:48px; display:flex; flex-direction:column; gap:30px; color:oklch(0.95 0.01 85); font-family:'Alegreya Sans', sans-serif;">
+  <div style="display:flex; flex-direction:column; gap:10px; max-width:980px;">
+    <div style="font:800 13px/1 'Alegreya Sans SC'; letter-spacing:.1em; color:oklch(0.82 0.13 85);">Tour 1 · Fiches de carte</div>
+    <div style="font:800 40px/1.05 'Alegreya Sans';">Ce que la carte fait, et ce qu’elle peut faire maintenant</div>
+    <p style="margin:0; font:500 17px/1.45 'Alegreya Sans'; color:oklch(0.82 0.012 80); text-wrap:pretty;">Mana = goutte saphir. Effet passif en ambre, effet actif en violet, chacun avec sa disponibilité. Bonus et malus posés directement sur les stats. En bas, les effets qui touchent la carte.</p>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:14px 28px; align-items:center; padding:16px 20px; border-radius:14px; background:oklch(0.24 0.014 60); box-shadow:inset 0 0 0 1px oklch(0.34 0.014 60); max-width:980px; box-sizing:border-box;">
+    <div style="font:800 12px/1.2 'Alegreya Sans SC'; letter-spacing:.08em; color:oklch(0.75 0.015 80); width:100%;">La goutte, partout</div>
+    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:56px; padding:4px 0 4px 12px; border-left:1px solid oklch(0.34 0.014 60);">
+      <div style="font:800 24px/1 'Alegreya Sans'; color:oklch(0.78 0.12 258);">3</div>
+      <div style="display:flex; align-items:center; gap:3px; font:700 10px/1.3 'Alegreya Sans SC'; letter-spacing:.06em; color:oklch(0.7 0.015 80);"><div style="width:11px; height:11px; background:center / contain no-repeat url('https://api.iconify.design/game-icons/water-drop.svg?color=%237ea6f0');"></div>mana</div>
+    </div>
+    <div style="font:500 13px/1.3 'Alegreya Sans'; color:oklch(0.72 0.015 80); max-width:120px;">Barre du haut</div>
+    <div style="position:relative; width:112px; height:58px; border-radius:9px 9px 0 0; overflow:hidden; background:center / 30px no-repeat url('https://api.iconify.design/game-icons/fireball.svg?color=%23ffffff'), repeating-linear-gradient(135deg, oklch(0.42 0.06 70) 0 7px, oklch(0.36 0.05 70) 7px 14px);">
+      <div style="position:absolute; top:5px; left:5px; display:flex; align-items:center; gap:2px; height:20px; padding:0 7px 0 5px; border-radius:10px; background:linear-gradient(160deg, oklch(0.6 0.16 262), oklch(0.42 0.17 264)); box-shadow:inset 0 1px 0 oklch(0.82 0.09 255 / .6), 0 0 0 1px oklch(0.28 0.12 264); color:white; font:800 13px/1 'Alegreya Sans';"><div style="width:11px; height:11px; background:center / contain no-repeat url('https://api.iconify.design/game-icons/water-drop.svg?color=%23ffffff');"></div><span>3</span></div>
+    </div>
+    <div style="font:500 13px/1.3 'Alegreya Sans'; color:oklch(0.72 0.015 80); max-width:120px;">Coût sur le grimoire</div>
+    <div style="display:flex; align-items:center; gap:4px; font:800 22px/1 'Alegreya Sans'; color:oklch(0.82 0.11 258); text-shadow:0 2px 0 oklch(0.15 0.01 60);"><div style="{{ gem22 }}"></div>+3</div>
+    <div style="font:500 13px/1.3 'Alegreya Sans'; color:oklch(0.72 0.015 80); max-width:140px;">Gain de début de tour (icône qui vole vers le compteur)</div>
+    <div style="display:flex; align-items:center; gap:10px; margin-left:auto;">
+      <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><div style="width:34px; height:22px; border-radius:6px; background:oklch(0.52 0.17 262);"></div><span style="font:700 11px/1 'Alegreya Sans SC'; color:oklch(0.75 0.015 80);">Saphir</span></div>
+      <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><div style="width:34px; height:22px; border-radius:6px; background:oklch(0.56 0.15 255);"></div><span style="font:700 11px/1 'Alegreya Sans SC'; color:oklch(0.75 0.015 80);">Joueur 1</span></div>
+    </div>
+  </div>
+
+  <div style="{{ rowStyle }}">
+    <sc-for list="{{ cards }}" as="c" hint-placeholder-count="8">
+      <div id="{{ c.id }}" style="display:flex; flex-direction:column; gap:10px; width:280px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="padding:4px 8px; border-radius:6px; background:oklch(0.82 0.13 85); color:oklch(0.2 0.014 60); font:800 13px/1 'Alegreya Sans';">{{ c.id }}</span>
+          <span style="font:700 14px/1.3 'Alegreya Sans'; color:oklch(0.85 0.015 80); text-shadow:0 1px 2px oklch(0 0 0 / .6);">{{ c.ctx }}</span>
+        </div>
+        <div style="{{ c.frame }}">
+          <sc-if value="{{ c.of }}" hint-placeholder-val="{{ false }}">
+            <div style="{{ c.of.box }}">
+              <div style="{{ c.of.win }}"></div>
+              <div style="{{ c.of.pop }}"></div>
+              <div style="{{ c.of.costPos }}"><div style="display:flex; align-items:center; gap:3px; height:28px; padding:0 10px 0 7px; border-radius:14px; background:linear-gradient(160deg, oklch(0.6 0.16 262), oklch(0.42 0.17 264)); box-shadow:inset 0 1px 0 oklch(0.82 0.09 255 / .6), 0 0 0 1px oklch(0.28 0.12 264), 0 3px 8px oklch(0 0 0 / .5); color:white; font:800 15px/1 'Alegreya Sans'; text-shadow:none;"><div style="width:15px; height:15px; background:center / contain no-repeat url('https://api.iconify.design/game-icons/water-drop.svg?color=%23ffffff');"></div><span>{{ c.cost }}</span></div></div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ c.fa }}" hint-placeholder-val="{{ false }}">
+            <div style="position:relative; height:112px; flex:none;">
+              <div style="position:absolute; right:10px; top:10px; display:flex; align-items:center; gap:3px; height:28px; padding:0 10px 0 7px; border-radius:14px; background:linear-gradient(160deg, oklch(0.6 0.16 262), oklch(0.42 0.17 264)); box-shadow:inset 0 1px 0 oklch(0.82 0.09 255 / .6), 0 0 0 1px oklch(0.28 0.12 264), 0 3px 8px oklch(0 0 0 / .5); color:white; font:800 15px/1 'Alegreya Sans'; text-shadow:none;"><div style="width:15px; height:15px; background:center / contain no-repeat url('https://api.iconify.design/game-icons/water-drop.svg?color=%23ffffff');"></div><span>{{ c.cost }}</span></div>
+            </div>
+          </sc-if>
+          <div style="display:flex; align-items:center; gap:10px; padding:10px 12px; flex:none;">
+            <div style="flex:1; font:800 18px/1.1 'Alegreya Sans';">{{ c.title }}</div>
+            <sc-if value="{{ c.costHead }}" hint-placeholder-val="{{ true }}"><div style="display:flex; align-items:center; gap:3px; height:28px; padding:0 10px 0 7px; border-radius:14px; background:linear-gradient(160deg, oklch(0.6 0.16 262), oklch(0.42 0.17 264)); box-shadow:inset 0 1px 0 oklch(0.82 0.09 255 / .6), 0 0 0 1px oklch(0.28 0.12 264); color:white; font:800 15px/1 'Alegreya Sans'; flex:none; text-shadow:none;"><div style="width:15px; height:15px; background:center / contain no-repeat url('https://api.iconify.design/game-icons/water-drop.svg?color=%23ffffff');"></div><span>{{ c.cost }}</span></div></sc-if>
+          </div>
+          <sc-if value="{{ c.art }}" hint-placeholder-val="{{ true }}"><div style="{{ c.art }}"></div></sc-if>
+          <div style="{{ c.bodyStyle }}">
+            <div style="display:flex; align-items:center; gap:6px;"><div style="{{ c.typeIcon }}"></div><div style="font:800 12px/1 'Alegreya Sans SC'; letter-spacing:.06em; color:oklch(0.88 0.02 85);">{{ c.type }}</div></div>
+
+            <sc-if value="{{ c.stats }}" hint-placeholder-val="{{ true }}">
+              <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(52px, 1fr)); gap:5px; padding-top:4px;">
+                <sc-for list="{{ c.stats }}" as="s" hint-placeholder-count="4">
+                  <div style="position:relative; padding:6px 2px 5px; border-radius:7px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .12); text-align:center;">
+                    <div style="{{ s.icon }}"></div>
+                    <div style="{{ s.vStyle }}">{{ s.v }}<sc-if value="{{ s.inl }}" hint-placeholder-val="{{ false }}"><span style="{{ s.inlStyle }}">{{ s.inl }}</span></sc-if></div>
+                    <div style="font:700 10px/1.3 'Alegreya Sans SC'; letter-spacing:.03em; color:oklch(0.85 0.015 80);">{{ s.l }}</div>
+                    <sc-if value="{{ s.badge }}" hint-placeholder-val="{{ false }}"><div style="{{ s.badgeStyle }}">{{ s.badge }}</div></sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-for list="{{ c.avail }}" as="a" hint-placeholder-count="1">
+              <div style="display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; padding:6px 8px 6px 9px; border-radius:8px; background:oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(1 0 0 / .1);">
+                <div style="{{ a.icon }}"></div>
+                <span style="font:800 13px/1.2 'Alegreya Sans';">{{ a.label }}</span>
+                <span style="{{ a.st }}"><span style="{{ a.dot }}"></span>{{ a.t }}</span>
+              </div>
+            </sc-for>
+
+            <sc-if value="{{ c.passive }}" hint-placeholder-val="{{ false }}">
+              <div style="{{ pasBox }}">
+                <div style="{{ pasHead }}"><div style="{{ pasIcon }}"></div>Effet passif</div>
+                <sc-for list="{{ c.passive.items }}" as="p" hint-placeholder-count="1"><div style="font-size:14px; line-height:1.4; text-wrap:pretty;"><b>{{ p.name }}</b> · {{ p.text }}</div></sc-for>
+                <sc-if value="{{ c.passive.foot }}" hint-placeholder-val="{{ false }}"><div style="{{ c.passive.foot.style }}"><span style="{{ c.passive.foot.dot }}"></span>{{ c.passive.foot.t }}</div></sc-if>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ c.active }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; flex-direction:column; gap:6px; padding:8px 10px; border-radius:8px; background:linear-gradient(oklch(0.55 0.15 305 / .26), oklch(0.55 0.15 305 / .26)), oklch(0.13 0.01 60 / .55); box-shadow:inset 0 0 0 1px oklch(0.68 0.15 305 / .6);">
+                <div style="display:flex; align-items:center; gap:5px; font:800 11px/1 'Alegreya Sans SC'; letter-spacing:.06em; color:oklch(0.85 0.1 305);">
+                  <div style="width:15px; height:15px; background:center / contain no-repeat url('https://api.iconify.design/game-icons/magic-swirl.svg?color=%23d9b8f7');"></div>
+                  <span style="flex:1;">{{ c.active.label }}</span>
+                  <sc-if value="{{ c.active.cost }}" hint-placeholder-val="{{ false }}"><span style="display:flex; align-items:center; gap:2px; height:18px; padding:0 6px 0 4px; border-radius:9px; background:linear-gradient(160deg, oklch(0.6 0.16 262), oklch(0.42 0.17 264)); box-shadow:inset 0 1px 0 oklch(0.82 0.09 255 / .6); color:white; font:800 12px/1 'Alegreya Sans'; letter-spacing:0; text-shadow:none;"><span style="width:10px; height:10px; background:center / contain no-repeat url('https://api.iconify.design/game-icons/water-drop.svg?color=%23ffffff');"></span>{{ c.active.cost }}</span></sc-if>
+                </div>
+                <div style="font-size:14px; line-height:1.4; text-wrap:pretty;">{{ c.active.text }}</div>
+                <sc-if value="{{ c.active.foot }}" hint-placeholder-val="{{ false }}"><div style="{{ c.active.foot.style }}"><span style="{{ c.active.foot.dot }}"></span>{{ c.active.foot.t }}</div></sc-if>
+              </div>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{ c.statusOn }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex; flex-direction:column; gap:6px; padding:9px 12px 11px; flex:none; background:oklch(0.13 0.012 60 / .76); box-shadow:inset 0 1px 0 oklch(0.38 0.014 60); border-radius:0 0 12px 12px;">
+              <div style="font:800 11px/1 'Alegreya Sans SC'; letter-spacing:.08em; color:oklch(0.72 0.015 80);">Effets en cours</div>
+              <sc-if value="{{ c.statusNone }}" hint-placeholder-val="{{ false }}"><div style="font:500 13px/1.3 'Alegreya Sans'; color:oklch(0.68 0.012 80);">Aucun</div></sc-if>
+              <div style="display:flex; flex-wrap:wrap; gap:5px;">
+                <sc-for list="{{ c.status }}" as="x" hint-placeholder-count="0"><div style="{{ x.style }}"><div style="{{ x.icon }}"></div><span>{{ x.t }}</span></div></sc-for>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;animate&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Overframe animée&quot;},&quot;tilt&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Overframe animée&quot;},&quot;layout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;fond&quot;,&quot;bandeau&quot;,&quot;overframe&quot;],&quot;default&quot;:&quot;fond&quot;,&quot;tsType&quot;:&quot;'fond' | 'bandeau' | 'overframe'&quot;},&quot;translucent&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;deltaStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;pastille&quot;,&quot;texte&quot;],&quot;default&quot;:&quot;pastille&quot;,&quot;tsType&quot;:&quot;'pastille' | 'texte'&quot;},&quot;passiveColor&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;ambre&quot;,&quot;jade&quot;,&quot;argent&quot;],&quot;default&quot;:&quot;ambre&quot;,&quot;tsType&quot;:&quot;'ambre' | 'jade' | 'argent'&quot;}}">
+class Component extends DCLogic {
+  static IC = (n, hex) => `https://api.iconify.design/game-icons/${n}.svg?color=%23${hex}`;
+  static ico = (n, hex, s = 16, x = {}) => ({ width: s + 'px', height: s + 'px', flex: 'none', background: `center / contain no-repeat url("${Component.IC(n, hex)}")`, ...x });
+  static gem = s => { const u = `url("${Component.IC('water-drop', '000000')}") center / contain no-repeat`; return { width: s + 'px', height: s + 'px', flex: 'none', background: 'linear-gradient(160deg, oklch(0.9 0.07 250), oklch(0.6 0.18 262) 50%, oklch(0.36 0.15 266))', WebkitMask: u, mask: u }; };
+  static J = { 0: 'oklch(0.55 0.09 75)', 1: 'oklch(0.56 0.15 255)', 2: 'oklch(0.56 0.18 25)' };
+  static TONE = { ok: ['oklch(0.68 0.15 150)', 'oklch(0.9 0.09 150)'], warn: ['oklch(0.72 0.15 60)', 'oklch(0.92 0.08 70)'], off: ['oklch(0.62 0.01 80)', 'oklch(0.86 0.01 80)'], info: ['oklch(0.72 0.13 50)', 'oklch(0.9 0.06 60)'] };
+  static SI = { ATK: ['broadsword', 'ATK'], PV: ['hearts', 'PV'], MOB: ['walking-boot', 'Mobilité'], PAS: ['walking-boot', 'Pas rest.'], POR: ['high-shot', 'Portée'] };
+  static ST = {
+    board: ['walking-boot', 'oklch(0.66 0.14 150)', '9be3b0'], charge: ['sprint', 'oklch(0.66 0.14 150)', '9be3b0'],
+    givre: ['snowflake-1', 'oklch(0.74 0.09 220)', 'a9dcf0'], burn: ['flame', 'oklch(0.7 0.17 45)', 'ffb27a'],
+    zone: ['anvil', 'oklch(0.8 0.13 85)', 'ecd07a'], farm: ['wheat', 'oklch(0.8 0.13 85)', 'ecd07a'], terrain: ['obelisk', 'oklch(0.72 0.03 80)', 'e2d9ca'],
+  };
+  static HERO = { id: '2a', owner: 1, title: 'Archer de glace', cost: 3, art: 'frozen-arrow', type: 'Monstre · Joueur 1', ti: 'dragon-head',
+    stats: [['ATK', '1'], ['PV', '2/2'], ['PAS', '3/3'], ['POR', '3']],
+    avail: [['broadsword', 'Attaque', 'Disponible', 'ok']],
+    passive: { items: [['Givre', 'La cible perd 1 mobilité à son prochain tour.']] },
+    status: [['zone', 'Tient la Forge : +1 mana, +1 VP']] };
+  static FLAKES = (() => { let t = 7; const rnd = () => (t = (t * 9301 + 49297) % 233280) / 233280;
+    const gen = (n, front) => Array.from({ length: n }, (_, i) => { const sz = front ? 3 + rnd() * 3 : 1.5 + rnd() * 2.5;
+      return { key: (front ? 'f' : 'b') + i, dur: ((front ? 5 : 7) + rnd() * 6).toFixed(2), delay: (rnd() * 12).toFixed(2), drift: ((rnd() - .5) * 60).toFixed(1), dist: front ? 640 : 540, op: (front ? .5 + rnd() * .3 : .35 + rnd() * .45).toFixed(2),
+        style: { position: 'absolute', left: (rnd() * 300 - 10).toFixed(1) + 'px', top: (front ? -30 : -20) + 'px', width: sz.toFixed(1) + 'px', height: sz.toFixed(1) + 'px', borderRadius: '50%', background: 'oklch(0.98 0.01 240)', opacity: 0, filter: sz > 4 ? 'blur(1px)' : 'none', boxShadow: '0 0 4px oklch(0.95 0.03 230 / .8)' } }; });
+    return { back: gen(16, false), front: gen(6, true) }; })();
+  static mkRefs = () => ({ stage: React.createRef(), float: React.createRef(), tilt: React.createRef(), art: React.createRef(), pop: React.createRef(), glow: React.createRef(), sweep: React.createRef(), glare: React.createRef(), holo: React.createRef(), braidL: React.createRef(), braidR: React.createRef(), blink: React.createRef(), sides: React.createRef(), hair: React.createRef(), shine: React.createRef(), ring: React.createRef(), ringIn: React.createRef() });
+  R = Component.mkRefs(); R2 = Component.mkRefs(); R3 = Object.assign(Component.mkRefs(), { pad: 152 }); R4 = Object.assign(Component.mkRefs(), { pad: 152 }); R5 = Object.assign(Component.mkRefs(), { pad: 186 }); R6 = Object.assign(Component.mkRefs(), { pad: 162 });
+  static HERO4 = { id: '4a', owner: 1, title: 'Maître des heures', cost: 4, art: 'pocket-watch', type: 'Monstre · Joueur 1', ti: 'dragon-head',
+    stats: [['ATK', '2'], ['PV', '3/3'], ['PAS', '2/2'], ['POR', '2']],
+    avail: [['broadsword', 'Attaque', 'Disponible', 'ok']],
+    passive: { items: [['Contretemps', 'Au début de ton tour, un monstre allié adjacent récupère 1 pas.']] },
+    status: [['zone', 'Tient la Forge : +1 mana, +1 VP']] };
+  static HERO3 = { id: '3a', owner: 1, title: 'Chronomancienne', cost: 3, art: 'stopwatch', type: 'Monstre · Joueur 1', ti: 'dragon-head',
+    stats: [['ATK', '1'], ['PV', '2/2'], ['PAS', '2/2'], ['POR', '3']],
+    avail: [['broadsword', 'Attaque', 'Disponible', 'ok']],
+    passive: { items: [['Temps suspendu', 'La cible ne peut pas se déplacer à son prochain tour.']] },
+    status: [['zone', 'Tient la Forge : +1 mana, +1 VP']] };
+  static mkMotes(seed, purple) { let t = seed; const rnd = () => (t = (t * 9301 + 49297) % 233280) / 233280, star = 'polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%)';
+    const gen = (n, front) => Array.from({ length: n }, (_, i) => { const st = i % 4 === 0, sz = st ? (front ? 9 + rnd() * 5 : 6 + rnd() * 4) : (front ? 2.5 + rnd() * 2.5 : 1.5 + rnd() * 2), hue = purple && i % 3 === 2 ? 300 + rnd() * 15 : 75 + rnd() * 20;
+      return { key: (front ? 'mf' : 'mb') + i, dur: (6 + rnd() * 6).toFixed(2), delay: (rnd() * 12).toFixed(2), drift: ((rnd() - .3) * 70).toFixed(1), dist: -Math.round(90 + rnd() * 170), op: (.55 + rnd() * .45).toFixed(2),
+        style: { position: 'absolute', left: (front ? rnd() * 340 - 30 : rnd() * 280).toFixed(1) + 'px', top: (front ? 60 + rnd() * 560 : 110 + rnd() * 380).toFixed(1) + 'px', width: sz.toFixed(1) + 'px', height: sz.toFixed(1) + 'px', borderRadius: st ? 0 : '50%', clipPath: st ? star : 'none', background: `oklch(0.95 0.1 ${hue.toFixed(0)})`, opacity: 0, boxShadow: st ? 'none' : `0 0 5px 1px oklch(0.82 0.14 ${(hue - 5).toFixed(0)} / .85)` } }; });
+    return { back: gen(14, false), front: gen(8, true) }; }
+  static MOTES = Component.mkMotes(31, true); static MOTES2 = Component.mkMotes(47, false);
+  static HERO2 = { id: '2d', owner: 1, title: 'Archer du feu', cost: 3, art: 'fireball', type: 'Monstre · Joueur 1', ti: 'dragon-head',
+    stats: [['ATK', '2'], ['PV', '2/2'], ['PAS', '2/2'], ['POR', '2']],
+    avail: [['broadsword', 'Attaque', 'Disponible', 'ok']],
+    passive: { items: [['Brûlure', 'La cible perd 1 PV au début de son prochain tour.']] },
+    status: [['zone', 'Tient la Forge : +1 mana, +1 VP']] };
+  static EMBERS = (() => { let t = 23; const rnd = () => (t = (t * 9301 + 49297) % 233280) / 233280;
+    const gen = (n, front) => Array.from({ length: n }, (_, i) => { const sz = front ? 3 + rnd() * 3 : 2 + rnd() * 2.5, hue = 45 + rnd() * 35;
+      return { key: (front ? 'ef' : 'eb') + i, dur: ((front ? 4 : 5) + rnd() * 4).toFixed(2), delay: (rnd() * 9).toFixed(2), drift: ((rnd() - .5) * 70).toFixed(1), dist: front ? -640 : -540, op: (front ? .7 + rnd() * .3 : .55 + rnd() * .4).toFixed(2),
+        style: { position: 'absolute', left: (rnd() * 300 - 10).toFixed(1) + 'px', top: (front ? 600 : 505) + 'px', width: sz.toFixed(1) + 'px', height: sz.toFixed(1) + 'px', borderRadius: '50%', background: `oklch(0.88 0.16 ${hue.toFixed(0)})`, opacity: 0, boxShadow: `0 0 6px 1px oklch(0.75 0.19 ${(hue - 10).toFixed(0)} / .9)` } }; });
+    return { back: gen(14, false), front: gen(6, true) }; })();
+  static SPARKS = (() => { let t = 11; const rnd = () => (t = (t * 9301 + 49297) % 233280) / 233280, star = 'polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%)';
+    const gen = (n, front) => Array.from({ length: n }, (_, i) => { const sz = front ? 7 + rnd() * 6 : 4 + rnd() * 5, hue = [350, 85, 305, 170][i % 4];
+      return { key: (front ? 'sf' : 'sb') + i, dur: ((front ? 6 : 8) + rnd() * 6).toFixed(2), delay: (rnd() * 12).toFixed(2), drift: ((rnd() - .5) * 50).toFixed(1), dist: front ? 640 : 540, op: (front ? .7 + rnd() * .3 : .5 + rnd() * .4).toFixed(2),
+        style: { position: 'absolute', left: (rnd() * 300 - 10).toFixed(1) + 'px', top: (front ? -30 : -20) + 'px', width: sz.toFixed(1) + 'px', height: sz.toFixed(1) + 'px', clipPath: star, background: `oklch(0.95 0.1 ${hue})`, opacity: 0, filter: `drop-shadow(0 0 3px oklch(0.85 0.16 ${hue}))` } }; });
+    return { back: gen(14, false), front: gen(6, true) }; })();
+  componentDidMount() { this.startAnims(); }
+  componentDidUpdate(p) { if ((p.animate ?? true) !== (this.props.animate ?? true)) this.startAnims(); }
+  clearBlinks() { [this.R, this.R2, this.R3, this.R4, this.R5, this.R6].forEach(R => clearTimeout(R._bt)); }
+  componentWillUnmount() { (this._an || []).forEach(a => a.cancel()); this.clearBlinks(); }
+  startAnims() {
+    (this._an || []).forEach(a => a.cancel()); this._an = []; this.clearBlinks();
+    if (!(this.props.animate ?? true) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const go = (el, kf, o) => { if (!el || !el.animate) return null; const a = el.animate(kf, { iterations: Infinity, ...o }); this._an.push(a); return a; };
+    [this.R, this.R2, this.R3, this.R4, this.R5, this.R6].forEach((R, n) => { const sh = n % 2;
+      if (!R.stage.current) return;
+      go(R.float.current, [{ transform: 'translateY(0)' }, { transform: 'translateY(-6px)' }, { transform: 'translateY(0)' }], { duration: 5600, easing: 'ease-in-out', delay: -n * 1400 });
+      const br = [{ transform: 'scale(1)' }, { transform: 'scale(1.02)' }, { transform: 'scale(1)' }], bo = { duration: 4200, easing: 'ease-in-out' };
+      const sync = [go(R.art.current, br, bo), go(R.pop.current, br, bo), go(R.sides.current, br, bo)].filter(Boolean);
+      if (document.timeline) { const t = document.timeline.currentTime; sync.forEach(a => { a.startTime = t; }); }
+      go(R.glow.current, [{ opacity: .3, transform: 'scale(.92)' }, { opacity: .85, transform: 'scale(1.06)' }, { opacity: .3, transform: 'scale(.92)' }], { duration: 2600, easing: 'ease-in-out' });
+      go(R.sweep.current, [{ transform: 'translateX(-60%)', offset: 0 }, { transform: 'translateX(60%)', offset: .28 }, { transform: 'translateX(60%)', offset: 1 }], { duration: sh ? 4200 : 6500, easing: 'ease-in-out', delay: 1200 + n * 700 });
+      go(R.braidL.current, [{ transform: 'rotate(-2.5deg)' }, { transform: 'rotate(3deg)' }, { transform: 'rotate(-2.5deg)' }], { duration: 3400, easing: 'ease-in-out' });
+      go(R.braidR.current, [{ transform: 'rotate(2.5deg)' }, { transform: 'rotate(-3deg)' }, { transform: 'rotate(2.5deg)' }], { duration: 3900, easing: 'ease-in-out', delay: -900 });
+      go(R.hair.current, [{ transform: 'rotate(0deg) scaleX(1)' }, { transform: 'rotate(-2.2deg) scaleX(1.015)', offset: .35 }, { transform: 'rotate(1.4deg) scaleX(.995)', offset: .7 }, { transform: 'rotate(0deg) scaleX(1)' }], { duration: 3800, easing: 'ease-in-out' });
+      go(R.ring.current, [{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], { duration: 60000, easing: 'steps(60)' });
+      go(R.ringIn.current, [{ transform: 'rotate(0deg)' }, { transform: 'rotate(-360deg)' }], { duration: 24000, easing: 'linear' });
+      if (R.shine.current) { const mp = 'maskPosition' in document.body.style ? 'maskPosition' : 'webkitMaskPosition';
+        go(R.shine.current, [{ [mp]: '100% 0', offset: 0 }, { [mp]: '0% 0', offset: .4 }, { [mp]: '0% 0', offset: 1 }], { duration: 6000, easing: 'ease-in-out', delay: 600 }); }
+      if (R.blink.current) { const el = R.blink.current, once = () => el.animate([{ opacity: 0 }, { opacity: 1, offset: .25 }, { opacity: 1, offset: .7 }, { opacity: 0 }], { duration: 170 });
+        const loop = () => { once(); if (Math.random() < .22) setTimeout(once, 260); R._bt = setTimeout(loop, 2400 + Math.random() * 3200); }; R._bt = setTimeout(loop, 1200 + n * 500); }
+      go(R.holo.current, [{ backgroundPosition: '0% 50%' }, { backgroundPosition: '100% 50%' }, { backgroundPosition: '0% 50%' }], { duration: 9000, easing: 'ease-in-out' });
+      R.stage.current.querySelectorAll('[data-flake]').forEach(el => { const d = el.dataset, o = +d.op;
+        go(el, [{ transform: 'translate(0px, 0px) rotate(0deg)', opacity: 0, offset: 0 }, { opacity: o, offset: .12 }, { opacity: o, offset: .82 }, { transform: `translate(${d.drift}px, ${d.dist}px) rotate(${sh ? 180 : 0}deg)`, opacity: 0, offset: 1 }], { duration: +d.dur * 1000, delay: -d.delay * 1000, easing: 'linear' }); });
+    });
+  }
+  mkMove(R) { return e => {
+    if (!(this.props.tilt ?? true)) return;
+    const st = R.stage.current, t = R.tilt.current, g = R.glare.current; if (!st || !t) return;
+    const b = st.getBoundingClientRect(), px = Math.min(1, Math.max(0, (e.clientX - b.left) / 280)), py = Math.min(1, Math.max(0, (e.clientY - b.top - (R.pad || 118)) / 498));
+    t.style.transform = `perspective(1000px) rotateX(${((.5 - py) * 12).toFixed(2)}deg) rotateY(${((px - .5) * 14).toFixed(2)}deg)`;
+    if (g) { g.style.opacity = '1'; g.style.background = `radial-gradient(circle at ${(px * 100).toFixed(1)}% ${(py * 100).toFixed(1)}%, oklch(1 0 0 / .35), transparent 55%)`; }
+    if (R.holo.current) R.holo.current.style.opacity = (.22 + .25 * Math.abs(px - .5) * 2).toFixed(2);
+  }; }
+  mkLeave(R) { return () => { const t = R.tilt.current, g = R.glare.current; if (t) t.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg)'; if (g) g.style.opacity = '0'; if (R.holo.current) R.holo.current.style.opacity = '.22'; }; }
+  heroMove = this.mkMove(this.R); heroLeave = this.mkLeave(this.R); heroMove2 = this.mkMove(this.R2); heroLeave2 = this.mkLeave(this.R2); heroMove3 = this.mkMove(this.R3); heroLeave3 = this.mkLeave(this.R3); heroMove4 = this.mkMove(this.R4); heroLeave4 = this.mkLeave(this.R4); heroMove5 = this.mkMove(this.R5); heroLeave5 = this.mkLeave(this.R5); heroMove6 = this.mkMove(this.R6); heroLeave6 = this.mkLeave(this.R6);
+  static CARDS = [
+    { id: '1a', ctx: 'Grimoire · tu as 3 mana', owner: 0, title: 'Téléporteur', cost: 4, art: 'teleport', type: 'Carte monstre', ti: 'dragon-head',
+      stats: [['ATK', '1'], ['PV', '3'], ['MOB', '4', 1], ['POR', '2']],
+      avail: [['card-play', 'Invocation', 'Mana insuffisant · il te manque 1', 'warn']],
+      active: { cost: 1, text: 'Pose un de tes monstres, où qu’il soit, sur une case adjacente libre ; il garde sa mobilité, son attaque et son orientation.' },
+      status: [['board', 'Plateau : +1 mobilité, tous les monstres']] },
+    { id: '1b', ctx: 'Ton monstre · prêt', owner: 2, title: 'Gardien', cost: 3, art: 'checked-shield', type: 'Monstre · Joueur 2', ti: 'dragon-head',
+      stats: [['ATK', '2'], ['PV', '4/4'], ['PAS', '2/2'], ['POR', '1']],
+      avail: [['broadsword', 'Attaque', 'Disponible', 'ok']],
+      passive: { items: [['Riposte', 'Attaqué au contact et encore en vie, rend son ATK à l’attaquant.']], foot: ['Prête · une fois par tour', 'ok'] },
+      status: [['zone', 'Tient la Forge : +1 mana, +1 VP']] },
+    { id: '1c', ctx: 'Ton monstre · gelé et blessé', owner: 1, title: 'Archer du feu', cost: 3, img: 'assets/art/apprentie-feu.jpg', cardImg: 'assets/art/apprentie-feu-carte.jpg', type: 'Monstre · Joueur 1', ti: 'dragon-head',
+      stats: [['ATK', '2'], ['PV', '1/2', 0, 1], ['PAS', '2/2', -1], ['POR', '2']],
+      avail: [['broadsword', 'Attaque', 'Disponible', 'ok']],
+      passive: { items: [['Brûlure', 'La cible perd 1 PV au début de son prochain tour.']] },
+      status: [['givre', 'Givre : −1 mobilité ce tour'], ['burn', 'Brûlure : −1 PV au prochain tour']] },
+    { id: '1d', ctx: 'Ton monstre · effet déjà joué', owner: 2, title: 'Poseur de bombe', cost: 2, art: 'time-bomb', type: 'Monstre · Joueur 2', ti: 'dragon-head',
+      stats: [['ATK', '2'], ['PV', '1/1'], ['PAS', '7/7', 2], ['POR', '1']],
+      avail: [['broadsword', 'Attaque', 'Aucune cible à portée', 'off']],
+      active: { cost: 2, text: 'Piège une case adjacente. Un ennemi qui y passe perd 3 PV. Invisible pour l’adversaire.', foot: ['Déjà utilisé ce tour', 'off'] },
+      status: [['charge', 'Charge : +2 mobilité ce tour']] },
+    { id: '1e', ctx: 'Ton monstre · plus de mana', owner: 2, title: 'Poseur de piège', cost: 2, art: 'wolf-trap', type: 'Monstre · Joueur 2', ti: 'dragon-head',
+      stats: [['ATK', '1'], ['PV', '1/1'], ['PAS', '0/3'], ['POR', '1']],
+      avail: [['broadsword', 'Attaque', 'Utilisée ce tour', 'off']],
+      active: { cost: 1, text: 'Piège une case adjacente. Un ennemi qui y passe est immobilisé. Invisible pour l’adversaire.', foot: ['Mana insuffisant · il te manque 1', 'warn'] },
+      status: [] },
+    { id: '1f', ctx: 'Monstre adverse', owner: 1, title: 'Archer de glace', cost: 3, art: 'frozen-arrow', type: 'Monstre · Joueur 1 (adversaire)', ti: 'dragon-head',
+      stats: [['ATK', '1'], ['PV', '2/2'], ['MOB', '3'], ['POR', '3']],
+      avail: [['crosshair', 'Menace', 'Zone hachurée orange sur le plateau', 'info']],
+      passive: { items: [['Givre', 'La cible perd 1 mobilité à son prochain tour.']] },
+      status: [['terrain', 'Sur Autel de mana (3 PV)']] },
+    { id: '1g', ctx: 'Grimoire · sort', owner: 0, title: 'Boule de feu', cost: 3, art: 'fireball', type: 'Carte sort', ti: 'spell-book',
+      avail: [['card-play', 'Lancer', 'Aucune cible à portée 3', 'warn']],
+      active: { text: '3 dégâts à une cible à portée 3 d’un de tes monstres.' } },
+    { id: '1h', ctx: 'Terrain sur le plateau', owner: 2, title: 'Bastion', cost: 2, art: 'castle', type: 'Terrain · Joueur 2', ti: 'castle',
+      stats: [['PV', '3/4', 0, 1]],
+      passive: { items: [['Garde la zone', 'Tient la mana zone pour toi, même sans monstre dessus.']] },
+      status: [['farm', 'Tient la Ferme : +1 mana, +1 VP']] },
+    { id: '1i', ctx: 'Texte long · la zone défile (exemple fictif)', owner: 2, title: 'Nécromancienne', cost: 5, art: 'death-skull', type: 'Monstre · Joueur 2', ti: 'dragon-head',
+      stats: [['ATK', '2'], ['PV', '3/3'], ['PAS', '2/2'], ['POR', '2']],
+      avail: [['broadsword', 'Attaque', 'Disponible', 'ok']],
+      passive: { items: [['Moisson', 'Quand un monstre meurt à portée 2 de la Nécromancienne, elle gagne +1 PV max (jusqu’à 6) et l’adversaire perd 1 VP s’il s’agissait d’un de ses monstres.']] },
+      active: { cost: 2, text: 'Relève le dernier de tes monstres détruit ce tour-ci sur une case adjacente libre, avec 1 PV et sans mobilité. Il ne peut ni attaquer ni utiliser son effet avant ton prochain tour, et il est détruit à la fin de ton prochain tour s’il n’a pas été soigné.', foot: ['Disponible', 'ok'] },
+      status: [['zone', 'Tient la Forge : +1 mana, +1 VP']] },
+  ];
+
+  pill(t, tone, align) {
+    const [b, f] = Component.TONE[tone];
+    return { t, dot: { width: '7px', height: '7px', borderRadius: '50%', background: b, flex: 'none', boxShadow: `0 0 6px ${b}` },
+      style: { display: 'flex', alignItems: 'center', gap: '6px', paddingTop: '6px', borderTop: '1px solid oklch(1 0 0 / .14)', font: "800 12.5px/1.25 'Alegreya Sans'", color: f },
+      st: { marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap', font: "800 12.5px/1.2 'Alegreya Sans'", color: f } };
+  }
+
+  renderVals() {
+    const C = Component, LY = this.props.layout ?? 'fond', OF = LY === 'overframe', FA = LY === 'fond', clear = this.props.translucent ?? false, dm = this.props.deltaStyle ?? 'pastille', pc = this.props.passiveColor ?? 'ambre';
+    const PH = { ambre: [75, 0.12, 0.72], jade: [165, 0.1, 0.7], argent: [250, 0.02, 0.78] }[pc] || [75, 0.12, 0.72];
+    const pas = (l, a) => `oklch(${l} ${PH[1]} ${PH[0]}${a != null ? ` / ${a}` : ''})`;
+    const mk = d => {
+      const tone = C.J[d.owner];
+      const [a1, a2] = d.owner === 1 ? ['oklch(0.42 0.1 255)', 'oklch(0.36 0.09 255)'] : d.owner === 2 ? ['oklch(0.42 0.12 25)', 'oklch(0.36 0.11 25)'] : ['oklch(0.42 0.06 70)', 'oklch(0.36 0.05 70)'];
+      const art = d.img ? { height: '84px', background: `url("${d.img}") 50% 24% / cover`, opacity: .92 }
+        : { height: '84px', background: `center / 40px no-repeat url("${C.IC(d.art, 'ffffff')}"), repeating-linear-gradient(135deg, ${a1} 0 7px, ${a2} 7px 14px)`, opacity: .92 };
+      const stats = d.stats ? d.stats.map(([k, v, delta, hurt]) => {
+        const up = delta > 0, dn = delta < 0, col = up ? 'oklch(0.86 0.14 150)' : dn || hurt ? 'oklch(0.78 0.16 28)' : 'oklch(0.97 0.01 85)';
+        const lab = delta ? (up ? '+' : '−') + Math.abs(delta) : null;
+        return { key: k, l: C.SI[k][1], v, icon: C.ico(C.SI[k][0], 'f2ebe0', 16, { margin: '0 auto 4px' }), vStyle: { font: "800 18px/1 'Alegreya Sans'", color: col },
+          badge: dm === 'pastille' ? lab : null, inl: dm === 'texte' && lab ? ` ${lab}` : null, inlStyle: { font: "800 12px/1 'Alegreya Sans'", color: col, verticalAlign: '3px', marginLeft: '1px' },
+          badgeStyle: { position: 'absolute', top: '-7px', right: '-5px', padding: '2px 5px', borderRadius: '8px', font: "800 11px/1 'Alegreya Sans'", color: 'white', textShadow: 'none', background: up ? 'oklch(0.55 0.15 150)' : 'oklch(0.55 0.19 28)', boxShadow: '0 0 0 2px oklch(0.2 0.014 60)' } };
+      }) : null;
+      const avail = (d.avail || []).map(([ic, label, t, tn]) => { const p = this.pill(t, tn); return { key: label, label, t, icon: C.ico(ic, 'e2d9ca', 15), dot: p.dot, st: p.st }; });
+      const foot = f => f ? this.pill(f[0], f[1]) : null;
+      const status = d.status ? d.status.map(([k, t]) => { const [ic, col, hex] = C.ST[k]; return { key: t, t, icon: C.ico(ic, hex, 14),
+        style: { display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 8px 4px 6px', borderRadius: '7px', font: "700 12.5px/1.2 'Alegreya Sans'", color: 'oklch(0.95 0.01 85)', background: col.replace(')', ' / .2)'), boxShadow: `inset 0 0 0 1px ${col.replace(')', ' / .55)')}` } }; }) : [];
+      let of = null;
+      if (OF) {
+        const WT = 52, ring = `0 0 0 2px ${tone}, inset 0 0 0 1px oklch(1 0 0 / .18), 0 8px 18px oklch(0 0 0 / .45)`, win = { position: 'absolute', left: 0, right: 0, top: WT + 'px', bottom: 0, borderRadius: '10px', boxShadow: ring };
+        let pop;
+        if (d.img) {
+          const s = .42, x0 = -60, y0 = -11, sz = `${Math.round(1024 * s)}px auto`, m = 'radial-gradient(ellipse 60px 60px at 147px 42px, #000 45%, transparent 92%), radial-gradient(ellipse 46px 44px at 242px 38px, #000 40%, transparent 90%)';
+          win.background = `url("${d.img}") ${x0}px ${y0 - WT}px / ${sz} no-repeat`;
+          pop = { position: 'absolute', inset: 0, background: `url("${d.img}") ${x0}px ${y0}px / ${sz} no-repeat`, WebkitMaskImage: m, maskImage: m };
+        } else {
+          win.background = `repeating-linear-gradient(135deg, ${a1} 0 7px, ${a2} 7px 14px)`;
+          pop = { position: 'absolute', left: '50%', top: '10px', width: '92px', height: '92px', transform: 'translateX(-50%)', background: `center / contain no-repeat url("${C.IC(d.art, 'ffffff')}")`, filter: 'drop-shadow(0 6px 4px oklch(0 0 0 / .55))' };
+        }
+        of = { box: { position: 'relative', height: WT + 110 + 'px', margin: `-${WT + 6}px -7px 0` }, win, pop, costPos: { position: 'absolute', right: '9px', top: WT + 8 + 'px' } };
+      }
+      const veil = 'linear-gradient(180deg, oklch(0.12 0.01 60 / 0) 0, oklch(0.12 0.01 60 / 0) 88px, oklch(0.12 0.01 60 / .75) 136px, oklch(0.12 0.01 60 / .75) 100%)';
+      const faBg = d.img ? `${veil}, url("${d.cardImg || d.img}") center top / cover no-repeat, oklch(0.2 0.014 60)`
+        : `${veil}, center 14px / 72px no-repeat url("${C.IC(d.art, 'ffffff')}"), repeating-linear-gradient(135deg, ${a1} 0 7px, ${a2} 7px 14px)`;
+      return { id: d.id, ctx: d.ctx, title: d.title, cost: d.cost, costHead: OF || FA ? null : d.cost, of, fa: FA ? {} : null, art: OF || FA ? null : art, type: d.type, typeIcon: C.ico(d.ti, 'e2d9ca', 17), stats, avail,
+        passive: d.passive ? { items: d.passive.items.map(([name, text]) => ({ key: name, name, text })), foot: foot(d.passive.foot) } : null,
+        active: d.active ? { label: d.active.label || 'Effet actif', cost: d.active.cost || null, text: d.active.text, foot: foot(d.active.foot) } : null,
+        bodyStyle: FA ? { display: 'flex', flexDirection: 'column', gap: '9px', padding: '10px 12px 16px', flex: '1', minHeight: 0, overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: 'thin', scrollbarColor: 'oklch(0.7 0.02 80 / .55) transparent', WebkitMaskImage: 'linear-gradient(180deg, #000 calc(100% - 16px), transparent)', maskImage: 'linear-gradient(180deg, #000 calc(100% - 16px), transparent)' } : { display: 'flex', flexDirection: 'column', gap: '9px', padding: '10px 12px 12px' },
+        statusOn: !!d.status, statusNone: !!d.status && !d.status.length, status,
+        frame: { ...(FA ? { height: '498px', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' } : {}), borderRadius: '12px', overflow: OF ? 'visible' : 'hidden', marginTop: OF ? '58px' : 0, color: 'oklch(0.97 0.01 85)', background: FA ? faBg : clear ? 'oklch(0.16 0.014 60 / .55)' : 'oklch(0.2 0.014 60)', textShadow: clear || FA ? '0 1px 2px oklch(0 0 0 / .9)' : 'none', boxShadow: `0 0 0 2px ${tone}, 0 10px 28px oklch(0 0 0 / .4)` } };
+    };
+    const cards = C.CARDS.map(mk), hero = mk(C.HERO), hero2 = mk(C.HERO2), hero3 = mk(C.HERO3), hero4 = mk(C.HERO4), R = this.R;
+    return {
+      cards, hero, hero2, hero3, embersBack: C.EMBERS.back, embersFront: C.EMBERS.front, motesBack: C.MOTES.back, motesFront: C.MOTES.front, hero4, motesBack2: C.MOTES2.back, motesFront2: C.MOTES2.front,
+      ...Object.fromEntries([['3', this.R3], ['4', this.R4], ['5', this.R5], ['6', this.R6]].flatMap(([k, X]) => [['rStage', 'stage'], ['rFloat', 'float'], ['rTilt', 'tilt'], ['rArt', 'art'], ['rPop', 'pop'], ['rGlow', 'glow'], ['rSweep', 'sweep'], ['rGlare', 'glare'], ['rHolo', 'holo'], ['rBraidL', 'braidL'], ['rBraidR', 'braidR'], ['rBlink', 'blink'], ['rSides', 'sides'], ['rHair', 'hair'], ['rShine', 'shine'], ['rRing', 'ring'], ['rRingIn', 'ringIn']].map(([n, f]) => [n + k, X[f]]))),
+      heroMove5: this.heroMove5, heroLeave5: this.heroLeave5, heroMove6: this.heroMove6, heroLeave6: this.heroLeave6,
+      heroMove3: this.heroMove3, heroLeave3: this.heroLeave3, heroMove4: this.heroMove4, heroLeave4: this.heroLeave4,
+      flakesBack: C.FLAKES.back, flakesFront: C.FLAKES.front,
+      rStage: R.stage, rFloat: R.float, rTilt: R.tilt, rArt: R.art, rPop: R.pop, rGlow: R.glow, rSweep: R.sweep, rGlare: R.glare,
+      rStage2: this.R2.stage, rFloat2: this.R2.float, rTilt2: this.R2.tilt, rArt2: this.R2.art, rPop2: this.R2.pop, rGlow2: this.R2.glow, rSweep2: this.R2.sweep, rGlare2: this.R2.glare, rHolo2: this.R2.holo,
+      flakesBack2: C.SPARKS.back, flakesFront2: C.SPARKS.front,
+      heroMove: this.heroMove, heroLeave: this.heroLeave, heroMove2: this.heroMove2, heroLeave2: this.heroLeave2,
+      gem22: C.ico('water-drop', '7ea6f0', 22),
+      rowStyle: { display: 'flex', flexWrap: 'wrap', gap: '36px 28px', alignItems: 'flex-start', padding: clear ? '28px' : 0, borderRadius: '16px', background: clear ? 'radial-gradient(60% 50% at 25% 25%, oklch(0.52 0.08 135), transparent 70%), radial-gradient(55% 50% at 78% 72%, oklch(0.48 0.07 115), transparent 70%), linear-gradient(160deg, oklch(0.44 0.07 140), oklch(0.34 0.05 125))' : 'none' },
+      pasBox: { display: 'flex', flexDirection: 'column', gap: '6px', padding: '8px 10px', borderRadius: '8px', background: `linear-gradient(${pas(PH[2] - .17, .24)}, ${pas(PH[2] - .17, .24)}), oklch(0.13 0.01 60 / .55)`, boxShadow: `inset 0 0 0 1px ${pas(PH[2], .6)}` },
+      pasHead: { display: 'flex', alignItems: 'center', gap: '5px', font: "800 11px/1 'Alegreya Sans SC'", letterSpacing: '.06em', color: pas(.87) },
+      pasIcon: C.ico('aura', pc === 'jade' ? '9fe0cc' : pc === 'argent' ? 'd5dbe6' : 'ecc983', 15),
+    };
+  }
+}
+</script>
+</body>
+</html>

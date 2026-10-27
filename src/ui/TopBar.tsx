@@ -1,103 +1,65 @@
-// Barre du haut, aussi fine que possible : le tour, puis la vue du plateau, les stats des jetons (lot 6), le zoom, le son et la nouvelle
-// partie (retour à l'accueil). « Fin du tour » est en haut de la colonne de droite, au-dessus du grimoire (lot 11) ; les encarts des
-// joueurs (SPEC.md §7) sont dans les colonnes (`PlayerBox`).
-import { useState } from 'react';
+// Barre du haut (handoff V11, lot 12 §1 et lot 13 §5), toujours sur une ligne, en trois colonnes : rien à gauche ;
+// au centre, le score de J1 · « Fin du tour » · le score de J2 (places fixes, J2 en miroir) ; à droite, « Tour N »,
+// l'icône de l'aide et la roue des options (`OptionsMenu`).
 import type { PlayerView } from '../engine';
 import { Icon } from './Icon';
-import { StatsControl } from './StatsControl';
-import { ZOOMS, stepZoom } from './settings';
-import type { BoardView, TokenStats } from './settings';
+import { OptionsMenu } from './OptionsMenu';
+import { ScoreBox } from './ScoreBox';
+import type { Setup } from './session';
+import type { BoardView, DisplaySettings } from './settings';
 
 interface TopBarProps {
   view: PlayerView;
+  setup: Setup;
+  /** « Fin du tour » cliquable (mon tour, rien en cours d'animation). */
+  canEndTurn: boolean;
+  onEndTurn: () => void;
+  helpOpen: boolean;
+  onHelp: () => void;
+  settings: DisplaySettings;
   boardView: BoardView;
-  /** La vue isométrique existe pour ce plateau. */
   isoAvailable: boolean;
-  onView: (view: BoardView) => void;
-  stats: TokenStats;
-  onStats: (stats: TokenStats) => void;
-  peek: boolean;
-  onPeek: (on: boolean) => void;
-  zoom: number;
-  onZoom: (zoom: number) => void;
-  sound: boolean;
+  onSettings: (patch: Partial<DisplaySettings>) => void;
   onSound: (on: boolean) => void;
   /** Retour à l'accueil, pour régler une nouvelle partie. */
   onHome: () => void;
+  /** Animations permises (orbes de mana). */
+  animated?: boolean;
 }
-
-const VIEWS: [BoardView, string][] = [
-  ['top', 'Dessus'],
-  ['tilt', 'Inclinée 45°'],
-  ['iso', 'Isométrique'],
-];
 
 export function TopBar(props: TopBarProps) {
-  const { view, boardView, isoAvailable, onView, stats, onStats, peek, onPeek, zoom, onZoom, sound, onSound, onHome } = props;
-  const zoomIndex = ZOOMS.indexOf(zoom);
+  const { view, setup, canEndTurn, onEndTurn, helpOpen, onHelp, animated = true } = props;
   return (
     <header className="topbar">
-      <span className="topbar__turn">Tour {view.turn}</span>
+      <div />
+      <div className="topbar__center">
+        <ScoreBox view={view} player={1} deckName={setup.decks[1].name} ai={setup.ai === 1} animated={animated} />
+        <button type="button" className="btn btn--end-turn" disabled={!canEndTurn} onClick={onEndTurn}>
+          Fin du tour
+        </button>
+        <ScoreBox view={view} player={2} deckName={setup.decks[2].name} ai={setup.ai === 2} animated={animated} />
+      </div>
       <div className="topbar__end">
-        <div className="view-switch" role="group" aria-label="Vue du plateau">
-          {VIEWS.filter(([value]) => value !== 'iso' || isoAvailable).map(([value, label]) => (
-            <button key={value} type="button" aria-pressed={boardView === value} onClick={() => onView(value)}>
-              {label}
-            </button>
-          ))}
-        </div>
-        <StatsControl stats={stats} onChange={onStats} peek={peek} onPeek={onPeek} />
-        <div className="view-switch zoom-switch" role="group" aria-label="Zoom du plateau">
-          <button type="button" title="Dézoomer" disabled={zoomIndex <= 0} onClick={() => onZoom(stepZoom(zoom, -1))}>
-            −
-          </button>
-          <button type="button" className="zoom-switch__value" title="Revenir à la taille ajustée" onClick={() => onZoom(1)}>
-            {Math.round(zoom * 100)} %
-          </button>
-          <button
-            type="button"
-            title="Zoomer"
-            disabled={zoomIndex >= ZOOMS.length - 1}
-            onClick={() => onZoom(stepZoom(zoom, 1))}
-          >
-            +
-          </button>
-        </div>
+        <span className="topbar__turn">Tour {view.turn}</span>
         <button
           type="button"
-          className="sound-toggle"
-          aria-pressed={sound}
-          title={sound ? 'Couper le son' : 'Activer le son'}
-          onClick={() => onSound(!sound)}
+          className="topbar__icon-btn btn--help"
+          aria-pressed={helpOpen}
+          title={helpOpen ? 'Masquer l’aide' : 'Aide'}
+          onClick={onHelp}
         >
-          <Icon name={sound ? 'speaker' : 'speaker-off'} />
-          Son
+          <Icon name="help-circle-outline" />
         </button>
-        <NewGameButton confirm={view.winner === null} onHome={onHome} />
+        <OptionsMenu
+          settings={props.settings}
+          boardView={props.boardView}
+          isoAvailable={props.isoAvailable}
+          onChange={props.onSettings}
+          onSound={props.onSound}
+          confirmHome={view.winner === null}
+          onHome={props.onHome}
+        />
       </div>
     </header>
-  );
-}
-
-/** « Nouvelle partie » : retour à l'accueil ; en cours de partie, une confirmation évite d'abandonner par erreur. */
-function NewGameButton({ confirm, onHome }: { confirm: boolean; onHome: () => void }) {
-  const [confirming, setConfirming] = useState(false);
-  return (
-    <div className="new-game-button">
-      <button type="button" className="btn btn--ghost" onClick={() => (confirm ? setConfirming(!confirming) : onHome())}>
-        Nouvelle partie
-      </button>
-      {confirming && (
-        <div className="new-game new-game--popover" role="dialog" aria-label="Nouvelle partie">
-          <span>Abandonner la partie en cours ?</span>
-          <button type="button" className="btn btn--gold" onClick={onHome}>
-            Oui, retour à l’accueil
-          </button>
-          <button type="button" className="btn btn--ghost" onClick={() => setConfirming(false)}>
-            Non
-          </button>
-        </div>
-      )}
-    </div>
   );
 }

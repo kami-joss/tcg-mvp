@@ -21,13 +21,13 @@ describe('écran de passage hotseat (SPEC.md §4.3, §7)', () => {
     const html = render(updateSession(afterEndTurn(), { type: 'ready' }));
     expect(html).not.toContain('Passe l’écran');
     expect(html).toContain('data-scene');
-    expect(html).toContain('class="player player--p2 is-active"');
+    expect(html).toContain('class="score score--p2 is-active"');
     expect(html).toContain('Mon grimoire');
   });
 
   it('en début de partie, le jeu de J1 s’affiche directement', () => {
     const html = render(newSession(1));
     expect(html).not.toContain('Passe l’écran');
-    expect(html).toContain('class="player player--p1 is-active"');
+    expect(html).toContain('class="score score--p1 is-active"');
   });
 });

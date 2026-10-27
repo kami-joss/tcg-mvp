@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { createGame, getPlayerView } from '../engine';
 import type { GameState } from '../engine';
-import { GRIMOIRE_DISPLAY, Grimoire } from './Grimoire';
+import { GRIMOIRE_DISPLAY, Grimoire, GrimoireTab } from './Grimoire';
 import type { GrimoireLayout } from './settings';
 
 const render = (layout: GrimoireLayout, state: GameState = createGame()) =>
@@ -81,5 +81,14 @@ describe('grimoire : trois sections', () => {
     expect(html).not.toContain('grimoire__section--spell');
     expect(html).toContain('grimoire__section--monster');
     expect(html).toContain('grimoire__section--terrain');
+  });
+});
+
+describe('onglet du grimoire (handoff V11, lot 13 §4)', () => {
+  it('replier ou rouvrir : libellé et état', () => {
+    const open = renderToStaticMarkup(<GrimoireTab open onToggle={() => {}} />);
+    expect(open).toContain('aria-expanded="true" aria-label="Replier le grimoire"');
+    const closed = renderToStaticMarkup(<GrimoireTab open={false} onToggle={() => {}} />);
+    expect(closed).toContain('aria-expanded="false" aria-label="Ouvrir le grimoire"');
   });
 });

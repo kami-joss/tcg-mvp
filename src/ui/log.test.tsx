@@ -81,7 +81,7 @@ describe('journal des actions (SPEC.md §7)', () => {
   it('pièges : la pose ne révèle pas la case ; le déclenchement est annoncé', () => {
     const poser = gameWith([{ monster: 'poseur-de-bombe', owner: 1, at: at(8, 1) }], { players: { 1: { mana: 10 } } });
     const place: Action = { type: 'activateEffect', unitId: 'u1', target: { kind: 'cell', pos: at(8, 2) } };
-    expect(logOf(poser, place)).toEqual(['Poseur de bombe de J1 pose un piège.']);
+    expect(logOf(poser, place)).toEqual(['Poseur de bombe - Pièges de J1 pose un piège.']);
 
     const state = {
       ...gameWith([{ monster: 'golem', owner: 2, at: at(8, 1) }], { activePlayer: 2 }),
@@ -96,10 +96,10 @@ describe('journal des actions (SPEC.md §7)', () => {
   it('Farceur invisible : ni sa case d’invocation, ni ses déplacements n’apparaissent', () => {
     const state = gameWith([{ monster: 'eclaireur', owner: 2, at: at(9, 4) }], { players: { 1: { grimoire: ['farceur'] } } });
     const summon = { type: 'playCard', cardId: 'farceur', target: { kind: 'cell', pos: at(0, 4) } } as const;
-    expect(logOf(state, summon)).toEqual(['J1 invoque Farceur, invisible.']);
+    expect(logOf(state, summon)).toEqual(['J1 invoque Farceur - Pièges, invisible.']);
     const moved = { type: 'move', unitId: 'u2', to: at(2, 2) } as const;
     const lines = logOf(applyAction(state, summon), moved);
-    expect(lines).toEqual(['J1 déplace Farceur, invisible.']);
+    expect(lines).toEqual(['J1 déplace Farceur - Pièges, invisible.']);
   });
 
   it('un Farceur adverse qui sort de la vue disparaît, il n’est pas détruit', () => {
@@ -109,7 +109,7 @@ describe('journal des actions (SPEC.md §7)', () => {
     ]);
     expect(logOf(state, { type: 'move', unitId: 'u1', to: at(9, 0) })).toEqual([
       'J1 déplace Éclaireur en (9, 0).',
-      'Farceur de J2 disparaît.',
+      'Farceur - Pièges de J2 disparaît.',
     ]);
   });
 
@@ -120,8 +120,8 @@ describe('journal des actions (SPEC.md §7)', () => {
       { monster: 'golem', owner: 2, at: at(9, 5) },
     ]);
     expect(logOf(shot, { type: 'attack', unitId: 'u1', targetId: 'u3', advance: false })).toEqual([
-      'Trébuchet de J1 attaque Golem de J2.',
-      'Farceur de J2 apparaît en (9, 3) et arrête le tir !',
+      'Trébuchet - Archers de J1 attaque Golem de J2.',
+      'Farceur - Pièges de J2 apparaît en (9, 3) et arrête le tir !',
     ]);
     const walk = gameWith([
       { monster: 'chevalier', owner: 1, at: at(9, 0) },
@@ -129,7 +129,7 @@ describe('journal des actions (SPEC.md §7)', () => {
     ]);
     expect(logOf(walk, { type: 'move', unitId: 'u1', to: at(9, 3) })).toEqual([
       'J1 déplace Chevalier en (9, 3).',
-      'Farceur de J2 apparaît en (9, 3) !',
+      'Farceur - Pièges de J2 apparaît en (9, 3) !',
       'Chevalier de J1 est arrêté en (9, 2) et ne peut plus bouger de ce tour.',
     ]);
   });
@@ -140,7 +140,7 @@ describe('journal des actions (SPEC.md §7)', () => {
       players: { 1: { mana: 10, grimoire: ['dragon-feu'] } },
     });
     expect(logOf(evolving, { type: 'activateEffect', unitId: 'u1', target: { kind: 'card', cardId: 'dragon-feu' } })).toEqual([
-      'Jeune dragon élémentaire de J1 évolue en Dragon élémentaire de feu en (5, 3).',
+      'Jeune dragon élémentaire - Dragons de J1 évolue en Dragon élémentaire de feu - Dragons en (5, 3).',
     ]);
     const blasting = gameWith(
       [
@@ -150,7 +150,7 @@ describe('journal des actions (SPEC.md §7)', () => {
       { players: { 1: { mana: 5 } } },
     );
     expect(logOf(blasting, { type: 'activateEffect', unitId: 'u1', target: { kind: 'area' } })).toEqual([
-      'Dragon élémentaire de feu de J1 lance Déflagration.',
+      'Dragon élémentaire de feu - Dragons de J1 lance Déflagration.',
       'Golem de J2 : 7 → 5 PV.',
     ]);
     const blowing = gameWith(
@@ -161,7 +161,7 @@ describe('journal des actions (SPEC.md §7)', () => {
       { players: { 1: { mana: 5 } } },
     );
     expect(logOf(blowing, { type: 'activateEffect', unitId: 'u1', target: { kind: 'area', direction: 'right', distance: 2 } })).toEqual([
-      'Dragon élémentaire de vent de J1 lance Vent violent vers la droite (recul de 2).',
+      'Dragon élémentaire de vent - Dragons de J1 lance Vent violent vers la droite (recul de 2).',
       'Golem de J2 recule sur la Ferme.',
     ]);
   });

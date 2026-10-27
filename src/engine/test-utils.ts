@@ -8,7 +8,7 @@ import type { Board, CardId, GameState, MonsterUnit, PlayerId, PlayerState, Posi
 export const at = (row: number, col: number): Position => ({ row, col });
 
 type MonsterSpec = { monster: CardId; owner: PlayerId; at: Position } & Partial<
-  Pick<MonsterUnit, 'hp' | 'atk' | 'mobilityLeft' | 'hasAttacked' | 'hasUsedEffect' | 'hasRiposted' | 'revealed' | 'facing'>
+  Pick<MonsterUnit, 'hp' | 'atk' | 'mobilityLeft' | 'hasAttacked' | 'usedEffects' | 'trail' | 'hasRiposted' | 'revealed' | 'facing'>
 >;
 type TerrainSpec = { terrain: CardId; owner: PlayerId; at: Position; hp?: number };
 export type UnitSpec = MonsterSpec | TerrainSpec;

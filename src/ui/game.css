@@ -164,158 +164,464 @@ select {
   height: 56px;
 }
 
-/* --- Barre du haut : une seule ligne fine --- */
+/* --- Barre du haut (handoff V11, lot 12 §1) : rien à gauche, scores et « Fin du tour » au centre, tour, aide et options à droite --- */
 
 .topbar {
+  position: relative;
+  z-index: 50;
   flex: none;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
   align-items: center;
-  gap: 6px 12px;
-  min-height: 44px;
-  padding: 5px 14px;
+  gap: 16px;
+  min-height: 50px;
+  padding: 6px 20px;
   background: var(--bar);
   border-bottom: 1px solid oklch(0.3 0.014 60);
 }
 
-.topbar__end {
-  position: relative;
+.topbar__center {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.topbar__end {
+  display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 8px;
-  margin-left: auto;
+  gap: 12px;
 }
 
 .topbar__turn {
   font: 800 13px/1 var(--font-sc);
   letter-spacing: 0.08em;
   color: var(--muted);
+  white-space: nowrap;
 }
 
-.topbar .view-switch {
-  padding: 2px;
-  border-radius: 8px;
+.topbar .btn--end-turn {
+  flex: none;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 17px;
+  box-shadow: inset 0 -3px 0 oklch(0.6 0.12 75);
 }
 
-.topbar .view-switch button {
-  padding: 6px 9px;
-  font-size: 13px;
-}
-
-.topbar .zoom-switch button {
-  min-width: 26px;
-  padding: 6px 5px;
-}
-
-.topbar .zoom-switch .zoom-switch__value {
-  min-width: 46px;
-  font-size: 12px;
-}
-
-.topbar .sound-toggle {
-  padding: 6px 10px;
-  border-radius: 8px;
-  font-size: 13px;
-}
-
-.topbar .sound-toggle .icon {
-  font-size: 15px;
-}
-
-/* Menu « Stats » (lot 6) : les pastilles affichées sur les jetons. */
-.stats-control {
-  position: relative;
-  display: flex;
-  gap: 4px;
-}
-
-.stats-toggle,
-.stats-peek {
+/* Icônes de l'aide et des options : 32 px, liseré doré quand leur panneau est ouvert. */
+.topbar__icon-btn {
+  flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   border: none;
-  border-radius: 8px;
-  background: var(--bg);
-  box-shadow: inset 0 0 0 1px var(--line);
-  color: oklch(0.9 0.015 80);
-  font: 800 13px/1 var(--font);
+  border-radius: 10px;
+  background: oklch(0.2 0.014 60);
+  box-shadow: inset 0 0 0 1px oklch(0.36 0.014 60);
+  color: oklch(0.93 0.02 85);
   cursor: pointer;
 }
 
-.stats-toggle .icon,
-.stats-peek .icon {
-  font-size: 15px;
+.topbar__icon-btn:hover {
+  background: oklch(0.26 0.014 60);
 }
 
-.stats-toggle[aria-expanded='true'],
-.stats-toggle.is-peeking,
-.stats-peek.is-peeking {
-  background: oklch(0.32 0.016 60);
-  box-shadow: inset 0 0 0 1px oklch(0.5 0.02 70);
+.topbar__icon-btn .icon {
+  font-size: 20px;
+  transition: transform 0.3s ease;
 }
 
-.stats-toggle.is-peeking .icon,
-.stats-peek.is-peeking .icon {
-  color: var(--select);
+.topbar__icon-btn[aria-pressed='true'],
+.topbar__icon-btn[aria-expanded='true'] {
+  background: oklch(0.3 0.016 60);
+  box-shadow: inset 0 0 0 1.5px oklch(0.82 0.13 85 / 0.85);
 }
 
-/* Le bouton œil à maintenir : seulement sur écran tactile (ailleurs, Alt). */
-.stats-peek {
-  display: none;
-  padding: 6px 8px;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
+.topbar__icon-btn:focus-visible {
+  outline: 2px solid var(--select);
+  outline-offset: 2px;
 }
 
-@media (hover: none), (pointer: coarse) {
-  .stats-peek {
-    display: flex;
-  }
-}
+/* --- Scores (lot 12 §3) : J2 en miroir ; le joueur qui ne joue pas est terni --- */
 
-.stats-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 60;
-  width: 250px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 12px;
-  border-radius: 12px;
-  background: oklch(0.97 0.012 85);
-  color: oklch(0.2 0.014 60);
-  box-shadow: 0 10px 28px oklch(0 0 0 / 0.5);
-}
-
-.stats-menu__title {
-  padding: 2px 6px 8px;
-  font: 800 12px/1 var(--font-sc);
-  letter-spacing: 0.06em;
-  color: oklch(0.45 0.02 60);
-}
-
-.stats-menu__row {
+.score {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 8px 6px;
+  opacity: 0.78;
+  transition: opacity 0.4s;
+}
+
+.score.is-active {
+  opacity: 1;
+}
+
+.score--p2 {
+  flex-direction: row-reverse;
+}
+
+/* Orbe de mana (lot 12 §3) : verre, liquide à mana / 10, vague, bulles, reflet, halo et brume. */
+.orb {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 34px;
+}
+
+.orb__glow {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, oklch(0.7 0.16 240 / 0.85), transparent);
+  opacity: 0.2;
+  transition: opacity 0.4s;
+}
+
+.orb.is-active .orb__glow {
+  opacity: 1;
+}
+
+.orb--anim.is-active .orb__glow {
+  animation: orbGlow 2.2s ease-in-out infinite;
+}
+
+.orb__glass {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, oklch(0.36 0.04 250), oklch(0.14 0.02 260));
+  box-shadow: inset 0 0 0 1.5px oklch(0.85 0.05 230 / 0.55), inset 0 -6px 12px oklch(0 0 0 / 0.4);
+}
+
+.orb__liquid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, oklch(0.72 0.15 235), oklch(0.42 0.17 268));
+  transition: height 0.8s cubic-bezier(0.3, 1.2, 0.5, 1);
+}
+
+.orb__wave {
+  position: absolute;
+  top: -5px;
+  left: 0;
+  width: 200%;
+  height: 6px;
+  background: radial-gradient(circle at 6px 6px, oklch(0.72 0.15 235) 5.5px, transparent 6px) 0 0 / 12px 6px repeat-x;
+}
+
+.orb--anim .orb__wave {
+  animation: orbWave 1.6s linear infinite;
+}
+
+.orb__bubble {
+  position: absolute;
+  bottom: 3px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px oklch(0.92 0.05 220 / 0.75);
+  opacity: 0;
+  animation: orbBubble 2s ease-in infinite;
+}
+
+.orb__shine {
+  position: absolute;
+  left: 6px;
+  top: 5px;
+  width: 10px;
+  height: 6px;
+  border-radius: 50%;
+  background: oklch(1 0 0 / 0.35);
+  transform: rotate(-30deg);
+}
+
+.orb__mist {
+  position: absolute;
+  left: -10px;
+  right: -10px;
+  top: 6px;
+  height: 0;
+  pointer-events: none;
+}
+
+.orb__puff {
+  position: absolute;
+  top: 0;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, oklch(0.84 0.11 228 / 0.9), transparent);
+  filter: blur(2.5px);
+  opacity: 0;
+  animation: orbMist 3s ease-out infinite;
+}
+
+.orb__value {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font: 800 13px/1 var(--font);
+  text-shadow: 0 1px 3px oklch(0.2 0.1 265);
+}
+
+.orb__burst {
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  width: 0;
+  height: 0;
+}
+
+/* Éclats du score (`orbBurst`) : particules cyan et brume du mana dépensé, étincelles dorées des points gagnés. */
+.orb-spark {
+  position: absolute;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.orb-spark--mist {
+  z-index: 5;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, oklch(0.85 0.1 225 / 0.9), transparent);
+  filter: blur(2px);
+}
+
+@keyframes orbGlow {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes orbWave {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes orbBubble {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(-34px);
+    opacity: 0;
+  }
+}
+
+@keyframes orbMist {
+  0% {
+    transform: translate(0, 6px) scale(0.5);
+    opacity: 0;
+  }
+  25% {
+    opacity: var(--o);
+  }
+  100% {
+    transform: translate(var(--dx), -22px) scale(1.6);
+    opacity: 0;
+  }
+}
+
+.score__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.score--p2 .score__text {
+  align-items: flex-end;
+}
+
+.score__name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.score--p2 .score__name {
+  flex-direction: row-reverse;
+}
+
+.score__name strong {
+  font: 800 12px/1 var(--font);
+  white-space: nowrap;
+}
+
+.score__deck {
+  font: 700 10px/1 var(--font-sc);
+  letter-spacing: 0.06em;
+  color: oklch(0.66 0.012 80);
+  white-space: nowrap;
+}
+
+.score__vp {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+/* Point de départ des étincelles des points gagnés, au milieu du nombre de VP. */
+.score__spark {
+  position: absolute;
+  left: 9px;
+  top: 9px;
+  width: 0;
+  height: 0;
+}
+
+
+.score__vp span {
+  display: block;
+  font: 800 18px/1 var(--font);
+  color: oklch(0.96 0.06 88);
+  text-shadow: 0 0 10px oklch(0.82 0.13 85 / 0.7);
+}
+
+.score__vp small {
+  font: 600 12px/1 var(--font);
+  color: oklch(0.72 0.03 85);
+  white-space: nowrap;
+}
+
+/* --- Menu d'options (lot 12 §2) : panneau ancré sous la roue, à droite --- */
+
+.options {
+  position: relative;
+  display: flex;
+}
+
+/* Calque transparent sous le panneau : un clic dehors le referme. */
+.options__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 59;
+}
+
+.options__toggle {
+  position: relative;
+  z-index: 61;
+}
+
+.options__toggle[aria-expanded='true'] .icon {
+  transform: rotate(60deg);
+}
+
+.options__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 61;
+  box-sizing: border-box;
+  width: 300px;
+  max-height: calc(100vh - 70px);
+  max-height: calc(100dvh - 70px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: oklch(0.22 0.014 60);
+  color: oklch(0.95 0.01 85);
+  box-shadow: 0 0 0 1.5px oklch(0.4 0.02 70), 0 14px 32px oklch(0 0 0 / 0.55);
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.45 0.014 60) transparent;
+}
+
+.options__section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.options__section--row {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.options__section--row .options__title {
+  flex: 1;
+}
+
+.options__section--rule {
+  gap: 2px;
+  padding-top: 10px;
+  border-top: 1px solid oklch(0.32 0.014 60);
+}
+
+.options__title {
+  margin: 0;
+  font: 800 12px/1 var(--font-sc);
+  letter-spacing: 0.08em;
+  color: oklch(0.72 0.015 80);
+}
+
+.options__section--rule .options__title {
+  padding-bottom: 6px;
+}
+
+.options .view-switch {
+  border-radius: 10px;
+  background: oklch(0.18 0.014 60);
+  box-shadow: inset 0 0 0 1px oklch(0.36 0.014 60);
+}
+
+.options .view-switch button {
+  flex: 1;
+  padding: 9px 10px;
+}
+
+.options .zoom-switch button {
+  flex: none;
+  width: 34px;
+  padding: 7px 0;
+  font-size: 18px;
+}
+
+.options .zoom-switch .zoom-switch__value {
+  width: auto;
+  min-width: 50px;
+  padding: 9px 6px;
+  font-size: 13px;
+}
+
+.options__check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 6px;
   border-radius: 8px;
   font: 600 15px/1.15 var(--font);
+  color: oklch(0.92 0.01 85);
   cursor: pointer;
 }
 
-.stats-menu__row:hover {
-  background: oklch(0.92 0.02 85);
+.options__check:hover {
+  background: oklch(0.3 0.016 60);
 }
 
-.stats-menu__row input {
+.options__check input {
   appearance: none;
   flex: none;
   display: grid;
@@ -329,12 +635,12 @@ select {
   cursor: pointer;
 }
 
-.stats-menu__row input:checked {
+.options__check input:checked {
   border: none;
   background: oklch(0.5 0.1 200);
 }
 
-.stats-menu__row input:checked::after {
+.options__check input:checked::after {
   content: '';
   width: 5px;
   height: 9px;
@@ -344,204 +650,98 @@ select {
   transform: rotate(45deg);
 }
 
-.stats-menu__row input:focus-visible {
-  outline: 2px solid oklch(0.5 0.1 200);
+.options__check input:focus-visible {
+  outline: 2px solid var(--select);
   outline-offset: 2px;
 }
 
-.stats-menu__icon {
+.options__check-icon {
   flex: none;
   display: flex;
   font-size: 16px;
-  color: oklch(0.25 0.014 60);
+  color: oklch(0.9 0.012 85);
 }
 
-.stats-menu__icon--hp {
-  color: #c8323a;
+.options__check-icon--hp {
+  color: oklch(0.62 0.2 25);
 }
 
-.stats-menu__icon--mobility {
-  color: #1f7f8c;
+.options__check-icon--mobility,
+.options__check-icon--enemyMobility {
+  color: oklch(0.74 0.11 200);
 }
 
-.stats-menu__icon--statuses {
-  color: #b4471a;
+.options__check-icon--statuses {
+  color: oklch(0.72 0.17 50);
 }
 
-.stats-menu__hint {
-  margin: 6px 0 0;
-  padding: 8px 6px 0;
-  border-top: 1px solid oklch(0.88 0.02 85);
+.options__hint {
+  margin: 0;
+  padding: 6px 6px 0;
   font: 500 13px/1.35 var(--font);
-  color: oklch(0.42 0.02 60);
+  color: oklch(0.68 0.012 80);
   text-wrap: pretty;
 }
 
-.topbar .btn {
-  padding: 7px 11px;
-  font-size: 13px;
+.options__sound {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 4px;
 }
 
-.topbar .btn--end-turn {
-  padding: 7px 18px;
-  border-radius: 8px;
-  font-size: 15px;
-  box-shadow: inset 0 -2px 0 oklch(0.6 0.12 75);
+.options__volume {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--gold);
 }
 
-/* --- Encarts des joueurs : l'adversaire en haut à gauche, moi sous mon grimoire --- */
-
-.player {
+.options__button {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 12px;
-  background: var(--panel);
-  box-shadow: inset 0 0 0 1px var(--line);
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  background: oklch(0.18 0.014 60);
+  box-shadow: inset 0 0 0 1px oklch(0.36 0.014 60);
+  color: oklch(0.85 0.015 80);
+  font: 800 14px/1 var(--font);
+  cursor: pointer;
 }
 
-.player.is-active {
-  background: var(--panel-hi);
-  box-shadow: inset 0 0 0 2px var(--player);
+.options__button:hover {
+  background: oklch(0.28 0.014 60);
 }
 
-.player--p1 {
-  --player: var(--j1);
+.options__button .icon {
+  font-size: 18px;
 }
 
-.player--p2 {
-  --player: var(--j2);
+.options__button[aria-pressed='false'] {
+  color: oklch(0.6 0.012 80);
 }
 
-.player .shape {
-  width: 22px;
-  height: 22px;
+.options__section--rule > .options__button {
+  width: 100%;
 }
 
-.player__main {
-  flex: 1;
-  min-width: 0;
+.options__confirm {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.player__line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 3px 7px;
-}
-
-.player__name {
-  font: 800 15px/1 var(--font);
-  white-space: nowrap;
-}
-
-.player__tag {
-  padding: 2px 6px;
-  border-radius: 5px;
-  background: var(--player);
-  color: white;
-  font: 800 10px/1.3 var(--font-sc);
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-}
-
-.player__vp {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font: 800 15px/1 var(--font);
-  white-space: nowrap;
-}
-
-.player__vp .icon {
-  font-size: 16px;
-  color: oklch(0.78 0.13 85);
-}
-
-.player__vp small {
-  font-size: inherit;
-  font-weight: 500;
-  color: oklch(0.7 0.015 80);
-}
-
-.vp-bar {
-  height: 6px;
-  border-radius: 3px;
-  background: oklch(0.33 0.014 60);
-  overflow: hidden;
-}
-
-.vp-bar span {
-  display: block;
-  height: 100%;
-  background: var(--player);
-}
-
-.player__meta {
-  font-size: 12px;
-  color: oklch(0.74 0.015 80);
-}
-
-.player__mana {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-width: 44px;
-  padding-left: 9px;
-  border-left: 1px solid oklch(0.34 0.014 60);
-}
-
-.player__mana strong {
-  font: 800 22px/1 var(--font);
-  color: var(--mana-text);
-}
-
-.player__mana span {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  font: 700 10px/1.3 var(--font-sc);
-  letter-spacing: 0.06em;
-  color: oklch(0.7 0.015 80);
-}
-
-.player__mana .icon {
-  font-size: 12px;
-  color: var(--mana-drop);
-}
-
-/* --- Nouvelle partie --- */
-
-.new-game {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 8px 12px;
+  gap: 8px;
   font-size: 14px;
 }
 
-.new-game--popover {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  z-index: 30;
-  width: max-content;
-  max-width: calc(100vw - 40px);
-  padding: 14px;
-  border-radius: 12px;
-  background: var(--panel-hi);
-  box-shadow: 0 0 0 1px var(--line), 0 12px 30px oklch(0 0 0 / 0.5);
+.options__confirm-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-/* --- Mise en page : toute la hauteur de la fenêtre, trois colonnes qui défilent chacune --- */
+/* --- Mise en page : toute la hauteur de la fenêtre ; sous la barre, le plateau et des panneaux flottants (lot 13) --- */
 
 .game {
   height: 100vh;
@@ -551,37 +751,58 @@ select {
   overflow: hidden;
 }
 
-.game__main {
+/* Zone de jeu : le plateau en couche de base, les panneaux par-dessus (z-index 20), l'aide au-dessus d'eux (30). */
+.game__zone {
+  position: relative;
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) min(var(--grimoire-w, 320px), 42vw);
-  gap: 12px;
-  padding: 10px 12px 12px;
 }
 
-.game__left,
-.game__play,
-.game__side {
-  position: relative;
-  min-width: 0;
-  min-height: 0;
+/* Le plateau sur toute la largeur ; c'est son cadre qui défile (marges de glisse comprises). */
+.game__play {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  padding: 14px 16px;
+  overflow: hidden;
 }
 
-/*
- * Colonne de la fiche (lot 9) : une place fixe de la taille d'une carte, pour que le journal en dessous ne bouge pas
- * quand la fiche change. La fiche reçoit la souris : son corps défile.
- */
-.game__sheet {
+/* Colonne gauche : la fiche en haut, le journal en bas ; entre les deux, le plateau reste cliquable. */
+.game__left {
+  position: absolute;
+  z-index: 20;
+  left: 16px;
+  top: 14px;
+  bottom: 14px;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.game__left > * {
+  pointer-events: auto;
+}
+
+/* La fiche (lot 9) : le haut de son cadre toujours au même endroit (place du plus grand débordement d'overframe
+   réservée au-dessus, `sheetPlacement`) ; cette place et le débordement laissent passer les clics vers le plateau. Elle
+   garde sa taille, le journal cède la place ; fenêtre basse, toutes les fiches sont réduites du même facteur. */
+.game__left > .game__sheet {
   position: relative;
-  z-index: 5;
   flex: none;
-  height: min(498px, calc(100vh - 210px));
-  height: min(498px, calc(100dvh - 210px));
-  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+.game__sheet > * {
+  zoom: var(--sheet-fit, 1);
+}
+
+.game__sheet .sheet {
+  pointer-events: auto;
 }
 
 .game__sheet > .sheet {
@@ -589,57 +810,95 @@ select {
 }
 
 .game__left > .panel {
-  flex: none;
-  min-height: 0;
-  max-height: 45%;
+  flex: 0 1 auto;
+  min-height: 72px;
+  max-height: 34%;
+  margin-top: auto;
+  background: oklch(0.22 0.014 60 / 0.84);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 28px oklch(0 0 0 / 0.35);
 }
 
 .game__left .log {
   flex: 1 1 auto;
   min-height: 0;
+  max-height: none;
 }
 
-.game__side > .panel {
+/* Grimoire à droite (lot 13 §4) : il remplit son panneau et défile ; replié, il glisse hors de l'écran sauf son onglet. */
+.game__side {
+  position: absolute;
+  z-index: 20;
+  right: 16px;
+  top: 14px;
+  bottom: 14px;
+  width: min(var(--grimoire-w, 304px), 42vw);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.35s cubic-bezier(0.3, 0.9, 0.4, 1);
+}
+
+.game__side.is-collapsed {
+  transform: translateX(calc(100% + 16px));
+}
+
+.game__side > .panel--grimoire {
   flex: 1 1 auto;
   min-height: 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: oklch(0.22 0.014 60 / 0.86);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 28px oklch(0 0 0 / 0.4);
 }
 
-/* Colonne centrale (lot 11) : le plateau garde la hauteur de la colonne ; l'aide s'ouvre dessous et la colonne défile. */
-.game__play {
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: oklch(0.45 0.014 60) transparent;
-}
-
-.game__legend {
-  flex: none;
-}
-
-/* Haut de la colonne de droite : « Aide » (fantôme) et « Fin du tour » (doré, poussé à droite). */
-.side-actions {
-  flex: none;
+/* Onglet collé au bord gauche du panneau, toujours visible : livre doré, chevron (retourné quand il est replié). */
+.grimoire-tab {
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  transform: translateY(-50%);
+  box-sizing: border-box;
+  width: 30px;
+  height: 76px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 6px;
+  padding: 0;
+  border: 1px solid oklch(0.4 0.02 70);
+  border-right: none;
+  border-radius: 10px 0 0 10px;
+  background: oklch(0.22 0.014 60 / 0.92);
+  box-shadow: -6px 4px 14px oklch(0 0 0 / 0.35);
+  color: oklch(0.85 0.015 80);
+  cursor: pointer;
 }
 
-.side-actions .btn--help {
-  box-shadow: inset 0 0 0 1.5px oklch(0.45 0.014 60);
+.grimoire-tab:hover {
+  background: oklch(0.27 0.014 60 / 0.95);
 }
 
-.side-actions .btn--help[aria-pressed='true'] {
-  background: oklch(1 0 0 / 0.08);
-  box-shadow: inset 0 0 0 1.5px oklch(0.82 0.13 85 / 0.85);
+.grimoire-tab:focus-visible {
+  outline: 2px solid var(--select);
+  outline-offset: 2px;
 }
 
-.side-actions .btn--end-turn {
-  margin-left: auto;
-  padding: 9px 20px;
-  border-radius: 9px;
-  font-size: 15px;
-  box-shadow: inset 0 -2px 0 oklch(0.6 0.12 75);
+.grimoire-tab__book {
+  font-size: 16px;
+  color: var(--gold);
+}
+
+.grimoire-tab__chevron {
+  font-size: 18px;
+  transition: transform 0.35s ease;
+}
+
+.grimoire-tab[aria-expanded='false'] .grimoire-tab__chevron {
+  transform: rotate(180deg);
 }
 
 /* --- Plateau --- */
@@ -1737,17 +1996,43 @@ select {
  * Centrage « sûr » (justify-content: safe center) par marges automatiques : une scène plus grande que le cadre reste
  * accessible par le défilement.
  */
-.board-viewport > .scene {
+/*
+ * Contenu du cadre : la scène entre ses marges de glisse (lot 13 §1), centré tant qu'il tient, sinon calé au début et
+ * défilant. Les marges sont des blocs vides, pas des `margin` de la scène, que le zoom agrandirait.
+ */
+.board-viewport__content {
   flex: none;
+  display: flex;
+  align-items: center;
   margin: auto;
+  /* Les grands plans du décor isométrique débordent de la scène : coupés sur les côtés, ils n'allongent pas le défilement. */
+  overflow-x: clip;
+}
+
+.board-viewport__content > .scene,
+.board-viewport__glide {
+  flex: none;
+}
+
+.board-viewport__glide {
+  align-self: stretch;
 }
 
 .board-viewport.is-scrollable {
   cursor: grab;
 }
 
+/* Pendant un glisser (lot 13 §2) : main fermée partout, ni survol des cases ni sélection de texte. */
 .board-viewport.is-dragging {
   cursor: grabbing;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.board-viewport.is-dragging .board,
+.board-viewport.is-dragging .board .cell,
+.board-viewport.is-dragging .board .token__frame {
+  pointer-events: none;
 }
 
 /*
@@ -2544,61 +2829,12 @@ select {
   cursor: default;
 }
 
-.zoom-switch button {
-  min-width: 30px;
-  padding: 8px 6px;
-}
-
-.zoom-switch .zoom-switch__value {
-  min-width: 50px;
-  font-size: 13px;
-}
-
-/* Bouton Son (lot 4). */
-.sound-toggle {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 12px;
-  border: none;
-  border-radius: 10px;
-  background: var(--bg);
-  box-shadow: inset 0 0 0 1px var(--line);
-  color: oklch(0.85 0.015 80);
-  font: 800 14px/1 var(--font);
-  cursor: pointer;
-}
-
-.sound-toggle .icon {
-  font-size: 17px;
-}
-
-.sound-toggle[aria-pressed='false'] {
-  color: var(--muted);
-}
-
-.legend__volume input {
-  flex: 1;
-  max-width: 160px;
-}
-
 /* Pastille de statut dans l'aide, à taille fixe (hors plateau, --cell n'existe pas). */
 .legend__status {
   --cell: 64px;
   display: inline-flex;
   margin-right: 6px;
   vertical-align: middle;
-}
-
-.legend__settings label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.legend__settings input {
-  accent-color: var(--gold);
 }
 
 /* --- Aide --- */
@@ -2614,11 +2850,22 @@ select {
   color: oklch(0.86 0.015 80);
 }
 
-/* Dans l'écran de jeu, l'aide s'ouvre sous le plateau (lot 11) : elle ne le recouvre ni ne le réduit. */
-.game__legend > .legend {
-  position: relative;
+/* Dans l'écran de jeu, l'aide flotte en haut du plateau (handoff V11, lot 13 §5). */
+.game__play > .legend {
+  position: absolute;
+  z-index: 30;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  width: min(816px, calc(100% - 32px));
+  max-height: calc(100% - 28px);
+  overflow-y: auto;
   padding-right: 44px;
-  box-shadow: 0 0 0 1px var(--line);
+  background: oklch(0.22 0.014 60);
+  box-shadow: 0 0 0 1.5px oklch(0.4 0.02 70), 0 14px 32px oklch(0 0 0 / 0.55);
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.45 0.014 60) transparent;
 }
 
 .legend__close {
@@ -3055,6 +3302,19 @@ select {
   text-wrap: balance;
 }
 
+/* Archétype d'une carte de deck, en petit sous son nom. */
+.tile__archetype {
+  display: block;
+  margin-top: 1px;
+  font: 700 10.5px/1.15 var(--font-sc);
+  letter-spacing: 0.03em;
+  opacity: 0.75;
+}
+
+.tile--row .tile__archetype {
+  display: none;
+}
+
 .tile__stats {
   display: flex;
   flex-wrap: wrap;
@@ -3476,6 +3736,22 @@ select {
   font: 800 18px/1.1 var(--font);
 }
 
+/* Archétype d'une carte de deck, sous son nom : « Sorciers du feu ». */
+.sheet__archetype {
+  display: block;
+  margin-top: 2px;
+  font: 700 12px/1.2 var(--font-sc);
+  letter-spacing: 0.04em;
+  opacity: 0.8;
+}
+
+/* Texte d'ambiance (Maître des heures). */
+.sheet__flavor {
+  margin: 0;
+  font: italic 500 13px/1.35 var(--font);
+  opacity: 0.85;
+}
+
 /* Le corps défile (fondu en bas) ; une fiche sans illustration prend simplement sa hauteur. */
 .sheet__body {
   display: flex;
@@ -3777,23 +4053,6 @@ select {
 }
 
 /* Sans fiche : un cadre pointillé à sa place. */
-.sheet-placeholder {
-  box-sizing: border-box;
-  width: 280px;
-  max-width: 100%;
-  height: 498px;
-  max-height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  border: 1.5px dashed oklch(0.36 0.014 60);
-  border-radius: 12px;
-  font: 500 14px/1.45 var(--font);
-  color: oklch(0.62 0.015 80);
-  text-align: center;
-  text-wrap: pretty;
-}
 
 /* --- Accueil (/) : réglages de la partie, avant de la lancer sur /game --- */
 
@@ -4097,76 +4356,11 @@ select {
   font-size: 18px;
 }
 
-/* Écran moins large : colonnes plus étroites, la fiche flotte en bas à gauche, par-dessus le plateau. */
-@media (max-width: 1100px) {
-  .game__main {
-    grid-template-columns: 196px minmax(0, 1fr) min(var(--grimoire-w, 320px), 28vw);
-    gap: 10px;
-    padding: 8px 10px 10px;
-  }
-
-  /* La fiche flotte en bas à gauche, réduite, par-dessus le plateau ; sans fiche, rien à cet endroit. */
-  .game__sheet {
-    position: fixed;
-    left: 8px;
-    bottom: 8px;
-    z-index: 40;
-    width: 280px;
-    height: auto;
-    min-height: 0;
-    zoom: 0.8;
-    pointer-events: none;
-  }
-
-  .game__sheet > .sheet--card {
-    max-height: calc(100dvh - 120px);
-  }
-
-  .sheet-placeholder {
-    display: none;
-  }
-
-  .game__left > .panel {
-    flex: 1 1 auto;
-    max-height: none;
-  }
-
-  .topbar .view-switch button {
-    padding: 6px 7px;
-  }
-}
-
-/* --- Écrans étroits : une seule colonne, qui défile elle-même (jamais la page) --- */
+/* --- Écrans étroits --- */
 
 @media (max-width: 720px) {
   .topbar {
     padding: 5px 10px;
-  }
-
-  .game__main {
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    padding: 8px;
-  }
-
-  .game__left,
-  .game__side {
-    flex: none;
-  }
-
-  .game__play {
-    flex: none;
-    height: 72vh;
-    height: 72dvh;
-  }
-
-  .game__side > .panel {
-    flex: none;
-  }
-
-  .grimoire {
-    overflow: visible;
   }
 
   /* Trop petits pour être lus : la fiche donne ces informations. */
@@ -4177,5 +4371,507 @@ select {
 
   .handoff h1 {
     font-size: 30px;
+  }
+}
+
+/* --- Overframes animées (handoff overframe v1 et v2, handoff V11 lot 12 §4) : cotes dans le repère de la fiche 280 × 498 --- */
+
+.of {
+  position: relative;
+  flex: none;
+  width: 280px;
+}
+
+.of--clickable {
+  cursor: zoom-in;
+}
+
+.of__float,
+.of__tilt {
+  position: relative;
+  width: 280px;
+}
+
+.of__tilt {
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
+}
+
+/* Le cadre : fond sombre, liseré du joueur (doré et halo rose quand l'exemplaire est brillant). */
+.sheet--of {
+  flex: none;
+  max-height: none;
+  background: oklch(0.2 0.014 60);
+  box-shadow: 0 16px 36px oklch(0 0 0 / 0.5);
+}
+
+.sheet--shiny {
+  box-shadow: 0 0 0 2px oklch(0.86 0.13 85), 0 0 22px oklch(0.7 0.2 330 / 0.45), 0 16px 36px oklch(0 0 0 / 0.5);
+}
+
+/* Overframe : pas de liseré en haut, le personnage sort librement du cadre : l'illustration continue au-dessus en
+   s'effaçant (`.of__rise`), le liseré des côtés apparaît en fondu. Brillante : liseré doré, halo rose sur les côtés et
+   en bas. */
+.sheet--of {
+  border-radius: 0 0 12px 12px;
+}
+
+.sheet--of::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border: 2px solid var(--frame);
+  border-top: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 56px);
+  mask-image: linear-gradient(180deg, transparent, #000 56px);
+}
+
+.of__rise {
+  position: absolute;
+  left: 0;
+  width: 280px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.of__rise > .of__art {
+  z-index: auto;
+}
+
+/* Les reflets du cadre (holo, bande qui balaie) apparaissent en fondu sous son haut, comme l'illustration au-dessus. */
+.sheet--of .of__holo,
+.sheet--of .of__sweep-box {
+  -webkit-mask-image: linear-gradient(180deg, transparent 6px, #000 40px);
+  mask-image: linear-gradient(180deg, transparent 6px, #000 40px);
+}
+
+.sheet--of.sheet--shiny {
+  box-shadow: 0 10px 22px oklch(0.7 0.2 330 / 0.45), 0 16px 36px oklch(0 0 0 / 0.5);
+}
+
+.sheet--of.sheet--shiny::after {
+  border-color: oklch(0.86 0.13 85);
+}
+
+.of__art,
+.of__pop,
+.of__sides,
+.of__part {
+  position: absolute;
+  background-position: 0 0;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+.of__art {
+  z-index: -1;
+}
+
+.of__pop-img {
+  position: absolute;
+  inset: 0;
+  background-position: 0 0;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+
+/* Le pop et ses pièces (tresses, mèches, paupières) : les pièces sont posées dans le repère du pop. */
+.of__part--blink {
+  opacity: 0;
+}
+
+/* Reflet métallique : copie de l'illustration dans son calque ; la bande du masque part de la droite. */
+.of__shine {
+  position: absolute;
+  inset: 0;
+  background-position: 0 0;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: 100% 0;
+  mask-position: 100% 0;
+  pointer-events: none;
+}
+
+/* Cadran qui avance, autour de la montre, au-dessus de la lueur. */
+.of__dial {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.of__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+
+.of__glow {
+  position: absolute;
+  z-index: -1;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.of__glow--outside {
+  z-index: auto;
+}
+
+.of__back {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+}
+
+.of__front {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.of__particle {
+  position: absolute;
+  opacity: 0;
+  animation: ofFlake 8s linear infinite;
+}
+
+.of__veil {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    oklch(0.12 0.01 60 / 0) 0,
+    oklch(0.12 0.01 60 / 0) 88px,
+    oklch(0.12 0.01 60 / 0.75) 136px,
+    oklch(0.12 0.01 60 / 0.75) 100%
+  );
+}
+
+.of__holo {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  mix-blend-mode: color-dodge;
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.of__sweep-box {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.of__sweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -50%;
+  width: 200%;
+  mix-blend-mode: screen;
+  transform: translateX(-60%);
+}
+
+.of__glare {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* Animations : seulement avec `.of--anim` ; `.of--paused` (hors écran, onglet caché) les arrête où elles en sont. */
+.of--anim .of__float {
+  animation: ofFloat 5.6s ease-in-out infinite;
+  animation-delay: calc(var(--of-n, 0) * -1400ms);
+}
+
+.of--anim .of__breath {
+  animation: ofBreath 4.2s ease-in-out infinite;
+}
+
+.of--anim .of__glow {
+  animation: ofGlow 2.6s ease-in-out infinite;
+}
+
+.of--anim .of__sweep {
+  animation: ofSweep 6.5s ease-in-out infinite;
+  animation-delay: calc(1200ms + var(--of-n, 0) * 700ms);
+}
+
+.of--anim .of__sweep--shiny {
+  animation-duration: 4.2s;
+}
+
+.of--anim .of__holo {
+  animation: ofHolo 9s ease-in-out infinite;
+}
+
+.of--anim .of__part--swayL {
+  animation: ofSwayL 3.4s ease-in-out infinite;
+}
+
+.of--anim .of__part--swayR {
+  animation: ofSwayR 3.9s ease-in-out -0.9s infinite;
+}
+
+.of--anim .of__part--hairWind {
+  animation: ofHairWind 3.8s ease-in-out infinite;
+}
+
+.of--anim .of__shine {
+  animation: ofShine 6s ease-in-out 0.6s infinite;
+}
+
+.of--anim .of__ring--tick {
+  animation: ofTick 60s steps(60) infinite;
+}
+
+.of--anim .of__ring--spinBack {
+  animation: ofSpinBack 24s linear infinite;
+}
+
+.of--paused,
+.of--paused * {
+  animation-play-state: paused !important;
+}
+
+/* Badge des exemplaires brillants, à droite du titre de la fiche. */
+.sheet__shiny {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 10px;
+  background: linear-gradient(110deg, oklch(0.78 0.16 350), oklch(0.88 0.14 85), oklch(0.82 0.13 170));
+  color: oklch(0.22 0.03 330);
+  font: 800 11px/1 var(--font-sc);
+  letter-spacing: 0.06em;
+  text-shadow: none;
+  white-space: nowrap;
+}
+
+
+/* Tuiles (§6.2) : pas de débordement ; brillante, cadre doré, holo et reflet en permanence ; overframe, inclinaison,
+   respiration et particules au survol. */
+.tile--card.tile--shiny {
+  --tile-ring: 0 0 0 2px oklch(0.86 0.13 85), 0 0 12px oklch(0.7 0.2 330 / 0.5);
+}
+
+.tile--card.tile--shiny.is-focused {
+  --tile-ring: 0 0 0 2px oklch(0.97 0.01 85 / 0.8), 0 0 12px oklch(0.7 0.2 330 / 0.5);
+}
+
+.tile--card.tile--shiny.is-selected {
+  --tile-ring: 0 0 0 3px var(--select), 0 0 12px oklch(0.7 0.2 330 / 0.5);
+}
+
+.tile--of {
+  transition: box-shadow 0.15s ease, transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.tile__art .of__holo,
+.tile__art .of__sweep-box {
+  z-index: auto;
+}
+
+.tile__art .of__holo {
+  opacity: 0.26;
+}
+
+.tile--of .of__breath {
+  animation: none;
+  transform-origin: 50% 40%;
+}
+
+.of--anim.tile--of:hover .of__breath {
+  animation: ofBreath 4.2s ease-in-out infinite;
+}
+
+.tile__fx {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.of__tile-fx {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 280px;
+  height: 498px;
+  transform: scale(var(--tile-k, 0.5));
+  transform-origin: 0 0;
+}
+
+.tile__star {
+  margin-right: 1px;
+  background: linear-gradient(110deg, oklch(0.78 0.16 350), oklch(0.88 0.14 85), oklch(0.82 0.13 170));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 800;
+  text-shadow: none;
+}
+
+/* Aperçu plein écran (§6.3) : fond assombri et flouté, la fiche centrée, à l'échelle. */
+.sheet-preview__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  background: oklch(0.12 0.01 60 / 0.8);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  cursor: zoom-out;
+}
+
+.sheet-preview__card {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 90;
+  width: 280px;
+}
+
+@keyframes ofFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes ofBreath {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+@keyframes ofGlow {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes ofSweep {
+  0% {
+    transform: translateX(-60%);
+  }
+  28%,
+  100% {
+    transform: translateX(60%);
+  }
+}
+
+@keyframes ofSwayL {
+  0%,
+  100% {
+    transform: rotate(-2.5deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes ofSwayR {
+  0%,
+  100% {
+    transform: rotate(2.5deg);
+  }
+  50% {
+    transform: rotate(-3deg);
+  }
+}
+
+@keyframes ofHairWind {
+  0%,
+  100% {
+    transform: rotate(0deg) scaleX(1);
+  }
+  35% {
+    transform: rotate(-2.2deg) scaleX(1.015);
+  }
+  70% {
+    transform: rotate(1.4deg) scaleX(0.995);
+  }
+}
+
+@keyframes ofShine {
+  0% {
+    -webkit-mask-position: 100% 0;
+    mask-position: 100% 0;
+  }
+  40%,
+  100% {
+    -webkit-mask-position: 0% 0;
+    mask-position: 0% 0;
+  }
+}
+
+@keyframes ofTick {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ofSpinBack {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes ofHolo {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes ofFlake {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: var(--op);
+  }
+  82% {
+    opacity: var(--op);
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) rotate(var(--rot));
+    opacity: 0;
   }
 }

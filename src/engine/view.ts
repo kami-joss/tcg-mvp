@@ -4,7 +4,7 @@ import { getManaZones } from './board';
 import { opponent } from './players';
 import { getHiddenUnitIds, perceivedBy } from './stealth';
 import { getZoneController } from './zones';
-import type { GameEvent, GameState, PlayerId, PlayerView, Position, UnitId } from './types';
+import type { GameEvent, GameState, PlayerId, PlayerView, Position, Unit, UnitId } from './types';
 
 /**
  * Tout est public sauf le contenu du grimoire adverse, dont seul le nombre de cartes est donné, ses pièges et ses
@@ -16,7 +16,7 @@ export function getPlayerView(state: GameState, player: PlayerId): PlayerView {
   return {
     viewer: player,
     board: state.board,
-    units: perceivedBy(state, player).units,
+    units: withoutEnemyTrails(perceivedBy(state, player).units, player),
     activePlayer: state.activePlayer,
     turn: state.turn,
     winner: state.winner,
@@ -38,6 +38,19 @@ export function getPlayerView(state: GameState, player: PlayerId): PlayerView {
   };
 }
 
+/**
+ * Le chemin du tour d'un monstre adverse n'est pas montré : il pourrait dire par où il est passé en étant invisible.
+ * Seule sa case actuelle reste.
+ */
+function withoutEnemyTrails(units: Readonly<Record<UnitId, Unit>>, player: PlayerId): Readonly<Record<UnitId, Unit>> {
+  return Object.fromEntries(
+    Object.entries(units).map(([id, unit]) => [
+      id,
+      unit.kind === 'monster' && unit.owner !== player && unit.trail.length > 1 ? { ...unit, trail: [unit.pos] } : unit,
+    ]),
+  );
+}
+
 /** Unités dont parle un événement. */
 function eventUnits(event: GameEvent): UnitId[] {
   switch (event.type) {
@@ -49,6 +62,7 @@ function eventUnits(event: GameEvent): UnitId[] {
       return [event.unitId, event.targetId];
     case 'trapTriggered':
     case 'teleport':
+    case 'rewind':
     case 'passage':
     case 'burningCell':
     case 'effect':

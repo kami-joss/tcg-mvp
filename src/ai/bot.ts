@@ -164,11 +164,12 @@ function getFollowUps(before: GameState, action: Action, after: GameState, me: P
     );
     // Son effet, seulement s'il dépend de l'endroit où il se trouve (Mage, Chaman, dragons) : poser un piège ou évoluer
     // vaut autant d'ici que d'ailleurs.
-    const ability = getMonsterCard(monster.cardId).activated;
-    const placed =
-      ability?.targeting.type === 'zone' || (ability?.targeting.type === 'monster' && ability.targeting.reach.type !== 'anywhere');
-    const effects =
-      placed && !monster.hasUsedEffect ? getLegalActions(after).filter((a) => a.type === 'activateEffect' && a.unitId === focus) : [];
+    const placed = getMonsterCard(monster.cardId).activated.flatMap((ability, i) =>
+      ability.targeting.type === 'zone' || (ability.targeting.type === 'monster' && ability.targeting.reach.type !== 'anywhere') ? [i] : [],
+    );
+    const effects = getLegalActions(after).filter(
+      (a) => a.type === 'activateEffect' && a.unitId === focus && placed.includes(a.effect ?? 0) && !monster.usedEffects.includes(a.effect ?? 0),
+    );
     return [...attacks, ...effects];
   }
   return getLegalActions(after).filter((a) => 'unitId' in a && a.unitId === focus);
