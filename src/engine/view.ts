@@ -25,7 +25,7 @@ export function getPlayerView(state: GameState, player: PlayerId): PlayerView {
       id: other.id,
       mana: other.mana,
       vp: other.vp,
-      used: other.used,
+      graveyard: other.graveyard,
       grimoireCount: other.grimoire.length,
     },
     traps: state.traps.filter((trap) => trap.owner === player),

@@ -19,10 +19,10 @@ const burnTargets = (state: GameState) =>
 
 describe('cartes du deck Sorciers du feu', () => {
   it('caractéristiques, famille, Brûlure 1, 2 tours', () => {
-    expect(CARDS.apprenti).toMatchObject({ cost: 2, atk: 1, hp: 3, mobility: 4, range: 2, family: 'sorcier' });
-    expect(CARDS['lutin-brasier']).toMatchObject({ cost: 4, atk: 2, hp: 4, mobility: 4, range: 2, family: 'sorcier' });
-    expect(CARDS.archimage).toMatchObject({ cost: 6, atk: 3, hp: 5, mobility: 4, range: 2, family: 'sorcier' });
-    expect(CARDS['golem-de-lave']).toMatchObject({ cost: 5, atk: 2, hp: 8, mobility: 2, range: 1, family: 'sorcier' });
+    expect(CARDS.apprenti).toMatchObject({ cost: 2, atk: 1, hp: 3, mobility: 4, range: 2, archetype: 'sorcier' });
+    expect(CARDS['lutin-brasier']).toMatchObject({ cost: 4, atk: 2, hp: 4, mobility: 4, range: 2, archetype: 'sorcier' });
+    expect(CARDS.archimage).toMatchObject({ cost: 6, atk: 3, hp: 5, mobility: 4, range: 2, archetype: 'sorcier' });
+    expect(CARDS['golem-de-lave']).toMatchObject({ cost: 5, atk: 2, hp: 8, mobility: 2, range: 1, archetype: 'sorcier' });
     for (const id of ['apprenti', 'lutin-brasier', 'archimage'] as const) {
       expect(CARDS[id], id).toMatchObject({ keywords: [{ keyword: 'brulure', amount: 1, turns: 2 }] });
     }
@@ -111,7 +111,7 @@ describe('Archimage', () => {
 });
 
 describe('Golem de lave : Passage · adjacents · burn 1 pendant 1 tour', () => {
-  it('un ennemi qui entre à côté de lui est burn, une fois par mouvement', () => {
+  it('un ennemi qui entre à côté de lui est burn, à chaque case de la zone (les burn se cumulent)', () => {
     const state = gameWith(
       [
         { monster: 'golem-de-lave', owner: 1, at: at(1, 1) },
@@ -119,10 +119,14 @@ describe('Golem de lave : Passage · adjacents · burn 1 pendant 1 tour', () => 
       ],
       { activePlayer: 2 },
     );
-    // (4, 1) → (3, 1) → (2, 1) → (2, 2) : il entre dans la zone en (2, 1) et y reste en (2, 2).
+    // (4, 1) → (3, 1) → (2, 1) → (2, 2) : deux cases de la zone, deux burn.
     const after = applyAction(state, { type: 'move', unitId: 'u2', to: at(2, 2), path: [at(3, 1), at(2, 1), at(2, 2)] });
-    expect(after.units.u2?.statuses).toMatchObject([{ kind: 'burn', amount: 1, turns: 1 }]);
+    expect(after.units.u2?.statuses).toMatchObject([
+      { kind: 'burn', amount: 1, turns: 1 },
+      { kind: 'burn', amount: 1, turns: 1 },
+    ]);
     expect(after.events).toContainEqual({ type: 'passage', sourceId: 'u1', unitId: 'u2', pos: at(2, 1) });
+    expect(after.events).toContainEqual({ type: 'passage', sourceId: 'u1', unitId: 'u2', pos: at(2, 2) });
   });
 
   it('rien quand c’est le Golem qui s’approche', () => {

@@ -19,8 +19,12 @@ export type ManaZoneId = 'ecurie' | 'ferme' | 'forge' | 'scierie' | 'mine';
 export type Cell =
   /** `.` : la case n'existe pas. */
   | { readonly kind: 'offBoard' }
-  /** `X` : case infranchissable. */
-  | { readonly kind: 'blocked' }
+  /**
+   * `X` : case infranchissable. `height` (15 × 15, §10) : `high`, comme une falaise de la Mine (rien ne la traverse, ni
+   * `vol`, ni aucun tir) ; `low`, comme une falaise de la Scierie (`vol` la survole, les tirs de portée 2+ passent
+   * par-dessus). Sans `height`, case X ordinaire : `vol` la survole, elle coupe tous les tirs.
+   */
+  | { readonly kind: 'blocked'; readonly height?: 'high' | 'low' }
   /** Case jouable : plaine, éventuellement zone d'invocation ou mana zone. */
   | {
       readonly kind: 'plain';
@@ -145,7 +149,7 @@ export type CardId =
  * Famille de cartes (SPEC.md §5.1) : les bodybuilders, les archers (sauf le Trébuchet), les dragons élémentaires (Jeune
  * dragon compris), les monstres piège (les 4 monstres du deck Pièges), les sorciers du feu, les explorateurs du temps.
  */
-export type Family = 'bodybuilder' | 'archer' | 'dragon' | 'piege' | 'sorcier' | 'temps';
+export type Archetype = 'bodybuilder' | 'archer' | 'dragon' | 'piege' | 'sorcier' | 'temps';
 
 /**
  * Mots-clés (SPEC.md §5.6) et leurs paramètres : chaque carte porte ses propres valeurs (« Givre 1 », « Assassin ×3 »).
@@ -174,8 +178,8 @@ interface KeywordParams {
   readonly sournois: { readonly amount: number };
   /** Par derrière, contre un monstre : dégâts ×`multiplier` (Clown assassin). */
   readonly assassin: { readonly multiplier: number };
-  /** Caché à l'adversaire tant qu'il est à plus de `amount` cases de ses unités et de sa zone d'invocation (§10). */
-  readonly invisible: { readonly amount: number };
+  /** Camouflage : caché à l'adversaire tant qu'aucun monstre ni terrain adverse n'est dans un rayon de `amount` (§10). */
+  readonly camouflage: { readonly amount: number };
 }
 
 export type Keyword = keyof KeywordParams;
@@ -199,7 +203,7 @@ export type StatusKind =
   /** Meurt au début du `turns`-ième prochain tour de son camp, sans VP pour personne. */
   | 'requiem'
   /** Invisible pour l'adversaire comme avec le mot-clé `invisible` de valeur `amount` (Pénombre). */
-  | 'invisible';
+  | 'camouflage';
 
 /**
  * Statut posé par un effet (SPEC.md §5 bis, §5.5). `turns` : sa durée, en tours du camp de l'unité touchée (le tour en
@@ -207,13 +211,29 @@ export type StatusKind =
  */
 export type StatusSpec =
   | { readonly kind: 'stun' | 'immobilise' | 'requiem'; readonly turns: number }
-  | { readonly kind: 'slow' | 'burn' | 'invisible'; readonly amount: number; readonly turns: number };
+  | { readonly kind: 'slow' | 'burn' | 'camouflage'; readonly amount: number; readonly turns: number };
 
 /** Statut en cours sur une unité. */
 export type Status = StatusSpec & {
   /** Numéro du tour au début duquel le statut disparaît. */
   readonly expiresAtTurn: number;
 };
+
+/** D'où vient un bonus du tour : la carte, et le nom de son effet s'il en a un (« Dopage »). */
+export interface EffectSource {
+  readonly cardId: CardId;
+  readonly effect?: string;
+}
+
+/** Bonus du tour donné par une source (Charge, Dopage, Seringue, Flèche divine), cumulé par source. */
+export interface TurnBonus {
+  readonly source: EffectSource;
+  /** ATK et portée : jusqu'à la fin du tour en cours. */
+  readonly atk: number;
+  readonly range: number;
+  /** Mobilité (Charge) : jusqu'au début du prochain tour de son camp, comme `boost`. */
+  readonly mobility: number;
+}
 
 /** Où peut se trouver le monstre visé par un effet (SPEC.md §5.3). */
 export type TargetReach =
@@ -237,7 +257,7 @@ export type AreaZone = 'front3' | 'adjacent' | 'line3' | 'adjacent2';
 /** Ce que vise un effet (SPEC.md §5.3). */
 export type Targeting =
   /** Un monstre choisi par le joueur : jamais un terrain (§10) ; d'une famille, s'il y en a une (« un allié bodybuilder »). */
-  | { readonly type: 'monster'; readonly side: 'ally' | 'enemy'; readonly reach: TargetReach; readonly family?: Family }
+  | { readonly type: 'monster'; readonly side: 'ally' | 'enemy'; readonly reach: TargetReach; readonly archetype?: Archetype }
   /** Tous les monstres ennemis de la zone (jamais un monstre invisible pour le lanceur) ; jouable si au moins un. */
   | { readonly type: 'zone'; readonly zone: AreaZone }
   /** Une case adjacente jouable, sans unité (pose de piège). */
@@ -247,7 +267,7 @@ export type Targeting =
   /** Une case jouable sans unité ni case brûlée, dans une zone autour de la source (Lutin brasier : rayon 2). */
   | { readonly type: 'emptyCell'; readonly zone: 'adjacent2' }
   /** Tous ses monstres d'une famille, sans choix (Pénombre) ; jouable s'il en a au moins un. */
-  | { readonly type: 'allies'; readonly family: Family }
+  | { readonly type: 'allies'; readonly archetype: Archetype }
   /** Tous les monstres ennemis qu'il voit, sans choix (Piège temporel) ; jouable s'il y en a au moins un. */
   | { readonly type: 'enemies' }
   /** Une case libre où la source a été pendant ce tour, sa case de départ comprise (retour, Explorateur du temps). */
@@ -324,7 +344,7 @@ export type TrapEffect = Extract<Effect, { readonly type: 'damage' | 'status' | 
 
 /**
  * « Passage » (SPEC.md §5.2) : quand un monstre ennemi entre sur une case de la zone du terrain (ses 8 cases
- * adjacentes), il subit `effects`, une fois par mouvement.
+ * adjacentes), il subit `effects` : à chaque case en marchant, une fois par recul.
  */
 export interface TerrainPassage {
   readonly zone: 'adjacent';
@@ -356,7 +376,7 @@ interface CardBase {
 /** Effet sur ses monstres d'une famille, dans une zone autour de la source (pas la source elle-même). */
 export interface AllyZoneEffect {
   readonly zone: 'adjacent';
-  readonly family: Family;
+  readonly archetype: Archetype;
   readonly effects: readonly Effect[];
 }
 
@@ -366,7 +386,7 @@ export interface AllyZoneEffect {
  */
 export interface StatAura {
   readonly zone: 'adjacent';
-  readonly family: Family;
+  readonly archetype: Archetype;
   readonly atk: number;
   readonly hp: number;
   readonly mobility: number;
@@ -374,7 +394,7 @@ export interface StatAura {
 
 export interface MonsterCard extends CardBase {
   readonly kind: 'monster';
-  readonly family: Family | null;
+  readonly archetype: Archetype | null;
   readonly atk: number;
   readonly hp: number;
   readonly mobility: number;
@@ -451,6 +471,8 @@ export interface MonsterUnit extends UnitBase {
   readonly froze: number;
   /** Mobilité ajoutée pour ce tour (Charge) ; remise à 0 au début de son tour. */
   readonly boost: number;
+  /** Les bonus du tour (`atkBonus`, `rangeBonus`, `boost`), par source : pour dire d'où ils viennent. */
+  readonly turnBonuses: readonly TurnBonus[];
   readonly hasAttacked: boolean;
   /** Effets actifs déjà utilisés ce tour, par leur rang sur la carte (0 : le premier). */
   readonly usedEffects: readonly number[];
@@ -486,10 +508,11 @@ export interface PlayerState {
   readonly vp: number;
   /** Cartes encore disponibles (information cachée pour l'adversaire). */
   readonly grimoire: readonly CardId[];
-  /** Pile « utilisées », publique. */
-  readonly used: readonly CardId[];
-  /** Sorts lancés depuis le début de son tour : un même sort ne se lance qu'une fois par tour (§4.3). */
-  readonly spellsThisTurn: readonly CardId[];
+  /**
+   * Cimetière, public (§4.3) : sorts lancés, monstres et terrains qui ont quitté le plateau (détruits, sacrifiés, tués
+   * par requiem). Un monstre ou un terrain posé quitte le grimoire sans y aller.
+   */
+  readonly graveyard: readonly CardId[];
   /**
    * Exemplaires brillants encore dans son grimoire (purement visuel) : une carte jouée l'est d'abord dans un exemplaire
    * brillant, s'il en reste. Absent : aucun.
@@ -646,7 +669,7 @@ export interface OpponentView {
   readonly id: PlayerId;
   readonly mana: number;
   readonly vp: number;
-  readonly used: readonly CardId[];
+  readonly graveyard: readonly CardId[];
   readonly grimoireCount: number;
 }
 

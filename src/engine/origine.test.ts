@@ -14,9 +14,9 @@ const move = (unitId: UnitId, to: { row: number; col: number }): Action => ({ ty
 
 describe('Dragon élémentaire - Origine', () => {
   it('10 mana, 7/7/7, portée 1, Vol, famille Dragon élémentaire, sans évolution', () => {
-    expect(CARDS['dragon-origine']).toMatchObject({ cost: 10, atk: 7, hp: 7, mobility: 7, range: 1, family: 'dragon', evolvesFrom: null });
+    expect(CARDS['dragon-origine']).toMatchObject({ cost: 10, atk: 7, hp: 7, mobility: 7, range: 1, archetype: 'dragon', evolvesFrom: null });
     for (const id of ['jeune-dragon', 'dragon-feu', 'dragon-eau', 'dragon-vent', 'dragon-terre'] as const) {
-      expect(CARDS[id], id).toMatchObject({ family: 'dragon' });
+      expect(CARDS[id], id).toMatchObject({ archetype: 'dragon' });
     }
     const state = gameWith([{ monster: 'jeune-dragon', owner: 1, at: at(1, 4) }], {
       players: { 1: { mana: 20, grimoire: ['dragon-origine', 'dragon-feu'] as CardId[] } },

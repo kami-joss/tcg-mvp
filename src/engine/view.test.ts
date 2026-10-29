@@ -8,12 +8,12 @@ describe('getPlayerView (SPEC.md §2, §4.3)', () => {
   it('cache le contenu du grimoire adverse, mais en donne le nombre de cartes', () => {
     const state = gameWith([], {
       players: {
-        1: { grimoire: ['eclaireur'], used: [] },
-        2: { grimoire: ['dragonnet', 'golem'], used: ['charge'], mana: 4, vp: 2 },
+        1: { grimoire: ['eclaireur'], graveyard: [] },
+        2: { grimoire: ['dragonnet', 'golem'], graveyard: ['charge'], mana: 4, vp: 2 },
       },
     });
     const view = getPlayerView(state, 1);
-    expect(view.opponent).toEqual({ id: 2, mana: 4, vp: 2, used: ['charge'], grimoireCount: 2 });
+    expect(view.opponent).toEqual({ id: 2, mana: 4, vp: 2, graveyard: ['charge'], grimoireCount: 2 });
     expect(JSON.stringify(view)).not.toMatch(/dragonnet|golem/);
   });
 
@@ -27,8 +27,8 @@ describe('getPlayerView (SPEC.md §2, §4.3)', () => {
     state = applyAction(state, { type: 'playCard', cardId: 'milicien', target: { kind: 'cell', pos: at(0, 4) } });
     state = applyAction(state, { type: 'endTurn' });
     const view = getPlayerView(state, 2);
-    expect(view.opponent).toMatchObject({ id: 1, mana: 1, vp: 0, used: ['milicien'], grimoireCount: 24 });
-    expect(view.me).toMatchObject({ id: 2, mana: 4, vp: 0, used: [] });
+    expect(view.opponent).toMatchObject({ id: 1, mana: 1, vp: 0, graveyard: [], grimoireCount: 24 });
+    expect(view.me).toMatchObject({ id: 2, mana: 4, vp: 0, graveyard: [] });
   });
 
   it('le plateau, les unités, le tour, le joueur actif et le vainqueur sont publics', () => {

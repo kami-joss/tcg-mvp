@@ -53,8 +53,8 @@ describe('Flèche divine', () => {
     expect(canAttack(after, 'u1', 'u2')).toBe(true);
     const shot = applyAction(after, { type: 'attack', unitId: 'u1', targetId: 'u2', advance: false });
     expect(shot.units.u2?.hp).toBe(5);
-    // Comme tout sort : une fois par tour.
-    expect(() => applyAction(after, arrow('u1'))).toThrow(IllegalActionError);
+    // Un sort n'a pas de limite par tour : seul le mana compte.
+    expect(() => applyAction(after, arrow('u1'))).not.toThrow();
   });
 
   it('les bonus s’arrêtent à la fin du tour', () => {

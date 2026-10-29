@@ -120,7 +120,7 @@ describe('journal des actions (SPEC.md §7)', () => {
       { monster: 'golem', owner: 2, at: at(9, 5) },
     ]);
     expect(logOf(shot, { type: 'attack', unitId: 'u1', targetId: 'u3', advance: false })).toEqual([
-      'Trébuchet - Archers de J1 attaque Golem de J2.',
+      'Trébuchet de J1 attaque Golem de J2.',
       'Farceur - Pièges de J2 apparaît en (9, 3) et arrête le tir !',
     ]);
     const walk = gameWith([
@@ -222,7 +222,7 @@ describe('journal : affichage', () => {
         items: [{ icon: 'death-skull', text: 'Éclaireur de J2 est détruit.', tone: 'hurt' }],
       },
     ];
-    const html = renderToStaticMarkup(<ActionLog entries={entries} opponentUsed={[]} />);
+    const html = renderToStaticMarkup(<ActionLog entries={entries} opponentGraveyard={[]} />);
     expect(html.match(/<li/g)).toHaveLength(2);
     expect(html).toContain('class="log__turn log__turn--p1"');
     expect(html).toContain('Tour 1 · J1');

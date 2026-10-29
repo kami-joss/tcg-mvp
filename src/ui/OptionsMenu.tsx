@@ -148,10 +148,6 @@ function OptionsPanel({ settings, boardView, isoAvailable, onChange, onSound, co
           <input type="checkbox" checked={settings.animations} onChange={(event) => onChange({ animations: event.target.checked })} />
           Animations
         </label>
-        <label className="options__check">
-          <input type="checkbox" checked={settings.flip} onChange={(event) => onChange({ flip: event.target.checked })} />
-          Plateau tourné vers le joueur qui joue
-        </label>
       </section>
 
       <section className="options__section options__section--rule">

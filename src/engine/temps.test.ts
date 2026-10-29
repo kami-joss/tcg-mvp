@@ -27,10 +27,10 @@ const returnCells = (state: GameState, unitId: string) =>
 
 describe('cartes du deck Explorateur du temps', () => {
   it('stats, famille, effets actifs ; le deck fait 25 cartes', () => {
-    expect(getMonsterCard('apprenti-temps')).toMatchObject({ name: 'Apprenti - Explorateur du temps', cost: 1, atk: 2, hp: 2, mobility: 4, range: 1, family: 'temps' });
-    expect(getMonsterCard('chronomancienne')).toMatchObject({ cost: 4, atk: 3, hp: 4, mobility: 4, range: 1, family: 'temps' });
-    expect(getMonsterCard('dragonnet-temps')).toMatchObject({ cost: 3, atk: 3, hp: 3, mobility: 5, range: 1, family: 'temps' });
-    expect(getMonsterCard('maitre-des-heures')).toMatchObject({ cost: 7, atk: 5, hp: 6, mobility: 4, range: 1, family: 'temps' });
+    expect(getMonsterCard('apprenti-temps')).toMatchObject({ name: 'Apprenti - Explorateur du temps', cost: 1, atk: 2, hp: 2, mobility: 4, range: 1, archetype: 'temps' });
+    expect(getMonsterCard('chronomancienne')).toMatchObject({ cost: 4, atk: 3, hp: 4, mobility: 4, range: 1, archetype: 'temps' });
+    expect(getMonsterCard('dragonnet-temps')).toMatchObject({ cost: 3, atk: 3, hp: 3, mobility: 5, range: 1, archetype: 'temps' });
+    expect(getMonsterCard('maitre-des-heures')).toMatchObject({ cost: 7, atk: 5, hp: 6, mobility: 4, range: 1, archetype: 'temps' });
     expect(getMonsterCard('apprenti-temps').activated).toHaveLength(1);
     for (const id of ['chronomancienne', 'dragonnet-temps', 'maitre-des-heures'] as const) {
       expect(getMonsterCard(id).activated.map((a) => a.manaCost), id).toEqual([1, 2]);

@@ -43,8 +43,8 @@ describe('textes des cartes', () => {
 
   it('monstre : caractéristiques, mots-clés expliqués, puis effet actif et son coût', () => {
     expect(describeCard(getCard('chaman'))).toEqual(['ATK 1 · PV 3 · Mob. 2 · Portée 1', 'Actif (1 mana) · un allié adjacent · soin 2']);
-    expect(describeCard(getCard('gardien'))[1]).toMatch(/^Passif · Riposte : .*\(une fois par tour\)\.$/);
-    expect(describeCard(getCard('archer-de-glace'))[1]).toBe('Famille Archer.');
+    expect(describeCard(getCard('gardien'))[1]).toMatch(/^Passif · Riposte : .*\(une fois par tour\/carte\)\.$/);
+    expect(describeCard(getCard('archer-de-glace'))[1]).toBe('Archétype Archers.');
     expect(describeCard(getCard('archer-de-glace'))[2]).toBe(
       'Passif · Givre 1 : à l’attaque, sa cible est slow 1 (−1 mobilité) pendant 1 tour.',
     );
@@ -68,7 +68,7 @@ describe('textes des cartes', () => {
     expect(cardEffectLine(getCard('zone-invocation'))).toBe('Point d’invocation');
     expect(cardEffectLine(getCard('invocateur'))).toBe('Actif (1 mana) · une case adjacente libre · invocation');
     expect(cardEffectLine(getCard('teleporteur'))).toBe('Actif (1 mana) · un allié · téléportation sur une case adjacente libre');
-    expect(describeCard(getCard('terrain-drainant'))[1]).toMatch(/^Passif · Passage · adjacents · 1 dégât : .*une fois par mouvement\.$/);
+    expect(describeCard(getCard('terrain-drainant'))[1]).toMatch(/^Passif · Passage · adjacents · 1 dégât : .*à chaque case où il entre \(une fois par recul\)\.$/);
   });
 });
 

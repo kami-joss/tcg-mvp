@@ -45,6 +45,7 @@ export function createMonsterUnit(
     mobilityLeft: card.mobility + mobilityBonus,
     froze: 0,
     boost: 0,
+    turnBonuses: [],
     hasAttacked: false,
     usedEffects: [],
     trail: [pos],
@@ -136,9 +137,12 @@ export function addUnit(state: GameState, create: (id: UnitId) => Unit): GameSta
   return { ...setUnit(state, create(id)), nextUnitId: state.nextUnitId + 1 };
 }
 
+/** L'unité quitte le plateau (détruite, sacrifiée, tuée par requiem) : sa carte va au cimetière de son joueur (§4.3). */
 export function removeUnit(state: GameState, unitId: UnitId): GameState {
-  const { [unitId]: _removed, ...units } = state.units;
-  return { ...state, units };
+  const { [unitId]: removed, ...units } = state.units;
+  if (!removed) return state;
+  const owner = state.players[removed.owner];
+  return { ...state, units, players: { ...state.players, [owner.id]: { ...owner, graveyard: [...owner.graveyard, removed.cardId] } } };
 }
 
 /** Bonus d'ATK des auras (Arnold, §5.2) : chaque monstre allié autour dont l'aura vise la famille du monstre (cumulés). */
@@ -148,11 +152,11 @@ export function auraAtk(state: BoardState, monster: MonsterUnit): number {
 
 /** Les alliés dont l'aura couvre `monster` : même famille, sur une des 8 cases autour, pas lui-même. */
 export function auraSources(state: BoardState, monster: MonsterUnit): MonsterUnit[] {
-  const family = getMonsterCard(monster.cardId).family;
-  if (!family) return [];
+  const archetype = getMonsterCard(monster.cardId).archetype;
+  if (!archetype) return [];
   return getMonsters(state, monster.owner).filter((other) => {
     const aura = getMonsterCard(other.cardId).aura;
-    return other.id !== monster.id && aura?.family === family && isAdjacent(state.board, other.pos, monster.pos);
+    return other.id !== monster.id && aura?.archetype === archetype && isAdjacent(state.board, other.pos, monster.pos);
   });
 }
 

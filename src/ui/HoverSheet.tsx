@@ -14,6 +14,7 @@ import type { OverframeLayers } from './Overframe';
 import { MAX_HEADROOM, OVERFRAMES } from './overframes';
 import type { OverframeDef } from './overframes';
 import type { SheetData, SheetStatus } from './sheet';
+import { CardRules } from './CardRules';
 
 /** Largeur de la fiche, en px : le cadrage de l'illustration s'écrit en px. */
 const SHEET_WIDTH = 280;
@@ -32,6 +33,12 @@ function Cost({ value, small = false }: { value: number; small?: boolean }) {
     </span>
   );
 }
+
+/** Pied de fiche : les statuts, puis les autres effets qui touchent l'unité. */
+const CHIP_GROUPS = [
+  { group: 'status', title: 'Statuts' },
+  { group: 'effect', title: 'Effets' },
+] as const;
 
 function Status({ status, className }: { status: SheetStatus; className: string }) {
   return (
@@ -183,10 +190,13 @@ function SheetFrame({ sheet, animated, layers }: { sheet: SheetData; animated: b
               <p key={`${item.name}-${item.text}`} className="sheet__line">
                 {item.name && (
                   <>
-                    <b>{item.name}</b> ·{' '}
+                    <b>
+                      <CardRules text={item.name} />
+                    </b>{' '}
+                    ·{' '}
                   </>
                 )}
-                {item.text}
+                <CardRules text={item.text} />
               </p>
             ))}
             {sheet.passive.foot && <Status status={sheet.passive.foot} className="sheet__foot" />}
@@ -199,25 +209,39 @@ function SheetFrame({ sheet, animated, layers }: { sheet: SheetData; animated: b
               <span>Effet actif{active.name && ` · ${active.name}`}</span>
               {active.cost !== null && <Cost value={active.cost} small />}
             </p>
-            <p className="sheet__line">{active.text}</p>
+            <p className="sheet__line">
+              <CardRules text={active.text} />
+            </p>
             {active.foot && <Status status={active.foot} className="sheet__foot" />}
           </div>
         ))}
       </div>
       {sheet.status && (
         <div className="sheet__status">
-          <p className="sheet__status-head">Effets en cours</p>
           {sheet.status.length === 0 ? (
-            <p className="sheet__none">Aucun</p>
-          ) : (
-            <div className="sheet__chips">
-              {sheet.status.map((chip, i) => (
-                <span key={`${i}-${chip.text}`} className={`chip chip--${chip.kind}`}>
-                  <Icon name={chip.icon} />
-                  {chip.text}
-                </span>
-              ))}
+            <div className="sheet__group">
+              <p className="sheet__status-head">Statuts · Effets</p>
+              <p className="sheet__none">Aucun</p>
             </div>
+          ) : (
+            // Un groupe vide ne prend pas de place : la fiche garde la hauteur pour le texte de la carte.
+            CHIP_GROUPS.map(({ group, title }) => {
+              const chips = sheet.status!.filter((chip) => chip.group === group);
+              if (chips.length === 0) return null;
+              return (
+                <div key={group} className={`sheet__group sheet__group--${group}`}>
+                  <p className="sheet__status-head">{title}</p>
+                  <div className="sheet__chips">
+                    {chips.map((chip, i) => (
+                      <span key={`${i}-${chip.text}`} className={`chip chip--${chip.kind}`} title={chip.detail}>
+                        <Icon name={chip.icon} />
+                        {chip.text}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       )}

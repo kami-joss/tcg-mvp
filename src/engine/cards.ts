@@ -1,5 +1,5 @@
 // Cartes décrites en données, avec les mots du lexique (SPEC.md §5, §6, §6 bis).
-import type { Ability, ActivatedAbility, Card, CardId, Deck, Family, KeywordSpec, MonsterCard, Targeting, TerrainCard } from './types';
+import type { Ability, ActivatedAbility, Card, CardId, Deck, Archetype, KeywordSpec, MonsterCard, Targeting, TerrainCard } from './types';
 
 function monster(
   id: CardId,
@@ -17,7 +17,7 @@ function monster(
     keywords,
     activated: activated === null ? [] : Array.isArray(activated) ? activated : [activated as ActivatedAbility],
     evolvesFrom,
-    family: null,
+    archetype: null,
     onKill: null,
     turnStart: null,
     aura: null,
@@ -32,15 +32,15 @@ function bodybuilder(
   stats: { cost: number; atk: number; hp: number; mobility: number; range: number },
   passives: Partial<Pick<MonsterCard, 'onKill' | 'turnStart' | 'aura' | 'activated'>> = {},
 ): MonsterCard {
-  return { ...monster(id, name, stats), family: 'bodybuilder', ...passives };
+  return { ...monster(id, name, stats), archetype: 'bodybuilder', ...passives };
 }
 
-/** Le monstre `card`, dans la famille `family` (§5.1). */
-const inFamily = (family: Family, card: MonsterCard): MonsterCard => ({ ...card, family });
+/** Le monstre `card`, dans la famille `archetype` (§5.1). */
+const inArchetype = (archetype: Archetype, card: MonsterCard): MonsterCard => ({ ...card, archetype });
 
 /** Archer du deck Archers (§6 bis) : monstre de la famille Archer. */
 function archer(id: CardId, name: string, stats: { cost: number; atk: number; hp: number; mobility: number; range: number }, keyword: KeywordSpec): MonsterCard {
-  return { ...monster(id, name, stats, [keyword]), family: 'archer' };
+  return { ...monster(id, name, stats, [keyword]), archetype: 'archer' };
 }
 
 function spell(id: CardId, name: string, cost: number, ability: Ability): Card {
@@ -54,7 +54,7 @@ function dragon(
   stats: { atk: number; hp: number; mobility: number },
   ability: Omit<ActivatedAbility, 'manaCost'>,
 ): MonsterCard {
-  return { ...monster(id, name, { cost: 7, range: 1, ...stats }, [VOL], { manaCost: 3, ...ability }, 'jeune-dragon'), family: 'dragon' };
+  return { ...monster(id, name, { cost: 7, range: 1, ...stats }, [VOL], { manaCost: 3, ...ability }, 'jeune-dragon'), archetype: 'dragon' };
 }
 
 /** Terrain : se pose sur une mana zone occupée par un de ses monstres (§4.9). */
@@ -131,11 +131,11 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
     turns: 1,
   }),
   // Pas de la famille Archer (§10).
-  trebuchet: monster('trebuchet', 'Trébuchet - Archers', { cost: 5, atk: 4, hp: 1, mobility: 2, range: 5 }, [
+  trebuchet: monster('trebuchet', 'Trébuchet', { cost: 5, atk: 4, hp: 1, mobility: 2, range: 5 }, [
     { keyword: 'siege', multiplier: 2 },
   ]),
   'fleche-divine': spell('fleche-divine', 'Flèche divine - Archers', 2, {
-    targeting: { type: 'monster', side: 'ally', reach: { type: 'anywhere' }, family: 'archer' },
+    targeting: { type: 'monster', side: 'ally', reach: { type: 'anywhere' }, archetype: 'archer' },
     effects: [
       { type: 'addAtkThisTurn', amount: 1 },
       { type: 'addRangeThisTurn', amount: 1 },
@@ -143,7 +143,7 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   }),
 
   // Deck Pièges : les 4 monstres sont de la famille Piège (« monstres piège », §10).
-  'poseur-de-piege': inFamily(
+  'poseur-de-piege': inArchetype(
     'piege',
     monster('poseur-de-piege', 'Poseur de piège - Pièges', { cost: 1, atk: 1, hp: 1, mobility: 7, range: 1 }, [], {
       manaCost: 1,
@@ -151,14 +151,14 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
       effects: [{ type: 'placeTrap', effects: [{ type: 'status', kind: 'immobilise', turns: 0 }] }],
     }),
   ),
-  farceur: inFamily(
+  farceur: inArchetype(
     'piege',
     monster('farceur', 'Farceur - Pièges', { cost: 2, atk: 2, hp: 1, mobility: 6, range: 1 }, [
-      { keyword: 'invisible', amount: 2 },
+      { keyword: 'camouflage', amount: 2 },
       { keyword: 'sournois', amount: 1 },
     ]),
   ),
-  'poseur-de-bombe': inFamily(
+  'poseur-de-bombe': inArchetype(
     'piege',
     monster('poseur-de-bombe', 'Poseur de bombe - Pièges', { cost: 1, atk: 2, hp: 1, mobility: 7, range: 1 }, [], {
       manaCost: 2,
@@ -166,19 +166,19 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
       effects: [{ type: 'placeTrap', effects: [{ type: 'damage', amount: 3 }] }],
     }),
   ),
-  'clown-assassin': inFamily(
+  'clown-assassin': inArchetype(
     'piege',
     monster('clown-assassin', 'Clown assassin - Pièges', { cost: 4, atk: 2, hp: 2, mobility: 7, range: 1 }, [
       { keyword: 'assassin', multiplier: 3 },
     ]),
   ),
   penombre: spell('penombre', 'Pénombre - Pièges', 5, {
-    targeting: { type: 'allies', family: 'piege' },
-    effects: [{ type: 'status', kind: 'invisible', amount: 2, turns: 1 }],
+    targeting: { type: 'allies', archetype: 'piege' },
+    effects: [{ type: 'status', kind: 'camouflage', amount: 2, turns: 1 }],
   }),
 
   // Deck Dragons : famille Dragon élémentaire, Jeune dragon compris (§10).
-  'jeune-dragon': inFamily(
+  'jeune-dragon': inArchetype(
     'dragon',
     monster('jeune-dragon', 'Jeune dragon élémentaire - Dragons', { cost: 2, atk: 3, hp: 2, mobility: 4, range: 1 }, [], {
       name: 'Évolution',
@@ -212,16 +212,16 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   }),
   // Vol, mais pas d'évolution : elle s'invoque pour 10 mana (§10).
   'dragon-origine': {
-    ...inFamily('dragon', monster('dragon-origine', 'Origine - Dragons', { cost: 10, atk: 7, hp: 7, mobility: 7, range: 1 }, [VOL])),
-    aura: { zone: 'adjacent', family: 'dragon', atk: 1, hp: 1, mobility: 1 },
+    ...inArchetype('dragon', monster('dragon-origine', 'Origine - Dragons', { cost: 10, atk: 7, hp: 7, mobility: 7, range: 1 }, [VOL])),
+    aura: { zone: 'adjacent', archetype: 'dragon', atk: 1, hp: 1, mobility: 1 },
   },
 
   // Deck Sorciers du feu : famille Sorcier du feu (§10). Brûlure 1, 2 tours : à l'attaque, burn 1 pendant 2 tours.
-  apprenti: inFamily(
+  apprenti: inArchetype(
     'sorcier',
     monster('apprenti', 'Apprenti - Sorciers du feu', { cost: 2, atk: 1, hp: 3, mobility: 4, range: 2 }, [BRULURE_2]),
   ),
-  'lutin-brasier': inFamily(
+  'lutin-brasier': inArchetype(
     'sorcier',
     monster('lutin-brasier', 'Lutin brasier - Sorciers du feu', { cost: 4, atk: 2, hp: 4, mobility: 4, range: 2 }, [BRULURE_2], {
       manaCost: 1,
@@ -238,7 +238,7 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
       ],
     }),
   ),
-  archimage: inFamily(
+  archimage: inArchetype(
     'sorcier',
     monster('archimage', 'Archimage - Sorciers du feu', { cost: 6, atk: 3, hp: 5, mobility: 4, range: 2 }, [BRULURE_2], {
       manaCost: 1,
@@ -247,23 +247,23 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
     }),
   ),
   'golem-de-lave': {
-    ...inFamily('sorcier', monster('golem-de-lave', 'Golem de lave - Sorciers du feu', { cost: 5, atk: 2, hp: 8, mobility: 2, range: 1 })),
+    ...inArchetype('sorcier', monster('golem-de-lave', 'Golem de lave - Sorciers du feu', { cost: 5, atk: 2, hp: 8, mobility: 2, range: 1 })),
     passage: { zone: 'adjacent', effects: [{ type: 'status', kind: 'burn', amount: 1, turns: 1 }] },
   },
 
   // Deck Explorateur du temps : famille Explorateur du temps (§10). Retour : il revient sur une case où il a été ce tour.
-  'apprenti-temps': inFamily(
+  'apprenti-temps': inArchetype(
     'temps',
     monster('apprenti-temps', 'Apprenti - Explorateur du temps', { cost: 1, atk: 2, hp: 2, mobility: 4, range: 1 }, [], RETURN),
   ),
-  chronomancienne: inFamily(
+  chronomancienne: inArchetype(
     'temps',
     monster('chronomancienne', 'Chronomancienne - Explorateur du temps', { cost: 4, atk: 3, hp: 4, mobility: 4, range: 1 }, [], [
       RETURN,
       { manaCost: 2, targeting: EMPTY_ADJACENT_CELL, effects: [{ type: 'placeTrap', effects: [{ type: 'rewind', steps: 3 }] }] },
     ]),
   ),
-  'dragonnet-temps': inFamily(
+  'dragonnet-temps': inArchetype(
     'temps',
     monster('dragonnet-temps', 'Dragonnet - Explorateur du temps', { cost: 3, atk: 3, hp: 3, mobility: 5, range: 1 }, [], [
       RETURN,
@@ -271,7 +271,7 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
     ]),
   ),
   'maitre-des-heures': {
-    ...inFamily(
+    ...inArchetype(
       'temps',
       monster('maitre-des-heures', 'Maître des heures - Explorateur du temps', { cost: 7, atk: 5, hp: 6, mobility: 4, range: 1 }, [], [
         RETURN,
@@ -318,13 +318,13 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
     ],
   }),
   arnold: bodybuilder('arnold', 'Arnold - Bodybuilder', { cost: 7, atk: 7, hp: 5, mobility: 3, range: 1 }, {
-    aura: { zone: 'adjacent', family: 'bodybuilder', atk: 2, hp: 0, mobility: 0 },
+    aura: { zone: 'adjacent', archetype: 'bodybuilder', atk: 2, hp: 0, mobility: 0 },
   }),
   'ki-ne': bodybuilder('ki-ne', 'Ki né - Bodybuilder', { cost: 3, atk: 2, hp: 3, mobility: 4, range: 1 }, {
-    turnStart: { zone: 'adjacent', family: 'bodybuilder', effects: [{ type: 'heal', amount: 1 }] },
+    turnStart: { zone: 'adjacent', archetype: 'bodybuilder', effects: [{ type: 'heal', amount: 1 }] },
   }),
   seringue: spell('seringue', 'Seringue - Bodybuilder', 2, {
-    targeting: { type: 'monster', side: 'ally', reach: { type: 'anywhere' }, family: 'bodybuilder' },
+    targeting: { type: 'monster', side: 'ally', reach: { type: 'anywhere' }, archetype: 'bodybuilder' },
     effects: [
       { type: 'multiplyAtkThisTurn', multiplier: 2 },
       { type: 'status', kind: 'requiem', turns: 2 },

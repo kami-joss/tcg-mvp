@@ -21,14 +21,15 @@ describe('Passage (SPEC.md §5.2, §10) : Terrain drainant', () => {
   const drained = (units: Parameters<typeof gameWith>[0] = []) =>
     gameWith([{ terrain: 'terrain-drainant', owner: 2, at: FORGE }, ...units]);
 
-  it('1 dégât au monstre ennemi qui entre dans sa zone, une seule fois par mouvement', () => {
-    // (4, 3) et (5, 3) sont toutes deux adjacentes à la Forge : un seul dégât pour ce déplacement.
+  it('1 dégât au monstre ennemi à chaque case de sa zone où il entre en marchant (§10)', () => {
+    // (4, 3) et (5, 3) sont toutes deux adjacentes à la Forge : un dégât pour chacune.
     const state = drained([{ monster: 'chevalier', owner: 1, at: at(3, 3) }]);
     const after = applyAction(state, move('u2', at(5, 3), [at(4, 3), at(5, 3)]));
-    expect(monster(after, 'u2')).toMatchObject({ pos: at(5, 3), hp: 3 });
-    expect(after.events.filter((e) => e.type === 'passage')).toEqual([{ type: 'passage', sourceId: 'u1', unitId: 'u2', pos: at(4, 3) }]);
-    // Un nouveau déplacement est un nouveau mouvement : une case de la zone coûte encore 1 PV.
-    expect(monster(applyAction(after, move('u2', at(6, 3))), 'u2').hp).toBe(2);
+    expect(monster(after, 'u2')).toMatchObject({ pos: at(5, 3), hp: 2 });
+    expect(after.events.filter((e) => e.type === 'passage')).toEqual([
+      { type: 'passage', sourceId: 'u1', unitId: 'u2', pos: at(4, 3) },
+      { type: 'passage', sourceId: 'u1', unitId: 'u2', pos: at(5, 3) },
+    ]);
   });
 
   it('rien pour ses alliés ; volant compris pour les ennemis', () => {
@@ -70,23 +71,22 @@ describe('Passage (SPEC.md §5.2, §5 bis) : Terrain piégé', () => {
   const trapped = (units: Parameters<typeof gameWith>[0] = []) =>
     gameWith([{ terrain: 'terrain-piege', owner: 2, at: FORGE }, ...units]);
 
-  it('slow 1 tout de suite pour ce tour : la mobilité restante baisse, une fois par mouvement', () => {
+  it('slow 1 tout de suite pour ce tour, à chaque case de la zone : la mobilité restante baisse', () => {
     const state = trapped([{ monster: 'chevalier', owner: 1, at: at(3, 3) }]);
-    const after = applyAction(state, move('u2', at(5, 3), [at(4, 3), at(5, 3)]));
+    const after = applyAction(state, move('u2', at(4, 3), [at(4, 3)]));
     const knight = monster(after, 'u2');
-    expect(knight).toMatchObject({ pos: at(5, 3), mobilityLeft: 0 });
+    expect(knight).toMatchObject({ pos: at(4, 3), mobilityLeft: 1 });
     expect(knight.statuses).toEqual([{ kind: 'slow', amount: 1, turns: 0, expiresAtTurn: statusExpiry(0, 1, 1, 1) }]);
   });
 
-  it('les chemins en tiennent compte : entrer dans la zone coûte 1 mobilité de plus, la première fois', () => {
+  it('les chemins en tiennent compte : chaque case de la zone coûte 1 mobilité de plus', () => {
     const state = trapped([{ monster: 'chevalier', owner: 1, at: at(3, 3) }]);
     const costs = new Map(getMoveDestinations(state, monster(state, 'u2')).map((d) => [`${d.pos.row},${d.pos.col}`, d.cost]));
     expect(costs.get('2,3')).toBe(1);
     expect(costs.get('4,3')).toBe(2);
-    expect(costs.get('5,3')).toBe(3);
-    // (6, 3) serait à 3 pas sans le terrain : trop loin avec le slow.
-    expect(costs.has('6,3')).toBe(false);
-    expect(() => applyAction(state, move('u2', at(6, 3), [at(4, 3), at(5, 3), at(6, 3)]))).toThrow(IllegalActionError);
+    // (5, 3) est aussi dans la zone : 2 + 2 = 4, trop loin avec 3 de mobilité.
+    expect(costs.has('5,3')).toBe(false);
+    expect(() => applyAction(state, move('u2', at(5, 3), [at(4, 3), at(5, 3)]))).toThrow(IllegalActionError);
   });
 
   it('sans effet au tour suivant : le slow ne dure que jusqu’à son prochain tour', () => {
@@ -151,7 +151,7 @@ describe('Invocateur (SPEC.md §5.4, Invocation)', () => {
   it('paie 1 mana + le coût du monstre, qui arrive sur la case et peut agir aussitôt', () => {
     const after = applyAction(summoner(5), { type: 'activateEffect', unitId: 'u1', target: { kind: 'cellAndCard', pos: at(3, 3), cardId: 'golem' } });
     expect(after.players[1].mana).toBe(0);
-    expect(after.players[1].used).toEqual(['golem']);
+    expect(after.players[1].graveyard).toEqual([]);
     expect(monster(after, 'u2')).toMatchObject({ cardId: 'golem', pos: at(3, 3), mobilityLeft: 2, hasAttacked: false, usedEffects: [] });
     expect(monster(after, 'u1').usedEffects).toEqual([0]);
     expect(targets(after)).toEqual([]);

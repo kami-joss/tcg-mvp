@@ -17,7 +17,7 @@ function shinyCopies(deck: readonly CardId[], shiny: readonly CardId[]): readonl
 
 function createPlayer(id: PlayerId, deck: readonly CardId[], shiny: readonly CardId[]): PlayerState {
   const copies = shinyCopies(deck, shiny);
-  return { id, mana: 0, vp: 0, grimoire: [...deck], used: [], spellsThisTurn: [], ...(copies.length > 0 ? { shiny: copies } : {}) };
+  return { id, mana: 0, vp: 0, grimoire: [...deck], graveyard: [], ...(copies.length > 0 ? { shiny: copies } : {}) };
 }
 
 /**

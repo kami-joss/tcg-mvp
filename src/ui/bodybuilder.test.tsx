@@ -48,7 +48,7 @@ describe('textes des cartes Bodybuilder', () => {
   it('famille, passifs expliqués, effet sur lui-même, requiem', () => {
     expect(describeCard(getCard('arnold'))).toEqual([
       'ATK 7 · PV 5 · Mob. 3 · Portée 1',
-      'Famille Bodybuilder.',
+      'Archétype Bodybuilder.',
       'Passif · Aura · bodybuilders alliés adjacents · +2 ATK : sur les 8 cases autour de lui, pas lui-même ; plusieurs auras se cumulent.',
     ]);
     expect(describeCard(getCard('jeune-gomuscu'))[2]).toBe(
@@ -69,7 +69,7 @@ describe('textes des cartes Bodybuilder', () => {
     expect(sheet.passive?.items).toEqual([
       {
         name: 'Début de tour',
-        text: 'Bodybuilders alliés adjacents · soin 1 : au début de chacun de vos tours, après les revenus et le burn, sans dépasser leurs PV max.',
+        text: 'Au début de ton tour, rend 1 PV à tes bodybuilders {{adjacent|adjacents}}.',
       },
     ]);
   });
@@ -109,7 +109,7 @@ describe('Dopage (Jean Bon) : un clic sur lui-même', () => {
     expect(renderBoard(view)).toMatch(/class="stat stat--atk is-boosted" title="ATK 7 \(5 \+ 2\)">.*?<\/svg>7<\/span>/);
     const sheet = cellSheet(doped, 8, 1);
     expect(sheet.stats[0]).toEqual({ icon: 'broadsword', label: 'ATK', value: '7', delta: 2, hurt: false });
-    expect(sheet.status).toContainEqual({ icon: 'broadsword', text: '+2 ATK jusqu’à la fin du tour', kind: 'boost' });
+    expect(sheet.status).toContainEqual({ icon: 'broadsword', text: 'Dopage', detail: '+2 ATK jusqu’à la fin du tour (Jean Bon)', kind: 'boost', group: 'effect' });
     expect(getAttackPreviews(view, { kind: 'unit', unitId: 'u1', mode: 'act' }).get(posKey(at(8, 2)))?.damage).toBe(7);
   });
 });
@@ -128,7 +128,7 @@ describe('Arnold : l’aura se voit sur le jeton et dans la fiche', () => {
     const sheet = cellSheet(state, 8, 1);
     expect(sheet.type).toBe('Monstre · Bodybuilder · Joueur 1');
     expect(sheet.stats[0]).toMatchObject({ value: '4', delta: 2 });
-    expect(sheet.status).toContainEqual({ icon: 'aura', text: '+2 ATK (aura : Arnold - Bodybuilder)', kind: 'boost' });
+    expect(sheet.status).toContainEqual({ icon: 'aura', text: 'Aura', detail: '+2 ATK (Arnold - Bodybuilder)', kind: 'boost', group: 'effect' });
     expect(getAttackPreviews(view, { kind: 'unit', unitId: 'u2', mode: 'act' }).get(posKey(at(7, 1)))?.damage).toBe(4);
   });
 });
@@ -157,12 +157,14 @@ describe('Seringue et requiem', () => {
     );
     expect(cellSheet(injected, 2, 4).status).toContainEqual({
       icon: 'death-skull',
-      text: 'Requiem : meurt au début de son 2e prochain tour, sans VP pour personne',
+      text: 'Requiem',
+      detail: 'Requiem : meurt au début de son 2e prochain tour, sans VP pour personne',
       kind: 'warn',
+      group: 'status',
     });
     const later = applyAction(applyAction(injected, END_TURN), END_TURN);
     expect(renderBoard(activeView(later))).toMatch(/title="Requiem : meurt au début du prochain tour de son camp">.*?<\/svg>1<\/span>/);
-    expect(cellSheet(later, 2, 4).status?.map((c) => c.text)).toContain(
+    expect(cellSheet(later, 2, 4).status?.map((c) => c.detail)).toContain(
       'Requiem : meurt au début de son prochain tour, sans VP pour personne',
     );
   });

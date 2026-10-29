@@ -147,8 +147,8 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
   const isoAvailable = isoScenery(display.board) !== null;
   const mode: BoardView = settings.view === 'iso' && !isoAvailable ? 'tilt' : settings.view;
   const tilted = mode === 'tilt';
-  // Le camp du joueur actif toujours en bas : J1 joue en haut du plateau, on le retourne pour lui.
-  const flipped = settings.flip && display.viewer === 1;
+  // Même angle pour les deux joueurs (validé) : J1 en haut du plateau, J2 en bas ; il n'est jamais retourné.
+  const flipped = false;
   const animated = settings.animations && !prefersReducedMotion();
 
   const hovered = hover?.subject.kind === 'cell' ? hover.subject.pos : null;
@@ -499,7 +499,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
               <HoverSheet sheet={sheet} animated={animated} onOpen={() => setPreview(sheet)} />
             </div>
           )}
-          <ActionLog entries={log} opponentUsed={display.opponent.used} />
+          <ActionLog entries={log} opponentGraveyard={display.opponent.graveyard} />
         </aside>
 
         {/* À droite, par-dessus le plateau : le grimoire, repliable par son onglet. */}

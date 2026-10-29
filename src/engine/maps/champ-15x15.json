@@ -1,0 +1,87 @@
+{
+  "taille": 15,
+  "legende": {
+    "1": "invocation J1",
+    "2": "invocation J2",
+    "P": "case libre",
+    "X": "bloquée (rocher, eau si listée dans eau, paroi ou berge si listée dans casesX)",
+    "F": "Forge",
+    "E": "Écurie",
+    "S": "Scierie",
+    "M": "Mine",
+    "R": "Ferme"
+  },
+  "lignes": [
+    "1 1 P P P P P P P X P P P P P",
+    "1 P P P P P P P P P P P P P P",
+    "P P E P P P P X P X P X M P P",
+    "P P P P P P P X P X P P X P P",
+    "P P P P X X P P P X P P P P P",
+    "P P P P X X P P P X X X X P X",
+    "P P P P P P P P P P X P P P P",
+    "P P P P X P P F P P X P P P P",
+    "P P P P X P P P P P P P P P P",
+    "X P X X X X P P P X X P P P P",
+    "P P P P P X P P P X X P P P P",
+    "P P X P P X P X P P P P P P P",
+    "P P S X P X P X P P P P R P P",
+    "P P P P P P P P P P P P P P 2",
+    "P P P P P X P P P P P P P 2 2"
+  ],
+  "eau": [
+    "2,7",
+    "3,7",
+    "9,0",
+    "9,2",
+    "9,3",
+    "11,5",
+    "11,7",
+    "12,5",
+    "12,7",
+    "14,5"
+  ],
+  "falaises": [],
+  "casesX": {
+    "haute": [
+      [0, 9],
+      [2, 9],
+      [2, 11],
+      [3, 9],
+      [3, 12],
+      [5, 11],
+      [5, 12],
+      [5, 14],
+      [4, 9],
+      [5, 9],
+      [5, 10]
+    ],
+    "basse": [
+      [9, 0],
+      [9, 2],
+      [9, 3],
+      [11, 2],
+      [11, 5],
+      [12, 3],
+      [12, 5],
+      [14, 5],
+      [2, 7],
+      [3, 7],
+      [11, 7],
+      [12, 7]
+    ]
+  },
+  "enclaves": [
+    {
+      "type": "mine",
+      "lignes": [0, 4],
+      "colonnes": [10, 14],
+      "zone": [2, 12]
+    },
+    {
+      "type": "scierie",
+      "lignes": [10, 14],
+      "colonnes": [0, 4],
+      "zone": [12, 2]
+    }
+  ]
+}

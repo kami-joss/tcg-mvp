@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyAction, getPlayerView } from '../engine';
+import { BATTLEFIELD_15, applyAction, getPlayerView } from '../engine';
 import type { Action, GameState } from '../engine';
 import { at, gameWith, withStatus } from '../engine/test-utils';
 import { canPlay } from './interaction';
@@ -17,7 +17,7 @@ describe('fiche (lot 9)', () => {
     { monster: 'golem', owner: 2, at: at(8, 2), hp: 5 },
   ]);
 
-  it('son propre monstre : pas restants, attaque disponible, sens et effets en cours', () => {
+  it('son propre monstre : pas restants, attaque disponible, ni statut ni effet', () => {
     const sheet = cellSheet(state, 1, 8, 1);
     expect(sheet?.title).toBe('Chevalier');
     expect(sheet?.stats.map((s) => [s.label, s.value])).toEqual([
@@ -27,7 +27,8 @@ describe('fiche (lot 9)', () => {
       ['Portée', '1'],
     ]);
     expect(sheet?.lines).toEqual([{ icon: 'broadsword', label: 'Attaque', status: { text: 'Disponible', tone: 'ok' } }]);
-    expect(chipTexts(sheet)).toContain('Regarde vers le bas');
+    // Ni statut ni effet : rien en pied de fiche.
+    expect(chipTexts(sheet)).toEqual([]);
   });
 
   it('attaque : utilisée ce tour, ou aucune cible depuis cette case', () => {
@@ -53,8 +54,8 @@ describe('fiche (lot 9)', () => {
     const burning = withStatus(withStatus(state, 'u2', 'burn', 1, 2), 'u2', 'immobilise', 0, 0);
     expect(cellSheet(burning, 1, 8, 2)?.status).toEqual(
       expect.arrayContaining([
-        { icon: 'flame', text: 'Burn 1 : −1 PV au début de chacun de ses tours, pendant ses 2 prochains tours', kind: 'burn' },
-        { icon: 'fishing-net', text: 'Immobilisé : ne peut plus bouger jusqu’à son prochain tour', kind: 'warn' },
+        { icon: 'flame', text: 'Burn 1', detail: 'Burn 1 : −1 PV au début de chacun de ses tours, pendant ses 2 prochains tours', kind: 'burn', group: 'status' },
+        { icon: 'fishing-net', text: 'Immobilisé', detail: 'Immobilisé : ne peut plus bouger jusqu’à son prochain tour', kind: 'warn', group: 'status' },
       ]),
     );
   });
@@ -62,7 +63,7 @@ describe('fiche (lot 9)', () => {
   it('slow reçu pendant son tour et Charge : la mobilité le montre (pastille), « Effets en cours » aussi', () => {
     let slowed = withStatus(gameWith([{ monster: 'golem', owner: 1, at: at(8, 1) }]), 'u1', 'slow', 1, 1);
     expect(cellSheet(slowed, 1, 8, 1)?.stats[2]).toEqual({ icon: 'walking-boot', label: 'Pas rest.', value: '1/1', delta: -1, hurt: false });
-    expect(chipTexts(cellSheet(slowed, 1, 8, 1))).toContain('Slow 1 : −1 mobilité jusqu’à la fin de ce tour et de son prochain');
+    expect(cellSheet(slowed, 1, 8, 1)?.status?.map((c) => [c.text, c.detail])).toContainEqual(['Slow 1', 'Slow 1 : −1 mobilité jusqu’à la fin de ce tour et de son prochain']);
     slowed = applyAction(applyAction(slowed, END_TURN), END_TURN); // son tour suivant : encore ralenti
     expect(cellSheet(slowed, 1, 8, 1)?.stats[2]).toMatchObject({ value: '1/1', delta: -1 });
 
@@ -72,23 +73,23 @@ describe('fiche (lot 9)', () => {
       target: { kind: 'unit', unitId: 'u1' },
     });
     expect(cellSheet(charged, 1, 8, 1)?.stats[2]).toMatchObject({ value: '4/4', delta: 2 });
-    expect(cellSheet(charged, 1, 8, 1)?.status).toContainEqual({ icon: 'sprint', text: '+2 mobilité ce tour (Charge)', kind: 'boost' });
+    expect(cellSheet(charged, 1, 8, 1)?.status).toContainEqual({ icon: 'sprint', text: 'Charge', detail: '+2 mobilité ce tour', kind: 'boost', group: 'effect' });
   });
 
   it('effet passif (riposte prête) et effet actif (coût, disponibilité)', () => {
     const guard = gameWith([{ monster: 'gardien', owner: 1, at: at(8, 1) }]);
-    expect(cellSheet(guard, 1, 8, 1)?.passive?.foot).toEqual({ text: 'Riposte prête · une fois par tour', tone: 'ok' });
+    expect(cellSheet(guard, 1, 8, 1)?.passive?.foot).toEqual({ text: 'Riposte prête · une fois par tour/carte', tone: 'ok' });
     const poor = gameWith([{ monster: 'invocateur', owner: 1, at: at(5, 4) }], { players: { 1: { mana: 0 } } });
     expect(cellSheet(poor, 1, 5, 4)?.active[0]).toMatchObject({ cost: 1, foot: { text: 'Mana insuffisant · il te manque 1', tone: 'warn' } });
   });
 
   it('effet actif et mots-clés : écrits avec le lexique', () => {
     const sheet = getSheet(getPlayerView(state, 1), { kind: 'card', cardId: 'dragon-feu' });
-    expect(sheet?.passive?.items).toEqual([{ name: 'Vol', text: 'En se déplaçant, survole les cases X et les falaises de la Scierie (pas celles de la Mine, zone fermée), mais pas les ennemis.' }]);
+    expect(sheet?.passive?.items).toEqual([{ name: 'Vol', text: 'En se déplaçant, survole les cases X et les falaises de la Scierie (pas celles de la Mine), mais pas les ennemis.' }]);
     expect(sheet?.active).toEqual([{
       name: 'Déflagration',
       cost: 3,
-      text: '3 cases devant · 2 dégâts + burn 1 pendant 1 tour',
+      text: 'Inflige 2 dégâts aux ennemis des 3 cases devant et leur inflige {{burn|burn 1}} pendant 1 tour.',
       foot: null,
     }]);
   });
@@ -138,6 +139,13 @@ describe('fiche (lot 9)', () => {
     expect(cellSheet(empty, 1, 3, 4)?.title).toBe('Case bloquée');
   });
 
+  it('cases X hautes et basses du 15 × 15 : leur règle dans la fiche', () => {
+    const big = gameWith([], { board: BATTLEFIELD_15 });
+    expect(cellSheet(big, 1, 2, 11)).toMatchObject({ title: 'Case bloquée haute', text: ['Infranchissable, même en volant. Coupe tous les tirs.'] });
+    expect(cellSheet(big, 1, 11, 2)?.title).toBe('Case bloquée basse');
+    expect(cellSheet(big, 1, 11, 2)?.text[0]).toContain('portée 2 ou plus passent par-dessus');
+  });
+
   it('sujet d’une case : l’unité qui s’y trouve (le monstre d’abord), sinon la case ; comparaison', () => {
     const view = getPlayerView(gameWith([{ terrain: 'bastion', owner: 1, at: at(5, 4) }, { monster: 'golem', owner: 1, at: at(5, 4) }]), 1);
     expect(subjectAt(view, at(5, 4))).toEqual({ kind: 'unit', unitId: 'u2' });
@@ -151,16 +159,13 @@ describe('fiche (lot 9)', () => {
 });
 
 describe('fiche d’un sort déjà lancé ce tour', () => {
-  it('le dit, et la tuile n’est plus jouable', () => {
+  it('encore jouable s’il en reste un exemplaire et du mana : pas de limite par tour pour les sorts', () => {
     const state = gameWith([{ monster: 'milicien', owner: 1, at: at(8, 1) }], {
       players: { 1: { mana: 10, grimoire: ['charge', 'charge'] } },
     });
     const after = applyAction(state, { type: 'playCard', cardId: 'charge', target: { kind: 'unit', unitId: 'u1' } });
     const view = getPlayerView(after, 1);
-    expect(canPlay(view, 'charge')).toBe(false);
-    expect(getSheet(view, { kind: 'card', cardId: 'charge' })?.lines[0]?.status).toEqual({
-      text: 'Déjà lancé ce tour : un même sort une fois par tour',
-      tone: 'off',
-    });
+    expect(canPlay(view, 'charge')).toBe(true);
+    expect(getSheet(view, { kind: 'card', cardId: 'charge' })?.lines[0]?.status).toEqual({ text: 'Disponible', tone: 'ok' });
   });
 });

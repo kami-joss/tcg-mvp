@@ -1,31 +1,26 @@
-// `invisible` (Farceur, SPEC.md §5.6, §10) : un monstre caché à l'adversaire tant qu'aucune unité adverse ni sa zone
-// d'invocation n'est proche.
+// Camouflage (Farceur, Pénombre, SPEC.md §5.6, §10) : un monstre caché à l'adversaire tant qu'aucun monstre ni terrain
+// adverse n'est dans un rayon de N autour de lui.
 // Le joueur actif agit sur ce qu'il voit : ses actions légales se calculent sans les monstres qu'il ne voit pas,
 // puis se résolvent sur l'état réel, où ces monstres occupent leur case et peuvent l'interrompre.
-import { distance, getSummonZone } from './board';
+import { radiusCells, samePos } from './board';
 import { emit } from './events';
 import { getKeyword, setUnit } from './units';
 import { statusAmount } from './statuses';
 import type { BoardState, GameState, PlayerId, Unit, UnitId } from './types';
 
 /**
- * `unit` est invisible pour `viewer` : monstre adverse `invisible` (mot-clé, ou statut posé par Pénombre), non révélé,
- * à plus de N cases (la plus grande valeur d'invisibilité) de toutes les unités de `viewer` et de toutes les cases de
- * sa zone d'invocation.
+ * `unit` est invisible pour `viewer` : monstre adverse camouflé (mot-clé, ou statut posé par Pénombre), non révélé, sans
+ * aucune unité de `viewer` (monstre ou terrain) dans un rayon de N autour de lui (la plus grande valeur de camouflage).
  */
 export function isHiddenFrom(state: BoardState, unit: Unit, viewer: PlayerId): boolean {
   if (unit.kind !== 'monster' || unit.owner === viewer || unit.revealed) return false;
   const radii = [
-    getKeyword(unit, 'invisible')?.amount,
-    ...unit.statuses.filter((s) => s.kind === 'invisible').map(statusAmount),
+    getKeyword(unit, 'camouflage')?.amount,
+    ...unit.statuses.filter((s) => s.kind === 'camouflage').map(statusAmount),
   ].filter((n): n is number => n !== undefined);
   if (radii.length === 0) return false;
-  const radius = Math.max(...radii);
-  const far = (pos: { row: number; col: number }) => distance(pos, unit.pos) > radius;
-  return (
-    Object.values(state.units).every((other) => other.owner !== viewer || far(other.pos)) &&
-    getSummonZone(state.board, viewer).every(far)
-  );
+  const around = radiusCells(state.board, unit.pos, Math.max(...radii));
+  return Object.values(state.units).every((other) => other.owner !== viewer || !around.some((cell) => samePos(cell, other.pos)));
 }
 
 /** Unités que `viewer` ne voit pas. */

@@ -21,14 +21,14 @@ export interface Destination {
 }
 
 /**
- * Case traversable : les alliés (monstres et terrains) se traversent, jamais les ennemis ni les cases
- * hors plateau. Les cases X ne se traversent qu'avec `vol` (§10).
+ * Case traversable : les alliés (monstres et terrains) se traversent, sauf un allié stun ou immobilisé (§10) ; jamais
+ * les ennemis ni les cases hors plateau. Les cases X ne se traversent qu'avec `vol`, et jamais une X haute (§10).
  */
 function canCross(state: BoardState, monster: MonsterUnit, flying: boolean, pos: Position): boolean {
   const cell = getCell(state.board, pos);
   if (cell.kind === 'offBoard') return false;
-  if (cell.kind === 'blocked') return flying;
-  return getUnitsAt(state, pos).every((unit) => unit.owner === monster.owner);
+  if (cell.kind === 'blocked') return flying && cell.height !== 'high';
+  return getUnitsAt(state, pos).every((unit) => unit.owner === monster.owner && (unit.kind === 'terrain' || canMove(unit)));
 }
 
 /** Case où terminer : jouable, sans monstre ni terrain ennemi. Un terrain allié seul est permis (§10). */
@@ -46,8 +46,8 @@ function canStep(state: BoardState, monster: MonsterUnit, flying: boolean, from:
 }
 
 /**
- * Zone d'un terrain ennemi « Passage » qui ralentit (Terrain piégé) : y entrer coûte `extra` mobilité de plus, la
- * première fois de chaque déplacement (§10).
+ * Zone d'un terrain ennemi « Passage » qui ralentit (Terrain piégé) : chaque case de la zone où il entre coûte `extra`
+ * mobilité de plus (les slow se cumulent, §10).
  */
 interface SlowZone {
   readonly cells: readonly Position[];
@@ -65,17 +65,11 @@ function getSlowZones(state: BoardState, monster: MonsterUnit): SlowZone[] {
   });
 }
 
-/** Mobilité en plus pour entrer sur `pos`, et les zones de ralentissement déjà franchies après ce pas. */
+/** Mobilité en plus pour entrer sur `pos` : le slow de chaque zone de ralentissement qui la contient. */
 function slowStep(zones: readonly SlowZone[], crossed: number, pos: Position): { extra: number; crossed: number } {
   let extra = 0;
-  let next = crossed;
-  zones.forEach((zone, i) => {
-    if (!(crossed & (1 << i)) && zone.cells.some((cell) => samePos(cell, pos))) {
-      next |= 1 << i;
-      extra += zone.extra;
-    }
-  });
-  return { extra, crossed: next };
+  for (const zone of zones) if (zone.cells.some((cell) => samePos(cell, pos))) extra += zone.extra;
+  return { extra, crossed };
 }
 
 interface Reached extends Destination {
@@ -86,8 +80,8 @@ interface Reached extends Destination {
 }
 
 /**
- * Parcours depuis le monstre, par coût croissant : chaque case coûte 1 point de mobilité, plus le slow d'une zone de
- * Terrain piégé la première fois qu'il y entre. Sans Terrain piégé, c'est un parcours en largeur. Les pièges n'y jouent
+ * Parcours depuis le monstre, par coût croissant : chaque case coûte 1 point de mobilité, plus le slow de chaque zone de
+ * Terrain piégé qui la contient. Sans Terrain piégé, c'est un parcours en largeur. Les pièges n'y jouent
  * aucun rôle : ils sont cachés, et le calcul ne doit rien en révéler.
  */
 function explore(state: BoardState, monster: MonsterUnit): { reached: Reached[]; best: Map<string, number> } {
@@ -206,7 +200,8 @@ export function applyMove(state: GameState, action: MoveAction): GameState {
   // Case par case : la mobilité baisse à chaque pas, et le monstre regarde dans le sens de sa marche.
   let next = state;
   let from = monster.pos;
-  let movement = NEW_MOVEMENT;
+  // Cases parcourues avant la case actuelle : où revenir si un arrêt forcé tombe sur un allié.
+  const walked: Position[] = [monster.pos];
   for (const [i, pos] of path.entries()) {
     const current = next.units[monster.id];
     if (current?.kind !== 'monster' || current.mobilityLeft < 1) break;
@@ -218,12 +213,19 @@ export function applyMove(state: GameState, action: MoveAction): GameState {
       facing: directionBetween(from, pos),
       mobilityLeft: current.mobilityLeft - 1,
     });
+    if (i > 0) walked.push(path[i - 1]!);
     from = pos;
-    // Chaque case entrée peut déclencher un piège ou un terrain « Passage », même pour un monstre `vol` (§10).
-    const entered = enterCell(next, monster.id, movement);
+    // Chaque case entrée peut déclencher un piège ou un terrain « Passage », même pour un monstre `vol` ; en marchant,
+    // un « Passage » agit à chaque case de sa zone (§10).
+    const entered = enterCell(next, monster.id, NEW_MOVEMENT);
     next = entered.state;
-    movement = entered.movement;
     if (entered.stopped) break;
+  }
+  // Arrêt forcé (immobilisé ou stun en entrant, déplacement coupé) sur la case d'un autre monstre : il revient sur la
+  // dernière case libre de son chemin, comme devant un monstre camouflé (§10).
+  const end = next.units[monster.id];
+  if (end?.kind === 'monster' && getUnitsAt(next, end.pos).some((unit) => unit.kind === 'monster' && unit.id !== monster.id)) {
+    return stopBefore(next, monster.id, walked);
   }
   return next;
 }

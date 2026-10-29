@@ -15,7 +15,7 @@ describe('createGame — mise en place (SPEC.md §4.1)', () => {
   it('chaque joueur a 0 VP, le grimoire complet et aucune carte utilisée', () => {
     const state = createGame();
     for (const id of [1, 2] as const) {
-      expect(state.players[id]).toMatchObject({ id, vp: 0, grimoire: TEST_GRIMOIRE, used: [] });
+      expect(state.players[id]).toMatchObject({ id, vp: 0, grimoire: TEST_GRIMOIRE, graveyard: [] });
     }
   });
 

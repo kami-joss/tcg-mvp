@@ -25,7 +25,7 @@ describe('terrains (SPEC.md §4.9)', () => {
     const after = applyAction(state, place('bastion', FORGE));
     expect(after.units.u2).toEqual({ kind: 'terrain', id: 'u2', cardId: 'bastion', owner: 1, pos: FORGE, hp: 10, maxHp: 10, statuses: [] });
     expect(getUnitsAt(after, FORGE).map((u) => u.id)).toEqual(['u1', 'u2']);
-    expect(after.players[1]).toMatchObject({ mana: 8, used: ['bastion'] });
+    expect(after.players[1]).toMatchObject({ mana: 8, graveyard: [] });
   });
 
   it('refusé sur une mana zone vide ou occupée par un monstre ennemi', () => {

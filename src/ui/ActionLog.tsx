@@ -54,12 +54,12 @@ function Entry({ entry }: { entry: LogEntry }) {
   );
 }
 
-export function ActionLog({ entries, opponentUsed }: { entries: readonly LogEntry[]; opponentUsed: readonly CardId[] }) {
+export function ActionLog({ entries, opponentGraveyard }: { entries: readonly LogEntry[]; opponentGraveyard: readonly CardId[] }) {
   const list = useRef<HTMLOListElement>(null);
   useEffect(() => {
     if (list.current) list.current.scrollTop = list.current.scrollHeight;
   }, [entries]);
-  const used = groupCards(opponentUsed).map(({ cardId, count }) => `${getCard(cardId).name}${count > 1 ? ` ×${count}` : ''}`);
+  const graveyard = groupCards(opponentGraveyard).map(({ cardId, count }) => `${getCard(cardId).name}${count > 1 ? ` ×${count}` : ''}`);
 
   return (
     <section className="panel">
@@ -69,7 +69,7 @@ export function ActionLog({ entries, opponentUsed }: { entries: readonly LogEntr
           <Entry key={i} entry={entry} />
         ))}
       </ol>
-      <p className="log__used">Cartes jouées par l’adversaire : {used.length > 0 ? used.join(', ') : '—'}</p>
+      <p className="log__used">Cimetière adverse : {graveyard.length > 0 ? graveyard.join(', ') : '—'}</p>
     </section>
   );
 }

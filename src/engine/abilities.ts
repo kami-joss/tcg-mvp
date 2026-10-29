@@ -59,5 +59,5 @@ export function applyActivateEffect(state: GameState, action: ActivateEffectActi
   const cells = targeting.type === 'zone' ? getAreaCells(state, source, targeting.zone) : [];
   const event: GameEvent = { type: 'effect', unitId: monster.id, pos, cells, ...(facing ? { facing } : {}), ...(effect > 0 ? { effect } : {}) };
   const paid = addMana(emit(used, event), monster.owner, -ability.manaCost);
-  return resolveAbility(paid, ability, action.target, monster.owner, source);
+  return resolveAbility(paid, ability, action.target, monster.owner, source, { cardId: monster.cardId, ...(ability.name ? { effect: ability.name } : {}) });
 }

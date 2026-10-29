@@ -1,5 +1,6 @@
 // Plateau (SPEC.md §3).
 import MAP_13 from './maps/champ-13x13.json';
+import MAP_15 from './maps/champ-15x15.json';
 import type { Board, BoardScenery, Cell, Cliff, Direction, Enclave, ManaZoneId, PlayerId, Position } from './types';
 
 /** Plateau du MVP, recopié tel quel depuis SPEC.md §3 (une chaîne par ligne, un caractère par colonne). */
@@ -103,13 +104,36 @@ export function parseBoard(name: string, layout: readonly string[], cliffs: read
 
 /**
  * Carte au format des handoffs (`carte-13x13.json`) : une ligne par rangée, symboles séparés par des espaces (ceux de
- * `parseBoard`), cases d'eau (« ligne,colonne », des X), falaises hautes (Mine) ou basses (Scierie), enclaves.
+ * `parseBoard`), cases d'eau (« ligne,colonne », des X), falaises hautes (Mine) ou basses (Scierie), enclaves ; et,
+ * facultatives, les cases X hautes et basses (`casesX`, 15 × 15, §10), en [ligne, colonne].
  */
 export interface MapData {
   readonly lignes: readonly string[];
   readonly eau: readonly string[];
   readonly falaises: readonly { readonly entre: readonly (readonly number[])[]; readonly type: string }[];
   readonly enclaves: readonly { readonly type: string; readonly lignes: readonly number[]; readonly colonnes: readonly number[]; readonly zone: readonly number[] }[];
+  readonly casesX?: { readonly haute?: readonly (readonly number[])[]; readonly basse?: readonly (readonly number[])[] };
+}
+
+const HIGH_X: Cell = { kind: 'blocked', height: 'high' };
+const LOW_X: Cell = { kind: 'blocked', height: 'low' };
+
+/** Les cases X hautes et basses de `casesX` remplacent les X ordinaires ; chacune doit être un X, listé une fois. */
+function withXHeights(board: Board, casesX: MapData['casesX']): Board {
+  const heights = new Map<string, Cell>();
+  const list = (cells: readonly (readonly number[])[] | undefined, cell: Cell, what: string) => {
+    for (const values of cells ?? []) {
+      const [row, col] = pair(values, what);
+      const key = `${row},${col}`;
+      if (getCell(board, { row, col }).kind !== 'blocked') throw new Error(`${what} en (${row}, ${col}) : la case doit être un X`);
+      if (heights.has(key)) throw new Error(`Case X (${row}, ${col}) listée deux fois`);
+      heights.set(key, cell);
+    }
+  };
+  list(casesX?.haute, HIGH_X, 'Case X haute');
+  list(casesX?.basse, LOW_X, 'Case X basse');
+  if (heights.size === 0) return board;
+  return { ...board, cells: board.cells.map((line, row) => line.map((cell, col) => heights.get(`${row},${col}`) ?? cell)) };
 }
 
 const pair = (values: readonly number[], what: string): [number, number] => {
@@ -146,7 +170,7 @@ export function parseMap(name: string, data: MapData, options: Omit<BoardOptions
   for (const pos of water) {
     if (getCell(board, pos).kind !== 'blocked') throw new Error(`Eau en (${pos.row}, ${pos.col}) : la case doit être un X`);
   }
-  return board;
+  return withXHeights(board, data.casesX);
 }
 
 /** Plateau classique du MVP (11 × 9). */
@@ -204,8 +228,14 @@ export const BATTLEFIELD: Board = parseBoard('Champ de bataille (11 × 11)', BAT
  */
 export const BATTLEFIELD_13: Board = parseMap('Champ de bataille (13 × 13)', MAP_13, { mobilityBonus: 1 });
 
+/**
+ * Grande carte 15 × 15 (SPEC.md §3, handoff plateau 15) : symétrique par rotation de 180°, Mine fermée par des cases X
+ * hautes, Scierie bordée d'un canal et de billots en cases X basses (étangs aussi), +1 mobilité comme le 13 × 13.
+ */
+export const BATTLEFIELD_15: Board = parseMap('Champ de bataille (15 × 15)', MAP_15, { mobilityBonus: 1 });
+
 /** Cartes proposées au lancement d'une partie. */
-export const BOARDS: readonly Board[] = [BOARD, BATTLEFIELD, BATTLEFIELD_13];
+export const BOARDS: readonly Board[] = [BOARD, BATTLEFIELD, BATTLEFIELD_13, BATTLEFIELD_15];
 
 /** Renvoie la case en `pos` ; toute position hors de la grille est hors plateau. */
 export function getCell(board: Board, pos: Position): Cell {
@@ -315,6 +345,28 @@ export function orthogonalNeighbors(pos: Position): Position[] {
  * Une falaise sépare : une case orthogonale derrière une falaise n'est pas adjacente ; une case en diagonale l'est si au
  * moins un des deux chemins en L qui y mènent passe (case de coin jouable, aucune falaise sur le chemin).
  */
+/**
+ * Rayon N (§5.3) : les cases adjacentes, puis leurs cases adjacentes, et ainsi de suite N fois, sans la case de départ
+ * (8 cases pour un rayon de 1, 24 pour un rayon de 2 sur terrain dégagé) ; falaises et cases X coupent la zone comme
+ * pour « adjacent ».
+ */
+export function radiusCells(board: Board, from: Position, radius: number): Position[] {
+  const cells: Position[] = [];
+  let ring = [from];
+  for (let i = 0; i < radius; i++) {
+    const next: Position[] = [];
+    for (const pos of ring) {
+      for (const cell of adjacentCells(board, pos)) {
+        if (samePos(cell, from) || cells.some((c) => samePos(c, cell))) continue;
+        cells.push(cell);
+        next.push(cell);
+      }
+    }
+    ring = next;
+  }
+  return cells;
+}
+
 export function adjacentCells(board: Board, from: Position): Position[] {
   const cells: Position[] = [];
   for (const dr of [-1, 0, 1]) {

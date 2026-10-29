@@ -41,8 +41,6 @@ const STAT_KEYS: Readonly<Record<keyof TokenStats, string>> = {
 
 export interface DisplaySettings {
   readonly view: BoardView;
-  /** Le camp du joueur actif est toujours en bas. */
-  readonly flip: boolean;
   /** Animations des actions et boucles (respiration des jetons, halos, décor). */
   readonly animations: boolean;
   /** Sons (lot 4). */
@@ -61,7 +59,6 @@ export interface DisplaySettings {
 
 export const DEFAULT_SETTINGS: DisplaySettings = {
   view: 'iso',
-  flip: true,
   animations: true,
   sound: true,
   volume: 0.7,
@@ -73,7 +70,6 @@ export const DEFAULT_SETTINGS: DisplaySettings = {
 
 const KEYS = {
   view: 'tcg-plateau-vue-v5',
-  flip: 'tcg-plateau-retourne',
   animations: 'tcg-animations',
   sound: 'tcg-plateau-son',
   volume: 'tcg-plateau-volume',
@@ -113,7 +109,6 @@ function readTokenStats(): TokenStats {
 
 export function loadSettings(): DisplaySettings {
   const view = read(KEYS.view);
-  const flip = read(KEYS.flip);
   const animations = read(KEYS.animations);
   const sound = read(KEYS.sound);
   const volume = Number.parseFloat(read(KEYS.volume) ?? '');
@@ -122,7 +117,6 @@ export function loadSettings(): DisplaySettings {
   const grimoireOpen = read(KEYS.grimoireOpen);
   return {
     view: (Object.keys(VIEW_VALUES) as BoardView[]).find((v) => VIEW_VALUES[v] === view) ?? DEFAULT_SETTINGS.view,
-    flip: flip === null ? DEFAULT_SETTINGS.flip : flip === '1',
     animations: animations === null ? DEFAULT_SETTINGS.animations : animations === '1',
     sound: sound === null ? DEFAULT_SETTINGS.sound : sound !== '0',
     volume: Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : DEFAULT_SETTINGS.volume,
@@ -136,7 +130,6 @@ export function loadSettings(): DisplaySettings {
 export function saveSettings(settings: DisplaySettings): void {
   try {
     window.localStorage.setItem(KEYS.view, VIEW_VALUES[settings.view]);
-    window.localStorage.setItem(KEYS.flip, settings.flip ? '1' : '0');
     window.localStorage.setItem(KEYS.animations, settings.animations ? '1' : '0');
     window.localStorage.setItem(KEYS.sound, settings.sound ? '1' : '0');
     window.localStorage.setItem(KEYS.volume, String(settings.volume));

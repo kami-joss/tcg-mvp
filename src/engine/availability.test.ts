@@ -34,10 +34,10 @@ describe('carte du grimoire', () => {
     expect(cardAvailability(getPlayerView(state, 2), 'golem')).toEqual({ ok: false, reason: { kind: 'notYourTurn' } });
   });
 
-  it('un sort déjà lancé ce tour, même s’il en reste un exemplaire', () => {
+  it('un sort déjà lancé ce tour se relance s’il en reste un exemplaire : seul le mana limite', () => {
     const state = gameWith([{ monster: 'milicien', owner: 1, at: at(8, 1) }], hand(['charge', 'charge']));
     const after = applyAction(state, { type: 'playCard', cardId: 'charge', target: { kind: 'unit', unitId: 'u1' } });
-    expect(cardAvailability(view(after), 'charge')).toEqual({ ok: false, reason: { kind: 'alreadyUsed' } });
+    expect(cardAvailability(view(after), 'charge')).toEqual({ ok: true });
   });
 
   it('aucune cible : sort sans monstre, monstre sans case libre dans la zone d’invocation', () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { applyAction, getLegalActions } from './actions';
 import { getPlayerView } from './view';
 import { at, gameWith } from './test-utils';
-import type { Action, GameState, UnitId } from './types';
+import type { Action, GameState, Position, UnitId } from './types';
 
 const END_TURN: Action = { type: 'endTurn' };
 const unitIdsIn = (actions: readonly Action[]) => JSON.stringify(actions);
@@ -38,16 +38,12 @@ describe('`invisible` : Farceur (SPEC.md §5, §10)', () => {
     expect(visibleTo(state, 1, 'u3')).toBe(true);
   });
 
-  it('visible à 2 cases ou moins de la zone d’invocation adverse : il ne bloque jamais une invocation en secret', () => {
-    expect(visibleTo(gameWith([{ monster: 'farceur', owner: 2, at: at(2, 2) }]), 1, 'u1')).toBe(false);
-    expect(visibleTo(gameWith([{ monster: 'farceur', owner: 2, at: at(2, 3) }]), 1, 'u1')).toBe(true);
-    const onZone = gameWith([{ monster: 'farceur', owner: 2, at: at(0, 4) }]);
-    expect(visibleTo(onZone, 1, 'u1')).toBe(true);
-    expect(getLegalActions(onZone)).not.toContainEqual({
-      type: 'playCard',
-      cardId: 'chevalier',
-      target: { kind: 'cell', pos: at(0, 4) },
-    });
+  it('rayon de 2 (diagonales comprises) ; la zone d’invocation adverse ne le révèle pas, seuls monstres et terrains', () => {
+    expect(visibleTo(gameWith([{ monster: 'farceur', owner: 2, at: at(0, 4) }]), 1, 'u1')).toBe(false);
+    const near = (pos: Position) => gameWith([{ monster: 'chevalier', owner: 1, at: at(1, 0) }, { monster: 'farceur', owner: 2, at: pos }]);
+    // (3, 2) : 2 cases en diagonale, dans le rayon ; (3, 3) : hors du rayon.
+    expect(visibleTo(near(at(3, 2)), 1, 'u2')).toBe(true);
+    expect(visibleTo(near(at(3, 3)), 1, 'u2')).toBe(false);
   });
 
   it('inciblable tant qu’il est invisible : ni attaque, ni sort, ni effet', () => {

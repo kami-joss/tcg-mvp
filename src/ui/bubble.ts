@@ -15,7 +15,8 @@ import type {
   StatusSpec,
   UnitId,
 } from '../engine';
-import { abilityExplanation, cardTitle, effectName } from './cardText';
+import { cardTitle, effectName } from './cardText';
+import { abilityRules, plainRules } from './rulesText';
 import type { IconName } from './Icon';
 import { getEffectActions, getPushChoices, getSummonChoices } from './interaction';
 import type { Selection } from './interaction';
@@ -239,7 +240,7 @@ function effectsBubble(
           icon: 'magic-swirl',
           tone: 'effect',
           title: effectName(ability),
-          subtitle: availability?.ok ? abilityExplanation(ability) : availability ? reasonText(availability.reason, 'Déjà utilisé ce tour') : '',
+          subtitle: availability?.ok ? plainRules(abilityRules(ability)) : availability ? reasonText(availability.reason, 'Déjà utilisé ce tour') : '',
           cost: ability.manaCost,
           enabled: availability?.ok ?? false,
           warn: availability?.ok === false && availability.reason.kind === 'mana',
@@ -302,7 +303,7 @@ function cardBubble(view: PlayerView, cardId: CardId): BubbleModel | null {
   const availability = cardAvailability(view, cardId);
   const actions = view.legalActions.filter((a): a is Extract<Action, { type: 'playCard' }> => a.type === 'playCard' && a.cardId === cardId);
   const direct = actions.length === 1 && actions[0]!.target.kind === 'all' ? actions[0]! : null;
-  const hint = card.kind === 'spell' ? abilityExplanation(card.ability) : kind.hint;
+  const hint = card.kind === 'spell' ? plainRules(abilityRules(card.ability)) : kind.hint;
   return {
     anchor: null,
     anchorUnit: null,
@@ -401,7 +402,7 @@ function distanceBubble(view: PlayerView, selection: Extract<Selection, { kind: 
           tone: 'effect',
           arrow: screen,
           title: distance ? `Recul de ${distance}` : `Lancer ${name}`,
-          subtitle: abilityExplanation(ability),
+          subtitle: plainRules(abilityRules(ability)),
           cost: null,
           enabled: true,
           warn: false,

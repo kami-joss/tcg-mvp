@@ -80,13 +80,15 @@ describe('menu d’options', () => {
       />,
     );
 
-  it('tous les réglages : vue, zoom, stats des jetons, son et volume, animations, plateau tourné, nouvelle partie', () => {
+  it('tous les réglages : vue, zoom, stats des jetons, son et volume, animations, nouvelle partie ; plus de plateau tourné', () => {
     const html = menu();
-    for (const label of ['Dessus', 'Inclinée 45°', 'Isométrique', 'Zoom', '100 %', 'Stats sur les jetons', 'Son', 'Volume', 'Animations', 'Plateau tourné vers le joueur qui joue', 'Nouvelle partie']) {
+    for (const label of ['Dessus', 'Inclinée 45°', 'Isométrique', 'Zoom', '100 %', 'Stats sur les jetons', 'Son', 'Volume', 'Animations', 'Nouvelle partie']) {
       expect(html, label).toContain(label);
     }
+    // Même angle pour les deux joueurs (validé) : le plateau ne se retourne plus.
+    expect(html).not.toContain('Plateau tourné');
     expect(html).toContain('<button type="button" aria-pressed="true">Isométrique</button>');
-    expect(html.match(/type="checkbox"/g)).toHaveLength(7);
+    expect(html.match(/type="checkbox"/g)).toHaveLength(6);
     expect(html).toContain('Maintiens Alt pour tout afficher');
     // Un calque transparent sous le panneau : un clic dehors le ferme.
     expect(html).toContain('options__backdrop');
@@ -97,8 +99,8 @@ describe('menu d’options', () => {
     for (const label of ['PV', 'Mobilité restante (mes monstres)', 'Mobilité (adversaire)', 'Attaque', 'Statuts (brûlure, givre…)']) {
       expect(html).toContain(label);
     }
-    // 3 stats par défaut, plus animations et plateau tourné.
-    expect(html.match(/checked=""/g)).toHaveLength(5);
+    // 3 stats par défaut, plus animations.
+    expect(html.match(/checked=""/g)).toHaveLength(4);
   });
 
   it('sans décor, pas de vue isométrique', () => {

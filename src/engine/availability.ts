@@ -38,7 +38,6 @@ export function cardAvailability(view: PlayerView, cardId: CardId): Availability
   const card = getCard(cardId);
   if (!myTurn(view)) return no({ kind: 'notYourTurn' });
   if (!view.me.grimoire.includes(cardId)) return no({ kind: 'noCopy' });
-  if (card.kind === 'spell' && view.me.spellsThisTurn.includes(cardId)) return no({ kind: 'alreadyUsed' });
   if (view.me.mana < card.cost) return no({ kind: 'mana', missing: card.cost - view.me.mana });
   if (view.legalActions.some((a) => a.type === 'playCard' && a.cardId === cardId)) return OK;
   return no({ kind: 'noTarget', target: card.kind === 'monster' ? 'summonZone' : card.kind === 'terrain' ? 'manaZone' : 'monster' });

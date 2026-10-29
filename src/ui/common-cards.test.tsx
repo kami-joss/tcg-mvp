@@ -140,7 +140,7 @@ describe('zone des terrains « Passage » : l’icône de ce qu’ils infligent 
     }
     expect(marks.get('1,4')).toEqual([expect.objectContaining({ sourceId: 'u2', owner: 1, icon: 'snail', label: null })]);
     expect(marks.has('7,4') || marks.has('9,4') || marks.has('8,3')).toBe(false);
-    expect(marks.get('5,3')?.[0]?.title).toBe('Terrain drainant de J2 : 1 dégât à l’ennemi qui entre ici (une fois par mouvement).');
+    expect(marks.get('5,3')?.[0]?.title).toBe('Terrain drainant de J2 : 1 dégât à l’ennemi qui entre ici (à chaque case en marchant).');
   });
 
   it('dessinées au sol des cases, dans toutes les vues', () => {

@@ -68,7 +68,7 @@ const STATUS_SOUNDS: Readonly<Record<StatusKind, SoundName | null>> = {
   stun: 'blocked',
   immobilise: null,
   requiem: null,
-  invisible: null,
+  camouflage: null,
 };
 
 /** Projectile d'un tireur, selon sa carte. */
@@ -436,7 +436,7 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
         } else if (kind === 'requiem') {
           rise(stage, event.pos, REQUIEM);
           float(stage, event.pos, `Requiem ${event.status.turns}`, REQUIEM, 380);
-        } else if (kind === 'invisible') {
+        } else if (kind === 'camouflage') {
           rise(stage, event.pos, 'oklch(0.7 0.05 280)');
           float(stage, event.pos, 'Invisible', 'oklch(0.8 0.06 280)', 380);
         } else if (kind === 'immobilise') {

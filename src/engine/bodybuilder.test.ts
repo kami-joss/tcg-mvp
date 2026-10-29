@@ -122,7 +122,7 @@ describe('Jean Bon : Dopage · lui-même · +2 ATK (pour ce tour) + burn 1 penda
 });
 
 describe('Ki né : début de tour · bodybuilders alliés adjacents · soin 1', () => {
-  it('au début de chacun de ses tours, après le burn ; sans dépasser les PV max ; pas lui-même ni les autres', () => {
+  it('au début de chacun de ses tours, après les revenus ; sans dépasser les PV max ; pas lui-même ni les autres', () => {
     const state = gameWith(
       [
         { monster: 'ki-ne', owner: 1, at: at(8, 2), hp: 1 },
@@ -141,6 +141,21 @@ describe('Ki né : début de tour · bodybuilders alliés adjacents · soin 1', 
     expect(monster(after, 'u4').hp).toBe(2);
     expect(monster(after, 'u5').hp).toBe(1);
     expect(after.events.filter((e) => e.type === 'heal')).toEqual([{ type: 'heal', unitId: 'u2', pos: at(9, 3), amount: 1 }]);
+  });
+
+  it('les passifs passent avant les statuts (§4.2) : soigné puis brûlé, un bodybuilder à 1 PV survit', () => {
+    const state = gameWith(
+      [
+        { monster: 'ki-ne', owner: 1, at: at(8, 2) },
+        { monster: 'arnold', owner: 1, at: at(9, 2), hp: 1 },
+      ],
+      { activePlayer: 2 },
+    );
+    const burning = { ...state, units: { ...state.units, u2: { ...monster(state, 'u2'), statuses: [{ kind: 'burn' as const, amount: 1, turns: 1, expiresAtTurn: 9 }] } } };
+    const after = applyAction(burning, END_TURN);
+    expect(monster(after, 'u2').hp).toBe(1);
+    const types = after.events.map((e) => e.type);
+    expect(types.indexOf('heal')).toBeLessThan(types.lastIndexOf('damage'));
   });
 });
 
@@ -172,7 +187,7 @@ describe('Seringue : un allié bodybuilder · ATK ×2 (pour ce tour) + requiem 2
     expect(monster(applyAction(after, END_TURN), 'u1').atkBonus).toBe(0);
   });
 
-  it('requiem 2 : il joue ce tour et son prochain tour, puis meurt au début du suivant, avant les revenus, sans VP', () => {
+  it('requiem 2 : il joue ce tour et son prochain tour, puis meurt au début du suivant, après les revenus, sans VP', () => {
     const state = syringe([
       { monster: 'jean-bon', owner: 1, at: at(2, 4) },
       { monster: 'eclaireur', owner: 2, at: at(9, 1) },
@@ -190,7 +205,9 @@ describe('Seringue : un allié bodybuilder · ATK ×2 (pour ce tour) + requiem 2
     expect(next.units.u1).toBeUndefined();
     expect(next.events).toContainEqual({ type: 'requiem', unitId: 'u1', pos: at(2, 4) });
     expect(next.players[2].vp).toBe(0);
-    // Il tenait l'Écurie : mort avant les revenus, elle ne rapporte plus rien à ce tour.
-    expect(next.events.filter((e) => e.type === 'vp')).toEqual([]);
+    // Il tenait l'Écurie : les revenus passent avant les statuts (§4.2), elle rapporte encore son VP à ce tour.
+    const types = next.events.map((e) => e.type);
+    expect(next.events.filter((e) => e.type === 'vp')).toHaveLength(1);
+    expect(types.indexOf('vp')).toBeLessThan(types.indexOf('requiem'));
   });
 });

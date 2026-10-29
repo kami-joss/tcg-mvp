@@ -26,8 +26,8 @@ describe('Flèche divine et famille Archer', () => {
   it('textes : « un allié archer », bonus d’un bloc ; famille sur les 4 archers, pas sur le Trébuchet', () => {
     expect(describeCard(getCard('fleche-divine'))).toEqual(['Un allié archer · +1 ATK +1 portée (pour ce tour)']);
     expect(cardEffectLine(getCard('fleche-divine'))).toBe('Un allié archer · +1 ATK +1 portée (pour ce tour)');
-    expect(describeCard(getCard('archer-leger'))[1]).toBe('Famille Archer.');
-    expect(describeCard(getCard('trebuchet'))).not.toContain('Famille Archer.');
+    expect(describeCard(getCard('archer-leger'))[1]).toBe('Archétype Archers.');
+    expect(describeCard(getCard('trebuchet'))).not.toContain('Archétype Archers.');
   });
 
   it('journal : +1 ATK et +1 portée ce tour', () => {
@@ -41,7 +41,7 @@ describe('Flèche divine et famille Archer', () => {
   it('fiche : portée 3 et puce du bonus ; dégâts annoncés à 3 cases', () => {
     const sheet = getSheet(view(after), { kind: 'cell', pos: at(9, 0) })!;
     expect(sheet.stats.find((s) => s.label === 'Portée')).toMatchObject({ value: '3', delta: 1 });
-    expect(sheet.status?.map((c) => c.text)).toContain('+1 portée jusqu’à la fin du tour');
+    expect(sheet.status).toContainEqual({ icon: 'broadsword', text: 'Flèche divine', detail: '+1 ATK +1 portée jusqu’à la fin du tour', kind: 'boost', group: 'effect' });
     expect(getAttackPreviews(view(after), { kind: 'unit', unitId: 'u1', mode: 'act' }).get(posKey(at(6, 0)))?.damage).toBe(2);
   });
 

@@ -50,15 +50,11 @@ function cellOf(target: CardTarget): Position {
   return { row: target.pos.row, col: target.pos.col };
 }
 
-/** Un même sort ne se lance qu'une fois par tour (§4.3). */
-const castThisTurn = (state: GameState, card: Card) =>
-  card.kind === 'spell' && state.players[state.activePlayer].spellsThisTurn.includes(card.id);
-
 export function getPlayCardActions(state: GameState): Action[] {
   const player = state.players[state.activePlayer];
   return [...new Set(player.grimoire)]
     .map((id) => getCard(id))
-    .filter((card) => card.cost <= player.mana && !castThisTurn(state, card))
+    .filter((card) => card.cost <= player.mana)
     .flatMap((card) =>
       getCardTargets(state, card).map((target): Action => ({ type: 'playCard', cardId: card.id, target })),
     );
@@ -72,9 +68,6 @@ export function applyPlayCard(state: GameState, action: PlayCardAction): GameSta
   const card = getCard(action.cardId);
   if (player.mana < card.cost) {
     throw new IllegalActionError(`Mana insuffisant pour « ${card.name} » : ${player.mana} < ${card.cost}`);
-  }
-  if (castThisTurn(state, card)) {
-    throw new IllegalActionError(`« ${card.name} » a déjà été lancé ce tour : un même sort une fois par tour`);
   }
   const { target } = action;
   if (!getCardTargets(perceived(state), card).some((t) => sameCardTarget(t, target))) {
@@ -102,9 +95,7 @@ export function applyPlayCard(state: GameState, action: PlayCardAction): GameSta
       if (target.kind === 'cell' || target.kind === 'card' || target.kind === 'cellAndCard') {
         throw new IllegalActionError(`Un sort cible un monstre`);
       }
-      const caster = paid.players[player.id];
-      const cast = { ...paid, players: { ...paid.players, [player.id]: { ...caster, spellsThisTurn: [...caster.spellsThisTurn, card.id] } } };
-      return resolveAbility(cast, card.ability, target, player.id, null);
+      return resolveAbility(paid, card.ability, target, player.id, null, { cardId: card.id });
     }
   }
 }

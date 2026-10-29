@@ -35,8 +35,8 @@ describe('textes des cartes Sorciers du feu', () => {
     expect(cardEffectLine(getCard('golem-de-lave'))).toBe('Passage · adjacents · burn 1 pendant 1 tour');
     expect(describeCard(getCard('golem-de-lave'))).toEqual([
       'ATK 2 · PV 8 · Mob. 2 · Portée 1',
-      'Famille Sorcier du feu.',
-      'Passif · Passage · adjacents · burn 1 pendant 1 tour : chaque monstre ennemi qui entre sur une des 8 cases autour de lui le subit, une fois par mouvement.',
+      'Archétype Sorciers du feu.',
+      'Passif · Passage · adjacents · burn 1 pendant 1 tour : chaque monstre ennemi qui entre sur une des 8 cases autour de lui le subit, à chaque case où il entre (une fois par recul).',
     ]);
   });
 

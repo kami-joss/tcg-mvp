@@ -2,18 +2,24 @@
 // sous les cases : bloc de terrain et lac, rochers sur les cases X, rivière, mana zones modélisées (muret et poteaux
 // à la couleur du contrôleur, repère ; plus de drapeau depuis le lot 11), enclaves de la Mine et de la Scierie, décor de bordure. Les sprites sont des
 // « billboards » : la rotation inverse de la caméra les garde face à l'écran, et la 3D les trie devant ou derrière.
+// Plateau à décor peint (15 × 15) : son sol calculé remplace le bloc, le lac, la rivière et les enclaves, ses sprites
+// peints les rochers, les mana zones modélisées et la bordure.
 // Rien ici ne capte la souris : les cases restent seules cliquables.
 import { createElement } from 'react';
 import type { CSSProperties, ReactElement } from 'react';
 import { getCell } from '../../engine';
 import type { Board, PlayerId } from '../../engine';
+import { SPRITE_FX, scatter, spritePoint, waterPatches } from './ambience';
+import { GROUND_WAIT, PAINTED_SPRITE_SCALE, paintedDecor, placePaintedSprites, useWaterMasks } from './paintedDecor';
 import { ISO, ISO_TILT, SPRITES, ZONE_DECOR, borderDecor, planSize } from './scenery';
 import type { IsoScenery } from './scenery';
 
+// Sprites Kenney du décor procédural, et sprites peints du 15 × 15 (handoff plateau 15).
 const SPRITE_URLS: Readonly<Record<string, string>> = Object.fromEntries(
-  Object.entries(
-    import.meta.glob('../../assets/decor/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>,
-  ).map(([path, url]) => [path.slice(path.lastIndexOf('/') + 1, -4), url]),
+  Object.entries({
+    ...(import.meta.glob('../../assets/decor/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
+    ...(import.meta.glob('../../assets/plateau15/sprites/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
+  }).map(([path, url]) => [path.slice(path.lastIndexOf('/') + 1, -4), url]),
 );
 
 const PLAYER = { 1: 'oklch(0.56 0.15 255)', 2: 'oklch(0.56 0.18 25)' } as const;
@@ -39,10 +45,24 @@ interface IsoDecorProps {
   camera?: 'iso' | 'tilt';
   /** Pas des cases à l'écran (taille + espace) : le décor est dessiné pour 72 px et mis à l'échelle (vue inclinée). */
   pitch?: number;
+  /**
+   * Plateau à décor peint (handoff plateau 15) : son sol calculé (`usePaintedGround`) remplace le bloc de terrain, le
+   * lac, la rivière et les enclaves. `ground` : l'URL du sol, `null` pendant son calcul (un vert uni en attendant).
+   */
+  painted?: boolean;
+  ground?: string | null;
 }
+
 
 /** Rotation qui redresse un élément du sol face à l'écran, pour chaque caméra. */
 const FACE_CAMERA = { iso: `rotateZ(-45deg) rotateX(${-ISO_TILT}deg)`, tilt: 'rotateX(-45deg)' } as const;
+
+/**
+ * Transformation qui couche dans le plan du sol une image dessinée vue par la caméra, pour qu'elle paraisse la même à
+ * l'écran : l'inverse de la caméra dans le plan (rotation de −45° et étirement de 1/cos 54,7° en iso, 1/cos 45° en vue
+ * inclinée), comme les textes au sol.
+ */
+const ON_GROUND = { iso: 'rotate(-45deg) scale(1, 1.7321)', tilt: 'scale(1, 1.4142)' } as const;
 
 type Node = ReactElement;
 
@@ -56,7 +76,7 @@ const box = (left: number, top: number, width: number, height: number): CSSPrope
 
 const div = (key: string, style: CSSProperties, ...children: Node[]): Node => createElement('div', { key, style }, ...children);
 
-export function IsoDecor({ board, scenery, flipped, controllers, animated, camera = 'iso', pitch = ISO.pitch }: IsoDecorProps) {
+export function IsoDecor({ board, scenery, flipped, controllers, animated, camera = 'iso', pitch = ISO.pitch, painted = false, ground = null }: IsoDecorProps) {
   const { R, N, D, W } = ISO;
   const B = planSize(Math.max(board.rows, board.cols));
   const P = ISO.pitch;
@@ -64,6 +84,8 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
   const WP = 440;
   const last = { row: board.rows - 1, col: board.cols - 1 };
   const anim = (value: string) => (animated ? value : 'none');
+  // Masques de l'eau peinte, pour ses reflets animés (plateau peint, animations permises).
+  const waterMasks = useWaterMasks(board, painted && animated);
   const disp = (r: number, c: number): [number, number] => (flipped ? [last.row - r, last.col - c] : [r, c]);
   const out: Node[] = [];
 
@@ -91,10 +113,39 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
       ...children,
     );
 
-  /** Sprite du décor, debout face caméra, ancré au sol en (x, y). */
-  const billboard = (key: string, id: string, x: number, y: number, scale: number, dz = 24, lift = 0): Node => {
+  /**
+   * Sprite couché dans le plan du sol (les ponts), ancré en (x, y), entre le sol peint et les cases : il paraît le même
+   * qu'un sprite debout, mais les cases et les jetons passent par-dessus, et le sol ne le rogne pas.
+   */
+  const flatSprite = (key: string, id: string, x: number, y: number, scale: number, mirror: boolean): Node => {
     const [w, h, ax, ay] = SPRITES[id]!;
-    const sway = id[0] === 't' ? 1 : 'gf'.includes(id[0]!) ? 2 : 0;
+    const origin = `${ax * scale}px ${ay * scale}px`;
+    return div(
+      key,
+      { ...box(x - ax * scale, y - ay * scale, w * scale, h * scale), transformOrigin: origin, transform: `translateZ(-0.5px) ${ON_GROUND[camera]}` },
+      createElement('img', {
+        key: 'img',
+        src: SPRITE_URLS[id],
+        alt: '',
+        draggable: false,
+        style: {
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          maxWidth: 'none',
+          display: 'block',
+          ...(mirror ? { transformOrigin: origin, transform: 'scaleX(-1)' } : {}),
+        },
+      }),
+    );
+  };
+
+  /** Sprite du décor, debout face caméra, ancré au sol en (x, y) ; `mirror` le retourne autour de son ancre. */
+  const billboard = (key: string, id: string, x: number, y: number, scale: number, dz = 24, lift = 0, mirror = false): Node => {
+    const [w, h, ax, ay] = SPRITES[id]!;
+    // Les arbres (t1…) et les touffes (g1…, f1…) du pack Kenney ondulent ; jamais les sprites peints.
+    const sway = /^t\d/.test(id) ? 1 : /^[gf]\d/.test(id) ? 2 : 0;
     const d = ((((x * 7 + y * 13) % 50) + 50) % 50) / 10;
     const animation = sway
       ? anim(`${sway === 2 ? 'isoSwayGrass' : 'isoSway'} ${(sway === 2 ? 2.2 + d * 0.2 : 3.4 + d * 0.4).toFixed(2)}s ease-in-out ${(-d).toFixed(2)}s infinite`)
@@ -122,14 +173,26 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
           maxWidth: 'none',
           display: 'block',
           transformOrigin: `${ax * scale}px ${ay * scale}px`,
+          ...(mirror ? { transform: 'scaleX(-1)' } : {}),
           animation,
         },
       }),
     );
   };
 
-  // --- Lac sous le bloc, écume autour.
-  out.push(
+  // --- Plateau à décor peint : son sol, dans le plan du plateau (tourné de 180° avec lui), sous les cases et les ombres.
+  if (painted) {
+    out.push(
+      div('ground', {
+        ...box(0, 0, B, B),
+        transform: `translateZ(-1px)${flipped ? ' rotate(180deg)' : ''}`,
+        background: ground ? `url(${ground}) 0 0 / 100% 100% no-repeat` : GROUND_WAIT,
+      }),
+    );
+  }
+
+  // --- Lac sous le bloc, écume autour (pas de lac autour d'un sol peint).
+  if (!painted) out.push(
     div(
       'lake',
       {
@@ -168,7 +231,7 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
   // dans le lac), et étangs (cases voisines verticalement : un seul lit allongé, 5 px de marge, courant vers le bas).
   const HW = 19;
   const VW = 25;
-  const beds = scenery.runs.map((run) => {
+  const beds = (painted ? [] : scenery.runs).map((run) => {
     const v = (run.r0 * 5 + run.col * 3) % 4;
     const key = `rv${run.r0}_${run.col}`;
     const dc = flipped ? last.col - run.col : run.col;
@@ -206,7 +269,7 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
   const sideHoles = holes(beds.filter((q) => q.fall).map((q) => `${full} 0px ${q.ya + R}px / 9px ${q.yb - q.ya}px no-repeat`));
 
   // --- Bloc de terrain : flancs en terre (lumière à droite) et dessus herbeux.
-  out.push(
+  if (!painted) out.push(
     div('sideL', {
       ...box(-R, B + N, S, D),
       transformOrigin: '50% 0',
@@ -239,7 +302,7 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
     ['r2', 0.5],
     ['r5', 0.66],
   ];
-  for (let r = 0; r < board.rows; r++) {
+  for (let r = 0; r < (painted ? 0 : board.rows); r++) {
     for (let c = 0; c < board.cols; c++) {
       if (getCell(board, { row: r, col: c }).kind !== 'blocked' || scenery.water.has(`${r},${c}`)) continue;
       const [dr, dc] = disp(r, c);
@@ -375,7 +438,268 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
   }
   const inWater = (x: number, y: number) => beds.some((q) => x > q.xa - 10 && x < q.xb + 10 && y > q.ya - 14 && y < q.yb + 14);
 
-  // --- Mana zones : muret et poteaux d'angle à la couleur du contrôleur, repère au coin arrière.
+  // --- Plateau peint : ses sprites (montagnes, rochers, forge, ponts, cadres de mine…) remplacent les rochers Kenney, les
+  // mana zones modélisées et le décor de bordure (validé) ; leurs ombres sont peintes dans le sol.
+  const paintedData = painted ? paintedDecor(board) : null;
+  if (paintedData) {
+    for (const { key, id, x, y, mirror, flat, dz } of placePaintedSprites(paintedData, board.rows, board.cols, flipped)) {
+      out.push(flat ? flatSprite(key, id, x, y, PAINTED_SPRITE_SCALE, mirror) : billboard(key, id, x, y, PAINTED_SPRITE_SCALE, dz, 0, mirror));
+    }
+  }
+
+  // --- Ambiance du plateau peint, seulement quand les animations sont permises : reflets de l'eau, feu et fumée de la
+  // forge, éclats des cristaux, halo et particules des mana zones, ombres de nuages et rafales de vent.
+  if (paintedData && animated) {
+    const dot = (key: string, style: CSSProperties) => div(key, { position: 'absolute', borderRadius: '50%', opacity: 0, ...style });
+
+    // Eau : reflets qui coulent dans le canal, lents dans les étangs, scintillements ; chaque pièce est masquée sur son
+    // eau. Dans le plan du sol, tournées avec lui, sous les ponts couchés.
+    if (waterMasks) {
+      out.push(
+        div(
+          'ambWater',
+          { ...box(0, 0, B, B), transform: `translateZ(-0.75px)${flipped ? ' rotate(180deg)' : ''}` },
+          ...waterPatches(paintedData).flatMap((patch, i) => {
+            const mask = waterMasks[patch.image];
+            if (!mask) return [];
+            const canal = patch.kind === 'canal';
+            return [
+              div(
+                patch.key,
+                {
+                  ...box(patch.x, patch.y, patch.width, patch.height),
+                  transformOrigin: '0 0',
+                  ...(patch.transposed ? { transform: 'matrix(0, 1, 1, 0, 0, 0)' } : {}),
+                  overflow: 'hidden',
+                  WebkitMaskImage: `url(${mask})`,
+                  maskImage: `url(${mask})`,
+                  WebkitMaskSize: '100% 100%',
+                  maskSize: '100% 100%',
+                },
+                div('ripples', {
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  top: -30,
+                  bottom: 0,
+                  background: `repeating-linear-gradient(180deg, transparent 0 12px, oklch(0.98 0.03 200 / ${canal ? 0.42 : 0.2}) 12px 14px, transparent 14px 30px)`,
+                  animation: `ambFlow30 ${canal ? 2.6 : 8}s linear infinite`,
+                }),
+                div('caustics', {
+                  position: 'absolute',
+                  left: -36,
+                  right: 0,
+                  top: -36,
+                  bottom: 0,
+                  backgroundImage:
+                    'radial-gradient(9px 5px at 30% 40%, oklch(0.97 0.04 195 / .45), transparent), radial-gradient(7px 4px at 75% 70%, oklch(0.97 0.04 195 / .35), transparent)',
+                  backgroundSize: '36px 36px',
+                  animation: `ambDrift36 ${canal ? 5 : 13}s linear infinite`,
+                }),
+                ...scatter(31 + i, 3).map((g, j) =>
+                  dot('glint' + j, {
+                    left: `${10 + g.u * 80}%`,
+                    top: `${8 + g.v * 84}%`,
+                    width: 3,
+                    height: 3,
+                    background: 'white',
+                    boxShadow: '0 0 4px 1px oklch(0.98 0.03 200 / .8)',
+                    animation: `ambTwinkle ${(2.2 + g.phase * 1.6).toFixed(2)}s ease-in-out ${(-g.phase * 3).toFixed(2)}s infinite`,
+                  }),
+                ),
+              ),
+            ];
+          }),
+        ),
+      );
+    }
+
+    // Forge : lueur du four qui vacille, braises, fumée de la cheminée ; tas de minerai : éclats des cristaux. Posés sur
+    // leur sprite, juste devant lui.
+    for (const { key, id, x, y, mirror, dz } of placePaintedSprites(paintedData, board.rows, board.cols, flipped)) {
+      const fx = SPRITE_FX[id];
+      if (fx?.fire && fx.smoke) {
+        const [fx0, fy0] = spritePoint(id, fx.fire, PAINTED_SPRITE_SCALE, mirror);
+        const [sx0, sy0] = spritePoint(id, fx.smoke, PAINTED_SPRITE_SCALE, mirror);
+        // Boîte de 100 × 230 px autour de l'ancre : elle couvre la fumée jusqu'en haut de sa course.
+        const AX = 60;
+        const AY = 210;
+        out.push(
+          upright(
+            key + 'fire',
+            x,
+            y,
+            100,
+            230,
+            AX,
+            AY,
+            dz + 1,
+            0,
+            div('halo', {
+              position: 'absolute',
+              left: AX + fx0 - 36,
+              top: AY + fy0 - 24,
+              width: 72,
+              height: 48,
+              borderRadius: '50%',
+              background: 'radial-gradient(closest-side, oklch(0.8 0.16 60 / .32), transparent)',
+              animation: 'ambPulse 1.7s ease-in-out infinite',
+            }),
+            div('glow', {
+              position: 'absolute',
+              left: AX + fx0 - 15,
+              top: AY + fy0 - 12,
+              width: 30,
+              height: 24,
+              borderRadius: '50%',
+              background: 'radial-gradient(closest-side, oklch(0.92 0.15 80 / .85), oklch(0.75 0.19 45 / .35) 60%, transparent)',
+              animation: 'isoFlick .3s ease-in-out infinite alternate',
+            }),
+            ...scatter(11, 6).map((p, i) =>
+              dot('ember' + i, {
+                left: AX + fx0 - 1.5 + (p.u - 0.5) * 10,
+                top: AY + fy0 - 6,
+                width: 3,
+                height: 3,
+                background: 'oklch(0.9 0.16 75)',
+                boxShadow: '0 0 4px oklch(0.85 0.18 60)',
+                ['--sx' as string]: `${((p.v - 0.5) * 26).toFixed(1)}px`,
+                animation: `ambEmber ${(1.3 + p.v).toFixed(2)}s ease-out ${(-p.phase * 2).toFixed(2)}s infinite`,
+              }),
+            ),
+            ...scatter(17, 4).map((p, i) =>
+              dot('smoke' + i, {
+                left: AX + sx0 - 7,
+                top: AY + sy0 - 7,
+                width: 14,
+                height: 14,
+                background: 'radial-gradient(closest-side, oklch(0.8 0.01 80 / .6), transparent)',
+                ['--sx' as string]: `${(4 + p.u * 16).toFixed(1)}px`,
+                animation: `ambSmoke ${(3.4 + p.v * 1.2).toFixed(2)}s ease-out ${(-i * 1.1 - p.phase).toFixed(2)}s infinite`,
+              }),
+            ),
+          ),
+        );
+      }
+      if (fx?.crystals) {
+        const [ca, cb, cc, cd] = fx.crystals;
+        const [x0, y0] = spritePoint(id, [ca, cb], PAINTED_SPRITE_SCALE, mirror);
+        const [x1, y1] = spritePoint(id, [cc, cd], PAINTED_SPRITE_SCALE, mirror);
+        const left = Math.min(x0, x1);
+        const w = Math.abs(x1 - x0);
+        const h = y1 - y0;
+        out.push(
+          upright(
+            key + 'crystals',
+            x,
+            y,
+            w + 12,
+            h + 12,
+            6 - left,
+            6 - y0,
+            dz + 1,
+            0,
+            ...scatter(50 + Number(key.slice(1)), 4).map((p, i) =>
+              dot('spark' + i, {
+                left: 6 + p.u * w - 4.5,
+                top: 6 + p.v * h - 4.5,
+                width: 9,
+                height: 9,
+                borderRadius: 0,
+                background:
+                  'linear-gradient(white, white) center / 1.5px 100% no-repeat, linear-gradient(white, white) center / 100% 1.5px no-repeat, radial-gradient(closest-side, oklch(0.9 0.12 310 / .9), transparent)',
+                animation: `ambTwinkle ${(2 + p.v * 2).toFixed(2)}s ease-in-out ${(-p.phase * 4).toFixed(2)}s infinite`,
+              }),
+            ),
+          ),
+        );
+      }
+    }
+
+    // Mana zones : halo au sol qui respire et particules qui montent, à la couleur de celui qui la tient (dorées si
+    // elle est neutre).
+    for (let r = 0; r < board.rows; r++) {
+      for (let c = 0; c < board.cols; c++) {
+        const cell = getCell(board, { row: r, col: c });
+        if (cell.kind !== 'plain' || !cell.manaZone) continue;
+        const [dr, dc] = disp(r, c);
+        const cx = 48 + dc * P;
+        const cy = 48 + dr * P;
+        const owner = controllers.get(`${r},${c}`) ?? null;
+        const color = owner ? PLAYER[owner] : NEUTRAL;
+        out.push(
+          div(`azg${r}_${c}`, {
+            ...box(cx - 46, cy - 46, 92, 92),
+            transform: 'translateZ(-0.3px)',
+            borderRadius: '50%',
+            background: `radial-gradient(closest-side, color-mix(in oklch, ${color} 55%, transparent), transparent)`,
+            animation: 'ambPulse 3.2s ease-in-out infinite',
+          }),
+          upright(
+            `azm${r}_${c}`,
+            cx,
+            cy,
+            64,
+            96,
+            32,
+            84,
+            8,
+            0,
+            ...scatter(r * 15 + c, 5).map((p, i) =>
+              dot('mote' + i, {
+                left: 32 + (p.u - 0.5) * 44 - 2,
+                top: 84 - p.v * 14 - 2,
+                width: 4,
+                height: 4,
+                background: `color-mix(in oklch, ${color} 45%, white)`,
+                boxShadow: `0 0 6px 1px ${color}`,
+                ['--sx' as string]: `${((p.phase - 0.5) * 12).toFixed(1)}px`,
+                animation: `ambMote ${(2.6 + p.v * 1.4).toFixed(2)}s ease-out ${(-p.phase * 3).toFixed(2)}s infinite`,
+              }),
+            ),
+          ),
+        );
+      }
+    }
+
+    // Vent : ombres de nuages qui passent lentement et rafales (traits clairs) sur le terrain, découpées au plateau.
+    out.push(
+      div(
+        'ambSky',
+        { ...box(0, 0, B, B), transform: 'translateZ(-0.25px)', overflow: 'hidden' },
+        ...[0, 1, 2].map((i) =>
+          div('cloud' + i, {
+            position: 'absolute',
+            left: 0,
+            top: [0.15, 0.5, 0.82][i]! * B - 170,
+            width: 560,
+            height: 340,
+            borderRadius: '50%',
+            background: 'radial-gradient(closest-side, oklch(0.22 0.04 160 / .2), transparent)',
+            ['--x0' as string]: '-620px',
+            ['--x1' as string]: `${B + 40}px`,
+            ['--dy' as string]: `${[60, -40, 30][i]}px`,
+            animation: `ambCloud ${[95, 120, 80][i]}s linear ${-[10, 70, 40][i]!}s infinite`,
+          }),
+        ),
+        ...scatter(7, 6).map((p, i) =>
+          dot('gust' + i, {
+            left: 0,
+            top: 40 + p.u * (B - 80),
+            width: 150 + p.v * 80,
+            height: 2,
+            borderRadius: 1,
+            background: 'linear-gradient(90deg, transparent, oklch(0.98 0.03 120 / .55), transparent)',
+            ['--x0' as string]: `${(-200 + p.v * 300).toFixed(0)}px`,
+            ['--x1' as string]: `${(300 + p.v * 500).toFixed(0)}px`,
+            animation: `ambGust ${(7 + p.phase * 5).toFixed(1)}s ease-in-out ${(-p.phase * 10).toFixed(1)}s infinite`,
+          }),
+        ),
+      ),
+    );
+  }
+
+  // --- Mana zones : muret et poteaux d'angle à la couleur du contrôleur, repère au coin arrière (pas sur un plateau peint).
   const MATERIALS = {
     stone: { lit: '#ece5d3', shade: '#bdb5a2', line: '#8f8878', period: 15 },
     wood: { lit: '#d2b06c', shade: '#a07e4f', line: '#6f5636', period: 9 },
@@ -383,7 +707,7 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
   /** Petit élément debout (feu de la Forge) : boîte de 60 × 70 px, ancrée en bas au milieu ; enfants placés depuis l'ancre. */
   const standing = (key: string, x: number, y: number, dz: number, ...children: Node[]) =>
     upright(key, x, y, 60, 70, 30, 66, dz, 0, div('anchor', { ...box(30, 66, 0, 0) }, ...children));
-  for (let r = 0; r < board.rows; r++) {
+  for (let r = 0; r < (painted ? 0 : board.rows); r++) {
     for (let c = 0; c < board.cols; c++) {
       const cell = getCell(board, { row: r, col: c });
       if (cell.kind !== 'plain' || !cell.manaZone) continue;
@@ -516,7 +840,7 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
   const RIDGE: readonly (readonly [string, number])[] = [
     ['s1', 0.46], ['s2', 0.46], ['g2', 0.6], ['g6', 0.55], ['t22', 0.28], ['g4', 0.6], ['l1', 0.3],
   ];
-  scenery.regions.forEach((region, gi) => {
+  (painted ? [] : scenery.regions).forEach((region, gi) => {
     const inside = (r: number, c: number) => r >= region.r0 && r <= region.r1 && c >= region.c0 && c <= region.c1;
     const offBoard = (r: number, c: number) => r < 0 || c < 0 || r > last.row || c > last.col;
     const toZone = (r: number, c: number) => Math.abs(r - region.zone.row) + Math.abs(c - region.zone.col);
@@ -597,8 +921,9 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
     });
   });
 
-  // --- Décor de bordure : fixe, même quand le plateau tourne ; retiré des lits de la rivière et des étangs.
-  borderDecor(B).forEach(([id, x, y, scale], i) => {
+  // --- Décor de bordure : fixe, même quand le plateau tourne ; retiré des lits de la rivière et des étangs (aucun autour
+  // d'un plateau peint).
+  (painted ? [] : borderDecor(B)).forEach(([id, x, y, scale], i) => {
     if (inWater(x, y)) return;
     if (id[0] === 't') out.push(shadowAt(`d${i}`, x, y, Math.round((30 * scale) / 0.56), 0.3));
     out.push(billboard(`d${i}`, id, x, y, scale));

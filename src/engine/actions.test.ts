@@ -37,7 +37,9 @@ function expectInvariants(state: GameState): void {
   }
   for (const player of [state.players[1], state.players[2]]) {
     expect(player.mana).toBeGreaterThanOrEqual(0);
-    expect(player.grimoire.length + player.used.length).toBe(TEST_GRIMOIRE.length);
+    // Chaque carte est dans le grimoire, au cimetière ou sur le plateau (§4.3).
+    const onBoard = Object.values(state.units).filter((u) => u.owner === player.id).length;
+    expect(player.grimoire.length + player.graveyard.length + onBoard).toBe(TEST_GRIMOIRE.length);
   }
   if (state.winner !== null) expect(state.players[state.winner].vp).toBeGreaterThanOrEqual(VICTORY_VP);
   // Pièges : sur des cases jouables, au plus un par joueur et par case, jamais sous un monstre ennemi.

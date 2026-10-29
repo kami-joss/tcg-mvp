@@ -78,7 +78,7 @@ export function addStatus(state: GameState, unitId: UnitId, spec: StatusSpec): G
       ? requiemTurn(turns, state.turn, state.activePlayer, unit.owner)
       : statusExpiry(turns, state.turn, state.activePlayer, unit.owner);
   const status: Status =
-    spec.kind === 'slow' || spec.kind === 'burn' || spec.kind === 'invisible'
+    spec.kind === 'slow' || spec.kind === 'burn' || spec.kind === 'camouflage'
       ? { kind: spec.kind, amount: spec.amount, turns, expiresAtTurn }
       : { kind: spec.kind, turns, expiresAtTurn };
   const statuses = [...unit.statuses, status];

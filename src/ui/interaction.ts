@@ -106,9 +106,9 @@ export function getSpellAllies(view: PlayerView, cardId: CardId): Position[] {
       .map((u) => u.pos);
   }
   if (targeting.type !== 'allies') return [];
-  const { family } = targeting;
+  const { archetype } = targeting;
   return Object.values(view.units)
-    .filter((u) => u.kind === 'monster' && u.owner === view.viewer && getMonsterCard(u.cardId).family === family)
+    .filter((u) => u.kind === 'monster' && u.owner === view.viewer && getMonsterCard(u.cardId).archetype === archetype)
     .map((u) => u.pos);
 }
 

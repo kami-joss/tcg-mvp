@@ -1,7 +1,8 @@
 // Entrer sur une case : pièges (SPEC.md §6 bis, §10), unités « Passage » (§5.2, §10) et cases brûlées (§10).
 // Les pièges sont cachés pour l'adversaire, actifs jusqu'au prochain tour de leur poseur, déclenchés par le premier
 // monstre ennemi qui entre sur leur case. Une unité « Passage » (terrain, ou Golem de lave) agit sur chaque monstre
-// ennemi qui entre dans sa zone (ses 8 cases adjacentes), une fois par mouvement. Une case brûlée, publique, agit sur
+// ennemi qui entre sur une case de sa zone (ses 8 cases adjacentes) : à chaque case en marchant, une fois par recul
+// (§10). Une case brûlée, publique, agit sur
 // chaque monstre ennemi qui y entre, et reste.
 import { isAdjacent, isPlayable, samePos } from './board';
 import { getCard } from './cards';

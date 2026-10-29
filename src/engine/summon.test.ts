@@ -26,7 +26,7 @@ describe('invocation (SPEC.md §4.5)', () => {
     const before = createGame();
     const after = applyAction(before, summon('eclaireur', at(0, 3)));
     expect(after.players[1].mana).toBe(before.players[1].mana - 1);
-    expect(after.players[1].used).toEqual(['eclaireur']);
+    expect(after.players[1].graveyard).toEqual([]);
     expect(after.players[1].grimoire).toHaveLength(24);
     expect(after.players[1].grimoire.filter((id) => id === 'eclaireur')).toHaveLength(1);
     expect(after.players[2]).toEqual(before.players[2]);
@@ -49,6 +49,7 @@ describe('invocation (SPEC.md §4.5)', () => {
       mobilityLeft: 3,
       froze: 0,
       boost: 0,
+      turnBonuses: [],
       hasAttacked: false,
       usedEffects: [],
       trail: [at(0, 4)],

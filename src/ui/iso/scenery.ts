@@ -2,6 +2,7 @@
 // le lot 7) : données du décor et géométrie de la caméra. Rien ici ne touche aux règles : l'eau reste une case bloquée,
 // les enclaves sont celles que dessinent déjà les falaises du plateau. Le décor vient du plateau (`Board.scenery`).
 import type { Board, Enclave, ManaZoneId, Position } from '../../engine';
+import PAINTED_SPRITES from '../../assets/plateau15/sprites/sprites.json';
 
 /** Inclinaison de la vraie isométrie : arctan(1/√2), en degrés. */
 export const ISO_TILT = 54.7356;
@@ -39,6 +40,8 @@ export const SPRITES: Readonly<Record<string, readonly [number, number, number, 
   z_farm: [201, 186, 103, 111],
   q1: [62, 99, 31, 81], q2: [62, 69, 31, 51], q3: [63, 93, 32, 75], q4: [61, 85, 31, 67], q5: [58, 103, 29, 86],
   q6: [78, 105, 39, 82], q7: [132, 62, 66, 37], q8: [132, 77, 66, 46], q9: [49, 104, 25, 90],
+  // Sprites peints du 15 × 15 (handoff plateau 15), en densité 2 : affichés à l'échelle 0,5.
+  ...(PAINTED_SPRITES as unknown as Readonly<Record<string, readonly [number, number, number, number]>>),
 };
 
 /** Un élément de décor posé sur la bordure du bloc : sprite, position dans le plan du plateau, échelle. */

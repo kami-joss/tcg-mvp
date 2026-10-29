@@ -99,10 +99,11 @@ describe('plateau 13 × 13', () => {
     expect(html).toMatch(/class="stat stat--mob" title="Mobilité">.*?<\/svg>3<\/span>/); // Golem : 2 + 1
     const sheet = getSheet(view, { kind: 'cell', pos: at(12, 12) })!;
     expect(sheet.stats).toContainEqual({ icon: 'walking-boot', label: 'Mobilité', value: '3', delta: 1, hurt: false });
-    expect(sheet.status).toContainEqual({ icon: 'walking-boot', text: '+1 mobilité sur ce plateau (tous les monstres)', kind: 'boost' });
+    const chip = { icon: 'walking-boot', text: 'Champ de bataille (13 × 13)', detail: 'Plateau : +1 mobilité pour tous les monstres', kind: 'boost', group: 'effect' };
+    expect(sheet.status).toContainEqual(chip);
     expect(sheet.text[0]).toContain('(mobilité 3)');
     const card = getSheet(view, { kind: 'card', cardId: 'golem' })!;
     expect(card.stats).toContainEqual({ icon: 'walking-boot', label: 'Mobilité', value: '3', delta: 1, hurt: false });
-    expect(card.status?.map((c) => c.text)).toEqual(['+1 mobilité sur ce plateau (tous les monstres)']);
+    expect(card.status).toEqual([chip]);
   });
 });

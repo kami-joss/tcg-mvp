@@ -1,6 +1,6 @@
 // Pendant qu'une animation se joue, l'écran montre un état intermédiaire : la vue d'avant l'action, à laquelle on
 // applique les événements un par un. Pure et testée : à la fin, l'écran reprend la vraie vue.
-import { directionBetween, samePos } from '../../engine';
+import { directionBetween, getCard, samePos } from '../../engine';
 import type { GameEvent, PlayerId, PlayerView, Position, Unit } from '../../engine';
 
 function setPlayer(view: PlayerView, player: PlayerId, patch: { mana?: number; vp?: number }): PlayerView {
@@ -40,7 +40,9 @@ export function applyEvent(view: PlayerView, event: GameEvent, final: PlayerView
       const index = view.me.grimoire.indexOf(event.cardId);
       if (index < 0) return view;
       const grimoire = [...view.me.grimoire.slice(0, index), ...view.me.grimoire.slice(index + 1)];
-      return { ...view, me: { ...view.me, grimoire, used: [...view.me.used, event.cardId] } };
+      // Un sort va au cimetière ; un monstre ou un terrain n'y ira qu'en quittant le plateau (§4.3).
+      const graveyard = getCard(event.cardId).kind === 'spell' ? [...view.me.graveyard, event.cardId] : view.me.graveyard;
+      return { ...view, me: { ...view.me, grimoire, graveyard } };
     }
     case 'summon':
       return { ...view, units: { ...view.units, [event.unit.id]: event.unit } };

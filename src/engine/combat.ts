@@ -1,5 +1,5 @@
 // Attaque (SPEC.md §4.7), avec les mots-clés `riposte`, `prime` (§5) et ceux des decks archer et piège (§6 bis).
-import { DIRECTION_OFFSETS, directionBetween, distance, getCliff, isPlayable } from './board';
+import { DIRECTION_OFFSETS, directionBetween, distance, getCell, getCliff } from './board';
 import { getMonsterCard } from './cards';
 import { dealDamage } from './damage';
 import { IllegalActionError } from './errors';
@@ -15,9 +15,22 @@ import type { Action, BoardState, GameState, MonsterUnit, Position, StatusSpec, 
 type AttackAction = Extract<Action, { type: 'attack' }>;
 
 /**
+ * Un pas du tir, de `previous` à sa voisine `pos` : la case se vise (`open`), le tir passe par-dessus sans s'y arrêter
+ * (`over` : case X basse, portée 2 ou plus) ou s'arrête avant (`stop` : hors plateau, case X ordinaire ou haute, falaise
+ * qu'il ne franchit pas). Une falaise coupe le tir, sauf celle de la Scierie pour une portée de 2 ou plus (§10).
+ */
+function shotStep(state: BoardState, previous: Position, pos: Position, range: number): 'open' | 'over' | 'stop' {
+  const cliff = getCliff(state.board, previous, pos);
+  if (cliff && !(cliff.rangedShotsPass && range >= 2)) return 'stop';
+  const cell = getCell(state.board, pos);
+  if (cell.kind === 'plain') return 'open';
+  return cell.kind === 'blocked' && cell.height === 'low' && range >= 2 ? 'over' : 'stop';
+}
+
+/**
  * Ligne de vue depuis `from` : dans chaque direction orthogonale, la première case occupée à `range`
- * cases au plus. Les cases traversées doivent exister, ne pas être `X` et être vides. Une falaise coupe la ligne de vue,
- * sauf celle de la Scierie pour un tir de portée 2 ou plus (§10).
+ * cases au plus. Les cases traversées doivent être vides ; le tir s'arrête avant une case X, sauf une X basse pour une
+ * portée de 2 ou plus, et avant une falaise qu'il ne franchit pas (`shotStep`).
  */
 export function getLineOfSightCells(state: BoardState, from: Position, range: number): Position[] {
   const cells: Position[] = [];
@@ -25,8 +38,9 @@ export function getLineOfSightCells(state: BoardState, from: Position, range: nu
     for (let d = 1; d <= range; d++) {
       const previous = { row: from.row + step.row * (d - 1), col: from.col + step.col * (d - 1) };
       const pos = { row: from.row + step.row * d, col: from.col + step.col * d };
-      const cliff = getCliff(state.board, previous, pos);
-      if (!isPlayable(state.board, pos) || (cliff && !(cliff.rangedShotsPass && range >= 2))) break;
+      const shot = shotStep(state, previous, pos, range);
+      if (shot === 'stop') break;
+      if (shot === 'over') continue;
       if (getUnitsAt(state, pos).length > 0) {
         cells.push(pos);
         break;
@@ -46,8 +60,9 @@ export function getStrikeCells(state: BoardState, from: Position, range: number)
     for (let d = 1; d <= range; d++) {
       const previous = { row: from.row + step.row * (d - 1), col: from.col + step.col * (d - 1) };
       const pos = { row: from.row + step.row * d, col: from.col + step.col * d };
-      const cliff = getCliff(state.board, previous, pos);
-      if (!isPlayable(state.board, pos) || (cliff && !(cliff.rangedShotsPass && range >= 2))) break;
+      const shot = shotStep(state, previous, pos, range);
+      if (shot === 'stop') break;
+      if (shot === 'over') continue;
       cells.push(pos);
       if (getUnitsAt(state, pos).length > 0) break;
     }

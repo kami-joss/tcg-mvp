@@ -1,0 +1,762 @@
+{
+ "_note": "Rendu uniquement : rien ici ne change les règles (SPEC §3).",
+ "plan": {
+  "pas": 72,
+  "case": 68,
+  "marge": 14,
+  "densite": 2
+ },
+ "graine": 4,
+ "herbe": {
+  "tuiles": [
+   "herbe_fleurs",
+   "herbe_trefles",
+   "herbe_unie"
+  ],
+  "poids": [
+   10,
+   22,
+   68
+  ]
+ },
+ "zones": [
+  {
+   "sol": "pierre_mine",
+   "cases": [
+    [
+     0,
+     9
+    ],
+    [
+     0,
+     10
+    ],
+    [
+     0,
+     11
+    ],
+    [
+     0,
+     12
+    ],
+    [
+     0,
+     13
+    ],
+    [
+     0,
+     14
+    ],
+    [
+     1,
+     9
+    ],
+    [
+     1,
+     10
+    ],
+    [
+     1,
+     11
+    ],
+    [
+     1,
+     12
+    ],
+    [
+     1,
+     13
+    ],
+    [
+     1,
+     14
+    ],
+    [
+     2,
+     9
+    ],
+    [
+     2,
+     10
+    ],
+    [
+     2,
+     11
+    ],
+    [
+     2,
+     12
+    ],
+    [
+     2,
+     13
+    ],
+    [
+     2,
+     14
+    ],
+    [
+     3,
+     9
+    ],
+    [
+     3,
+     10
+    ],
+    [
+     3,
+     11
+    ],
+    [
+     3,
+     12
+    ],
+    [
+     3,
+     13
+    ],
+    [
+     3,
+     14
+    ],
+    [
+     4,
+     10
+    ],
+    [
+     4,
+     11
+    ],
+    [
+     4,
+     12
+    ],
+    [
+     4,
+     13
+    ],
+    [
+     4,
+     14
+    ],
+    [
+     5,
+     11
+    ],
+    [
+     5,
+     12
+    ],
+    [
+     5,
+     13
+    ],
+    [
+     5,
+     14
+    ]
+   ],
+   "tuiles": [
+    "pierre_cristaux",
+    "pierre_poussiere",
+    "pierre_unie"
+   ],
+   "poids": [
+    10,
+    30,
+    60
+   ],
+   "bande": [
+    70,
+    55,
+    40
+   ],
+   "forceBande": 0.45
+  },
+  {
+   "sol": "terre_scierie",
+   "cases": [
+    [
+     9,
+     0
+    ],
+    [
+     9,
+     1
+    ],
+    [
+     9,
+     2
+    ],
+    [
+     9,
+     3
+    ],
+    [
+     10,
+     0
+    ],
+    [
+     10,
+     1
+    ],
+    [
+     10,
+     2
+    ],
+    [
+     10,
+     3
+    ],
+    [
+     10,
+     4
+    ],
+    [
+     11,
+     0
+    ],
+    [
+     11,
+     1
+    ],
+    [
+     11,
+     2
+    ],
+    [
+     11,
+     3
+    ],
+    [
+     11,
+     4
+    ],
+    [
+     11,
+     5
+    ],
+    [
+     12,
+     0
+    ],
+    [
+     12,
+     1
+    ],
+    [
+     12,
+     2
+    ],
+    [
+     12,
+     3
+    ],
+    [
+     12,
+     4
+    ],
+    [
+     12,
+     5
+    ],
+    [
+     13,
+     0
+    ],
+    [
+     13,
+     1
+    ],
+    [
+     13,
+     2
+    ],
+    [
+     13,
+     3
+    ],
+    [
+     13,
+     4
+    ],
+    [
+     13,
+     5
+    ],
+    [
+     14,
+     0
+    ],
+    [
+     14,
+     1
+    ],
+    [
+     14,
+     2
+    ],
+    [
+     14,
+     3
+    ],
+    [
+     14,
+     4
+    ],
+    [
+     14,
+     5
+    ]
+   ],
+   "tuiles": [
+    "terre_unie",
+    "terre_copeaux",
+    "terre_herbe"
+   ],
+   "poids": [
+    45,
+    30,
+    25
+   ],
+   "plaques": 0.2,
+   "bande": [
+    80,
+    60,
+    35
+   ],
+   "forceBande": 0.3
+  }
+ ],
+ "socles": [
+  {
+   "cases": [
+    [
+     4,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     4
+    ],
+    [
+     5,
+     5
+    ],
+    [
+     7,
+     4
+    ],
+    [
+     8,
+     4
+    ],
+    [
+     9,
+     4
+    ],
+    [
+     9,
+     5
+    ],
+    [
+     9,
+     9
+    ],
+    [
+     9,
+     10
+    ],
+    [
+     10,
+     5
+    ],
+    [
+     10,
+     9
+    ],
+    [
+     10,
+     10
+    ]
+   ],
+   "teinte": [
+    0.95,
+    0.88,
+    0.75
+   ]
+  },
+  {
+   "cases": [
+    [
+     4,
+     9
+    ],
+    [
+     5,
+     9
+    ],
+    [
+     5,
+     10
+    ],
+    [
+     6,
+     10
+    ],
+    [
+     7,
+     10
+    ]
+   ],
+   "teinte": [
+    0.5,
+    0.45,
+    0.55
+   ]
+  }
+ ],
+ "decals": [
+  {
+   "image": "canal_2cases_a",
+   "case": [
+    11,
+    5
+   ],
+   "sens": "lignes"
+  },
+  {
+   "image": "canal_2cases_a",
+   "case": [
+    13,
+    5
+   ],
+   "sens": "lignes"
+  },
+  {
+   "image": "canal_2cases_b",
+   "case": [
+    9,
+    0
+   ],
+   "sens": "colonnes"
+  },
+  {
+   "image": "canal_2cases_b",
+   "case": [
+    9,
+    2
+   ],
+   "sens": "colonnes"
+  },
+  {
+   "image": "etang_2cases",
+   "case": [
+    2,
+    7
+   ],
+   "sens": "lignes"
+  },
+  {
+   "image": "etang_2cases",
+   "case": [
+    11,
+    7
+   ],
+   "sens": "lignes"
+  }
+ ],
+ "sprites": [
+  {
+   "id": "montagne_large",
+   "case": [
+    0,
+    9
+   ],
+   "miroir": true,
+   "ombre": "haute"
+  },
+  {
+   "id": "cadre_mine_1",
+   "entre": [
+    [
+     1,
+     8
+    ],
+    [
+     1,
+     9
+    ]
+   ],
+   "miroir": false
+  },
+  {
+   "id": "forge_rochers",
+   "case": [
+    5,
+    5
+   ],
+   "miroir": false,
+   "empreinte": [
+    [
+     4,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     5,
+     4
+    ],
+    [
+     5,
+     5
+    ]
+   ],
+   "ombre": "haute"
+  },
+  {
+   "id": "pont_r",
+   "case": [
+    9,
+    1
+   ],
+   "miroir": false
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    2,
+    9
+   ],
+   "miroir": false,
+   "ombre": "haute"
+  },
+  {
+   "id": "rocher_plat",
+   "case": [
+    7,
+    4
+   ],
+   "miroir": false,
+   "ombre": "moyenne"
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    3,
+    9
+   ],
+   "miroir": false,
+   "ombre": "haute"
+  },
+  {
+   "id": "rocher_pics",
+   "case": [
+    8,
+    4
+   ],
+   "miroir": false,
+   "ombre": "moyenne"
+  },
+  {
+   "id": "tas_minerai",
+   "case": [
+    2,
+    11
+   ],
+   "miroir": false,
+   "ombre": "moyenne"
+  },
+  {
+   "id": "montagne_double",
+   "case": [
+    4,
+    9
+   ],
+   "miroir": false,
+   "ombre": "haute"
+  },
+  {
+   "id": "rocher_plat",
+   "case": [
+    9,
+    4
+   ],
+   "miroir": true,
+   "ombre": "moyenne"
+  },
+  {
+   "id": "billot",
+   "case": [
+    11,
+    2
+   ],
+   "miroir": false,
+   "ombre": "basse"
+  },
+  {
+   "id": "montagne_pic",
+   "case": [
+    5,
+    9
+   ],
+   "miroir": true,
+   "ombre": "haute"
+  },
+  {
+   "id": "rocher_dalle",
+   "case": [
+    9,
+    5
+   ],
+   "miroir": true,
+   "ombre": "moyenne"
+  },
+  {
+   "id": "tas_minerai",
+   "case": [
+    3,
+    12
+   ],
+   "miroir": false,
+   "ombre": "moyenne"
+  },
+  {
+   "id": "montagne_double",
+   "case": [
+    5,
+    10
+   ],
+   "miroir": true,
+   "ombre": "haute"
+  },
+  {
+   "id": "rocher_plat",
+   "case": [
+    10,
+    5
+   ],
+   "miroir": false,
+   "ombre": "moyenne"
+  },
+  {
+   "id": "billot",
+   "case": [
+    12,
+    3
+   ],
+   "miroir": false,
+   "ombre": "basse"
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    5,
+    11
+   ],
+   "miroir": true,
+   "ombre": "haute"
+  },
+  {
+   "id": "montagne_pic",
+   "case": [
+    6,
+    10
+   ],
+   "miroir": false,
+   "ombre": "haute"
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    5,
+    12
+   ],
+   "miroir": false,
+   "ombre": "haute"
+  },
+  {
+   "id": "montagne_double",
+   "case": [
+    7,
+    10
+   ],
+   "miroir": false,
+   "ombre": "haute"
+  },
+  {
+   "id": "rocher_rond",
+   "case": [
+    9,
+    9
+   ],
+   "miroir": false,
+   "ombre": "moyenne"
+  },
+  {
+   "id": "pont_c",
+   "case": [
+    13,
+    5
+   ],
+   "miroir": false
+  },
+  {
+   "id": "cadre_mine_2",
+   "entre": [
+    [
+     5,
+     13
+    ],
+    [
+     6,
+     13
+    ]
+   ],
+   "miroir": true
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    5,
+    14
+   ],
+   "miroir": false,
+   "ombre": "haute"
+  },
+  {
+   "id": "rocher_pics",
+   "case": [
+    9,
+    10
+   ],
+   "miroir": false,
+   "ombre": "moyenne"
+  },
+  {
+   "id": "rocher_rond",
+   "case": [
+    10,
+    9
+   ],
+   "miroir": true,
+   "ombre": "moyenne"
+  },
+  {
+   "id": "rocher_plat",
+   "case": [
+    10,
+    10
+   ],
+   "miroir": false,
+   "ombre": "moyenne"
+  }
+ ]
+}

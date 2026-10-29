@@ -13,7 +13,7 @@ export const STATUS_ICONS: Readonly<Record<StatusKind, IconName>> = {
   immobilise: 'fishing-net',
   burn: 'flame',
   requiem: 'death-skull',
-  invisible: 'eye-slash',
+  camouflage: 'eye-slash',
 };
 
 /** Marque au sol : un effet d'une unité « Passage » sur une case de sa zone, ou une case brûlée. */
@@ -42,7 +42,7 @@ export function getZoneMarks(view: Pick<PlayerView, 'board' | 'units'> & Partial
     if (!passage) continue;
     const name = getCard(unit.cardId).name;
     const effects: Omit<ZoneMark, 'sourceId' | 'owner'>[] = passage.effects.map((effect) => {
-      const title = `${name} de J${unit.owner} : ${effectText(effect)} à l’ennemi qui entre ici (une fois par mouvement).`;
+      const title = `${name} de J${unit.owner} : ${effectText(effect)} à l’ennemi qui entre ici (à chaque case en marchant).`;
       if (effect.type === 'damage') return { icon: 'hearts', label: `−${effect.amount}`, title };
       if (effect.type === 'rewind') return { icon: 'compass', label: `−${effect.steps}`, title };
       const amount = 'amount' in effect ? effect.amount : 0;

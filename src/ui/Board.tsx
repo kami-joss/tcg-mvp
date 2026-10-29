@@ -33,6 +33,7 @@ import { trapLabel } from './cardText';
 import { IsoDecor } from './iso/IsoDecor';
 import { boardMetrics, fitCell, tiltGeometry } from './boardGeometry';
 import { ISO_TILT, isoCamera, isoFloor, isoScenery, planSize, waterKind } from './iso/scenery';
+import { flatGroundBackground, paintedDecor, usePaintedGround } from './iso/paintedDecor';
 import { DEFAULT_TOKEN_STATS } from './settings';
 import type { BoardView, TokenStats } from './settings';
 import { STATUS_ICONS, diceLayout, getZoneMarks } from './zoneMarks';
@@ -273,6 +274,10 @@ export function Board(props: BoardProps) {
   const tilted = mode === 'tilt';
   // Décor 2,5D (rochers, eau, mana zones modélisées, enclaves, bordure) : vues isométrique et inclinée, s'il existe.
   const decor = (iso || tilted) && scenery !== null;
+  // Décor peint (15 × 15) : son sol, calculé une fois, remplace celui du décor procédural ; seul en vue de dessus.
+  const paintedData = paintedDecor(view.board);
+  const painted = paintedData !== null;
+  const ground = usePaintedGround(view.board);
   const art = showArt && !decor ? boardArt(view.board) : undefined;
   const viewportRef = useRef<HTMLDivElement>(null);
   const area = useElementSize(viewportRef);
@@ -315,13 +320,14 @@ export function Board(props: BoardProps) {
           left: camera.width / 2 - half,
           top: camera.centerY - half,
           transform: `scale(${camera.k.toFixed(4)}) rotateX(${ISO_TILT}deg) rotateZ(45deg)`,
-          background: isoFloor(scenery!, flipped, view.board.rows, view.board.cols),
+          background: painted ? 'none' : isoFloor(scenery!, flipped, view.board.rows, view.board.cols),
         }
       : {
           '--cell': `${metrics.cell}px`,
           top: tilted ? geometry.boardTop : 0,
           left: tilted ? geometry.boardLeft : 0,
-          ...(decor ? { background: isoFloor(scenery!, flipped, rows, cols, metrics.pitch) } : {}),
+          ...(decor ? { background: painted ? 'none' : isoFloor(scenery!, flipped, rows, cols, metrics.pitch) } : {}),
+          ...(!decor && paintedData ? { background: flatGroundBackground(paintedData, rows, ground, metrics.pitch, metrics.pad) } : {}),
         }),
     ...(art ? { backgroundImage: `url(${art})` } : {}),
   };
@@ -370,6 +376,8 @@ export function Board(props: BoardProps) {
                 animated={animated}
                 camera={iso ? 'iso' : 'tilt'}
                 pitch={iso ? undefined : metrics.pitch}
+                painted={painted}
+                ground={ground}
               />
             )}
             {positions.map((pos) => (
@@ -799,7 +807,7 @@ function TerrainCrest(props: { terrain: TerrainUnit; small: boolean; standScale:
   );
 }
 
-const STATUS_ORDER: readonly StatusKind[] = ['requiem', 'stun', 'immobilise', 'slow', 'burn', 'invisible'];
+const STATUS_ORDER: readonly StatusKind[] = ['requiem', 'stun', 'immobilise', 'slow', 'burn', 'camouflage'];
 
 /**
  * Statuts en pastilles : requiem N (tours avant sa mort), stun, immobilisé, slow X, burn X (les statuts du même type
@@ -817,7 +825,7 @@ function Statuses({ statuses, requiem = null }: { statuses: readonly Status[]; r
         return (
           <span key={kind} className={`status status--${kind}`} title={statusTitle(kind, amount)}>
             <Icon name={STATUS_ICONS[kind]} />
-            {(amount > 1 || kind === 'requiem') && kind !== 'invisible' && amount}
+            {(amount > 1 || kind === 'requiem') && kind !== 'camouflage' && amount}
           </span>
         );
       })}
@@ -839,7 +847,7 @@ function statusTitle(kind: StatusKind, amount: number): string {
       return `Slow ${amount} : −${amount} mobilité`;
     case 'burn':
       return `Burn ${amount} : −${amount} PV par tour`;
-    case 'invisible':
+    case 'camouflage':
       return 'Invisible (Pénombre) : caché à l’adversaire tant qu’il ne s’approche pas';
   }
 }

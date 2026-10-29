@@ -1,4 +1,5 @@
 // Mise à jour immuable de l'état d'un joueur.
+import { getCard } from './cards';
 import { VICTORY_VP } from './config';
 import { emit } from './events';
 import type { CardId, GameState, PlayerId, PlayerState, Position, Unit } from './types';
@@ -37,14 +38,14 @@ export function isShinyCopy(state: GameState, id: PlayerId, cardId: CardId): boo
 }
 
 /**
- * Déplace un exemplaire de la carte du grimoire du joueur actif vers sa pile « utilisées », sans rien payer ; un
- * exemplaire brillant d'abord, s'il en a un.
+ * Retire un exemplaire de la carte du grimoire du joueur actif, sans rien payer ; un exemplaire brillant d'abord, s'il en
+ * a un. Un sort va au cimetière ; un monstre ou un terrain n'y ira qu'en quittant le plateau (§4.3).
  */
 export function takeFromGrimoire(state: GameState, cardId: CardId): GameState {
   const player = state.players[state.activePlayer];
   return updatePlayer(state, player.id, {
     grimoire: withoutOne(player.grimoire, cardId),
-    used: [...player.used, cardId],
+    ...(getCard(cardId).kind === 'spell' ? { graveyard: [...player.graveyard, cardId] } : {}),
     ...(player.shiny?.includes(cardId) ? { shiny: withoutOne(player.shiny, cardId) } : {}),
   });
 }

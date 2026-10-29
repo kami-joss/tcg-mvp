@@ -38,7 +38,7 @@ const renderBoard = (state: GameState) =>
 describe('Dragon élémentaire - Origine', () => {
   it('texte : Vol ; aura sur les dragons élémentaires alliés adjacents', () => {
     expect(cardEffectLine(getCard('dragon-origine'))).toBe('Vol ; Aura · dragons élémentaires alliés adjacents · +1 ATK +1 PV +1 mobilité');
-    expect(describeCard(getCard('dragon-origine'))[1]).toBe('Famille Dragon élémentaire.');
+    expect(describeCard(getCard('dragon-origine'))[1]).toBe('Archétype Dragons.');
   });
 
   it('fiche et animation : le dragon adjacent gagne 1 PV, la puce dit d’où vient le bonus', () => {
@@ -51,7 +51,7 @@ describe('Dragon élémentaire - Origine', () => {
       ['6', 1],
       ['6/6', 1],
     ]);
-    expect(sheet.status?.map((c) => c.text)).toContain('+1 ATK +1 PV +1 mobilité (aura : Origine - Dragons)');
+    expect(sheet.status).toContainEqual({ icon: 'aura', text: 'Aura', detail: '+1 ATK +1 PV +1 mobilité (Origine - Dragons)', kind: 'boost', group: 'effect' });
     const aura = view(after).events.find((e) => e.type === 'auraHp')!;
     const before = { ...view(after), units: { ...view(after).units, u2: { ...view(after).units.u2!, hp: 5, maxHp: 5, auraHp: 0 } } };
     expect(applyEvent(before, aura, view(after)).units.u2).toMatchObject({ hp: 6, maxHp: 6, auraHp: 1 });
@@ -71,7 +71,7 @@ describe('Pénombre', () => {
   const selection: Selection = { kind: 'card', cardId: 'penombre' };
 
   it('texte de la carte', () => {
-    expect(describeCard(getCard('penombre'))).toEqual(['Tous les monstres piège alliés · invisible 2 pendant 1 tour']);
+    expect(describeCard(getCard('penombre'))).toEqual(['Tous les monstres piège alliés · camouflage 2 pendant 1 tour']);
   });
 
   it('sans cible à choisir : ses monstres piège en doré, un clic sur l’un d’eux la lance', () => {
@@ -85,13 +85,17 @@ describe('Pénombre', () => {
     const after = applyAction(state, PENOMBRE);
     expect(describeAction(view(state), PENOMBRE, view(after))[0]).toBe('J1 lance Pénombre - Pièges.');
     const chips = getSheet(view(after), { kind: 'cell', pos: at(1, 1) })!.status;
-    expect(chips).toContainEqual({
-      icon: 'eye-slash',
-      text: 'Invisible 2 (Pénombre) jusqu’à la fin de ce tour et de son prochain',
-      kind: 'info',
-    });
-    expect(chips).toContainEqual({ icon: 'eye-slash', text: 'Invisible pour l’adversaire', kind: 'info' });
-    expect(renderBoard(after)).toContain('class="status status--invisible"');
+    // Un seul « Camouflé » : le statut de Pénombre, sans puce d'effet en double.
+    expect(chips).toEqual([
+      {
+        icon: 'eye-slash',
+        text: 'Camouflé',
+        detail: 'Camouflé jusqu’à la fin de ce tour et de son prochain : invisible pour l’adversaire sans monstre ni terrain à lui dans un rayon de 2',
+        kind: 'info',
+        group: 'status',
+      },
+    ]);
+    expect(renderBoard(after)).toContain('class="status status--camouflage"');
   });
 });
 

@@ -25,7 +25,7 @@ describe('sorts (SPEC.md §4.3, §6)', () => {
     const state = gameWith([{ monster: 'milicien', owner: 1, at: at(8, 1) }], MANA);
     const after = applyAction(state, cast('charge', 'u1'));
     expect(after.players[1].mana).toBe(9);
-    expect(after.players[1].used).toEqual(['charge']);
+    expect(after.players[1].graveyard).toEqual(['charge']);
     expect(after.players[1].grimoire).not.toContain('charge');
   });
 
@@ -303,7 +303,7 @@ describe('Bourrasque', () => {
   });
 });
 
-describe('un même sort, une fois par tour (SPEC.md §4.3)', () => {
+describe('sorts : seul le mana limite (SPEC.md §4.3)', () => {
   const state = gameWith(
     [
       { monster: 'milicien', owner: 1, at: at(8, 1) },
@@ -312,14 +312,13 @@ describe('un même sort, une fois par tour (SPEC.md §4.3)', () => {
     { players: { 1: { mana: 10, grimoire: ['charge', 'charge', 'benediction'] } } },
   );
 
-  it('le second exemplaire attend le tour suivant ; un autre sort reste permis', () => {
+  it('un second exemplaire du même sort se lance dans le même tour, s’il reste du mana', () => {
     const once = applyAction(state, cast('charge', 'u1'));
-    expect(spellActions(once, 'charge')).toEqual([]);
-    expect(() => applyAction(once, cast('charge', 'u2'))).toThrow(IllegalActionError);
-    expect(() => applyAction(once, cast('benediction', 'u2'))).not.toThrow();
-    const nextTurn = applyAction(applyAction(once, END_TURN), END_TURN);
-    expect(nextTurn.players[1].spellsThisTurn).toEqual([]);
-    expect(spellActions(nextTurn, 'charge').length).toBeGreaterThan(0);
+    expect(spellActions(once, 'charge').length).toBeGreaterThan(0);
+    const twice = applyAction(once, cast('charge', 'u2'));
+    expect(twice.players[1].grimoire).toEqual(['benediction']);
+    const broke = gameWith([{ monster: 'milicien', owner: 1, at: at(8, 1) }], { players: { 1: { mana: 1, grimoire: ['charge', 'charge'] } } });
+    expect(spellActions(applyAction(broke, cast('charge', 'u1')), 'charge')).toEqual([]);
   });
 
   it('les monstres et terrains ne sont pas concernés', () => {

@@ -13,6 +13,8 @@ import { getCard, getMonsterCard } from './cards';
 import { payCard, placeSummonedMonster } from './summon';
 import { addUnit, createMonsterUnit, getMonsterAt, getMonsters, getUnitsAt, removeUnit, setUnit } from './units';
 import type {
+  EffectSource,
+  TurnBonus,
   Ability,
   AreaZone,
   BoardState,
@@ -20,7 +22,7 @@ import type {
   Direction,
   Effect,
   EffectTarget,
-  Family,
+  Archetype,
   GameState,
   MonsterUnit,
   PlayerId,
@@ -37,8 +39,8 @@ function requireSource(source: MonsterUnit | null): MonsterUnit {
 }
 
 /** Les monstres de `player` d'une famille. */
-function alliesOf(state: BoardState, player: PlayerId, family: Family): MonsterUnit[] {
-  return getMonsters(state, player).filter((m) => getMonsterCard(m.cardId).family === family);
+function alliesOf(state: BoardState, player: PlayerId, archetype: Archetype): MonsterUnit[] {
+  return getMonsters(state, player).filter((m) => getMonsterCard(m.cardId).archetype === archetype);
 }
 
 /** Monstres que peut viser un effet de `player` ; `source` est le monstre qui active l'effet (`null` pour un sort). */
@@ -50,7 +52,7 @@ function getTargetableMonsters(
 ): MonsterUnit[] {
   // Une famille, s'il y en a une (« un allié bodybuilder »).
   const candidates = getMonsters(state, targeting.side === 'ally' ? player : opponent(player)).filter(
-    (m) => !targeting.family || getMonsterCard(m.cardId).family === targeting.family,
+    (m) => !targeting.archetype || getMonsterCard(m.cardId).archetype === targeting.archetype,
   );
   const { reach } = targeting;
   switch (reach.type) {
@@ -217,7 +219,7 @@ export function getEffectTargets(
       return getBurnableCells(state, requireSource(source), targeting.zone).map((pos): EffectTarget => ({ kind: 'cell', pos }));
     case 'allies':
       // Pénombre : tous ses monstres de la famille, s'il en a au moins un.
-      return alliesOf(state, player, targeting.family).length > 0 ? [{ kind: 'all' }] : [];
+      return alliesOf(state, player, targeting.archetype).length > 0 ? [{ kind: 'all' }] : [];
     case 'enemies':
       // Piège temporel : tous les monstres ennemis qu'il voit, s'il y en a au moins un.
       return getMonsters(state, opponent(player)).length > 0 ? [{ kind: 'all' }] : [];
@@ -299,6 +301,8 @@ interface EffectContext {
   readonly distance?: number;
   /** Case choisie pour une téléportation. */
   readonly destination?: Position;
+  /** D'où vient l'effet (carte, nom de l'effet) : gardé sur les bonus du tour. */
+  readonly origin: EffectSource;
 }
 
 /** Applique un effet complet à une cible déjà validée. */
@@ -308,6 +312,7 @@ export function resolveAbility(
   target: EffectTarget,
   by: PlayerId,
   source: MonsterUnit | null,
+  origin: EffectSource,
 ): GameState {
   const { targeting, effects } = ability;
   switch (targeting.type) {
@@ -341,18 +346,18 @@ export function resolveAbility(
     }
     case 'allies':
       // Ses monstres de la famille au moment où le sort est lancé ; ceux qui arrivent ensuite n'ont rien.
-      return alliesOf(state, by, targeting.family).reduce((next, m) => applyEffects(next, effects, m.id, { by, source }), state);
+      return alliesOf(state, by, targeting.archetype).reduce((next, m) => applyEffects(next, effects, m.id, { by, source, origin }), state);
     case 'enemies':
       // Les monstres ennemis que voit le lanceur (jamais un monstre invisible pour lui), au moment du sort.
-      return getMonsters(perceivedBy(state, by), opponent(by)).reduce((next, m) => applyEffects(next, effects, m.id, { by, source }), state);
+      return getMonsters(perceivedBy(state, by), opponent(by)).reduce((next, m) => applyEffects(next, effects, m.id, { by, source, origin }), state);
     case 'trail': {
       if (target.kind !== 'cell') throw new Error('Le retour vise une case');
       const from = requireSource(source);
-      return applyEffects(state, effects, from.id, { by, source: from, destination: target.pos });
+      return applyEffects(state, effects, from.id, { by, source: from, destination: target.pos, origin });
     }
     case 'self':
       if (effects.some((effect) => effect.type === 'evolve')) return resolveEvolve(state, target, requireSource(source));
-      return applyEffects(state, effects, requireSource(source).id, { by, source });
+      return applyEffects(state, effects, requireSource(source).id, { by, source, origin });
     case 'zone': {
       // Chaque ennemi de la zone que le lanceur voit (jamais un monstre invisible pour lui) subit les effets, dans l'ordre.
       const from = requireSource(source);
@@ -360,7 +365,7 @@ export function resolveAbility(
       const ids = getAreaTargets(perceivedBy(state, by), targeting.zone, by, from)
         .sort((a, b) => distance(b.pos, from.pos) - distance(a.pos, from.pos))
         .map((m) => m.id);
-      const context: EffectContext = { by, source: from, distance: target.kind === 'area' ? target.distance : undefined };
+      const context: EffectContext = { by, source: from, distance: target.kind === 'area' ? target.distance : undefined, origin };
       return ids.reduce((next, id) => applyEffects(next, effects, id, context), state);
     }
     case 'monster': {
@@ -371,7 +376,7 @@ export function resolveAbility(
       if (monster?.kind !== 'monster') throw new Error(`Cible d'effet invalide : ${target.unitId}`);
       const direction = target.kind === 'unitAndDirection' ? target.direction : undefined;
       const destination = target.kind === 'unitAndCell' ? target.pos : undefined;
-      return applyEffects(state, effects, monster.id, { by, source, direction, destination });
+      return applyEffects(state, effects, monster.id, { by, source, direction, destination, origin });
     }
   }
 }
@@ -403,17 +408,19 @@ function applyEffect(state: GameState, effect: Effect, monster: MonsterUnit, con
         ...monster,
         mobilityLeft: monster.mobilityLeft + effect.amount,
         boost: monster.boost + effect.amount,
+        turnBonuses: addTurnBonus(monster, context.origin, { mobility: effect.amount }),
       });
     case 'addAtkThisTurn':
-      return boost(state, monster, effect.amount);
+      return boost(state, monster, effect.amount, context.origin);
     case 'addRangeThisTurn':
       return setUnit(emit(state, { type: 'reach', unitId, pos, amount: effect.amount }), {
         ...monster,
         rangeBonus: monster.rangeBonus + effect.amount,
+        turnBonuses: addTurnBonus(monster, context.origin, { range: effect.amount }),
       });
     case 'multiplyAtkThisTurn':
       // L'ATK du moment, bonus du tour compris (les auras s'ajoutent ensuite, sans être multipliées).
-      return boost(state, monster, (monster.atk + monster.atkBonus) * (effect.multiplier - 1));
+      return boost(state, monster, (monster.atk + monster.atkBonus) * (effect.multiplier - 1), context.origin);
     case 'addStats':
       return setUnit(emit(state, { type: 'buff', unitId, pos, atk: effect.atk, hp: effect.hp }), {
         ...monster,
@@ -456,9 +463,29 @@ function applyEffect(state: GameState, effect: Effect, monster: MonsterUnit, con
 }
 
 /** ATK en plus pour ce tour (remise à 0 au début du prochain tour). */
-function boost(state: GameState, monster: MonsterUnit, atk: number): GameState {
+function boost(state: GameState, monster: MonsterUnit, atk: number, origin: EffectSource): GameState {
   const { id: unitId, pos } = monster;
-  return setUnit(emit(state, { type: 'boost', unitId, pos, atk }), { ...monster, atkBonus: monster.atkBonus + atk });
+  return setUnit(emit(state, { type: 'boost', unitId, pos, atk }), {
+    ...monster,
+    atkBonus: monster.atkBonus + atk,
+    turnBonuses: addTurnBonus(monster, origin, { atk }),
+  });
+}
+
+const sameSource = (a: EffectSource, b: EffectSource) => a.cardId === b.cardId && a.effect === b.effect;
+
+/** Ajoute un bonus du tour à sa source : deux Flèches divines font une seule source, +2 ATK +2 portée. */
+function addTurnBonus(monster: MonsterUnit, source: EffectSource, bonus: Partial<Omit<TurnBonus, 'source'>>): readonly TurnBonus[] {
+  const add = (from: TurnBonus): TurnBonus => ({
+    source: from.source,
+    atk: from.atk + (bonus.atk ?? 0),
+    range: from.range + (bonus.range ?? 0),
+    mobility: from.mobility + (bonus.mobility ?? 0),
+  });
+  const known = monster.turnBonuses.some((b) => sameSource(b.source, source));
+  return known
+    ? monster.turnBonuses.map((b) => (sameSource(b.source, source) ? add(b) : b))
+    : [...monster.turnBonuses, add({ source, atk: 0, range: 0, mobility: 0 })];
 }
 
 /**
@@ -468,7 +495,7 @@ function boost(state: GameState, monster: MonsterUnit, atk: number): GameState {
 export function applyTriggeredEffects(state: GameState, effects: readonly Effect[], unitId: string, source: MonsterUnit): GameState {
   const target = state.units[unitId];
   const useful = effects.filter((effect) => effect.type !== 'heal' || (target !== undefined && target.hp < target.maxHp));
-  return applyEffects(state, useful, unitId, { by: source.owner, source });
+  return applyEffects(state, useful, unitId, { by: source.owner, source, origin: { cardId: source.cardId } });
 }
 
 /** Invocation (Invocateur) : le joueur paie aussi le coût du monstre, qui arrive sur la case et peut agir aussitôt. */

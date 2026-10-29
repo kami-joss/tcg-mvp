@@ -15,12 +15,11 @@ function fakeStorage() {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
-  it('par défaut : vue isométrique, plateau retourné, animations, son à 0,7, zoom 100 %, grimoire à 2 cartes par ligne', () => {
+  it('par défaut : vue isométrique, animations, son à 0,7, zoom 100 %, grimoire à 2 cartes par ligne', () => {
     fakeStorage();
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
     expect(DEFAULT_SETTINGS).toEqual({
       view: 'iso',
-      flip: true,
       animations: true,
       sound: true,
       volume: 0.7,
@@ -35,7 +34,6 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
     const data = fakeStorage();
     const saved = {
       view: 'tilt',
-      flip: false,
       animations: true,
       sound: false,
       volume: 0.4,

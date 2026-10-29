@@ -27,7 +27,7 @@ describe('Pénombre', () => {
   it('sort à 5 mana ; famille Piège = les 4 monstres du deck Pièges ; injouable sans monstre piège', () => {
     expect(CARDS.penombre).toMatchObject({ kind: 'spell', cost: 5 });
     for (const id of ['poseur-de-piege', 'farceur', 'poseur-de-bombe', 'clown-assassin'] as const) {
-      expect(CARDS[id], id).toMatchObject({ family: 'piege' });
+      expect(CARDS[id], id).toMatchObject({ archetype: 'piege' });
     }
     const none = gameWith([{ monster: 'milicien', owner: 1, at: at(1, 4) }], GRIMOIRE);
     expect(getLegalActions(none).some((a) => a.type === 'playCard' && a.cardId === 'penombre')).toBe(false);
@@ -37,8 +37,8 @@ describe('Pénombre', () => {
   it('tous ses monstres piège deviennent invisibles (Invisible 2), les autres non', () => {
     const after = applyAction(state, PENOMBRE);
     expect(after.players[1].mana).toBe(5);
-    expect(after.units.u1?.statuses).toMatchObject([{ kind: 'invisible', amount: 2, turns: 1 }]);
-    expect(after.units.u2?.statuses).toMatchObject([{ kind: 'invisible', amount: 2, turns: 1 }]);
+    expect(after.units.u1?.statuses).toMatchObject([{ kind: 'camouflage', amount: 2, turns: 1 }]);
+    expect(after.units.u2?.statuses).toMatchObject([{ kind: 'camouflage', amount: 2, turns: 1 }]);
     expect(after.units.u3?.statuses).toEqual([]);
     expect(Object.keys(getPlayerView(after, 2).units).sort()).toEqual(['u3', 'u4']);
     expect(Object.keys(getPlayerView(after, 1).units).sort()).toEqual(['u1', 'u2', 'u3', 'u4']);

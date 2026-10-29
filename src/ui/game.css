@@ -1610,7 +1610,7 @@ select {
   filter: grayscale(0.85) brightness(0.75);
 }
 
-/* Monstre `invisible` que l'adversaire ne voit pas : translucide, contour en pointillés. */
+/* Monstre camouflé que l'adversaire ne voit pas : translucide, contour en pointillés. */
 .token.is-hidden .token__rim {
   fill-opacity: 0.55;
   stroke: white;
@@ -1878,7 +1878,7 @@ select {
   color: oklch(0.93 0.02 300);
 }
 
-.status--invisible {
+.status--camouflage {
   background: oklch(0.45 0.06 270);
   color: oklch(0.92 0.03 270);
 }
@@ -2385,6 +2385,109 @@ select {
   }
 }
 
+/* Ambiance du décor peint (15 × 15) : eau, forge, cristaux, mana zones, nuages et vent. Seulement si les animations
+   sont permises (sinon ces éléments ne sont pas rendus). */
+@keyframes ambFlow30 {
+  to {
+    transform: translateY(30px);
+  }
+}
+
+@keyframes ambDrift36 {
+  to {
+    transform: translate(36px, 36px);
+  }
+}
+
+@keyframes ambTwinkle {
+  0%,
+  60%,
+  100% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  78% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes ambPulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes ambEmber {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--sx), -48px);
+    opacity: 0;
+  }
+}
+
+@keyframes ambSmoke {
+  0% {
+    transform: translate(0, 0) scale(0.5);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translate(var(--sx), -64px) scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes ambMote {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: translate(var(--sx), -56px);
+    opacity: 0;
+  }
+}
+
+@keyframes ambCloud {
+  from {
+    transform: translate(var(--x0), 0);
+  }
+  to {
+    transform: translate(var(--x1), var(--dy));
+  }
+}
+
+@keyframes ambGust {
+  0% {
+    transform: translateX(var(--x0));
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  30%,
+  100% {
+    transform: translateX(var(--x1));
+    opacity: 0;
+  }
+}
+
 /*
  * --- Bulle d'action (lot 11) : au-dessus de la cible (ou de son monstre, au clic droit), en position fixe, sans
  * animation. Elle remplace le bandeau guide : attaquer, attaquer et avancer, effets, et chaque choix en plusieurs temps.
@@ -2406,7 +2509,7 @@ select {
   background: var(--bubble-bg);
   box-shadow: 0 0 0 1.5px var(--bubble-line), 0 12px 28px oklch(0 0 0 / 0.5);
   color: var(--paper);
-  font-family: var(--font);
+  font-archetype: var(--font);
   text-align: left;
 }
 
@@ -3911,6 +4014,14 @@ select {
   text-wrap: pretty;
 }
 
+/* Mot du lexique dans un texte de carte : en gras, souligné en pointillé, sa définition au survol. */
+.term {
+  font-weight: 800;
+  text-decoration: underline dotted color-mix(in oklch, currentColor 45%, transparent);
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
 /* Effet passif (ambre) et effet actif (violet), avec leur disponibilité en pied. */
 .sheet__block {
   display: flex;
@@ -3973,12 +4084,12 @@ select {
   color: var(--tone-text);
 }
 
-/* « Effets en cours », fixe en bas de la fiche. */
+/* Pied de fiche, fixe : « Statuts » puis « Effets », une puce par nom ; le détail au survol. */
 .sheet__status {
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   padding: 9px 12px 11px;
   background: oklch(0.13 0.012 60 / 0.76);
   box-shadow: inset 0 1px 0 oklch(0.38 0.014 60);
@@ -3988,6 +4099,12 @@ select {
   font: 800 11px/1 var(--font-sc);
   letter-spacing: 0.08em;
   color: oklch(0.72 0.015 80);
+}
+
+.sheet__group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
 .sheet__none {
@@ -4014,6 +4131,7 @@ select {
   box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--chip) 55%, transparent);
   color: oklch(0.95 0.01 85);
   font: 700 12.5px/1.2 var(--font);
+  cursor: help;
 }
 
 .chip > .icon {
