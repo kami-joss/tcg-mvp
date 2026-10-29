@@ -105,5 +105,7 @@ describe('cohérence du moteur', () => {
       expect(played).toEqual(new Set(['playCard', 'move', 'attack', 'activateEffect', 'endTurn']));
       expect(finished).toBeGreaterThan(0);
     },
+    // Quelques secondes en local, bien plus sur la machine de publication (GitHub Actions) : 5 s ne suffisent pas.
+    60_000,
   );
 });
