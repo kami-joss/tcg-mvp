@@ -155,7 +155,7 @@ r14   P  P  P  P  P  B  P  P  P  P  P  P  P  2  2
 ### 4.2 Déroulé d'un tour
 1. **Début de tour** du joueur actif, dans cet ordre (§10) :
    - Les statuts, pièges et cases brûlées arrivés à échéance disparaissent.
-   - **Revenus** : 3 mana + 1 mana par mana zone qu'il contrôle (+ bonus éventuels : Autel de mana, Porte-étendard) ; 1 VP par mana zone qu'il contrôle ; au tout premier tour de J2 uniquement, +1 mana.
+   - **Revenus** : 3 mana + 1 mana par mana zone qu'il contrôle (+ bonus éventuels : Autel de mana, Porte-étendard) ; 1 VP par mana zone qu'il contrôle (mode contestation : une zone contestée ne rapporte rien, §4.4 bis) ; au tout premier tour de J2 uniquement, +1 mana.
    - **Effets passifs** de début de tour (Ki né).
    - **Statuts** : requiem (le monstre meurt, sans VP), puis burn.
    - Ses monstres récupèrent toute leur mobilité, leur attaque et leurs effets actifs.
@@ -181,6 +181,21 @@ Le mana non dépensé est conservé d'un tour à l'autre, sans plafond.
 - Sans monstre, elle est contrôlée par le joueur dont un terrain l'occupe.
 - Sinon, elle est neutre.
 - Le contrôle est évalué au début de chaque tour (section 4.2).
+
+### 4.4 bis Mode contestation
+
+Un second mode de jeu, choisi à l'accueil à côté de la carte : « Normal » (les règles ci-dessus) ou « Contestation ». Il n'est proposé que sur les deux grandes cartes, 13 × 13 et 15 × 15 (§10). Il ne change que les mana zones :
+
+- **Zone de 9 cases** : la mana zone et les 8 cases autour (le carré 3 × 3 dont elle est le centre). Une case X en fait partie, mais personne ne s'y tient.
+- **Être dans la zone** : avoir un monstre ou un terrain sur une de ses cases. Un monstre camouflé compte aussi ; l'état de la zone reste public (§10).
+- **Contrôle** :
+  - un terrain dans la zone la tient pour son propriétaire tant qu'il n'est pas détruit, quels que soient les monstres présents ;
+  - sans terrain, la zone est au joueur qui est seul à y avoir des monstres ;
+  - personne : elle est neutre ;
+  - sans terrain, si les deux joueurs y ont des monstres, elle est **contestée**.
+- **Capturer** une zone : se débarrasser des terrains adverses et des monstres ennemis de la zone, et y avoir une unité.
+- **Revenus** (début de tour, §4.2) : une zone tenue rapporte comme une mana zone du mode Normal, +1 mana (bonus compris) et +1 VP. Une zone contestée ne rapporte rien à personne, ni mana ni VP. Bonus : l'Autel de mana de la zone, et chaque monstre `etendard` du joueur qui la tient, sur n'importe quelle case de la zone.
+- **Terrains** : seulement sur la mana zone (la case centrale), sous un de ses monstres, comme au §4.9, et jamais dans une zone contestée (un monstre ennemi dans la zone l'interdit donc).
 
 ### 4.5 Invocation
 - Payer le coût de la carte, poser le monstre sur une case d'invocation **libre** de son camp.
@@ -212,6 +227,7 @@ Le mana non dépensé est conservé d'un tour à l'autre, sans plafond.
 ### 4.9 Terrains
 - Se posent sur une mana zone occupée par un de ses propres monstres. Une case peut contenir un monstre et un terrain du même joueur.
 - Le monstre peut ensuite partir ; le terrain reste et tient la zone.
+- Mode contestation (§4.4 bis) : pas dans une zone contestée.
 - Un terrain n'a ni ATK ni mobilité. Les ennemis ne peuvent pas entrer sur sa case tant qu'il n'est pas détruit.
 
 ### 4.10 Victoire
@@ -338,7 +354,7 @@ Un mot-clé est un raccourci : un nom, parfois un nombre, et une définition éc
 | Prime N | `prime` | Quand il détruit : +N VP, en plus du VP habituel. |
 | Trophée N | `trophee` | Quand il détruit un monstre au contact : +N VP, en plus du VP habituel. |
 | Pillage N | `pillage` | Quand il détruit un monstre au contact : +N mana. |
-| Étendard N | `etendard` | La mana zone qu'il occupe rapporte +N mana. |
+| Étendard N | `etendard` | La mana zone qu'il occupe rapporte +N mana (mode contestation : la zone où il se trouve, si son camp la tient, §4.4 bis). |
 | Givre N | `givre` | À l'attaque : slow N pendant 1 tour (pas sur un terrain). Une autre durée s'écrit après : « Givre 1, 2 tours ». |
 | Brûlure N | `brulure` | À l'attaque : burn N pendant 1 tour. Une autre durée s'écrit après : « Brûlure 1, 2 tours ». |
 | Siège ×N | `siege` | Dégâts ×N contre un terrain. |
@@ -538,7 +554,7 @@ Elles complètent les decks, chacun avec ses propres quantités (composition du 
 
 ## 7. Interface (minimale)
 
-- Accueil (`/`) : choix de la carte, du deck de chaque joueur et de qui joue J2 (un humain ou l'IA), puis la partie se lance sur `/game` (réglages dans l'adresse : recharger la page relance une partie avec les mêmes). En jeu, « Nouvelle partie » ramène à l'accueil ; l'écran de victoire propose de rejouer avec les mêmes réglages.
+- Accueil (`/`) : choix de la carte, du mode (Normal ou Contestation, §4.4 bis, sur les cartes qui le proposent), du deck de chaque joueur et de qui joue J2 (un humain ou l'IA), puis la partie se lance sur `/game` (réglages dans l'adresse : recharger la page relance une partie avec les mêmes). En jeu, « Nouvelle partie » ramène à l'accueil ; l'écran de victoire propose de rejouer avec les mêmes réglages.
 - Plateau au centre, cases cliquables, unités affichées avec ATK / PV actuels / mobilité restante.
 - Panneau du joueur actif : mana, VP, grimoire (cartes jouables en surbrillance, coût visible).
 - Panneau adverse : mana, VP, cartes utilisées, nombre de cartes restantes.
@@ -654,4 +670,5 @@ Réponses aux questions posées pendant le développement. Elles font autorité 
 - **§6 bis — Deck Explorateur du temps** : composition proposée, à ajuster dans le doc « Cartes du TCG ».
 - **§7 — Exemplaires brillants (handoff V11)** : purement visuels, sans effet sur les règles. Un exemplaire de carte peut être brillant (« shiny ») ; une carte jouée l'est d'abord dans un exemplaire brillant s'il en reste, et l'unité qu'elle fait venir (monstre, terrain, évolution, Invocateur) est brillante. L'adversaire ne voit pas les exemplaires brillants de votre grimoire, mais voit une unité brillante. Démo (validée) : un Archer de glace et un Archer du feu brillants dans le deck Archers, un Apprenti dans Sorciers du feu. Les overframes (Chronomancienne, Maître des heures…) ne sont pas brillantes pour autant.
 - **§4.10 — Mana sans plafond, orbe de mana (handoff V11)** : le mana reste sans plafond ; l'orbe du score est pleine à 10 mana (au-delà, seul le chiffre monte).
+- **§4.4 bis — Mode contestation (validé)** : nouveau mode, « Contestation », à côté du mode « Normal » (pas « Classique », déjà le nom d'un deck et du plateau 11 × 9). Proposé sur le 13 × 13 et le 15 × 15 seulement. Zone de 9 cases : le carré 3 × 3 centré sur la mana zone, ses cases X comprises (personne ne s'y tient ; Mine et Scierie du 15 × 15 : 7 cases utiles). Contrôle par présence : la zone est au seul joueur qui y a des unités (monstres ou terrains), un terrain seul suffit, personne : neutre. Un terrain la tient pour son propriétaire tant qu'il n'est pas détruit, même si l'adversaire y a des monstres et même si son propriétaire y a aussi les siens ; une zone n'est donc contestée que sans terrain, quand les deux joueurs y ont des monstres. Zone contestée : ni mana ni VP pour personne, et pas de terrain posé. Une zone tenue rapporte comme en mode Normal (+1 mana bonus compris, +1 VP), évalué au début du tour (§4.2). Terrain : seulement sur la mana zone (case centrale), sous un de ses monstres, un par zone (§4.9), si la zone n'est pas contestée. Étendard : le Porte-étendard donne son bonus sur n'importe quelle case de la zone, si son camp la tient. Un monstre camouflé dans la zone compte : l'état de la zone (tenue, neutre, contestée) reste public, comme le contrôle d'une mana zone en mode Normal.
 - **Fiche, pied « Statuts » / « Effets »** : chaque puce ne montre que le nom du lexique (Stun, Immobilisé, Slow N, Burn N, Requiem, Camouflé ; pour un bonus du tour, le nom de sa source : l'effet s'il en a un, « Dopage », sinon la carte, « Charge », « Seringue », « Flèche divine » ; Aura, nom du plateau, Camouflé/Repéré, nom de la mana zone, nom du terrain) ; le détail (valeur, durée, source) est au survol. Chaque bonus du tour garde sa source (pas les statuts : un statut n'affiche que sa valeur et sa durée) ; deux exemplaires d'un même sort font une seule puce, bonus cumulés. Les statuts et les autres effets sont dans deux groupes séparés. Le sens du monstre n'est pas dans la fiche.

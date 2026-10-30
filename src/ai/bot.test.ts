@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DECKS, applyAction, createGame, getLegalActions } from '../engine';
+import { BATTLEFIELD_13, DECKS, applyAction, createGame, getLegalActions, getZoneController } from '../engine';
 import type { Action, CardId, GameState } from '../engine';
 import { at, gameWith } from '../engine/test-utils';
 import { chooseAction, knownState } from './bot';
@@ -53,6 +53,46 @@ describe('IA d’entraînement', () => {
       actions++;
     }
     expect(state.winner).not.toBeNull();
+  }, 60_000);
+});
+
+describe('IA : mode contestation (SPEC.md §4.4 bis)', () => {
+  it('entre dans une zone de 9 cases, sans aller jusqu’à la mana zone', () => {
+    // Forge du 13 × 13 en (6, 6) : à 2 pas de mobilité près, le bord de sa zone suffit.
+    const state = gameWith([{ monster: 'golem', owner: 2, at: at(9, 5), mobilityLeft: 2 }], {
+      board: BATTLEFIELD_13,
+      mode: 'contestation',
+      activePlayer: 2,
+      players: { 2: { mana: 0 } },
+    });
+    const action = chooseAction(state, 2);
+    expect(action).toMatchObject({ type: 'move', unitId: 'u1' });
+    expect(getZoneController(applyAction(state, action), at(6, 6))).toBe(2);
+  });
+
+  it('un seul monstre garde une zone : le second part prendre la suivante', () => {
+    // Ferme du 13 × 13 en (8, 11) : le Golem la garde, le Chevalier file vers la Forge, en (6, 6).
+    const state = gameWith(
+      [
+        { monster: 'golem', owner: 2, at: at(8, 11) },
+        { monster: 'chevalier', owner: 2, at: at(7, 10) },
+      ],
+      { board: BATTLEFIELD_13, mode: 'contestation', activePlayer: 2, players: { 2: { mana: 0 } } },
+    );
+    const after = applyAction(state, chooseAction(state, 2));
+    expect(getZoneController(after, at(8, 11))).toBe(2);
+    expect(getZoneController(after, at(6, 6))).toBe(2);
+  });
+
+  it('une partie IA contre IA sur le 13 × 13 se joue sans action refusée', () => {
+    let state = createGame(BATTLEFIELD_13, { 1: DECKS[0]!.cards, 2: DECKS[1]!.cards }, undefined, 'contestation');
+    let actions = 0;
+    while (state.winner === null && state.turn <= 16 && actions < 300) {
+      state = applyAction(state, chooseAction(state, state.activePlayer));
+      actions++;
+    }
+    expect(state.turn).toBeGreaterThan(10);
+    expect(state.players[1].vp + state.players[2].vp).toBeGreaterThan(0);
   }, 60_000);
 });
 

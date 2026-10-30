@@ -19,7 +19,7 @@ import {
   getCliff,
   getMonsterCard,
   getUnitsAt,
-  getViewZoneController,
+  getViewZoneStatus,
   requiemCountdown,
   samePos,
   statusAmount,
@@ -33,9 +33,11 @@ import { trapLabel } from './cardText';
 import { IsoDecor } from './iso/IsoDecor';
 import { boardMetrics, fitCell, tiltGeometry } from './boardGeometry';
 import { ISO_TILT, isoCamera, isoFloor, isoScenery, planSize, waterKind } from './iso/scenery';
-import { flatGroundBackground, paintedDecor, usePaintedGround } from './iso/paintedDecor';
+import { flatGroundBackground, paintedDecor, usePaintedGround, worldPlan } from './iso/paintedDecor';
 import { DEFAULT_TOKEN_STATS } from './settings';
 import type { BoardView, TokenStats } from './settings';
+import { FLIP_EDGE, getZoneTiles } from './contestZones';
+import type { ZoneTile } from './contestZones';
 import { STATUS_ICONS, diceLayout, getZoneMarks } from './zoneMarks';
 import type { ZoneMark } from './zoneMarks';
 
@@ -274,10 +276,11 @@ export function Board(props: BoardProps) {
   const tilted = mode === 'tilt';
   // Décor 2,5D (rochers, eau, mana zones modélisées, enclaves, bordure) : vues isométrique et inclinée, s'il existe.
   const decor = (iso || tilted) && scenery !== null;
-  // Décor peint (15 × 15) : son sol, calculé une fois, remplace celui du décor procédural ; seul en vue de dessus.
+  // Décor peint (15 × 15) : son sol, calculé une fois, remplace celui du décor procédural ; seul en vue de dessus. Celui
+  // du monde, avec son décor extérieur, arrive ensuite (tâche de fond, puis cache de l'appareil).
   const paintedData = paintedDecor(view.board);
   const painted = paintedData !== null;
-  const ground = usePaintedGround(view.board);
+  const grounds = usePaintedGround(view.board);
   const art = showArt && !decor ? boardArt(view.board) : undefined;
   const viewportRef = useRef<HTMLDivElement>(null);
   const area = useElementSize(viewportRef);
@@ -285,9 +288,14 @@ export function Board(props: BoardProps) {
   // Vues de dessus et inclinée : la plus grande case pour laquelle la scène tient dans la zone (le zoom s'y ajoute).
   const tiltDecor = tilted && decor;
   const metrics = boardMetrics(fitCell(area.width - FIT_MARGIN, area.height - FIT_MARGIN, rows, cols, tilted, tiltDecor), rows, cols);
-  const geometry = tiltGeometry(metrics, rows, tiltDecor);
+  // Décor extérieur peint : la scène inclinée l'englobe aussi (6 cases tout autour du 15 × 15).
+  const worldBorder = tiltDecor && grounds.world && paintedData ? (paintedData.plan.bordure ?? 0) * paintedData.plan.pas : 0;
+  const geometry = tiltGeometry(metrics, rows, tiltDecor, worldBorder);
   const plan = planSize(Math.max(rows, cols));
-  const camera = isoCamera(plan, area.width - FIT_MARGIN, area.height - FIT_MARGIN, zoom);
+  // Avec le décor extérieur, la scène isométrique englobe tout le monde peint (on le parcourt en faisant glisser) ; le
+  // plateau garde sa taille, calée sur la largeur de la zone.
+  const framePlan = iso && grounds.world && paintedData ? worldPlan(paintedData, Math.max(rows, cols)) : plan;
+  const camera = isoCamera(plan, area.width - FIT_MARGIN, area.height - FIT_MARGIN, zoom, framePlan);
   const sceneHeight = tilted ? geometry.sceneHeight : metrics.height;
   // Taille de la scène à l'écran (zoom compris) : le cadre ne défile que sur les axes où elle le dépasse, marges de glisse
   // comprises.
@@ -327,7 +335,7 @@ export function Board(props: BoardProps) {
           top: tilted ? geometry.boardTop : 0,
           left: tilted ? geometry.boardLeft : 0,
           ...(decor ? { background: painted ? 'none' : isoFloor(scenery!, flipped, rows, cols, metrics.pitch) } : {}),
-          ...(!decor && paintedData ? { background: flatGroundBackground(paintedData, rows, ground, metrics.pitch, metrics.pad) } : {}),
+          ...(!decor && paintedData ? { background: flatGroundBackground(paintedData, rows, grounds.board, metrics.pitch, metrics.pad) } : {}),
         }),
     ...(art ? { backgroundImage: `url(${art})` } : {}),
   };
@@ -338,14 +346,12 @@ export function Board(props: BoardProps) {
   // Plateau retourné : les cases sont simplement rendues dans l'ordre inverse de la grille.
   const positions = flipped ? allPositions(view.board).reverse() : allPositions(view.board);
   const displayRow = (pos: Position) => (flipped ? rows - 1 - pos.row : pos.row);
+  // Couleur de chaque mana zone dans le décor : le joueur qui la tient, ou contestée (mode contestation).
   const controllers = new Map(
-    allPositions(view.board)
-      .filter((pos) => {
-        const cell = getCell(view.board, pos);
-        return cell.kind === 'plain' && cell.manaZone !== null;
-      })
-      .map((pos) => [`${pos.row},${pos.col}`, getViewZoneController(view, pos)] as const),
+    view.zoneControl.map((status) => [`${status.pos.row},${status.pos.col}`, status.contested ? 'contested' : status.controller] as const),
   );
+  // Mode contestation : les zones de 9 cases, dessinées au sol (§4.4 bis).
+  const zoneTiles = getZoneTiles(view);
   const scrollable = zoomView.scroll.x || zoomView.scroll.y;
 
   return (
@@ -377,7 +383,8 @@ export function Board(props: BoardProps) {
                 camera={iso ? 'iso' : 'tilt'}
                 pitch={iso ? undefined : metrics.pitch}
                 painted={painted}
-                ground={ground}
+                ground={grounds.board}
+                world={grounds.world}
               />
             )}
             {positions.map((pos) => (
@@ -389,6 +396,7 @@ export function Board(props: BoardProps) {
                 pos={pos}
                 step={steps.get(posKey(pos))}
                 marks={zoneMarks.get(posKey(pos))}
+                tile={zoneTiles.get(posKey(pos))}
                 isAnchor={props.anchor ? samePos(props.anchor, pos) : false}
                 standScale={tilted ? geometry.standScale(displayRow(pos)) : 1}
               />
@@ -407,6 +415,7 @@ function BoardCell({
   pos,
   step,
   marks,
+  tile,
   standScale,
   highlights,
   attacks,
@@ -425,6 +434,7 @@ function BoardCell({
   pos: Position;
   step: number | undefined;
   marks: readonly ZoneMark[] | undefined;
+  tile: ZoneTile | undefined;
   standScale: number;
   decor: boolean;
   isAnchor: boolean;
@@ -443,6 +453,7 @@ function BoardCell({
   // Avec le décor 2,5D, les falaises ne sont plus des barres : les enclaves sont modélisées.
   const cliffs = decor ? null : <Cliffs board={view.board} pos={pos} flipped={flipped} />;
   const parity = (pos.row + pos.col) % 2 ? ' cell--odd' : '';
+  const area = tile && <ZoneArea tile={tile} flipped={flipped} />;
 
   if (cell.kind === 'blocked') {
     // Eau : une bande horizontale (rivière) ou verticale (étang de plusieurs cases).
@@ -456,6 +467,7 @@ function BoardCell({
         aria-label={water === 'pond' ? 'Étang' : water ? 'Rivière' : 'Case bloquée'}
         data-cell={dataCell}
       >
+        {area}
         {cliffs}
       </div>
     );
@@ -466,7 +478,8 @@ function BoardCell({
   const monster = units.find((u): u is MonsterUnit => u.kind === 'monster');
   const terrain = units.find((u): u is TerrainUnit => u.kind === 'terrain');
   const zone = cell.manaZone;
-  const controller = zone ? getViewZoneController(view, pos) : null;
+  const zoneStatus = zone ? getViewZoneStatus(view, pos) : null;
+  const controller = zoneStatus?.controller ?? null;
   const highlight = highlights.get(key);
   const attack = attacks.get(key);
   const trap = view.traps.find((t) => samePos(t.pos, pos));
@@ -479,6 +492,7 @@ function BoardCell({
     'cell',
     zone ? 'cell--mana' : cell.summonZoneOf !== null ? `cell--summon cell--summon-p${cell.summonZoneOf}` : `cell--plain${parity}`,
     controller && `cell--held-p${controller}`,
+    zoneStatus?.contested && 'cell--contested',
     monster && 'cell--unit',
     (highlight || monster) && 'is-clickable',
     isAnchor && 'is-anchor',
@@ -502,6 +516,7 @@ function BoardCell({
       data-cell={dataCell}
     >
       {cell.summonZoneOf !== null && <span className="cell__summon">J{cell.summonZoneOf}</span>}
+      {area}
       {zone && <span className="cell__glow" />}
       {marks && <ZoneMarks marks={marks} />}
       {dim && <span className="layer layer--dim" />}
@@ -570,6 +585,7 @@ function BoardCell({
       {zone && (
         <span className="zone-label">
           {controller && `J${controller} · `}
+          {zoneStatus?.contested && 'Contestée · '}
           {MANA_ZONE_NAMES[zone]}
         </span>
       )}
@@ -582,6 +598,15 @@ function BoardCell({
  * Au sol d'une case de la zone d'un terrain « Passage » : un cercle comme celui d'un piège, à l'icône de ce qu'il inflige
  * aux ennemis qui y entrent. Plusieurs marques se rangent comme les points d'un dé.
  */
+/**
+ * Case d'une zone de 9 cases (mode contestation) : un voile à la couleur de la zone, et le bord du carré sur ses côtés
+ * extérieurs ; rayé aux deux couleurs quand elle est contestée.
+ */
+function ZoneArea({ tile, flipped }: { tile: ZoneTile; flipped: boolean }) {
+  const edges = tile.edges.map((edge) => `is-${flipped ? FLIP_EDGE[edge] : edge}`).join(' ');
+  return <span className={`cell__area cell__area--${tile.look} ${edges}`} aria-hidden="true" />;
+}
+
 function ZoneMarks({ marks }: { marks: readonly ZoneMark[] }) {
   const spots = diceLayout(marks.length);
   return (

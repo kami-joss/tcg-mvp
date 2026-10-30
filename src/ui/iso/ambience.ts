@@ -31,6 +31,8 @@ export interface WaterPatch {
   readonly height: number;
   /** Pièce posée le long des colonnes : transposée, comme dans `buildGround`. */
   readonly transposed: boolean;
+  /** Pièce retournée bout pour bout (`miroir`), comme dans `buildGround`. */
+  readonly mirrored: boolean;
   /** Canal (eau qui coule) ou étang (eau calme). */
   readonly kind: 'canal' | 'pond';
 }
@@ -45,6 +47,7 @@ export function waterPatches(decor: PaintedDecor): WaterPatch[] {
     width: pas,
     height: 2 * pas,
     transposed: decal.sens === 'colonnes',
+    mirrored: decal.miroir ?? false,
     kind: decal.image.startsWith('etang') ? 'pond' : 'canal',
   }));
 }

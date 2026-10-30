@@ -147,6 +147,8 @@ export interface ArtFrame {
 export const SHEET_FRAME: ArtFrame = { ratio: 498 / 280, eyeAt: 0.13, cover: 0.8 };
 /** Tuile du grimoire (3:4) et carte qui vole. */
 export const TILE_FRAME: ArtFrame = { ratio: 4 / 3, eyeAt: 0.16, cover: 0.85 };
+/** Carte mise en avant (cut-in, 280 × 498) : l'illustration sur toute la carte, les yeux vers le tiers haut. */
+export const CUT_IN_FRAME: ArtFrame = { ratio: 498 / 280, eyeAt: 0.3, cover: 1 };
 
 /**
  * Placement de l'image, en largeurs de boîte : décalage `x`, `y` du coin haut gauche, largeur `size` ; `edge` : où

@@ -212,9 +212,14 @@ export async function flyCard(stage: Stage, fromSelector: string, pos: Position,
   if (label) label.textContent = name;
   if (spell) {
     await wait(ms * 0.72);
-    burst(stage, pos, 'oklch(0.9 0.12 90)', { n: 12, spread: 46, size: 6, square: true, flash: 'oklch(0.9 0.12 90)', flashScale: 2.6, ringScale: 3.2 });
+    spellFlash(stage, pos);
     await wait(ms * 0.28);
   } else {
     await wait(ms);
   }
+}
+
+/** Éclat doré d'un sort qui arrive sur sa cible. */
+export function spellFlash(stage: Stage, pos: Position): void {
+  burst(stage, pos, 'oklch(0.9 0.12 90)', { n: 12, spread: 46, size: 6, square: true, flash: 'oklch(0.9 0.12 90)', flashScale: 2.6, ringScale: 3.2 });
 }

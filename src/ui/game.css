@@ -35,6 +35,8 @@
   --threat: oklch(0.6 0.21 27);
   --zone: oklch(0.85 0.13 85);
   --zone-label: oklch(0.36 0.06 55);
+  /* Zone contestée (mode contestation) : entre le bleu de J1 et le rouge de J2. */
+  --contested: oklch(0.64 0.18 330);
   --cliff: oklch(0.12 0.01 60);
   --cliff-low: oklch(0.82 0.14 80);
   --frost: oklch(0.86 0.07 220);
@@ -1057,6 +1059,105 @@ select {
   box-shadow: inset 0 0 0 3px var(--j2);
 }
 
+.cell--mana.cell--contested {
+  box-shadow: inset 0 0 0 3px var(--contested);
+}
+
+/*
+ * Mode contestation : chaque case d'une zone de 9 cases a un voile à la couleur de la zone, qui déborde de la moitié de
+ * l'espace entre les cases pour former un seul tapis, et le bord du carré sur ses côtés extérieurs.
+ */
+.cell__area {
+  --area: var(--zone);
+  --area-edge: 2.5px solid var(--area);
+  position: absolute;
+  inset: calc(var(--gap) / -2);
+  z-index: 0;
+  background: color-mix(in oklch, var(--area) 15%, transparent);
+  pointer-events: none;
+}
+
+.cell__area--neutral {
+  --area-edge: 2px dashed var(--area);
+  background: color-mix(in oklch, var(--area) 9%, transparent);
+}
+
+.cell__area--p1 {
+  --area: var(--j1);
+}
+
+.cell__area--p2 {
+  --area: var(--j2);
+}
+
+.cell__area--contested {
+  --area: var(--contested);
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklch, var(--j1) 24%, transparent) 0 7px,
+    color-mix(in oklch, var(--j2) 24%, transparent) 7px 14px
+  );
+}
+
+.cell__area.is-top {
+  border-top: var(--area-edge);
+}
+
+.cell__area.is-right {
+  border-right: var(--area-edge);
+}
+
+.cell__area.is-bottom {
+  border-bottom: var(--area-edge);
+}
+
+.cell__area.is-left {
+  border-left: var(--area-edge);
+}
+
+.cell__area.is-top.is-left {
+  border-top-left-radius: 9px;
+}
+
+.cell__area.is-top.is-right {
+  border-top-right-radius: 9px;
+}
+
+.cell__area.is-bottom.is-left {
+  border-bottom-left-radius: 9px;
+}
+
+.cell__area.is-bottom.is-right {
+  border-bottom-right-radius: 9px;
+}
+
+/* Sur le décor 2,5D (sol peint, lumière), un voile plus marqué pour rester lisible. */
+.board--decor .cell__area {
+  background: color-mix(in oklch, var(--area) 22%, transparent);
+}
+
+.board--decor .cell__area--neutral {
+  background: color-mix(in oklch, var(--area) 12%, transparent);
+}
+
+.board--decor .cell__area--contested {
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklch, var(--j1) 38%, transparent) 0 7px,
+    color-mix(in oklch, var(--j2) 38%, transparent) 7px 14px
+  );
+}
+
+.game--anim .cell__area--contested {
+  animation: contestPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes contestPulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
 .cell--summon-p1 {
   background: oklch(0.56 0.15 255 / 0.38);
   box-shadow: inset 0 0 0 2px var(--j1);
@@ -1918,6 +2019,10 @@ select {
 
 .cell--held-p2 .zone-label {
   background: var(--j2);
+}
+
+.cell--contested .zone-label {
+  background: var(--contested);
 }
 
 .cliff {
@@ -2802,6 +2907,10 @@ select {
   --glow: var(--j2);
 }
 
+.cell--contested .cell__glow {
+  --glow: var(--contested);
+}
+
 .plaque__glow {
   inset: -3px;
   border-radius: 6px;
@@ -2890,6 +2999,7 @@ select {
 @media (prefers-reduced-motion: reduce) {
   .game--anim .token__body,
   .game--anim .cell__glow,
+  .game--anim .cell__area,
   .game--anim .plaque__glow,
   .game--anim .token__glow,
   .scene,
@@ -3092,6 +3202,15 @@ select {
 .sw--zone {
   background: oklch(0.85 0.12 85 / 0.3);
   box-shadow: inset 0 0 0 2px var(--zone);
+}
+
+.sw--contested {
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklch, var(--j1) 45%, transparent) 0 4px,
+    color-mix(in oklch, var(--j2) 45%, transparent) 4px 8px
+  );
+  box-shadow: inset 0 0 0 2px var(--contested);
 }
 
 .sw--blocked {
@@ -4361,6 +4480,24 @@ select {
   color: var(--ink);
 }
 
+.home__switch button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.home__mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.home__mode-details {
+  flex: 1 1 320px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
 .home__start {
   padding: 14px 28px;
   border-radius: 12px;
@@ -4866,6 +5003,165 @@ select {
   top: 50%;
   z-index: 90;
   width: 280px;
+}
+
+/* --- Carte mise en avant (cut-in, façon Master Duel) ---
+   La carte qui agit surgit au centre de l'écran, sur le plateau assombri et dans des rayons à la couleur de son joueur
+   (dorés pour un exemplaire brillant), puis file vers son jeton. Au-dessus du plateau, des panneaux et des effets, sans
+   clics ; ses images clés (`fx/cutIn.ts`) partent toutes de `translate(-50%, -50%)`. */
+.cutin {
+  --cutin-color: var(--j1);
+  --cutin-glow: oklch(0.62 0.16 255 / 0.6);
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.cutin--p2 {
+  --cutin-color: var(--j2);
+  --cutin-glow: oklch(0.62 0.19 25 / 0.6);
+}
+
+.cutin--shiny {
+  --cutin-color: var(--gold);
+  --cutin-glow: oklch(0.86 0.13 85 / 0.65);
+}
+
+.cutin__backdrop {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background:
+    radial-gradient(ellipse 60% 70% at 50% 50%, color-mix(in oklch, var(--cutin-color) 30%, transparent), transparent 70%),
+    radial-gradient(ellipse at 50% 50%, oklch(0.1 0.01 60 / 0.45), oklch(0.06 0.01 60 / 0.82) 78%);
+}
+
+.cutin__rays {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1100px;
+  height: 1100px;
+  opacity: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    color-mix(in oklch, var(--cutin-color) 75%, white) 1deg,
+    transparent 2.4deg 12deg
+  );
+  -webkit-mask-image: radial-gradient(closest-side, oklch(0 0 0 / 0.5) 22%, transparent 85%);
+  mask-image: radial-gradient(closest-side, oklch(0 0 0 / 0.5) 22%, transparent 85%);
+  mix-blend-mode: screen;
+}
+
+.cutin__card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  opacity: 0;
+  will-change: transform, opacity, filter;
+}
+
+.cutin .cutin__frame {
+  box-shadow: 0 0 0 2px var(--frame), 0 0 40px var(--cutin-glow), 0 18px 44px oklch(0 0 0 / 0.6);
+}
+
+.cutin .cutin__frame.sheet--shiny {
+  box-shadow: 0 0 0 2px var(--gold-hi), 0 0 44px var(--cutin-glow), 0 0 22px oklch(0.7 0.2 330 / 0.45), 0 18px 44px oklch(0 0 0 / 0.6);
+}
+
+/* Overframe : pas de liseré ni de halo en haut, où le personnage sort du cadre. */
+.cutin .cutin__frame.sheet--of {
+  box-shadow: 0 18px 40px var(--cutin-glow), 0 18px 44px oklch(0 0 0 / 0.6);
+}
+
+.cutin__plain {
+  align-items: center;
+  padding: 0 0 140px;
+}
+
+.cutin__plain > .icon {
+  font-size: 150px;
+}
+
+/* Voile en bas, sous la plaque du nom. */
+.cutin__veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 0 56%, oklch(0.1 0.01 60 / 0.8) 80%, oklch(0.1 0.01 60 / 0.92));
+}
+
+/* Éclair qui traverse la carte à son arrivée. */
+.cutin__flash {
+  position: absolute;
+  inset: 0 -60%;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 38%, oklch(1 0 0 / 0.7) 50%, transparent 62%);
+  transform: translateX(-100%);
+  animation: cutinFlash 0.6s 0.2s cubic-bezier(0.3, 0, 0.3, 1) forwards;
+}
+
+.cutin__plate {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  margin-top: auto;
+  padding: 0 16px 22px;
+  text-align: center;
+}
+
+/* L'action, sur la pierre du type de la carte (rubis, saphir, émeraude). */
+.cutin__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 14px 0 11px;
+  border-radius: 13px;
+  background: oklch(var(--jewel-l) var(--jewel-c) var(--jewel-h) / 0.92);
+  box-shadow: 0 0 0 1px oklch(1 0 0 / 0.28), 0 0 18px var(--cutin-glow);
+  color: white;
+  font: 800 13px/1 var(--font-sc);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.cutin__action .icon {
+  font-size: 15px;
+}
+
+.cutin__title {
+  margin: 0;
+  font: 800 27px/1.05 var(--font);
+  text-wrap: balance;
+}
+
+.cutin__archetype {
+  display: block;
+  margin-top: 4px;
+  font: 700 13px/1.2 var(--font-sc);
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+}
+
+.cutin__effect {
+  margin: 0;
+  color: var(--gold-hi);
+  font: italic 700 17px/1.2 var(--font);
+}
+
+@keyframes cutinFlash {
+  to {
+    transform: translateX(100%);
+  }
 }
 
 @keyframes ofFloat {

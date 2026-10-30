@@ -1,7 +1,8 @@
 // Écran de jeu (SPEC.md §7). Il ne reçoit que des PlayerView : jamais l'état complet de la partie.
 // Après chaque action, il rejoue en animation les événements de la vue (handoff, lot 2) : pendant la lecture, l'écran
-// montre un état intermédiaire et les clics sont bloqués ; à la fin, il reprend la vraie vue. Les sons (lot 4) suivent
-// la même file d'événements ; sans animation, chaque événement joue seulement son son.
+// montre un état intermédiaire et les clics sont bloqués ; à la fin, il reprend la vraie vue. La carte qui agit est
+// d'abord mise en avant au centre de l'écran (cut-in, `CutInOverlay`). Les sons (lot 4) suivent la même file
+// d'événements ; sans animation, chaque événement joue seulement son son.
 // Mise en page : l'écran occupe toute la hauteur de la fenêtre et ne défile jamais (handoff V10, lot 11). En haut
 // (handoff V11, lot 12), les scores de J1 et J2 de part et d'autre de « Fin du tour », le tour, l'aide et les options.
 // Dessous, la zone de jeu (lot 13) : le plateau sur toute la largeur, et par-dessus, des panneaux flottants : à gauche
@@ -20,6 +21,8 @@ import { ActionLog } from './ActionLog';
 import { Board } from './Board';
 import { bubbleBack, getBubble } from './bubble';
 import type { BubbleRow } from './bubble';
+import { CutInOverlay } from './CutIn';
+import type { CutIn } from './fx/cutIn';
 import { applyEvent } from './fx/patch';
 import { playEvents } from './fx/player';
 import { GRIMOIRE_DISPLAY, Grimoire, GrimoireTab } from './Grimoire';
@@ -138,6 +141,11 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
   const [shown, setShown] = useState<PlayerView | null>(null);
   const shownRef = useRef<PlayerView | null>(null);
   const played = useRef<PlayerView | null>(null);
+  /** Carte mise en avant pendant la lecture, et la suite de la lecture une fois son animation finie. */
+  const [cutIn, setCutIn] = useState<{ id: number; cutIn: CutIn; target: { x: number; y: number } | null; done: () => void } | null>(
+    null,
+  );
+  const cutInCount = useRef(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const layerRef = useRef<HTMLDivElement>(null);
 
@@ -329,6 +337,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
     }
 
     let stopped = false;
+    let cutDone: (() => void) | null = null;
     shownRef.current = before;
     setShown(before);
     const patch = async (event: GameEvent) => {
@@ -338,6 +347,19 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
       flushSync(() => setShown(next));
       await nextFrame();
     };
+    const showCutIn = (value: CutIn, target: { x: number; y: number } | null) =>
+      new Promise<void>((resolve) => {
+        if (stopped) return resolve();
+        const done = () => {
+          if (cutDone !== done) return;
+          cutDone = null;
+          setCutIn(null);
+          resolve();
+        };
+        cutDone = done;
+        const id = ++cutInCount.current;
+        flushSync(() => setCutIn({ id, cutIn: value, target, done }));
+      });
     void (async () => {
       await nextFrame();
       try {
@@ -346,6 +368,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
           shown: () => shownRef.current ?? view,
           patch,
           stopped: () => stopped,
+          cutIn: showCutIn,
         });
       } finally {
         if (!stopped) {
@@ -358,6 +381,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
       stopped = true;
       // Lecture interrompue (nouvelle vue, ou double montage en mode strict) : la prochaine reprend tout.
       played.current = null;
+      cutDone?.();
     };
     // Seule une nouvelle vue déclenche une lecture.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -486,7 +510,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
             onCellContextMenu={handleCellContextMenu}
             onCellHover={handleCellHover}
           />
-          {helpOpen && <Legend onClose={() => setHelpOpen(false)} />}
+          {helpOpen && <Legend onClose={() => setHelpOpen(false)} mode={view.mode} />}
         </main>
 
         {/* À gauche, par-dessus le plateau : la fiche (rien sans fiche), le journal en bas. */}
@@ -532,6 +556,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
           onHoverPath={(hoverPath) => setBubblePath(hoverPath ? { selection: activeSelection, path: hoverPath } : null)}
         />
       )}
+      {cutIn && <CutInOverlay key={cutIn.id} cutIn={cutIn.cutIn} target={cutIn.target} onDone={cutIn.done} />}
       {preview && <SheetPreview sheet={preview} animated={animated} onClose={() => setPreview(null)} />}
       {!busy && <VictoryOverlay view={view} onRestart={onRestart} onHome={onHome} />}
       <div className="fx-stage" ref={layerRef} aria-hidden="true" />

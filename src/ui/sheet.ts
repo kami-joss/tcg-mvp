@@ -21,8 +21,9 @@ import {
   getNextTurnMobility,
   getRange,
   getUnitsAt,
-  getViewZoneController,
+  getViewZoneStatus,
   getZoneMana,
+  getZoneOf,
   ownerNextTurn,
   samePos,
   statusTurnsLeft,
@@ -384,26 +385,14 @@ function cellSheet(view: PlayerView, pos: Position): SheetData | null {
   const burning = view.burningCells.find((c) => samePos(c.pos, pos));
   if (burning) return burningSheet(view, burning);
 
-  if (cell.manaZone) {
-    const controller = getViewZoneController(view, pos);
-    return {
-      ...empty(MANA_ZONE_NAMES[cell.manaZone], 'zone', 'Mana zone'),
-      typeIcon: ZONE_ICONS[cell.manaZone],
-      lines: [
-        {
-          icon: 'laurels',
-          label: 'Contrôle',
-          status: controller ? { text: `Joueur ${controller}`, tone: 'info' } : { text: 'Neutre · personne', tone: 'off' },
-        },
-      ],
-      text: [
-        `Celui qui l’occupe (monstre, ou terrain seul) gagne +${MANA_PER_CONTROLLED_ZONE} mana et +${VP_PER_CONTROLLED_ZONE} VP au début de son tour.`,
-      ],
-    };
-  }
+  if (cell.manaZone) return zoneSheet(view, cell.manaZone, pos);
 
   const trap = view.traps.find((t) => samePos(t.pos, pos));
   if (trap) return trapSheet(trap);
+
+  // Mode contestation : une case vide d'une zone de 9 cases montre sa zone (§4.4 bis).
+  const area = getZoneOf(view.board, view.mode, pos);
+  if (area) return zoneSheet(view, area.zone, area.pos);
 
   if (cell.summonZoneOf !== null) {
     const p = cell.summonZoneOf;
@@ -413,6 +402,50 @@ function cellSheet(view: PlayerView, pos: Position): SheetData | null {
     };
   }
   return null;
+}
+
+/** Une mana zone : qui la tient (ou contestée, §4.4 bis) et ce qu'elle rapporte. */
+function zoneSheet(view: PlayerView, zone: ManaZoneId, pos: Position): SheetData {
+  const { controller, contested } = getViewZoneStatus(view, pos);
+  const contest = view.mode === 'contestation';
+  return {
+    ...empty(MANA_ZONE_NAMES[zone], 'zone', contest ? 'Mana zone · 9 cases' : 'Mana zone'),
+    typeIcon: ZONE_ICONS[zone],
+    lines: [
+      {
+        icon: 'laurels',
+        label: 'Contrôle',
+        status: contested
+          ? { text: 'Contestée · personne', tone: 'warn' }
+          : controller
+            ? { text: `Joueur ${controller} · +${getZoneMana(view, pos, controller)} mana`, tone: 'info' }
+            : { text: 'Neutre · personne', tone: 'off' },
+      },
+    ],
+    text: contest
+      ? [
+          `Le seul joueur qui a des unités dans ses 9 cases (monstre, ou terrain seul) gagne +${MANA_PER_CONTROLLED_ZONE} mana et +${VP_PER_CONTROLLED_ZONE} VP au début de son tour.`,
+          'Si les deux joueurs y ont des monstres, elle est contestée : ni mana ni VP pour personne, et aucun terrain ne s’y pose. Un terrain la tient tant qu’il n’est pas détruit.',
+        ]
+      : [
+          `Celui qui l’occupe (monstre, ou terrain seul) gagne +${MANA_PER_CONTROLLED_ZONE} mana et +${VP_PER_CONTROLLED_ZONE} VP au début de son tour.`,
+        ],
+  };
+}
+
+/** Puce de la mana zone où se trouve un monstre : celle qu'il tient, contestée, ou tenue par l'adversaire. */
+function zoneChip(view: PlayerView, monster: MonsterUnit): SheetChip | null {
+  const area = getZoneOf(view.board, view.mode, monster.pos);
+  if (!area) return null;
+  const name = MANA_ZONE_NAMES[area.zone];
+  const { controller, contested } = getViewZoneStatus(view, area.pos);
+  // La puce ne montre que le nom de la zone (§10) ; contestée ou tenue par l'adversaire, elle est en alerte.
+  if (contested) return effect(ZONE_ICONS[area.zone], name, `${name} contestée : ni mana ni VP pour personne, pas de terrain`, 'warn');
+  if (controller === null) return null;
+  if (controller !== monster.owner) {
+    return effect(ZONE_ICONS[area.zone], name, `${name} tenue par J${controller} : détruire son terrain pour la prendre`, 'warn');
+  }
+  return effect(ZONE_ICONS[area.zone], name, `Tient ${name} : +${getZoneMana(view, area.pos, controller)} mana, +${VP_PER_CONTROLLED_ZONE} VP`, 'zone');
 }
 
 /** Mobilité de base d'un monstre : sa carte, le bonus du plateau et les auras. */
@@ -522,11 +555,8 @@ function monsterChips(view: PlayerView, monster: MonsterUnit, terrain: TerrainUn
         : effect('eye', 'Repéré', `Visible : un monstre ou un terrain adverse est dans un rayon de ${radius}`, 'warn'),
     );
   }
-  const cell = getCell(view.board, monster.pos);
-  if (cell.kind === 'plain' && cell.manaZone) {
-    const zone = MANA_ZONE_NAMES[cell.manaZone];
-    chips.push(effect(ZONE_ICONS[cell.manaZone], zone, `Tient ${zone} : +${getZoneMana(view, monster.pos)} mana, +${VP_PER_CONTROLLED_ZONE} VP`, 'zone'));
-  }
+  const zone = zoneChip(view, monster);
+  if (zone) chips.push(zone);
   if (terrain) {
     const name = getCard(terrain.cardId).name;
     chips.push(effect('castle', name, `Sur ${name} (${terrain.hp} PV)`, 'terrain'));

@@ -1,12 +1,15 @@
 // Rejoue les événements d'une action en animation (handoff, lot 2). Le moteur a déjà tout résolu : on part de la vue
 // d'avant l'action et, événement par événement, on anime puis on met l'écran à jour (`patch`). Les animations ne
 // décident de rien : elles lisent les événements et la vue affichée. Les sons (lot 4) partent au même moment que l'effet
-// visuel qu'ils accompagnent.
+// visuel qu'ils accompagnent. La première carte qui agit (attaque, effet actif, sort, terrain, invocation) est d'abord
+// mise en avant au centre de l'écran (cut-in, `cutIn.ts`), puis l'action se joue.
 import { distance, getCard, getMonsterCard, statusAmount } from '../../engine';
 import { trapLabel } from '../cardText';
 import type { GameEvent, MonsterUnit, PlayerId, PlayerView, Position, StatusKind } from '../../engine';
 import { CARD_ART } from '../art';
-import { flyCard, placeTrap, revealTrap, shoot } from './missiles';
+import { cutInIndex, cutInOf } from './cutIn';
+import type { CutIn } from './cutIn';
+import { flyCard, placeTrap, revealTrap, shoot, spellFlash } from './missiles';
 import type { Projectile } from './missiles';
 import { sfx } from '../sfx/sound';
 import type { SoundName } from '../sfx/sound';
@@ -23,6 +26,7 @@ import {
   land,
   lunge,
   net,
+  point,
   pulse,
   quake,
   recoil,
@@ -42,6 +46,8 @@ export interface Playback {
   readonly patch: (event: GameEvent) => Promise<void>;
   /** La lecture a été interrompue (écran démonté) : arrêter au plus vite. */
   readonly stopped: () => boolean;
+  /** Montre la carte mise en avant ; `target` : le centre à l'écran de sa case d'arrivée. Résolu à la fin. */
+  readonly cutIn: (cutIn: CutIn, target: { x: number; y: number } | null) => Promise<void>;
 }
 
 const PLAYER_COLORS: Readonly<Record<PlayerId, string>> = { 1: 'oklch(0.56 0.15 255)', 2: 'oklch(0.56 0.18 25)' };
@@ -98,9 +104,17 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
   const { stage, shown, patch, stopped } = playback;
   let behind = false;
   let lastSpell: string | null = null;
+  const cutAt = cutInIndex(events);
 
   for (let i = 0; i < events.length && !stopped(); i++) {
     const event = events[i]!;
+    // La carte qui agit, en grand, avant son action ; elle finit sur sa case (la carte jouée n'a plus à y voler).
+    const cut = i === cutAt ? cutInOf(event, shown(), events.slice(i + 1)) : null;
+    if (cut) {
+      sfx('cutIn');
+      await playback.cutIn(cut, cut.to ? point(stage, cut.to) : null);
+      if (stopped()) break;
+    }
     switch (event.type) {
       case 'turnStart':
         sfx('turn');
@@ -143,8 +157,13 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
         const card = getCard(event.cardId);
         lastSpell = card.kind === 'spell' ? card.id : null;
         sfx('card');
-        if (card.kind === 'spell') sfx('spell', 0.59);
-        await flyCard(stage, `[data-card="${event.cardId}"]`, event.pos, CARD_ART[event.cardId] ?? null, card.name, card.kind === 'spell');
+        if (cut) {
+          if (card.kind === 'spell') sfx('spell');
+          if (card.kind === 'spell' && cut.to) spellFlash(stage, cut.to);
+        } else {
+          if (card.kind === 'spell') sfx('spell', 0.59);
+          await flyCard(stage, `[data-card="${event.cardId}"]`, event.pos, CARD_ART[event.cardId] ?? null, card.name, card.kind === 'spell');
+        }
         await patch(event);
         if (card.id === 'boule-de-feu') {
           const from = nearestOwn(shown(), event.player, event.pos);

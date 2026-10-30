@@ -1,8 +1,9 @@
-// Accueil (`/`) : on règle la partie (carte, deck de chaque joueur, J2 humain ou IA), puis on la lance sur `/game`.
+// Accueil (`/`) : on règle la partie (carte, mode, deck de chaque joueur, J2 humain ou IA), puis on la lance sur `/game`.
 import { useState } from 'react';
 import { BOARDS, DECKS } from '../engine';
-import type { Board, PlayerId } from '../engine';
+import type { Board, GameMode, PlayerId } from '../engine';
 import { Icon } from './Icon';
+import { modeOf } from './session';
 import type { Setup } from './session';
 
 interface HomeScreenProps {
@@ -16,17 +17,34 @@ const J2_PLAYED_BY = [
   [2, 'L’IA'],
 ] as const;
 
+/** Modes de jeu (SPEC.md §4.4, §4.4 bis) : nom et règle en une phrase. */
+const MODES: readonly (readonly [GameMode, string, string])[] = [
+  ['normal', 'Normal', 'Chaque mana zone est une case : on la tient en l’occupant.'],
+  [
+    'contestation',
+    'Contestation',
+    'Chaque mana zone devient une zone de 9 cases. Seul dedans, on la tient ; à deux, elle est contestée : ni mana ni VP, ni terrain posé. Un terrain la tient tant qu’il n’est pas détruit.',
+  ],
+];
+
+/** Cartes qui proposent le mode contestation, pour le dire sur la carte qui ne le propose pas. */
+const CONTEST_BOARDS = BOARDS.filter((board) => board.contestation)
+  .map((board) => `${board.rows} × ${board.cols}`)
+  .join(' et ');
+
 /** Nom de la carte sans sa taille, et ce qu'elle a de particulier. */
 function boardInfo(board: Board): { title: string; details: string[] } {
   const title = board.name.replace(/\s*\(.*\)$/, '');
   const details = [`${board.rows} × ${board.cols}`];
   if (board.scenery) details.push('vue isométrique');
   if (board.mobilityBonus > 0) details.push(`+${board.mobilityBonus} mobilité pour tous les monstres`);
+  if (board.contestation) details.push('mode contestation');
   return { title, details };
 }
 
 export function HomeScreen({ initial, onStart }: HomeScreenProps) {
   const [setup, setSetup] = useState<Setup>(initial);
+  const mode = modeOf(setup);
   const setDeck = (player: PlayerId, id: string) => {
     const deck = DECKS.find((d) => d.id === id);
     if (deck) setSetup({ ...setup, decks: { ...setup.decks, [player]: deck } });
@@ -100,6 +118,29 @@ export function HomeScreen({ initial, onStart }: HomeScreenProps) {
         </div>
       </section>
 
+      <section className="home__section" aria-labelledby="home-mode">
+        <h2 id="home-mode">Mode</h2>
+        <div className="home__mode">
+          <div className="home__switch" role="group" aria-labelledby="home-mode">
+            {MODES.map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={mode === id}
+                disabled={id === 'contestation' && !setup.board.contestation}
+                onClick={() => setSetup({ ...setup, mode: id })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="home__mode-details">
+            {MODES.find(([id]) => id === mode)![2]}
+            {!setup.board.contestation && ` Contestation : sur les cartes ${CONTEST_BOARDS}.`}
+          </p>
+        </div>
+      </section>
+
       <section className="home__section" aria-labelledby="home-players">
         <h2 id="home-players">Joueurs</h2>
         <div className="home__players">
@@ -108,7 +149,7 @@ export function HomeScreen({ initial, onStart }: HomeScreenProps) {
         </div>
       </section>
 
-      <button type="button" className="btn btn--gold home__start" onClick={() => onStart(setup)}>
+      <button type="button" className="btn btn--gold home__start" onClick={() => onStart({ ...setup, mode })}>
         <Icon name="broadsword" />
         Lancer la partie
       </button>

@@ -79,6 +79,12 @@ describe('vue isométrique (handoff, lots 5 et 7)', () => {
     // Au-delà de ×1, les jetons gardent leur taille à l'écran ; le zoom, lui, agrandit tout.
     expect(wide.standScale * wide.k).toBeCloseTo(isoCamera(816, 1341, 900, 1).standScale);
     expect(isoCamera(816, 800, 900, 2).standScale).toBe(isoCamera(816, 800, 900, 1).standScale);
+    // Décor extérieur peint (15 × 15 et 6 cases autour) : même échelle, scène plus grande.
+    const board = isoCamera(1104, 1400, 900, 1);
+    const world = isoCamera(1104, 1400, 900, 1, 1968);
+    expect(world.k).toBe(board.k);
+    expect(world.width).toBe(Math.round(isoFrame(1968).width * board.k));
+    expect(world.height).toBeGreaterThan(board.height);
     const small = isoCamera(816, 300, 200, 1);
     expect(small.k).toBe(0.35);
     expect(isoCamera(816, 300, 200, 2).k).toBeCloseTo(0.7);

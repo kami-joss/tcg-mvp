@@ -2,15 +2,24 @@
 // deux tours ; ou contre l'IA d'entraînement (§7 bis) : pas d'écran de passage, l'écran montre toujours la vue du
 // joueur humain. App.tsx n'en est que l'enveloppe React : toute la logique est ici, testée sans navigateur.
 import { BATTLEFIELD_13, DECKS, IllegalActionError, applyAction, createGame, getPlayerView } from '../engine';
-import type { Action, Board, Deck, GameState, PlayerId } from '../engine';
+import type { Action, Board, Deck, GameMode, GameState, PlayerId } from '../engine';
 import { logEntry } from './log';
 import type { LogEntry } from './log';
 
-/** Carte et deck de chaque joueur, choisis avant la partie ; `ai` : le joueur tenu par l'IA (J2), s'il y en a un. */
+/**
+ * Carte, mode et deck de chaque joueur, choisis avant la partie ; `mode` : Normal par défaut, contestation seulement sur
+ * une carte qui le propose (§4.4 bis) ; `ai` : le joueur tenu par l'IA (J2), s'il y en a un.
+ */
 export interface Setup {
   readonly board: Board;
+  readonly mode?: GameMode;
   readonly decks: Readonly<Record<PlayerId, Deck>>;
   readonly ai?: PlayerId | null;
+}
+
+/** Le mode joué : contestation seulement si la carte le propose. */
+export function modeOf(setup: Pick<Setup, 'board' | 'mode'>): GameMode {
+  return setup.mode === 'contestation' && setup.board.contestation ? 'contestation' : 'normal';
 }
 
 /** Joueur dont l'écran montre la vue : le joueur actif en hotseat, toujours le joueur humain contre l'IA. */
@@ -20,8 +29,8 @@ export function viewerOf(session: Pick<Session, 'setup' | 'game'>): PlayerId {
   return session.game.activePlayer;
 }
 
-/** Partie proposée d'emblée : la grande carte 13 × 13 (handoff V7), deck Classique des deux côtés. */
-export const DEFAULT_SETUP: Setup = { board: BATTLEFIELD_13, decks: { 1: DECKS[0]!, 2: DECKS[0]! } };
+/** Partie proposée d'emblée : la grande carte 13 × 13 (handoff V7), en mode Normal, deck Classique des deux côtés. */
+export const DEFAULT_SETUP: Setup = { board: BATTLEFIELD_13, mode: 'normal', decks: { 1: DECKS[0]!, 2: DECKS[0]! } };
 
 export interface Session {
   /** Change à chaque nouvelle partie, pour repartir d'un écran neuf. */
@@ -46,10 +55,12 @@ export type SessionEvent =
 
 export function newSession(id: number, setup: Setup = DEFAULT_SETUP): Session {
   const { board, decks } = setup;
+  const mode = modeOf(setup);
   const game = createGame(
     board,
     { 1: decks[1].cards, 2: decks[2].cards },
     { 1: decks[1].shiny ?? [], 2: decks[2].shiny ?? [] },
+    mode,
   );
   const first = game.players[game.activePlayer];
   return {
@@ -62,7 +73,7 @@ export function newSession(id: number, setup: Setup = DEFAULT_SETUP): Session {
         kind: 'start',
         player: null,
         icon: 'castle',
-        text: `Début de la partie sur la carte « ${board.name} », J1 avec le deck ${decks[1].name}, J2 avec le deck ${decks[2].name}.`,
+        text: `Début de la partie sur la carte « ${board.name} »${mode === 'contestation' ? ', en mode contestation' : ''}, J1 avec le deck ${decks[1].name}, J2 avec le deck ${decks[2].name}.`,
         items: [],
       },
       {

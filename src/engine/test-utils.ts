@@ -3,7 +3,7 @@ import { getCard } from './cards';
 import { createGame } from './game';
 import { addStatus } from './statuses';
 import { createMonsterUnit, createTerrainUnit } from './units';
-import type { Board, CardId, GameState, MonsterUnit, PlayerId, PlayerState, Position, StatusKind, StatusSpec, Unit } from './types';
+import type { Board, CardId, GameMode, GameState, MonsterUnit, PlayerId, PlayerState, Position, StatusKind, StatusSpec, Unit } from './types';
 
 export const at = (row: number, col: number): Position => ({ row, col });
 
@@ -23,11 +23,12 @@ export function gameWith(
   options: {
     activePlayer?: PlayerId;
     board?: Board;
+    mode?: GameMode;
     turn?: number;
     players?: Partial<Record<PlayerId, Partial<PlayerState>>>;
   } = {},
 ): GameState {
-  const base = createGame(options.board);
+  const base = createGame(options.board, undefined, undefined, options.mode);
   const placed: Record<string, Unit> = {};
   units.forEach((spec, i) => {
     const id = `u${i + 1}`;

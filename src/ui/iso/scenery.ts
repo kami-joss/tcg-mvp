@@ -195,12 +195,15 @@ export interface IsoCamera {
   readonly lift: number;
 }
 
-/** Caméra pour un plan de côté `plan` (`planSize`). */
-export function isoCamera(plan: number, areaWidth: number, _areaHeight: number, zoom: number): IsoCamera {
-  const frame = isoFrame(plan);
+/**
+ * Caméra pour un plan de côté `plan` (`planSize`). `framePlan` : côté du plan que la scène englobe, plus grand que le
+ * plateau quand il a un décor extérieur peint ; l'échelle reste calée sur le plateau seul.
+ */
+export function isoCamera(plan: number, areaWidth: number, _areaHeight: number, zoom: number, framePlan: number = plan): IsoCamera {
+  const frame = isoFrame(framePlan);
   // Lot 11 : la scène est calée sur la largeur de la zone seule (elle défile en hauteur si besoin), jusqu'à ×1,35 ; en
   // dessous de 0,35, elle déborde. La hauteur de la zone ne compte plus.
-  const fit = Math.max(0.35, Math.min(ISO_GROW, areaWidth / frame.width));
+  const fit = Math.max(0.35, Math.min(ISO_GROW, areaWidth / isoFrame(plan).width));
   const k = fit * zoom;
   // Les jetons ne grandissent pas avec le plateau au-delà de ×1 (plus d'espace autour d'eux) ; le zoom, lui, les agrandit.
   const standScale = fit > 1 ? 1.1 / fit : Math.max(1.1, 0.95 / fit);

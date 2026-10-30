@@ -16,13 +16,15 @@ import {
   getMoveDestinations,
   getNextTurnMobility,
   getStrikeCells,
+  getZoneCells,
   getZoneController,
   getZoneMana,
   isHiddenFrom,
+  isPlayable,
   ownerNextTurn,
   statusTotal,
 } from '../engine';
-import type { Action, GameState, MonsterUnit, PlayerId, Position, Unit, UnitId } from '../engine';
+import type { Action, GameState, ManaZoneId, MonsterUnit, PlayerId, Position, Unit, UnitId } from '../engine';
 
 const END_TURN: Action = { type: 'endTurn' };
 
@@ -196,11 +198,18 @@ export function evaluate(state: GameState, me: PlayerId): number {
     if (controller !== null) score += (controller === me ? 1 : -1) * W.zone * getZoneMana(state, pos);
   }
 
-  // Avancer vers les mana zones qu'on ne tient pas ; sinon, vers l'ennemi.
-  const targets = zones.filter(({ pos }) => getZoneController(state, pos) !== me).map(({ pos }) => pos);
+  // Avancer vers les mana zones qu'on ne tient pas (une de leurs cases en mode contestation) ; sinon, vers l'ennemi.
+  // Un seul monstre garde chaque zone : en mode contestation, les autres de la même zone repartent vers les suivantes.
+  const cellsOf = (pos: Position) => getZoneCells(state.board, state.mode, pos).filter((cell) => isPlayable(state.board, cell));
+  const targets = zones.filter(({ pos }) => getZoneController(state, pos) !== me).flatMap(({ pos }) => cellsOf(pos));
+  const guarded = new Set<ManaZoneId>();
   const enemies = monstersOf(state, other);
   for (const monster of monstersOf(state, me)) {
-    if (zones.some(({ pos }) => samePlace(pos, monster.pos))) continue;
+    const zone = zones.find(({ pos }) => cellsOf(pos).some((cell) => samePlace(cell, monster.pos)));
+    if (zone && !guarded.has(zone.zone)) {
+      guarded.add(zone.zone);
+      continue;
+    }
     if (targets.length > 0) score -= W.approach * nearest(monster.pos, targets);
     else if (enemies.length > 0) score -= W.hunt * nearest(monster.pos, enemies.map((e) => e.pos));
   }

@@ -80,6 +80,7 @@ export const BOARD_CLIFFS: readonly Cliff[] = [
 export interface BoardOptions {
   readonly mobilityBonus?: number;
   readonly scenery?: BoardScenery | null;
+  readonly contestation?: boolean;
 }
 
 export function parseBoard(name: string, layout: readonly string[], cliffs: readonly Cliff[] = [], options: BoardOptions = {}): Board {
@@ -99,7 +100,16 @@ export function parseBoard(name: string, layout: readonly string[], cliffs: read
       throw new Error(`Falaise entre (${a.row}, ${a.col}) et (${b.row}, ${b.col}) : les cases doivent être voisines`);
     }
   }
-  return { name, rows: layout.length, cols, cells, cliffs, mobilityBonus: options.mobilityBonus ?? 0, scenery: options.scenery ?? null };
+  return {
+    name,
+    rows: layout.length,
+    cols,
+    cells,
+    cliffs,
+    mobilityBonus: options.mobilityBonus ?? 0,
+    scenery: options.scenery ?? null,
+    contestation: options.contestation ?? false,
+  };
 }
 
 /**
@@ -224,15 +234,16 @@ export const BATTLEFIELD: Board = parseBoard('Champ de bataille (11 × 11)', BAT
 
 /**
  * Grande carte 13 × 13 (SPEC.md §3, handoff V7) : symétrique par rotation de 180° sauf les falaises (Mine fermée,
- * Scierie ouverte), deux étangs, +1 mobilité pour tous les monstres.
+ * Scierie ouverte), deux étangs, +1 mobilité pour tous les monstres. Elle propose le mode contestation (§4.4 bis).
  */
-export const BATTLEFIELD_13: Board = parseMap('Champ de bataille (13 × 13)', MAP_13, { mobilityBonus: 1 });
+export const BATTLEFIELD_13: Board = parseMap('Champ de bataille (13 × 13)', MAP_13, { mobilityBonus: 1, contestation: true });
 
 /**
  * Grande carte 15 × 15 (SPEC.md §3, handoff plateau 15) : symétrique par rotation de 180°, Mine fermée par des cases X
- * hautes, Scierie bordée d'un canal et de billots en cases X basses (étangs aussi), +1 mobilité comme le 13 × 13.
+ * hautes, Scierie bordée d'un canal et de billots en cases X basses (étangs aussi), +1 mobilité et mode contestation
+ * comme le 13 × 13.
  */
-export const BATTLEFIELD_15: Board = parseMap('Champ de bataille (15 × 15)', MAP_15, { mobilityBonus: 1 });
+export const BATTLEFIELD_15: Board = parseMap('Champ de bataille (15 × 15)', MAP_15, { mobilityBonus: 1, contestation: true });
 
 /** Cartes proposées au lancement d'une partie. */
 export const BOARDS: readonly Board[] = [BOARD, BATTLEFIELD, BATTLEFIELD_13, BATTLEFIELD_15];

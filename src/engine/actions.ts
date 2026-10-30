@@ -17,7 +17,7 @@ export function getLegalActions(real: GameState): Action[] {
   if (real.winner !== null) return [];
   const state = perceived(real);
   return [
-    ...getPlayCardActions(state),
+    ...getPlayCardActions(state, real),
     ...getMoveActions(state),
     ...getAttackActions(state),
     ...getActivateEffectActions(state),

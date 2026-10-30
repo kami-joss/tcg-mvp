@@ -30,7 +30,8 @@ export type SoundName =
   | 'mana'
   | 'vp'
   | 'turn'
-  | 'win';
+  | 'win'
+  | 'cutIn';
 
 /** Outils de synthèse : `t` est un instant de l'AudioContext, les fréquences en Hz, les durées en secondes. */
 export interface SynthKit {
@@ -149,6 +150,12 @@ export const RECIPES: Readonly<Record<SoundName, (k: SynthKit, t: number) => voi
   vp: (k, t) => {
     k.tone(t, 784, 784, 0.3, 0.09, 'triangle');
     k.tone(t + 0.07, 1175, 1175, 0.4, 0.08, 'triangle');
+  },
+  /** Carte mise en avant : un souffle qui monte, un coup sourd et un accord qui scintille. */
+  cutIn: (k, t) => {
+    k.noise(t, 0.32, 0.22, 'bandpass', 500, 3800, 1.2, 0.16);
+    k.tone(t + 0.12, 130, 60, 0.3, 0.22);
+    [659, 988, 1319, 1760].forEach((f, i) => k.tone(t + 0.14 + i * 0.03, f, f, 0.45, 0.05, 'triangle'));
   },
   turn: (k, t) => {
     k.tone(t, 196, 196, 1.4, 0.25, 'sine', 0.01);

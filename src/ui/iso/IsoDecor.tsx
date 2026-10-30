@@ -10,7 +10,7 @@ import type { CSSProperties, ReactElement } from 'react';
 import { getCell } from '../../engine';
 import type { Board, PlayerId } from '../../engine';
 import { SPRITE_FX, scatter, spritePoint, waterPatches } from './ambience';
-import { GROUND_WAIT, PAINTED_SPRITE_SCALE, paintedDecor, placePaintedSprites, useWaterMasks } from './paintedDecor';
+import { GROUND_WAIT, STAND_DEPTH, paintedBoardDecor, paintedDecor, placePaintedSprites, useWaterMasks, worldPlan } from './paintedDecor';
 import { ISO, ISO_TILT, SPRITES, ZONE_DECOR, borderDecor, planSize } from './scenery';
 import type { IsoScenery } from './scenery';
 
@@ -24,6 +24,9 @@ const SPRITE_URLS: Readonly<Record<string, string>> = Object.fromEntries(
 
 const PLAYER = { 1: 'oklch(0.56 0.15 255)', 2: 'oklch(0.56 0.18 25)' } as const;
 const NEUTRAL = 'oklch(0.82 0.13 85)';
+/** Zone contestée (mode contestation) : entre le bleu de J1 et le rouge de J2. */
+const CONTESTED = 'oklch(0.64 0.18 330)';
+const zoneColor = (owner: PlayerId | 'contested' | null) => (owner === 'contested' ? CONTESTED : owner ? PLAYER[owner] : NEUTRAL);
 const DIRS: readonly (readonly [number, number])[] = [
   [-1, 0],
   [1, 0],
@@ -36,7 +39,8 @@ interface IsoDecorProps {
   scenery: IsoScenery;
   flipped: boolean;
   /** Contrôleur de chaque mana zone (« ligne,colonne »), `null` si elle est neutre. */
-  controllers: ReadonlyMap<string, PlayerId | null>;
+  /** Qui tient chaque mana zone (`ligne,colonne`) ; `contested` en mode contestation, quand les deux joueurs y sont. */
+  controllers: ReadonlyMap<string, PlayerId | 'contested' | null>;
   animated: boolean;
   /**
    * Caméra : `iso` (plateau en rotateX(54,7°) rotateZ(45°)) ou `tilt` (vue inclinée, plateau en rotateX(45°)) ; les
@@ -51,6 +55,8 @@ interface IsoDecorProps {
    */
   painted?: boolean;
   ground?: string | null;
+  /** Sol du monde peint, décor extérieur compris (`null` tant qu'il n'est pas prêt) : il remplace `ground`. */
+  world?: string | null;
 }
 
 
@@ -76,7 +82,7 @@ const box = (left: number, top: number, width: number, height: number): CSSPrope
 
 const div = (key: string, style: CSSProperties, ...children: Node[]): Node => createElement('div', { key, style }, ...children);
 
-export function IsoDecor({ board, scenery, flipped, controllers, animated, camera = 'iso', pitch = ISO.pitch, painted = false, ground = null }: IsoDecorProps) {
+export function IsoDecor({ board, scenery, flipped, controllers, animated, camera = 'iso', pitch = ISO.pitch, painted = false, ground = null, world = null }: IsoDecorProps) {
   const { R, N, D, W } = ISO;
   const B = planSize(Math.max(board.rows, board.cols));
   const P = ISO.pitch;
@@ -181,13 +187,29 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
   };
 
   // --- Plateau à décor peint : son sol, dans le plan du plateau (tourné de 180° avec lui), sous les cases et les ombres.
+  // Celui du monde, avec le décor extérieur, déborde de `bordure` cases tout autour et s'efface sur ses bords. En
+  // isométrie (sans perspective), il est reculé loin le long de l'axe de la caméra : il paraît le même à l'écran, mais
+  // plus rien ne passe sous lui, et les sprites extérieurs n'ont pas à être avancés pour ne pas être rognés.
+  const fullDecor = painted ? paintedDecor(board) : null;
+  const border = fullDecor?.plan.bordure ?? 0;
+  const showWorld = world !== null && fullDecor !== null && border > 0;
   if (painted) {
+    const W = fullDecor ? worldPlan(fullDecor, Math.max(board.rows, board.cols)) : B;
     out.push(
-      div('ground', {
-        ...box(0, 0, B, B),
-        transform: `translateZ(-1px)${flipped ? ' rotate(180deg)' : ''}`,
-        background: ground ? `url(${ground}) 0 0 / 100% 100% no-repeat` : GROUND_WAIT,
-      }),
+      showWorld
+        ? div('ground', {
+            ...box(-border * P, -border * P, W, W),
+            transform:
+              camera === 'iso'
+                ? `rotateZ(-45deg) rotateX(${-ISO_TILT}deg) translateZ(-4000px) rotateX(${ISO_TILT}deg) rotateZ(45deg)${flipped ? ' rotate(180deg)' : ''}`
+                : `translateZ(-1px)${flipped ? ' rotate(180deg)' : ''}`,
+            background: `url(${world}) 0 0 / 100% 100% no-repeat`,
+          })
+        : div('ground', {
+            ...box(0, 0, B, B),
+            transform: `translateZ(-1px)${flipped ? ' rotate(180deg)' : ''}`,
+            background: ground ? `url(${ground}) 0 0 / 100% 100% no-repeat` : GROUND_WAIT,
+          }),
     );
   }
 
@@ -440,10 +462,13 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
 
   // --- Plateau peint : ses sprites (montagnes, rochers, forge, ponts, cadres de mine…) remplacent les rochers Kenney, les
   // mana zones modélisées et le décor de bordure (validé) ; leurs ombres sont peintes dans le sol.
-  const paintedData = painted ? paintedDecor(board) : null;
+  // Décor extérieur seulement quand son sol est là : sinon, le plateau seul (ses sprites, ses pièces d'eau).
+  const paintedData = showWorld ? fullDecor : painted ? paintedBoardDecor(board) : null;
   if (paintedData) {
-    for (const { key, id, x, y, mirror, flat, dz } of placePaintedSprites(paintedData, board.rows, board.cols, flipped)) {
-      out.push(flat ? flatSprite(key, id, x, y, PAINTED_SPRITE_SCALE, mirror) : billboard(key, id, x, y, PAINTED_SPRITE_SCALE, dz, 0, mirror));
+    for (const { key, id, x, y, scale, mirror, flat, dz, inBoard } of placePaintedSprites(paintedData, board.rows, board.cols, flipped)) {
+      // Hors du plateau, le sol reculé (iso) ne rogne rien : l'avancée par défaut garde l'ordre naturel de profondeur.
+      const depth = showWorld && camera === 'iso' && !inBoard ? STAND_DEPTH : dz;
+      out.push(flat ? flatSprite(key, id, x, y, scale, mirror) : billboard(key, id, x, y, scale, depth, 0, mirror));
     }
   }
 
@@ -469,7 +494,8 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
                 {
                   ...box(patch.x, patch.y, patch.width, patch.height),
                   transformOrigin: '0 0',
-                  ...(patch.transposed ? { transform: 'matrix(0, 1, 1, 0, 0, 0)' } : {}),
+                  // Transposée puis retournée bout pour bout, dans cet ordre, comme `buildGround` peint la pièce.
+                  transform: `${patch.transposed ? 'matrix(0, 1, 1, 0, 0, 0) ' : ''}${patch.mirrored ? `matrix(1, 0, 0, -1, 0, ${patch.height})` : ''}`.trim() || undefined,
                   overflow: 'hidden',
                   WebkitMaskImage: `url(${mask})`,
                   maskImage: `url(${mask})`,
@@ -516,11 +542,11 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
 
     // Forge : lueur du four qui vacille, braises, fumée de la cheminée ; tas de minerai : éclats des cristaux. Posés sur
     // leur sprite, juste devant lui.
-    for (const { key, id, x, y, mirror, dz } of placePaintedSprites(paintedData, board.rows, board.cols, flipped)) {
+    for (const { key, id, x, y, scale, mirror, dz } of placePaintedSprites(paintedData, board.rows, board.cols, flipped)) {
       const fx = SPRITE_FX[id];
       if (fx?.fire && fx.smoke) {
-        const [fx0, fy0] = spritePoint(id, fx.fire, PAINTED_SPRITE_SCALE, mirror);
-        const [sx0, sy0] = spritePoint(id, fx.smoke, PAINTED_SPRITE_SCALE, mirror);
+        const [fx0, fy0] = spritePoint(id, fx.fire, scale, mirror);
+        const [sx0, sy0] = spritePoint(id, fx.smoke, scale, mirror);
         // Boîte de 100 × 230 px autour de l'ancre : elle couvre la fumée jusqu'en haut de sa course.
         const AX = 60;
         const AY = 210;
@@ -583,8 +609,8 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
       }
       if (fx?.crystals) {
         const [ca, cb, cc, cd] = fx.crystals;
-        const [x0, y0] = spritePoint(id, [ca, cb], PAINTED_SPRITE_SCALE, mirror);
-        const [x1, y1] = spritePoint(id, [cc, cd], PAINTED_SPRITE_SCALE, mirror);
+        const [x0, y0] = spritePoint(id, [ca, cb], scale, mirror);
+        const [x1, y1] = spritePoint(id, [cc, cd], scale, mirror);
         const left = Math.min(x0, x1);
         const w = Math.abs(x1 - x0);
         const h = y1 - y0;
@@ -617,7 +643,7 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
     }
 
     // Mana zones : halo au sol qui respire et particules qui montent, à la couleur de celui qui la tient (dorées si
-    // elle est neutre).
+    // elle est neutre, violettes si elle est contestée).
     for (let r = 0; r < board.rows; r++) {
       for (let c = 0; c < board.cols; c++) {
         const cell = getCell(board, { row: r, col: c });
@@ -626,7 +652,7 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
         const cx = 48 + dc * P;
         const cy = 48 + dr * P;
         const owner = controllers.get(`${r},${c}`) ?? null;
-        const color = owner ? PLAYER[owner] : NEUTRAL;
+        const color = zoneColor(owner);
         out.push(
           div(`azg${r}_${c}`, {
             ...box(cx - 46, cy - 46, 92, 92),
@@ -716,7 +742,7 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
       const x0 = 14 + dc * P;
       const y0 = 14 + dr * P;
       const owner = controllers.get(`${r},${c}`) ?? null;
-      const cap = owner ? PLAYER[owner] : NEUTRAL;
+      const cap = zoneColor(owner);
       const m = MATERIALS[zone.wall];
       const key = `z${r}_${c}`;
       const wallH = 9;

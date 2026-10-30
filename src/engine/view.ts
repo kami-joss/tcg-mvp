@@ -3,8 +3,8 @@ import { getLegalActions } from './actions';
 import { getManaZones } from './board';
 import { opponent } from './players';
 import { getHiddenUnitIds, perceivedBy } from './stealth';
-import { getZoneController } from './zones';
-import type { GameEvent, GameState, PlayerId, PlayerView, Position, Unit, UnitId } from './types';
+import { getZoneStatus } from './zones';
+import type { GameEvent, GameState, PlayerId, PlayerView, Position, Unit, UnitId, ZoneStatus } from './types';
 
 /**
  * Tout est public sauf le contenu du grimoire adverse, dont seul le nombre de cartes est donné, ses pièges et ses
@@ -16,6 +16,7 @@ export function getPlayerView(state: GameState, player: PlayerId): PlayerView {
   return {
     viewer: player,
     board: state.board,
+    mode: state.mode,
     units: withoutEnemyTrails(perceivedBy(state, player).units, player),
     activePlayer: state.activePlayer,
     turn: state.turn,
@@ -32,7 +33,7 @@ export function getPlayerView(state: GameState, player: PlayerId): PlayerView {
     burningCells: state.burningCells,
     hiddenFromOpponent: getHiddenUnitIds(state, opponent(player)),
     hiddenEnemies: getHiddenUnitIds(state, player),
-    zoneControl: getManaZones(state.board).map(({ pos }) => ({ pos, controller: getZoneController(state, pos) })),
+    zoneControl: getManaZones(state.board).map(({ pos }) => getZoneStatus(state, pos)),
     legalActions: state.activePlayer === player ? getLegalActions(state) : [],
     events: getVisibleEvents(state, player),
   };
@@ -103,7 +104,12 @@ function getVisibleEvents(state: GameState, player: PlayerId): GameEvent[] {
   });
 }
 
-/** Joueur qui contrôle la mana zone en `pos`, d'après la vue : l'information est publique (§10). */
-export function getViewZoneController(view: PlayerView, pos: Position): PlayerId | null {
-  return view.zoneControl.find((zone) => zone.pos.row === pos.row && zone.pos.col === pos.col)?.controller ?? null;
+/** Qui tient la mana zone en `pos`, d'après la vue : l'information est publique (§10). */
+export function getViewZoneStatus(view: Pick<PlayerView, 'zoneControl'>, pos: Position): ZoneStatus {
+  return view.zoneControl.find((zone) => zone.pos.row === pos.row && zone.pos.col === pos.col) ?? { pos, controller: null, contested: false };
+}
+
+/** Joueur qui contrôle la mana zone en `pos`, d'après la vue ; `null` si elle est neutre ou contestée. */
+export function getViewZoneController(view: Pick<PlayerView, 'zoneControl'>, pos: Position): PlayerId | null {
+  return getViewZoneStatus(view, pos).controller;
 }

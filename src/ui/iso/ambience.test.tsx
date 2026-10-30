@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { BATTLEFIELD_13, BATTLEFIELD_15 } from '../../engine';
 import { SPRITE_FX, isWaterPixel, scatter, spritePoint, waterPatches } from './ambience';
 import { IsoDecor } from './IsoDecor';
-import { paintedDecor } from './paintedDecor';
+import { paintedBoardDecor, paintedDecor } from './paintedDecor';
 import { SPRITES, isoScenery } from './scenery';
 
-const decor = paintedDecor(BATTLEFIELD_15)!;
+const decor = paintedBoardDecor(BATTLEFIELD_15)!;
 
 describe('ambiance du décor peint : calculs', () => {
   it('eau : bleu franc seulement, pas les berges, le bois ni les nénuphars', () => {
@@ -19,7 +19,19 @@ describe('ambiance du décor peint : calculs', () => {
   it('pièces d’eau aux places où `buildGround` les peint (case de 72 px, gouttière comprise)', () => {
     const patches = waterPatches(decor);
     expect(patches).toHaveLength(decor.decals.length);
-    expect(patches[0]).toEqual({ key: 'w0', image: 'canal_2cases_a', x: 14 + 5 * 72 - 2, y: 14 + 11 * 72 - 2, width: 72, height: 144, transposed: false, kind: 'canal' });
+    expect(patches[0]).toEqual({
+      key: 'w0',
+      image: 'canal_2cases_a',
+      x: 14 + 5 * 72 - 2,
+      y: 14 + 11 * 72 - 2,
+      width: 72,
+      height: 144,
+      transposed: false,
+      mirrored: false,
+      kind: 'canal',
+    });
+    // Les pièces de canal alternent bout pour bout : chaque raccord se fait entre deux bouts identiques.
+    expect(patches.map((p) => p.mirrored)).toEqual([false, true, false, true, false, false]);
     expect(patches.filter((p) => p.transposed).map((p) => p.image)).toEqual(['canal_2cases_b', 'canal_2cases_b']);
     expect(patches.filter((p) => p.kind === 'pond')).toHaveLength(2);
   });

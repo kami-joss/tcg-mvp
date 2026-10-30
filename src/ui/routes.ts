@@ -1,8 +1,9 @@
 // Pages de l'application : l'accueil (`/`) règle la partie, le jeu est sur `/game`. Les choix de la partie sont dans
-// l'adresse du jeu (`/game?carte=…&j1=…&j2=…&ia=2`) : recharger la page relance une partie avec les mêmes réglages.
+// l'adresse du jeu (`/game?carte=…&mode=contestation&j1=…&j2=…&ia=2`) : recharger la page relance une partie avec les
+// mêmes réglages.
 import { BOARDS, DECKS } from '../engine';
 import type { Board, Deck, PlayerId } from '../engine';
-import { DEFAULT_SETUP } from './session';
+import { DEFAULT_SETUP, modeOf } from './session';
 import type { Setup } from './session';
 
 export type Page = 'home' | 'game';
@@ -20,7 +21,10 @@ export function boardSlug(board: Board): string {
 
 /** Paramètres de l'adresse du jeu pour ces réglages. */
 export function setupToQuery(setup: Setup): string {
-  const params = new URLSearchParams({ carte: boardSlug(setup.board), j1: setup.decks[1].id, j2: setup.decks[2].id });
+  const params = new URLSearchParams({ carte: boardSlug(setup.board) });
+  if (modeOf(setup) === 'contestation') params.set('mode', 'contestation');
+  params.set('j1', setup.decks[1].id);
+  params.set('j2', setup.decks[2].id);
   if (setup.ai) params.set('ia', String(setup.ai));
   return params.toString();
 }
@@ -30,7 +34,8 @@ export function setupFromQuery(search: string): Setup {
   const params = new URLSearchParams(search);
   const board = BOARDS.find((b) => boardSlug(b) === params.get('carte')) ?? DEFAULT_SETUP.board;
   const deck = (player: PlayerId): Deck => DECKS.find((d) => d.id === params.get(`j${player}`)) ?? DEFAULT_SETUP.decks[player];
-  return { board, decks: { 1: deck(1), 2: deck(2) }, ai: params.get('ia') === '2' ? 2 : null };
+  const mode = modeOf({ board, mode: params.get('mode') === 'contestation' ? 'contestation' : 'normal' });
+  return { board, mode, decks: { 1: deck(1), 2: deck(2) }, ai: params.get('ia') === '2' ? 2 : null };
 }
 
 /** Page affichée pour un chemin, sous la base de l'application (`import.meta.env.BASE_URL`). */

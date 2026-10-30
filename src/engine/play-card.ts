@@ -8,32 +8,41 @@ import { emit } from './events';
 import { isShinyCopy, shine } from './players';
 import { getFreeSummonCells, payCard, placeSummonedMonster } from './summon';
 import { addUnit, createTerrainUnit, getMonsterAt, getUnitsAt } from './units';
+import { getZoneStatus } from './zones';
 import type { Action, Card, CardTarget, GameState, PlayerId, Position } from './types';
 
 type PlayCardAction = Extract<Action, { type: 'playCard' }>;
 
 export { getFreeSummonCells };
 
-/** Mana zones où `player` peut poser un terrain : occupées par un de ses monstres, et sans terrain (§4.9, §10). */
+/**
+ * Mana zones où `player` peut poser un terrain : occupées par un de ses monstres, et sans terrain (§4.9, §10) ; en mode
+ * contestation, pas dans une zone contestée (§4.4 bis). Tout cela est public : se calcule sur l'état réel.
+ */
 export function getTerrainCells(state: GameState, player: PlayerId): Position[] {
   return getManaZones(state.board)
     .map(({ pos }) => pos)
     .filter(
       (pos) =>
-        getMonsterAt(state, pos)?.owner === player && !getUnitsAt(state, pos).some((unit) => unit.kind === 'terrain'),
+        getMonsterAt(state, pos)?.owner === player &&
+        !getUnitsAt(state, pos).some((unit) => unit.kind === 'terrain') &&
+        !getZoneStatus(state, pos).contested,
     );
 }
 
-/** Cibles possibles de `card` pour le joueur actif. Une carte sans cible n'est pas jouable. */
-function getCardTargets(state: GameState, card: Card): CardTarget[] {
-  const player = state.activePlayer;
+/**
+ * Cibles possibles de `card` pour le joueur actif, d'après ce qu'il voit (`seen`) ; une mana zone, d'après l'état réel :
+ * l'état d'une zone est public, même contestée par un monstre invisible (§10). Une carte sans cible n'est pas jouable.
+ */
+function getCardTargets(seen: GameState, card: Card, real: GameState): CardTarget[] {
+  const player = seen.activePlayer;
   switch (card.kind) {
     case 'monster':
-      return getFreeSummonCells(state, player).map((pos) => ({ kind: 'cell', pos }));
+      return getFreeSummonCells(seen, player).map((pos) => ({ kind: 'cell', pos }));
     case 'spell':
-      return getEffectTargets(state, card.ability, player, null);
+      return getEffectTargets(seen, card.ability, player, null);
     case 'terrain':
-      return getTerrainCells(state, player).map((pos) => ({ kind: 'cell', pos }));
+      return getTerrainCells(real, player).map((pos) => ({ kind: 'cell', pos }));
   }
 }
 
@@ -50,13 +59,14 @@ function cellOf(target: CardTarget): Position {
   return { row: target.pos.row, col: target.pos.col };
 }
 
-export function getPlayCardActions(state: GameState): Action[] {
+/** Cartes jouables par le joueur actif, sur ce qu'il voit (`state`) ; `real` : l'état réel, pour les mana zones. */
+export function getPlayCardActions(state: GameState, real: GameState = state): Action[] {
   const player = state.players[state.activePlayer];
   return [...new Set(player.grimoire)]
     .map((id) => getCard(id))
     .filter((card) => card.cost <= player.mana)
     .flatMap((card) =>
-      getCardTargets(state, card).map((target): Action => ({ type: 'playCard', cardId: card.id, target })),
+      getCardTargets(state, card, real).map((target): Action => ({ type: 'playCard', cardId: card.id, target })),
     );
 }
 
@@ -70,7 +80,7 @@ export function applyPlayCard(state: GameState, action: PlayCardAction): GameSta
     throw new IllegalActionError(`Mana insuffisant pour « ${card.name} » : ${player.mana} < ${card.cost}`);
   }
   const { target } = action;
-  if (!getCardTargets(perceived(state), card).some((t) => sameCardTarget(t, target))) {
+  if (!getCardTargets(perceived(state), card, state).some((t) => sameCardTarget(t, target))) {
     throw new IllegalActionError(`Cible invalide pour « ${card.name} »`);
   }
 

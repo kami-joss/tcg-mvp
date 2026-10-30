@@ -4,7 +4,8 @@
   "pas": 72,
   "case": 68,
   "marge": 14,
-  "densite": 2
+  "densite": 2,
+  "bordure": 6
  },
  "graine": 4,
  "herbe": {
@@ -20,6 +21,789 @@
   ]
  },
  "zones": [
+  {
+   "sol": "sous_bois",
+   "cases": [
+    [
+     -5,
+     -4
+    ],
+    [
+     -5,
+     -3
+    ],
+    [
+     -5,
+     -1
+    ],
+    [
+     -5,
+     0
+    ],
+    [
+     -5,
+     1
+    ],
+    [
+     -5,
+     2
+    ],
+    [
+     -5,
+     3
+    ],
+    [
+     -5,
+     4
+    ],
+    [
+     -5,
+     5
+    ],
+    [
+     -5,
+     6
+    ],
+    [
+     -5,
+     7
+    ],
+    [
+     -4,
+     -5
+    ],
+    [
+     -4,
+     -4
+    ],
+    [
+     -4,
+     -3
+    ],
+    [
+     -4,
+     -2
+    ],
+    [
+     -4,
+     -1
+    ],
+    [
+     -4,
+     0
+    ],
+    [
+     -4,
+     1
+    ],
+    [
+     -4,
+     2
+    ],
+    [
+     -4,
+     3
+    ],
+    [
+     -4,
+     5
+    ],
+    [
+     -4,
+     6
+    ],
+    [
+     -4,
+     7
+    ],
+    [
+     -3,
+     -5
+    ],
+    [
+     -3,
+     -4
+    ],
+    [
+     -3,
+     -3
+    ],
+    [
+     -3,
+     -2
+    ],
+    [
+     -3,
+     -1
+    ],
+    [
+     -3,
+     0
+    ],
+    [
+     -3,
+     1
+    ],
+    [
+     -3,
+     3
+    ],
+    [
+     -3,
+     5
+    ],
+    [
+     -3,
+     6
+    ],
+    [
+     -3,
+     7
+    ],
+    [
+     -2,
+     -5
+    ],
+    [
+     -2,
+     -4
+    ],
+    [
+     -2,
+     -3
+    ],
+    [
+     -2,
+     -1
+    ],
+    [
+     -2,
+     0
+    ],
+    [
+     -2,
+     1
+    ],
+    [
+     -2,
+     2
+    ],
+    [
+     -1,
+     -5
+    ],
+    [
+     -1,
+     -4
+    ],
+    [
+     -1,
+     -3
+    ],
+    [
+     0,
+     -5
+    ],
+    [
+     0,
+     -4
+    ],
+    [
+     0,
+     -3
+    ],
+    [
+     0,
+     -2
+    ],
+    [
+     1,
+     -5
+    ],
+    [
+     1,
+     -4
+    ],
+    [
+     1,
+     -3
+    ],
+    [
+     1,
+     -2
+    ],
+    [
+     2,
+     -3
+    ],
+    [
+     18,
+     3
+    ],
+    [
+     18,
+     4
+    ],
+    [
+     18,
+     8
+    ],
+    [
+     18,
+     9
+    ],
+    [
+     18,
+     11
+    ],
+    [
+     18,
+     12
+    ],
+    [
+     18,
+     14
+    ],
+    [
+     18,
+     16
+    ],
+    [
+     18,
+     17
+    ],
+    [
+     19,
+     3
+    ],
+    [
+     19,
+     4
+    ],
+    [
+     19,
+     7
+    ],
+    [
+     19,
+     8
+    ],
+    [
+     19,
+     9
+    ],
+    [
+     19,
+     10
+    ],
+    [
+     19,
+     11
+    ],
+    [
+     19,
+     12
+    ],
+    [
+     19,
+     15
+    ],
+    [
+     19,
+     16
+    ],
+    [
+     19,
+     17
+    ],
+    [
+     20,
+     9
+    ]
+   ],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
+  {
+   "sol": "sous_bois",
+   "cases": [],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
+  {
+   "sol": "sous_bois",
+   "cases": [],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
+  {
+   "sol": "sous_bois",
+   "cases": [],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
+  {
+   "sol": "sous_bois",
+   "cases": [],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
+  {
+   "sol": "sous_bois",
+   "cases": [],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
+  {
+   "sol": "sous_bois",
+   "cases": [],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
+  {
+   "sol": "sous_bois",
+   "cases": [],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
+  {
+   "sol": "sous_bois",
+   "cases": [],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
+  {
+   "sol": "sous_bois",
+   "cases": [],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
+  {
+   "sol": "sous_bois",
+   "cases": [],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
+  {
+   "sol": "sous_bois",
+   "cases": [],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
+  {
+   "sol": "sous_bois",
+   "cases": [],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
+  {
+   "sol": "sous_bois",
+   "cases": [],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
+  {
+   "sol": "sous_bois",
+   "cases": [],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
+  {
+   "sol": "sous_bois",
+   "cases": [],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
+  {
+   "sol": "sous_bois",
+   "cases": [],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
+  {
+   "sol": "sous_bois",
+   "cases": [],
+   "tuiles": [
+    "herbe_unie",
+    "terre_herbe",
+    "herbe_trefles"
+   ],
+   "poids": [
+    45,
+    35,
+    20
+   ],
+   "bande": [
+    40,
+    52,
+    30
+   ],
+   "forceBande": 0.18,
+   "teinte": [
+    0.72,
+    0.78,
+    0.64
+   ],
+   "saturation": 0.85,
+   "plaques": 0.35
+  },
   {
    "sol": "pierre_mine",
    "cases": [
@@ -154,6 +938,134 @@
     [
      5,
      14
+    ],
+    [
+     0,
+     15
+    ],
+    [
+     0,
+     16
+    ],
+    [
+     0,
+     17
+    ],
+    [
+     1,
+     15
+    ],
+    [
+     1,
+     16
+    ],
+    [
+     1,
+     17
+    ],
+    [
+     -3,
+     15
+    ],
+    [
+     -3,
+     16
+    ],
+    [
+     -3,
+     17
+    ],
+    [
+     -2,
+     15
+    ],
+    [
+     -2,
+     16
+    ],
+    [
+     -2,
+     17
+    ],
+    [
+     -1,
+     15
+    ],
+    [
+     -1,
+     16
+    ],
+    [
+     -1,
+     17
+    ],
+    [
+     -1,
+     9
+    ],
+    [
+     -1,
+     10
+    ],
+    [
+     -1,
+     11
+    ],
+    [
+     -1,
+     12
+    ],
+    [
+     -1,
+     13
+    ],
+    [
+     -1,
+     14
+    ],
+    [
+     2,
+     15
+    ],
+    [
+     3,
+     15
+    ],
+    [
+     4,
+     15
+    ],
+    [
+     5,
+     15
+    ],
+    [
+     6,
+     15
+    ],
+    [
+     2,
+     16
+    ],
+    [
+     2,
+     17
+    ],
+    [
+     2,
+     18
+    ],
+    [
+     1,
+     18
+    ],
+    [
+     0,
+     18
+    ],
+    [
+     -1,
+     18
     ]
    ],
    "tuiles": [
@@ -307,6 +1219,246 @@
     [
      14,
      5
+    ],
+    [
+     14,
+     -4
+    ],
+    [
+     14,
+     -3
+    ],
+    [
+     14,
+     -2
+    ],
+    [
+     15,
+     -4
+    ],
+    [
+     15,
+     -3
+    ],
+    [
+     15,
+     -2
+    ],
+    [
+     16,
+     -4
+    ],
+    [
+     16,
+     -3
+    ],
+    [
+     16,
+     -2
+    ],
+    [
+     17,
+     -4
+    ],
+    [
+     17,
+     -3
+    ],
+    [
+     17,
+     -2
+    ],
+    [
+     11,
+     -4
+    ],
+    [
+     11,
+     -3
+    ],
+    [
+     11,
+     -2
+    ],
+    [
+     12,
+     -4
+    ],
+    [
+     12,
+     -3
+    ],
+    [
+     12,
+     -2
+    ],
+    [
+     13,
+     -4
+    ],
+    [
+     13,
+     -3
+    ],
+    [
+     13,
+     -2
+    ],
+    [
+     14,
+     -4
+    ],
+    [
+     14,
+     -3
+    ],
+    [
+     14,
+     -2
+    ],
+    [
+     11,
+     -6
+    ],
+    [
+     11,
+     -5
+    ],
+    [
+     11,
+     -4
+    ],
+    [
+     12,
+     -6
+    ],
+    [
+     12,
+     -5
+    ],
+    [
+     12,
+     -4
+    ],
+    [
+     13,
+     -6
+    ],
+    [
+     13,
+     -5
+    ],
+    [
+     13,
+     -4
+    ],
+    [
+     14,
+     -6
+    ],
+    [
+     14,
+     -5
+    ],
+    [
+     14,
+     -4
+    ],
+    [
+     10,
+     -3
+    ],
+    [
+     10,
+     -2
+    ],
+    [
+     10,
+     -1
+    ],
+    [
+     11,
+     -3
+    ],
+    [
+     11,
+     -2
+    ],
+    [
+     11,
+     -1
+    ],
+    [
+     12,
+     -3
+    ],
+    [
+     12,
+     -2
+    ],
+    [
+     12,
+     -1
+    ],
+    [
+     13,
+     -3
+    ],
+    [
+     13,
+     -2
+    ],
+    [
+     13,
+     -1
+    ],
+    [
+     17,
+     -4
+    ],
+    [
+     17,
+     -3
+    ],
+    [
+     17,
+     -2
+    ],
+    [
+     18,
+     -4
+    ],
+    [
+     18,
+     -3
+    ],
+    [
+     18,
+     -2
+    ],
+    [
+     19,
+     -4
+    ],
+    [
+     19,
+     -3
+    ],
+    [
+     19,
+     -2
+    ],
+    [
+     20,
+     -4
+    ],
+    [
+     20,
+     -3
+    ],
+    [
+     20,
+     -2
     ]
    ],
    "tuiles": [
@@ -326,6 +1478,244 @@
     35
    ],
    "forceBande": 0.3
+  },
+  {
+   "sol": "chemin",
+   "cases": [
+    [
+     -1,
+     -1
+    ],
+    [
+     -1,
+     0
+    ],
+    [
+     -1,
+     1
+    ],
+    [
+     -1,
+     2
+    ],
+    [
+     -1,
+     3
+    ],
+    [
+     -1,
+     4
+    ],
+    [
+     -1,
+     5
+    ],
+    [
+     -1,
+     6
+    ],
+    [
+     -1,
+     7
+    ],
+    [
+     -1,
+     8
+    ],
+    [
+     0,
+     -1
+    ],
+    [
+     1,
+     -1
+    ],
+    [
+     2,
+     -1
+    ],
+    [
+     3,
+     -1
+    ],
+    [
+     4,
+     -1
+    ],
+    [
+     5,
+     -1
+    ],
+    [
+     6,
+     -1
+    ],
+    [
+     7,
+     -1
+    ],
+    [
+     7,
+     15
+    ],
+    [
+     8,
+     -1
+    ],
+    [
+     8,
+     15
+    ],
+    [
+     9,
+     -1
+    ],
+    [
+     9,
+     15
+    ],
+    [
+     10,
+     -1
+    ],
+    [
+     10,
+     15
+    ],
+    [
+     11,
+     -1
+    ],
+    [
+     11,
+     15
+    ],
+    [
+     12,
+     -1
+    ],
+    [
+     12,
+     15
+    ],
+    [
+     13,
+     -1
+    ],
+    [
+     13,
+     15
+    ],
+    [
+     14,
+     -1
+    ],
+    [
+     14,
+     15
+    ],
+    [
+     15,
+     -1
+    ],
+    [
+     15,
+     0
+    ],
+    [
+     15,
+     1
+    ],
+    [
+     15,
+     2
+    ],
+    [
+     15,
+     3
+    ],
+    [
+     15,
+     4
+    ],
+    [
+     15,
+     5
+    ],
+    [
+     15,
+     6
+    ],
+    [
+     15,
+     7
+    ],
+    [
+     15,
+     8
+    ],
+    [
+     15,
+     9
+    ],
+    [
+     15,
+     10
+    ],
+    [
+     15,
+     11
+    ],
+    [
+     15,
+     12
+    ],
+    [
+     15,
+     13
+    ],
+    [
+     15,
+     14
+    ],
+    [
+     15,
+     15
+    ],
+    [
+     15,
+     -2
+    ],
+    [
+     5,
+     -1
+    ],
+    [
+     13,
+     16
+    ]
+   ],
+   "tuiles": [
+    "terre_unie",
+    "terre_copeaux"
+   ],
+   "poids": [
+    80,
+    20
+   ],
+   "bande": [
+    60,
+    48,
+    30
+   ],
+   "forceBande": 0.15,
+   "teinte": [
+    0.9,
+    0.84,
+    0.72
+   ],
+   "saturation": 0.55,
+   "retrait": 12
   }
  ],
  "socles": [
@@ -382,6 +1772,26 @@
     [
      10,
      10
+    ],
+    [
+     -3,
+     2
+    ],
+    [
+     2,
+     -4
+    ],
+    [
+     19,
+     13
+    ],
+    [
+     -2,
+     -2
+    ],
+    [
+     20,
+     8
     ]
    ],
    "teinte": [
@@ -418,6 +1828,621 @@
     0.45,
     0.55
    ]
+  },
+  {
+   "cases": [
+    [
+     -6,
+     8
+    ],
+    [
+     -6,
+     9
+    ],
+    [
+     -6,
+     10
+    ],
+    [
+     -6,
+     11
+    ],
+    [
+     -6,
+     12
+    ],
+    [
+     -6,
+     13
+    ],
+    [
+     -6,
+     14
+    ],
+    [
+     -6,
+     15
+    ],
+    [
+     -6,
+     16
+    ],
+    [
+     -6,
+     17
+    ],
+    [
+     -6,
+     18
+    ],
+    [
+     -6,
+     19
+    ],
+    [
+     -6,
+     20
+    ],
+    [
+     -5,
+     8
+    ],
+    [
+     -5,
+     9
+    ],
+    [
+     -5,
+     10
+    ],
+    [
+     -5,
+     11
+    ],
+    [
+     -5,
+     12
+    ],
+    [
+     -5,
+     13
+    ],
+    [
+     -5,
+     14
+    ],
+    [
+     -5,
+     15
+    ],
+    [
+     -5,
+     16
+    ],
+    [
+     -5,
+     17
+    ],
+    [
+     -5,
+     18
+    ],
+    [
+     -5,
+     19
+    ],
+    [
+     -5,
+     20
+    ],
+    [
+     -4,
+     8
+    ],
+    [
+     -4,
+     9
+    ],
+    [
+     -4,
+     10
+    ],
+    [
+     -4,
+     11
+    ],
+    [
+     -4,
+     12
+    ],
+    [
+     -4,
+     13
+    ],
+    [
+     -4,
+     14
+    ],
+    [
+     -4,
+     15
+    ],
+    [
+     -4,
+     16
+    ],
+    [
+     -4,
+     17
+    ],
+    [
+     -4,
+     18
+    ],
+    [
+     -4,
+     19
+    ],
+    [
+     -4,
+     20
+    ],
+    [
+     -3,
+     8
+    ],
+    [
+     -3,
+     9
+    ],
+    [
+     -3,
+     10
+    ],
+    [
+     -3,
+     11
+    ],
+    [
+     -3,
+     12
+    ],
+    [
+     -3,
+     13
+    ],
+    [
+     -3,
+     14
+    ],
+    [
+     -3,
+     18
+    ],
+    [
+     -3,
+     19
+    ],
+    [
+     -3,
+     20
+    ],
+    [
+     -2,
+     8
+    ],
+    [
+     -2,
+     9
+    ],
+    [
+     -2,
+     10
+    ],
+    [
+     -2,
+     11
+    ],
+    [
+     -2,
+     12
+    ],
+    [
+     -2,
+     13
+    ],
+    [
+     -2,
+     14
+    ],
+    [
+     -2,
+     18
+    ],
+    [
+     -2,
+     19
+    ],
+    [
+     -2,
+     20
+    ],
+    [
+     3,
+     16
+    ],
+    [
+     4,
+     16
+    ],
+    [
+     5,
+     16
+    ],
+    [
+     6,
+     16
+    ],
+    [
+     7,
+     16
+    ],
+    [
+     3,
+     17
+    ],
+    [
+     4,
+     17
+    ],
+    [
+     5,
+     17
+    ],
+    [
+     6,
+     17
+    ],
+    [
+     7,
+     17
+    ],
+    [
+     3,
+     18
+    ],
+    [
+     4,
+     18
+    ],
+    [
+     5,
+     18
+    ],
+    [
+     6,
+     18
+    ],
+    [
+     7,
+     18
+    ],
+    [
+     -1,
+     19
+    ],
+    [
+     0,
+     19
+    ],
+    [
+     1,
+     19
+    ],
+    [
+     2,
+     19
+    ],
+    [
+     3,
+     19
+    ],
+    [
+     4,
+     19
+    ],
+    [
+     5,
+     19
+    ],
+    [
+     6,
+     19
+    ],
+    [
+     7,
+     19
+    ],
+    [
+     -1,
+     20
+    ],
+    [
+     0,
+     20
+    ],
+    [
+     1,
+     20
+    ],
+    [
+     2,
+     20
+    ],
+    [
+     3,
+     20
+    ],
+    [
+     4,
+     20
+    ],
+    [
+     5,
+     20
+    ],
+    [
+     6,
+     20
+    ],
+    [
+     7,
+     20
+    ]
+   ],
+   "teinte": [
+    0.5,
+    0.46,
+    0.54
+   ]
+  },
+  {
+   "cases": [
+    [
+     8,
+     16
+    ],
+    [
+     8,
+     17
+    ],
+    [
+     9,
+     16
+    ],
+    [
+     9,
+     17
+    ]
+   ],
+   "teinte": [
+    0.72,
+    0.6,
+    0.48
+   ],
+   "retrait": 5
+  },
+  {
+   "cases": [
+    [
+     10,
+     16
+    ],
+    [
+     10,
+     17
+    ],
+    [
+     11,
+     16
+    ],
+    [
+     11,
+     17
+    ]
+   ],
+   "teinte": [
+    0.72,
+    0.6,
+    0.48
+   ],
+   "retrait": 5
+  },
+  {
+   "cases": [
+    [
+     10,
+     18
+    ],
+    [
+     10,
+     19
+    ],
+    [
+     11,
+     18
+    ],
+    [
+     11,
+     19
+    ]
+   ],
+   "teinte": [
+    0.72,
+    0.6,
+    0.48
+   ],
+   "retrait": 5
+  },
+  {
+   "cases": [
+    [
+     15,
+     17
+    ],
+    [
+     15,
+     18
+    ],
+    [
+     16,
+     17
+    ],
+    [
+     16,
+     18
+    ]
+   ],
+   "teinte": [
+    0.72,
+    0.6,
+    0.48
+   ],
+   "retrait": 5
+  },
+  {
+   "cases": [
+    [
+     7,
+     -5
+    ],
+    [
+     7,
+     -4
+    ],
+    [
+     7,
+     -2
+    ],
+    [
+     8,
+     -5
+    ],
+    [
+     8,
+     -4
+    ],
+    [
+     8,
+     -3
+    ],
+    [
+     7,
+     -3
+    ],
+    [
+     8,
+     -2
+    ]
+   ],
+   "teinte": [
+    0.85,
+    0.78,
+    0.66
+   ],
+   "retrait": 8
+  },
+  {
+   "cases": [
+    [
+     4,
+     -4
+    ],
+    [
+     4,
+     -3
+    ],
+    [
+     4,
+     -2
+    ],
+    [
+     5,
+     -4
+    ],
+    [
+     5,
+     -3
+    ],
+    [
+     5,
+     -2
+    ],
+    [
+     6,
+     -4
+    ],
+    [
+     6,
+     -3
+    ],
+    [
+     6,
+     -2
+    ]
+   ],
+   "teinte": [
+    0.85,
+    0.78,
+    0.66
+   ],
+   "retrait": 14
+  },
+  {
+   "cases": [
+    [
+     12,
+     17
+    ],
+    [
+     12,
+     18
+    ],
+    [
+     12,
+     19
+    ],
+    [
+     13,
+     17
+    ],
+    [
+     13,
+     18
+    ],
+    [
+     13,
+     19
+    ],
+    [
+     14,
+     17
+    ],
+    [
+     14,
+     18
+    ],
+    [
+     14,
+     19
+    ]
+   ],
+   "teinte": [
+    0.82,
+    0.74,
+    0.6
+   ],
+   "retrait": 6
   }
  ],
  "decals": [
@@ -427,7 +2452,8 @@
     11,
     5
    ],
-   "sens": "lignes"
+   "sens": "lignes",
+   "miroir": false
   },
   {
    "image": "canal_2cases_a",
@@ -435,7 +2461,8 @@
     13,
     5
    ],
-   "sens": "lignes"
+   "sens": "lignes",
+   "miroir": true
   },
   {
    "image": "canal_2cases_b",
@@ -443,7 +2470,8 @@
     9,
     0
    ],
-   "sens": "colonnes"
+   "sens": "colonnes",
+   "miroir": false
   },
   {
    "image": "canal_2cases_b",
@@ -451,7 +2479,8 @@
     9,
     2
    ],
-   "sens": "colonnes"
+   "sens": "colonnes",
+   "miroir": true
   },
   {
    "image": "etang_2cases",
@@ -466,6 +2495,103 @@
    "case": [
     11,
     7
+   ],
+   "sens": "lignes"
+  },
+  {
+   "image": "canal_2cases_b",
+   "case": [
+    9,
+    -2
+   ],
+   "sens": "colonnes",
+   "miroir": true
+  },
+  {
+   "image": "canal_2cases_b",
+   "case": [
+    9,
+    -4
+   ],
+   "sens": "colonnes",
+   "miroir": false
+  },
+  {
+   "image": "canal_2cases_b",
+   "case": [
+    9,
+    -6
+   ],
+   "sens": "colonnes",
+   "miroir": true
+  },
+  {
+   "image": "canal_2cases_b",
+   "case": [
+    17,
+    -2
+   ],
+   "sens": "colonnes",
+   "miroir": true
+  },
+  {
+   "image": "canal_2cases_b",
+   "case": [
+    17,
+    -4
+   ],
+   "sens": "colonnes",
+   "miroir": false
+  },
+  {
+   "image": "canal_2cases_b",
+   "case": [
+    17,
+    -6
+   ],
+   "sens": "colonnes",
+   "miroir": true
+  },
+  {
+   "image": "canal_2cases_a",
+   "case": [
+    15,
+    5
+   ],
+   "sens": "lignes",
+   "miroir": false
+  },
+  {
+   "image": "canal_2cases_a",
+   "case": [
+    17,
+    5
+   ],
+   "sens": "lignes",
+   "miroir": true
+  },
+  {
+   "image": "canal_2cases_a",
+   "case": [
+    19,
+    5
+   ],
+   "sens": "lignes",
+   "miroir": false
+  },
+  {
+   "image": "etang_2cases",
+   "case": [
+    -4,
+    4
+   ],
+   "sens": "lignes"
+  },
+  {
+   "image": "etang_2cases",
+   "case": [
+    17,
+    10
    ],
    "sens": "lignes"
   }
@@ -757,6 +2883,2375 @@
    ],
    "miroir": false,
    "ombre": "moyenne"
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    -1,
+    9
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.04
+  },
+  {
+   "id": "montagne_v4",
+   "case": [
+    -1,
+    10
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 0.96
+  },
+  {
+   "id": "montagne_v1",
+   "case": [
+    -1,
+    11
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.01
+  },
+  {
+   "id": "montagne_pic",
+   "case": [
+    -1,
+    12
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 0.98
+  },
+  {
+   "id": "montagne_v1",
+   "case": [
+    -1,
+    13
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.05
+  },
+  {
+   "id": "montagne_double",
+   "case": [
+    -1,
+    14
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 0.95
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    2,
+    15
+   ],
+   "miroir": true,
+   "ombre": "moyenne",
+   "echelle": 0.62
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    3,
+    15
+   ],
+   "miroir": true,
+   "ombre": "moyenne",
+   "echelle": 0.7
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    4,
+    15
+   ],
+   "miroir": false,
+   "ombre": "moyenne",
+   "echelle": 0.65
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    5,
+    15
+   ],
+   "miroir": true,
+   "ombre": "moyenne",
+   "echelle": 0.7
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    6,
+    15
+   ],
+   "miroir": false,
+   "ombre": "moyenne",
+   "echelle": 0.72
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    2,
+    16
+   ],
+   "miroir": false,
+   "ombre": "moyenne",
+   "echelle": 0.63
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    2,
+    17
+   ],
+   "miroir": false,
+   "ombre": "moyenne",
+   "echelle": 0.68
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    2,
+    18
+   ],
+   "miroir": true,
+   "ombre": "moyenne",
+   "echelle": 0.72
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    1,
+    18
+   ],
+   "miroir": false,
+   "ombre": "moyenne",
+   "echelle": 0.71
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    0,
+    18
+   ],
+   "miroir": true,
+   "ombre": "moyenne",
+   "echelle": 0.65
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    -1,
+    18
+   ],
+   "miroir": true,
+   "ombre": "moyenne",
+   "echelle": 0.64
+  },
+  {
+   "id": "montagne_v6",
+   "case": [
+    -6,
+    8
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 0.87
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    -6,
+    9
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.02
+  },
+  {
+   "id": "montagne_pic",
+   "case": [
+    -6,
+    10
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.18
+  },
+  {
+   "id": "montagne_v2",
+   "case": [
+    -6,
+    11
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.13
+  },
+  {
+   "id": "montagne_pic",
+   "case": [
+    -6,
+    12
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.01
+  },
+  {
+   "id": "montagne_v1",
+   "case": [
+    -6,
+    13
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 0.89
+  },
+  {
+   "id": "montagne_v1",
+   "case": [
+    -6,
+    14
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 0.97
+  },
+  {
+   "id": "montagne_v1",
+   "case": [
+    -6,
+    15
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 0.89
+  },
+  {
+   "id": "montagne_v2",
+   "case": [
+    -6,
+    16
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 0.86
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    -6,
+    17
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.03
+  },
+  {
+   "id": "montagne_v2",
+   "case": [
+    -6,
+    18
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.17
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    -6,
+    19
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 0.96
+  },
+  {
+   "id": "montagne_v2",
+   "case": [
+    -6,
+    20
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.2
+  },
+  {
+   "id": "montagne_v2",
+   "case": [
+    -5,
+    8
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.17
+  },
+  {
+   "id": "montagne_v6",
+   "case": [
+    -5,
+    9
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.01
+  },
+  {
+   "id": "montagne_v4",
+   "case": [
+    -5,
+    10
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 0.86
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    -5,
+    11
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.19
+  },
+  {
+   "id": "montagne_v4",
+   "case": [
+    -5,
+    12
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 0.89
+  },
+  {
+   "id": "montagne_v4",
+   "case": [
+    -5,
+    13
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 0.95
+  },
+  {
+   "id": "montagne_v2",
+   "case": [
+    -5,
+    15
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.01
+  },
+  {
+   "id": "montagne_v1",
+   "case": [
+    -5,
+    16
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 0.95
+  },
+  {
+   "id": "montagne_double",
+   "case": [
+    -5,
+    17
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 0.98
+  },
+  {
+   "id": "montagne_v1",
+   "case": [
+    -5,
+    19
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.15
+  },
+  {
+   "id": "montagne_v2",
+   "case": [
+    -5,
+    20
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.12
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    -4,
+    8
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.09
+  },
+  {
+   "id": "montagne_v6",
+   "case": [
+    -4,
+    9
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.14
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    -4,
+    11
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.08
+  },
+  {
+   "id": "montagne_v2",
+   "case": [
+    -4,
+    12
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.12
+  },
+  {
+   "id": "montagne_v2",
+   "case": [
+    -4,
+    13
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.14
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    -4,
+    14
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 0.95
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    -4,
+    16
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.15
+  },
+  {
+   "id": "montagne_v2",
+   "case": [
+    -4,
+    19
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.19
+  },
+  {
+   "id": "montagne_v1",
+   "case": [
+    -4,
+    20
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 0.95
+  },
+  {
+   "id": "montagne_v6",
+   "case": [
+    -3,
+    8
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 0.96
+  },
+  {
+   "id": "montagne_v5",
+   "case": [
+    -3,
+    9
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 0.92
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    -3,
+    10
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 0.93
+  },
+  {
+   "id": "montagne_pic",
+   "case": [
+    -3,
+    11
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.2
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    -3,
+    12
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 0.89
+  },
+  {
+   "id": "montagne_v2",
+   "case": [
+    -3,
+    13
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 0.86
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    -3,
+    14
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 0.88
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    -3,
+    18
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 0.85
+  },
+  {
+   "id": "montagne_v4",
+   "case": [
+    -3,
+    19
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.15
+  },
+  {
+   "id": "montagne_pic",
+   "case": [
+    -3,
+    20
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.04
+  },
+  {
+   "id": "montagne_v6",
+   "case": [
+    -2,
+    8
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.19
+  },
+  {
+   "id": "montagne_v4",
+   "case": [
+    -2,
+    9
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.04
+  },
+  {
+   "id": "montagne_v4",
+   "case": [
+    -2,
+    10
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.05
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    -2,
+    12
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.14
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    -2,
+    13
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.05
+  },
+  {
+   "id": "montagne_v4",
+   "case": [
+    -2,
+    14
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.16
+  },
+  {
+   "id": "montagne_v1",
+   "case": [
+    -2,
+    18
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.02
+  },
+  {
+   "id": "montagne_v4",
+   "case": [
+    -2,
+    19
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.19
+  },
+  {
+   "id": "montagne_v2",
+   "case": [
+    -2,
+    20
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.11
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    3,
+    16
+   ],
+   "miroir": false,
+   "ombre": "moyenne",
+   "echelle": 0.6
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    4,
+    16
+   ],
+   "miroir": true,
+   "ombre": "moyenne",
+   "echelle": 0.57
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    5,
+    16
+   ],
+   "miroir": true,
+   "ombre": "moyenne",
+   "echelle": 0.59
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    6,
+    16
+   ],
+   "miroir": false,
+   "ombre": "moyenne",
+   "echelle": 0.55
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    7,
+    16
+   ],
+   "miroir": true,
+   "ombre": "moyenne",
+   "echelle": 0.67
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    3,
+    17
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.1
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    4,
+    17
+   ],
+   "miroir": false,
+   "ombre": "moyenne",
+   "echelle": 0.63
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    5,
+    17
+   ],
+   "miroir": true,
+   "ombre": "moyenne",
+   "echelle": 0.55
+  },
+  {
+   "id": "montagne_v6",
+   "case": [
+    6,
+    17
+   ],
+   "miroir": true,
+   "ombre": "moyenne",
+   "echelle": 0.6
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    7,
+    17
+   ],
+   "miroir": false,
+   "ombre": "moyenne",
+   "echelle": 0.6
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    3,
+    18
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 0.86
+  },
+  {
+   "id": "montagne_double",
+   "case": [
+    4,
+    18
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.16
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    5,
+    18
+   ],
+   "miroir": false,
+   "ombre": "moyenne",
+   "echelle": 0.64
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    7,
+    18
+   ],
+   "miroir": false,
+   "ombre": "moyenne",
+   "echelle": 0.62
+  },
+  {
+   "id": "montagne_v2",
+   "case": [
+    -1,
+    19
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.01
+  },
+  {
+   "id": "montagne_pic",
+   "case": [
+    0,
+    19
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.09
+  },
+  {
+   "id": "montagne_v1",
+   "case": [
+    1,
+    19
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.17
+  },
+  {
+   "id": "montagne_v2",
+   "case": [
+    2,
+    19
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.16
+  },
+  {
+   "id": "montagne_v4",
+   "case": [
+    3,
+    19
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.06
+  },
+  {
+   "id": "montagne_v1",
+   "case": [
+    4,
+    19
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 0.94
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    5,
+    19
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.1
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    7,
+    19
+   ],
+   "miroir": true,
+   "ombre": "moyenne",
+   "echelle": 0.57
+  },
+  {
+   "id": "montagne_double",
+   "case": [
+    -1,
+    20
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.1
+  },
+  {
+   "id": "montagne_v1",
+   "case": [
+    0,
+    20
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 0.9
+  },
+  {
+   "id": "montagne_large",
+   "case": [
+    1,
+    20
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 0.87
+  },
+  {
+   "id": "montagne_v4",
+   "case": [
+    2,
+    20
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 0.98
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    3,
+    20
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 0.89
+  },
+  {
+   "id": "montagne_pic",
+   "case": [
+    4,
+    20
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.0
+  },
+  {
+   "id": "montagne_v6",
+   "case": [
+    5,
+    20
+   ],
+   "miroir": true,
+   "ombre": "haute",
+   "echelle": 1.17
+  },
+  {
+   "id": "montagne_v6",
+   "case": [
+    6,
+    20
+   ],
+   "miroir": false,
+   "ombre": "haute",
+   "echelle": 1.17
+  },
+  {
+   "id": "montagne_v3",
+   "case": [
+    7,
+    20
+   ],
+   "miroir": true,
+   "ombre": "moyenne",
+   "echelle": 0.56
+  },
+  {
+   "id": "ecurie",
+   "case": [
+    5,
+    -3
+   ],
+   "miroir": false,
+   "empreinte": [
+    [
+     4,
+     -4
+    ],
+    [
+     4,
+     -3
+    ],
+    [
+     4,
+     -2
+    ],
+    [
+     5,
+     -4
+    ],
+    [
+     5,
+     -3
+    ],
+    [
+     5,
+     -2
+    ],
+    [
+     6,
+     -4
+    ],
+    [
+     6,
+     -3
+    ],
+    [
+     6,
+     -2
+    ]
+   ]
+  },
+  {
+   "id": "ferme",
+   "case": [
+    13,
+    18
+   ],
+   "miroir": false,
+   "empreinte": [
+    [
+     12,
+     17
+    ],
+    [
+     12,
+     18
+    ],
+    [
+     12,
+     19
+    ],
+    [
+     13,
+     17
+    ],
+    [
+     13,
+     18
+    ],
+    [
+     13,
+     19
+    ],
+    [
+     14,
+     17
+    ],
+    [
+     14,
+     18
+    ],
+    [
+     14,
+     19
+    ]
+   ]
+  },
+  {
+   "id": "scierie_roue",
+   "case": [
+    15,
+    -3
+   ],
+   "miroir": false,
+   "empreinte": [
+    [
+     14,
+     -4
+    ],
+    [
+     14,
+     -3
+    ],
+    [
+     14,
+     -2
+    ],
+    [
+     15,
+     -4
+    ],
+    [
+     15,
+     -3
+    ],
+    [
+     15,
+     -2
+    ],
+    [
+     16,
+     -4
+    ],
+    [
+     16,
+     -3
+    ],
+    [
+     16,
+     -2
+    ]
+   ]
+  },
+  {
+   "id": "entree_mine",
+   "case": [
+    -2,
+    16
+   ],
+   "miroir": false,
+   "empreinte": [
+    [
+     -3,
+     15
+    ],
+    [
+     -3,
+     16
+    ],
+    [
+     -3,
+     17
+    ],
+    [
+     -2,
+     15
+    ],
+    [
+     -2,
+     16
+    ],
+    [
+     -2,
+     17
+    ],
+    [
+     -1,
+     15
+    ],
+    [
+     -1,
+     16
+    ],
+    [
+     -1,
+     17
+    ]
+   ]
+  },
+  {
+   "id": "rondins_case_2",
+   "case": [
+    12,
+    -3
+   ],
+   "miroir": false,
+   "ombre": "basse"
+  },
+  {
+   "id": "rondins_case_1",
+   "case": [
+    12,
+    -5
+   ],
+   "miroir": false,
+   "ombre": "basse"
+  },
+  {
+   "id": "rondins_case_2",
+   "case": [
+    11,
+    -2
+   ],
+   "miroir": true,
+   "ombre": "basse"
+  },
+  {
+   "id": "rondins_case_2",
+   "case": [
+    18,
+    -3
+   ],
+   "miroir": true,
+   "ombre": "basse"
+  },
+  {
+   "id": "billot",
+   "case": [
+    13,
+    -5
+   ],
+   "miroir": false,
+   "ombre": "basse"
+  },
+  {
+   "id": "billot",
+   "case": [
+    11,
+    -4
+   ],
+   "miroir": false,
+   "ombre": "basse"
+  },
+  {
+   "id": "potager",
+   "case": [
+    8.5,
+    16.5
+   ],
+   "miroir": false
+  },
+  {
+   "id": "champ_citrouilles",
+   "case": [
+    10.5,
+    16.5
+   ],
+   "miroir": false
+  },
+  {
+   "id": "champ_ble",
+   "case": [
+    10.5,
+    18.5
+   ],
+   "miroir": false
+  },
+  {
+   "id": "champ_pousses",
+   "case": [
+    15.5,
+    17.5
+   ],
+   "miroir": false
+  },
+  {
+   "id": "foin_ronds_2",
+   "case": [
+    7,
+    -5
+   ],
+   "miroir": false,
+   "ombre": "basse"
+  },
+  {
+   "id": "foin_pyramide",
+   "case": [
+    7,
+    -4
+   ],
+   "miroir": false,
+   "ombre": "basse"
+  },
+  {
+   "id": "foin_tas_fourche",
+   "case": [
+    7,
+    -2
+   ],
+   "miroir": false,
+   "ombre": "basse"
+  },
+  {
+   "id": "foin_rond",
+   "case": [
+    8,
+    -5
+   ],
+   "miroir": false,
+   "ombre": "basse"
+  },
+  {
+   "id": "foin_bottes",
+   "case": [
+    8,
+    -4
+   ],
+   "miroir": false,
+   "ombre": "basse"
+  },
+  {
+   "id": "foin_charrette",
+   "case": [
+    8,
+    -3
+   ],
+   "miroir": false,
+   "ombre": "basse"
+  },
+  {
+   "id": "rocher_rond",
+   "case": [
+    -3,
+    2
+   ],
+   "miroir": false,
+   "ombre": "moyenne"
+  },
+  {
+   "id": "rocher_rond",
+   "case": [
+    2,
+    -4
+   ],
+   "miroir": true,
+   "ombre": "moyenne"
+  },
+  {
+   "id": "rocher_rond",
+   "case": [
+    19,
+    13
+   ],
+   "miroir": false,
+   "ombre": "moyenne"
+  },
+  {
+   "id": "rocher_pics",
+   "case": [
+    -2,
+    -2
+   ],
+   "miroir": true,
+   "ombre": "moyenne"
+  },
+  {
+   "id": "rocher_pics",
+   "case": [
+    20,
+    8
+   ],
+   "miroir": true,
+   "ombre": "moyenne"
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    -4.39,
+    -0.26
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.08
+  },
+  {
+   "id": "arbre_touffu",
+   "case": [
+    19.19,
+    8.33
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.04
+  },
+  {
+   "id": "arbre_boule",
+   "case": [
+    -4.74,
+    -4.05
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.95
+  },
+  {
+   "id": "arbre_ovale",
+   "case": [
+    -2.14,
+    -0.29
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.99
+  },
+  {
+   "id": "arbre_boule",
+   "case": [
+    1.73,
+    -3.3
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.03
+  },
+  {
+   "id": "sapin_1",
+   "case": [
+    -5.13,
+    4.32
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.05
+  },
+  {
+   "id": "arbre_ovale",
+   "case": [
+    -0.63,
+    -4.46
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.13
+  },
+  {
+   "id": "sapin_2",
+   "case": [
+    -2.48,
+    2.99
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.99
+  },
+  {
+   "id": "arbre_touffu",
+   "case": [
+    -2.68,
+    -2.69
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.93
+  },
+  {
+   "id": "arbre_boule",
+   "case": [
+    18.72,
+    18.28
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.96
+  },
+  {
+   "id": "sapin_1",
+   "case": [
+    -3.97,
+    5.07
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.03
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    -2.62,
+    4.55
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.05
+  },
+  {
+   "id": "arbre_ovale",
+   "case": [
+    0.93,
+    -4.59
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.94
+  },
+  {
+   "id": "arbre_touffu",
+   "case": [
+    18.14,
+    11.39
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.0
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    -2.57,
+    1.12
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.07
+  },
+  {
+   "id": "sapin_2",
+   "case": [
+    -3.52,
+    -4.24
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.06
+  },
+  {
+   "id": "arbre_boule",
+   "case": [
+    -4.4,
+    6.69
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.89
+  },
+  {
+   "id": "sapin_1",
+   "case": [
+    -1.6,
+    -3.81
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.06
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    16.73,
+    6.25
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.02
+  },
+  {
+   "id": "arbre_touffu",
+   "case": [
+    -3.02,
+    0.17
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.02
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    18.91,
+    12.44
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.01
+  },
+  {
+   "id": "sapin_2",
+   "case": [
+    -3.65,
+    2.68
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.0
+  },
+  {
+   "id": "arbre_ovale",
+   "case": [
+    19.0,
+    -4.85
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.02
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    18.23,
+    6.23
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.92
+  },
+  {
+   "id": "arbre_touffu",
+   "case": [
+    -2.4,
+    6.23
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.89
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    0.15,
+    -2.45
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.87
+  },
+  {
+   "id": "sapin_1",
+   "case": [
+    -4.36,
+    1.75
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.9
+  },
+  {
+   "id": "arbre_touffu",
+   "case": [
+    18.88,
+    6.91
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.15
+  },
+  {
+   "id": "arbre_boule",
+   "case": [
+    -3.94,
+    -2.53
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.04
+  },
+  {
+   "id": "sapin_2",
+   "case": [
+    18.67,
+    -0.89
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.88
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    17.31,
+    5.57
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.89
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    17.4,
+    6.99
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.87
+  },
+  {
+   "id": "sapin_2",
+   "case": [
+    18.28,
+    14.36
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.86
+  },
+  {
+   "id": "arbre_boule",
+   "case": [
+    -1.01,
+    -2.66
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.11
+  },
+  {
+   "id": "arbre_touffu",
+   "case": [
+    18.03,
+    12.68
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.86
+  },
+  {
+   "id": "arbre_touffu",
+   "case": [
+    19.04,
+    10.08
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.15
+  },
+  {
+   "id": "arbre_rond",
+   "case": [
+    -3.46,
+    6.79
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.13
+  },
+  {
+   "id": "sapin_2",
+   "case": [
+    -5.15,
+    5.48
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.04
+  },
+  {
+   "id": "arbre_boule",
+   "case": [
+    -2.84,
+    -1.24
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.99
+  },
+  {
+   "id": "sapin_1",
+   "case": [
+    -0.35,
+    -3.25
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.01
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    18.87,
+    5.53
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.1
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    15.9,
+    14.08
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.94
+  },
+  {
+   "id": "sapin_1",
+   "case": [
+    -5.2,
+    2.45
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.0
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    -5.19,
+    -3.05
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.07
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    17.79,
+    9.46
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.09
+  },
+  {
+   "id": "sapin_1",
+   "case": [
+    2.22,
+    -4.57
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.02
+  },
+  {
+   "id": "arbre_boule",
+   "case": [
+    -4.17,
+    3.4
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.89
+  },
+  {
+   "id": "sapin_2",
+   "case": [
+    18.94,
+    17.04
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.06
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    18.48,
+    1.24
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.13
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    -3.62,
+    0.64
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.17
+  },
+  {
+   "id": "arbre_boule",
+   "case": [
+    19.03,
+    11.59
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.17
+  },
+  {
+   "id": "arbre_boule",
+   "case": [
+    18.21,
+    7.89
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.85
+  },
+  {
+   "id": "arbre_ovale",
+   "case": [
+    18.58,
+    4.32
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.03
+  },
+  {
+   "id": "arbre_ovale",
+   "case": [
+    19.15,
+    3.43
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.17
+  },
+  {
+   "id": "sapin_2",
+   "case": [
+    1.15,
+    -2.69
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.88
+  },
+  {
+   "id": "sapin_2",
+   "case": [
+    -4.6,
+    -1.49
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.14
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    17.08,
+    14.97
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.17
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    16.8,
+    9.35
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.9
+  },
+  {
+   "id": "arbre_touffu",
+   "case": [
+    0.27,
+    -5.14
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.96
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    17.62,
+    13.28
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.91
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    16.69,
+    13.77
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.04
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    16.23,
+    5.56
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.07
+  },
+  {
+   "id": "arbre_touffu",
+   "case": [
+    -3.22,
+    5.79
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.18
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    17.37,
+    11.93
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.94
+  },
+  {
+   "id": "arbre_ovale",
+   "case": [
+    -4.16,
+    -5.13
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.9
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    16.53,
+    7.87
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.96
+  },
+  {
+   "id": "sapin_2",
+   "case": [
+    -2.22,
+    1.93
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.94
+  },
+  {
+   "id": "arbre_boule",
+   "case": [
+    0.8,
+    -3.56
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.98
+  },
+  {
+   "id": "sapin_1",
+   "case": [
+    18.9,
+    9.18
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.15
+  },
+  {
+   "id": "arbre_touffu",
+   "case": [
+    -3.53,
+    -3.41
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.06
+  },
+  {
+   "id": "arbre_boule",
+   "case": [
+    -5.16,
+    0.36
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.03
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    18.71,
+    10.95
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.91
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    16.64,
+    3.78
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.91
+  },
+  {
+   "id": "arbre_ovale",
+   "case": [
+    18.36,
+    15.3
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.07
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    16.26,
+    12.94
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.05
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    16.03,
+    9.61
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.91
+  },
+  {
+   "id": "sapin_2",
+   "case": [
+    -3.33,
+    -1.93
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.09
+  },
+  {
+   "id": "arbre_boule",
+   "case": [
+    -2.69,
+    -4.08
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.14
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    16.65,
+    11.33
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.93
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    -4.91,
+    -4.79
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.15
+  },
+  {
+   "id": "arbre_touffu",
+   "case": [
+    18.35,
+    3.01
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.94
+  },
+  {
+   "id": "arbre_touffu",
+   "case": [
+    -3.48,
+    -0.52
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.16
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    16.6,
+    2.94
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.88
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    -1.34,
+    -4.82
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.86
+  },
+  {
+   "id": "sapin_2",
+   "case": [
+    -5.19,
+    1.25
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.04
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    17.47,
+    14.14
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.95
+  },
+  {
+   "id": "arbre_boule",
+   "case": [
+    19.15,
+    -0.13
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.99
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    17.92,
+    3.76
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.98
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    18.51,
+    19.07
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.0
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    15.54,
+    12.72
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.16
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    -2.51,
+    5.43
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.03
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    -5.11,
+    -0.39
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.14
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    0.17,
+    -4.31
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 0.87
+  },
+  {
+   "id": "arbre_rond",
+   "case": [
+    -3.32,
+    1.46
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.1
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    19.0,
+    2.35
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.93
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    15.53,
+    14.93
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.04
+  },
+  {
+   "id": "arbre_rond",
+   "case": [
+    19.11,
+    16.16
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.01
+  },
+  {
+   "id": "buisson_1",
+   "case": [
+    15.51,
+    3.69
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.17
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    15.82,
+    7.88
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.06
+  },
+  {
+   "id": "buisson_2",
+   "case": [
+    15.71,
+    1.45
+   ],
+   "miroir": true,
+   "ombre": "arbre",
+   "echelle": 1.13
   }
  ]
 }

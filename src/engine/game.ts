@@ -2,7 +2,7 @@
 import { BOARD } from './board';
 import { TEST_GRIMOIRE } from './cards';
 import { startTurn } from './turns';
-import type { Board, CardId, GameState, PlayerId, PlayerState } from './types';
+import type { Board, CardId, GameMode, GameState, PlayerId, PlayerState } from './types';
 
 /** Les exemplaires brillants qui sont bien dans le deck (un par exemplaire présent, au plus). */
 function shinyCopies(deck: readonly CardId[], shiny: readonly CardId[]): readonly CardId[] {
@@ -21,17 +21,23 @@ function createPlayer(id: PlayerId, deck: readonly CardId[], shiny: readonly Car
 }
 
 /**
- * Nouvelle partie, sur le plateau classique et avec le grimoire de test par défaut. `shiny` : les exemplaires brillants
- * de chaque deck (purement visuels).
+ * Nouvelle partie, sur le plateau classique, en mode Normal et avec le grimoire de test par défaut. `shiny` : les
+ * exemplaires brillants de chaque deck (purement visuels). Le mode contestation ne se joue que sur un plateau qui le
+ * propose (§4.4 bis).
  */
 export function createGame(
   board: Board = BOARD,
   decks: Readonly<Record<PlayerId, readonly CardId[]>> = { 1: TEST_GRIMOIRE, 2: TEST_GRIMOIRE },
   shiny: Readonly<Record<PlayerId, readonly CardId[]>> = { 1: [], 2: [] },
+  mode: GameMode = 'normal',
 ): GameState {
+  if (mode === 'contestation' && !board.contestation) {
+    throw new Error(`Le mode contestation ne se joue pas sur « ${board.name} »`);
+  }
   // Mise en place (§4.1), puis début du premier tour de J1, qui s'applique dès le tour 1 (§10).
   return startTurn({
     board,
+    mode,
     players: { 1: createPlayer(1, decks[1], shiny[1]), 2: createPlayer(2, decks[2], shiny[2]) },
     activePlayer: 1,
     turn: 1,

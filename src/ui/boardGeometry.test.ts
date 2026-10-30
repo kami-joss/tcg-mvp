@@ -47,6 +47,16 @@ describe('géométrie du plateau : il tient dans sa zone, sans défilement', () 
     expect(fitCell(1000, 800, 13, 13, true, true)).toBeLessThan(fitCell(1000, 800, 13, 13, true));
   });
 
+  it('vue inclinée avec un décor extérieur peint : la scène l’englobe, le plateau garde sa taille et son point de fuite', () => {
+    const m = boardMetrics(50, 15, 15);
+    const decor = tiltGeometry(m, 15, true);
+    const world = tiltGeometry(m, 15, true, 6 * 72);
+    expect(world.sceneWidth).toBeGreaterThan(decor.sceneWidth + 2 * 6 * 50);
+    expect(world.sceneHeight).toBeGreaterThan(decor.sceneHeight + 200);
+    expect(world.originX).toBeCloseTo(world.boardLeft + m.width / 2);
+    expect(world.standScale(3)).toBe(decor.standScale(3));
+  });
+
   it('zone minuscule : jamais sous la taille minimale (la zone défile alors)', () => {
     expect(fitCell(100, 100, 11, 11, false)).toBe(CELL_MIN);
   });

@@ -16,6 +16,12 @@ export type Direction = 'up' | 'down' | 'left' | 'right';
 
 export type ManaZoneId = 'ecurie' | 'ferme' | 'forge' | 'scierie' | 'mine';
 
+/**
+ * Mode de jeu, choisi avec la carte : `normal`, mana zones d'une case (§4.4) ; `contestation`, zones de 9 cases qu'on
+ * tient seul ou qui sont contestées (§4.4 bis).
+ */
+export type GameMode = 'normal' | 'contestation';
+
 export type Cell =
   /** `.` : la case n'existe pas. */
   | { readonly kind: 'offBoard' }
@@ -73,6 +79,8 @@ export interface Board {
   readonly mobilityBonus: number;
   /** Décor de la vue isométrique ; `null` : pas de vue isométrique pour ce plateau. */
   readonly scenery: BoardScenery | null;
+  /** Le mode contestation se joue sur ce plateau (§4.4 bis : 13 × 13 et 15 × 15). */
+  readonly contestation: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -522,6 +530,7 @@ export interface PlayerState {
 
 export interface GameState {
   readonly board: Board;
+  readonly mode: GameMode;
   readonly players: Readonly<Record<PlayerId, PlayerState>>;
   readonly activePlayer: PlayerId;
   /** Numéro du tour : 1 = premier tour de J1, 2 = premier tour de J2, etc. */
@@ -660,6 +669,16 @@ export interface Deck {
 /** Plateau et unités : informations publiques, communes à `GameState` et `PlayerView`. */
 export type BoardState = Pick<GameState, 'board' | 'units'>;
 
+/** Plateau, unités et mode : de quoi dire qui tient une mana zone (§4.4, §4.4 bis). */
+export type ZoneState = Pick<GameState, 'board' | 'units' | 'mode'>;
+
+/** Qui tient une mana zone : `controller` (personne si neutre ou contestée) ; `contested` en mode contestation. */
+export interface ZoneStatus {
+  readonly pos: Position;
+  readonly controller: PlayerId | null;
+  readonly contested: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Vue d'un joueur (SPEC.md §2, §4.3) : tout ce que l'UI a le droit d'afficher
 // ---------------------------------------------------------------------------
@@ -677,6 +696,7 @@ export interface PlayerView {
   /** Le joueur à qui cette vue est destinée. */
   readonly viewer: PlayerId;
   readonly board: Board;
+  readonly mode: GameMode;
   readonly units: Readonly<Record<UnitId, Unit>>;
   readonly activePlayer: PlayerId;
   readonly turn: number;
@@ -694,8 +714,11 @@ export interface PlayerView {
    * est connue, pas leur case. Sert à ne pas prendre pour une destruction un monstre qui disparaît de la vue.
    */
   readonly hiddenEnemies: readonly UnitId[];
-  /** Contrôle des mana zones : public, même quand l'occupant est invisible. */
-  readonly zoneControl: readonly { readonly pos: Position; readonly controller: PlayerId | null }[];
+  /**
+   * Contrôle des mana zones (`pos` : la mana zone, centre de sa zone en mode contestation) : public, même quand
+   * l'occupant est invisible. `contested` : les deux joueurs y sont, personne ne la tient (§4.4 bis).
+   */
+  readonly zoneControl: readonly ZoneStatus[];
   /** Actions légales du joueur qui regarde ; vide si ce n'est pas son tour. */
   readonly legalActions: readonly Action[];
   /** Événements de la dernière action qu'il a le droit de voir (jamais un piège adverse posé, ni un monstre caché). */

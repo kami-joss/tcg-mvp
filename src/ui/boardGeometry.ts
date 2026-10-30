@@ -65,9 +65,10 @@ export interface TiltGeometry {
 /**
  * Géométrie de la vue inclinée : taille de la scène (plateau projeté, jetons du fond et, avec `decor`, le décor 2,5D
  * autour) et grossissement des jetons par rangée affichée, qui leur rend la moitié de ce que la perspective leur fait
- * perdre. Le plateau pivote autour de son bord avant.
+ * perdre. Le plateau pivote autour de son bord avant. `world` : largeur du décor extérieur peint tout autour (en px du
+ * plan du décor, au pas de 72) ; la scène l'englobe (on le parcourt en faisant glisser), le plateau garde sa taille.
  */
-export function tiltGeometry(m: Metrics, rows: number, decor = false): TiltGeometry {
+export function tiltGeometry(m: Metrics, rows: number, decor = false, world = 0): TiltGeometry {
   const rad = (TILT_DEG * Math.PI) / 180;
   const centerY = m.height / 2;
   const depth = (row: number) => m.height - (m.pad + row * m.pitch + m.cell - 1);
@@ -84,7 +85,17 @@ export function tiltGeometry(m: Metrics, rows: number, decor = false): TiltGeome
   let right = m.width / 2;
   if (decor) {
     const k = m.pitch / DECOR_PITCH;
-    const f = DECOR_FRAME;
+    const f =
+      world > 0
+        ? {
+            left: Math.max(DECOR_FRAME.left, world),
+            right: Math.max(DECOR_FRAME.right, world),
+            back: Math.max(DECOR_FRAME.back, world),
+            backHeight: DECOR_FRAME.backHeight,
+            front: Math.max(DECOR_FRAME.front, world),
+            drop: 0,
+          }
+        : DECOR_FRAME;
     top = Math.min(top, project(m.height + f.back * k, f.backHeight * k));
     bottom = Math.max(bottom, project(-f.front * k, -f.drop * k));
     // Devant le bord avant, la perspective grossit : les coins avant du bloc débordent le plus.

@@ -1,6 +1,7 @@
 // Aide (handoff V11, lot 13 §5) : panneau flottant en haut du plateau, ouvert par l'icône de la barre du haut, fermé par
 // cette icône, sa croix ou Échap. Commandes, qui est qui, obstacles, icônes, statuts et surbrillances ; les réglages
 // sont dans le menu d'options.
+import type { GameMode } from '../engine';
 import { Icon } from './Icon';
 import type { IconName } from './Icon';
 
@@ -17,7 +18,8 @@ const ICONS: [IconName, string][] = [
   ['castle', 'Terrain'],
 ];
 
-export function Legend({ onClose }: { onClose: () => void }) {
+/** `mode` : le mode de la partie ; en mode contestation, l'aide dit ce qu'est une zone contestée (§4.4 bis). */
+export function Legend({ onClose, mode = 'normal' }: { onClose: () => void; mode?: GameMode }) {
   return (
     <section className="legend" aria-label="Aide">
       <button type="button" className="legend__close" title="Fermer l’aide (Échap)" onClick={onClose}>
@@ -40,8 +42,13 @@ export function Legend({ onClose }: { onClose: () => void }) {
           <span className="sw sw--drop sw--drop-p2" /> Joueur 2 · goutte rouge, liseré blanc
         </p>
         <p>
-          <span className="sw sw--zone" /> Mana zone : +1 mana, +1 VP
+          <span className="sw sw--zone" /> {mode === 'contestation' ? 'Zone de 9 cases, seul dedans : +1 mana, +1 VP' : 'Mana zone : +1 mana, +1 VP'}
         </p>
+        {mode === 'contestation' && (
+          <p>
+            <span className="sw sw--contested" /> Zone contestée (les deux joueurs) : rien pour personne
+          </p>
+        )}
       </div>
       <div className="legend__group">
         <h3>Obstacles</h3>
