@@ -112,8 +112,31 @@ function explore(state: BoardState, monster: MonsterUnit): { reached: Reached[];
   return { reached, best };
 }
 
+interface Cheapest {
+  readonly reached: Reached[];
+  readonly byPos: Map<string, number>;
+}
+
+/**
+ * Parcours déjà calculés, par objet `units` : les états ne sont jamais modifiés, le parcours d'un monstre sur un même
+ * objet `units` reste donc juste. L'IA applique des centaines de déplacements depuis le même état ; chacun refaisait le
+ * même parcours pour retrouver son chemin.
+ */
+const cheapestCache = new WeakMap<BoardState['units'], Map<string, Cheapest>>();
+
 /** Pour chaque case atteinte, l'indice du parcours le moins cher (le premier trouvé à coût égal). */
-function cheapest(state: BoardState, monster: MonsterUnit): { reached: Reached[]; byPos: Map<string, number> } {
+function cheapest(state: BoardState, monster: MonsterUnit): Cheapest {
+  let cache = cheapestCache.get(state.units);
+  if (!cache) cheapestCache.set(state.units, (cache = new Map()));
+  const key = `${monster.id}|${monster.cardId}|${monster.owner}|${monster.pos.row},${monster.pos.col}|${monster.mobilityLeft}`;
+  const cached = cache.get(key);
+  if (cached) return cached;
+  const result = computeCheapest(state, monster);
+  cache.set(key, result);
+  return result;
+}
+
+function computeCheapest(state: BoardState, monster: MonsterUnit): Cheapest {
   const { reached, best } = explore(state, monster);
   const byPos = new Map<string, number>();
   reached.forEach((r, i) => {

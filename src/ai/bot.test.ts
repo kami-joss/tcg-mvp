@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { BATTLEFIELD_13, DECKS, applyAction, createGame, getLegalActions, getZoneController } from '../engine';
 import type { Action, CardId, GameState } from '../engine';
 import { at, gameWith } from '../engine/test-utils';
-import { chooseAction, knownState } from './bot';
+import { SEARCH, chooseAction, knownState, lastEvaluations, strikeLosses } from './bot';
 
-// IA d'entraînement (SPEC.md §7 bis) : une action à la fois, la meilleure vue un coup à l'avance, sans tricher.
+// IA d'entraînement (SPEC.md §7 bis) : une action à la fois, cherchée sur la fin du tour, sans tricher.
 
 const isLegal = (state: GameState, action: Action) =>
   getLegalActions(state).some((a) => JSON.stringify(a) === JSON.stringify(action));
@@ -116,7 +116,7 @@ describe('IA : deux coups d’avance pour un même monstre', () => {
         { monster: 'jean-bon', owner: 1, at: at(8, 1), mobilityLeft: 0 },
         { monster: 'golem', owner: 2, at: at(7, 1) },
       ],
-      { players: { 1: { mana: 2 } } },
+      { players: { 1: { mana: 2, grimoire: [] as CardId[] } } },
     );
     const dopage = chooseAction(state, 1);
     expect(dopage).toEqual({ type: 'activateEffect', unitId: 'u1', target: { kind: 'unit', unitId: 'u1' } });
@@ -172,5 +172,33 @@ describe('IA : effets actifs des monstres', () => {
       players: { 1: { mana: 2, grimoire: ['milicien'] as CardId[] } },
     });
     expect(chooseAction(state, 1)).toMatchObject({ type: 'move', unitId: 'u1' });
+  });
+});
+
+describe('IA : ce que l’adversaire peut faire au prochain tour', () => {
+  it('chaque monstre adverse ne frappe qu’une fois : un second Milicien à sa portée ne coûte rien de plus', () => {
+    // Le Golem (J2, 4 ATK, 2 de mobilité) peut aller détruire l'un ou l'autre Milicien (3 PV), pas les deux.
+    const one = gameWith([
+      { monster: 'golem', owner: 2, at: at(6, 2) },
+      { monster: 'milicien', owner: 1, at: at(4, 2) },
+    ]);
+    const two = gameWith([
+      { monster: 'golem', owner: 2, at: at(6, 2) },
+      { monster: 'milicien', owner: 1, at: at(4, 2) },
+      { monster: 'milicien', owner: 1, at: at(8, 2) },
+    ]);
+    expect(strikeLosses(one, 2)).toBeGreaterThan(12); // Un monstre détruit : sa valeur, plus le VP qu'il rapporte.
+    expect(strikeLosses(two, 2)).toBe(strikeLosses(one, 2));
+  });
+});
+
+describe('IA : recherche dans un budget de calcul', () => {
+  it('s’arrête au budget : moins d’évaluations qu’une recherche sans limite, et toujours une action légale', () => {
+    const state = createGame(BATTLEFIELD_13, { 1: DECKS[0]!.cards, 2: DECKS[0]!.cards });
+    const free = chooseAction(state, 1, { ...SEARCH, budget: Infinity });
+    const unlimited = lastEvaluations();
+    const capped = chooseAction(state, 1, { ...SEARCH, budget: 10 });
+    expect(lastEvaluations()).toBeLessThan(unlimited);
+    for (const action of [free, capped]) expect(isLegal(state, action)).toBe(true);
   });
 });
