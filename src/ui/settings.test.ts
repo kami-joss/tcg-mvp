@@ -21,6 +21,7 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
     expect(DEFAULT_SETTINGS).toEqual({
       view: 'iso',
       animations: true,
+      pixiBoard: false,
       sound: true,
       volume: 0.7,
       zoom: 1,
@@ -35,6 +36,7 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
     const saved = {
       view: 'tilt',
       animations: true,
+      pixiBoard: true,
       sound: false,
       volume: 0.4,
       zoom: 1.5,
@@ -45,6 +47,7 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
     saveSettings(saved);
     expect(data.get('tcg-plateau-vue-v5')).toBe('45');
     expect(data.get('tcg-plateau-son')).toBe('0');
+    expect(data.get('tcg-rendu-pixi')).toBe('1');
     expect(data.get('tcg-plateau-zoom-v5')).toBe('1.5');
     expect(data.get('tcg-grimoire-affichage')).toBe('liste');
     expect(data.get('tcg-grimoire-ouvert')).toBe('0');

@@ -1,7 +1,24 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BATTLEFIELD_13, BATTLEFIELD_15 } from '../../engine';
-import { SPRITE_FX, cloudAt, groundAmbience, gustAt, isWaterPixel, patchMatrix, pulse, scatter, spritePoint, waterPatches } from './ambience';
+import {
+  EMBER,
+  MOTE,
+  SMOKE,
+  SPRITE_FX,
+  cloudAt,
+  flick,
+  groundAmbience,
+  gustAt,
+  isWaterPixel,
+  patchMatrix,
+  pulse,
+  riser,
+  scatter,
+  spritePoint,
+  twinkle,
+  waterPatches,
+} from './ambience';
 import type { Matrix2D } from './ambience';
 import { AmbienceCanvas } from './AmbienceCanvas';
 import { DECOR_FADE, IsoDecor } from './IsoDecor';
@@ -159,5 +176,34 @@ describe('ambiance du décor peint : rendu', () => {
     expect(faded(html(new Set(['0,0', '13,13'])))).toBe(0);
     // La case (4, 3), devant la forge à gauche : la forge s'efface, avec son feu et sa fumée.
     expect(faded(html(new Set(['4,3'])))).toBe(2);
+  });
+});
+
+describe('ambiance debout (plateau PixiJS) : mouvements des anciennes keyframes', () => {
+  it('éclat : éteint jusqu’à 60 % de sa période, plein à 78 %, éteint à la fin', () => {
+    expect(twinkle(0.5, 1, 0)).toEqual({ alpha: 0, scale: 0.3 });
+    expect(twinkle(0.78, 1, 0).alpha).toBeCloseTo(1, 5);
+    expect(twinkle(0.78, 1, 0).scale).toBeCloseTo(1, 5);
+    expect(twinkle(0.999, 1, 0).alpha).toBeLessThan(0.01);
+  });
+
+  it('braise, fumée, particule : montent en s’effaçant, la fumée grossit', () => {
+    const start = riser(0, 2, 0, { sx: 10, ...EMBER });
+    expect(start).toEqual({ x: 0, y: -0, alpha: 0, scale: 1 });
+    const peak = riser(0.3, 2, 0, { sx: 10, ...EMBER });
+    expect(peak.alpha).toBeCloseTo(1, 5);
+    const end = riser(1.999, 2, 0, { sx: 10, ...EMBER });
+    expect(end.x).toBeCloseTo(10, 1);
+    expect(end.y).toBeCloseTo(-48, 1);
+    expect(end.alpha).toBeLessThan(0.01);
+    expect(riser(0.999, 1, 0, { sx: 0, ...SMOKE }).scale).toBeCloseTo(2.4, 2);
+    expect(riser(0.25, 1, 0, { sx: 0, ...MOTE }).alpha).toBeCloseTo(0.95, 5);
+  });
+
+  it('flamme : aller-retour de (1, 1) à (0,86, 1,2) toutes les 0,6 s', () => {
+    expect(flick(0)).toEqual({ sx: 1, sy: 1 });
+    const mid = flick(0.3);
+    expect(mid.sx).toBeCloseTo(0.86, 5);
+    expect(mid.sy).toBeCloseTo(1.2, 5);
   });
 });

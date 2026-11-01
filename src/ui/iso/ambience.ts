@@ -3,9 +3,42 @@
 // animations sont permises. Ici, les données et les calculs ; le rendu est dans `IsoDecor` (éléments debout, en CSS) et
 // `AmbienceCanvas` (ambiance au sol, un seul canvas PixiJS : `groundAmbience` la décrit, `pulse`, `cloudAt`, `gustAt`
 // l'animent comme le faisaient les keyframes `amb*`).
+import { getCell } from '../../engine';
+import type { Board, PlayerId } from '../../engine';
 import { seeded } from './isoGround';
 import type { PaintedDecor } from './paintedDecor';
-import { SPRITES } from './scenery';
+import { ISO, SPRITES } from './scenery';
+
+const PLAYER = { 1: 'oklch(0.56 0.15 255)', 2: 'oklch(0.56 0.18 25)' } as const;
+const NEUTRAL = 'oklch(0.82 0.13 85)';
+/** Zone contestée (mode contestation) : entre le bleu de J1 et le rouge de J2. */
+const CONTESTED = 'oklch(0.64 0.18 330)';
+
+/** Couleur d'une mana zone dans le décor : celle du joueur qui la tient, dorée si elle est neutre, violette si contestée. */
+export const zoneColor = (owner: PlayerId | 'contested' | null): string =>
+  owner === 'contested' ? CONTESTED : owner ? PLAYER[owner] : NEUTRAL;
+
+/** Qui tient chaque mana zone (« ligne,colonne ») ; `contested` en mode contestation, quand les deux joueurs y sont. */
+export type ZoneControllers = ReadonlyMap<string, PlayerId | 'contested' | null>;
+
+/** Centre (px du plan) de la case (`row`, `col`) affichée, plateau retourné compris. */
+export function cellCenter(board: Board, row: number, col: number, flipped: boolean): { x: number; y: number } {
+  const [r, c] = flipped ? [board.rows - 1 - row, board.cols - 1 - col] : [row, col];
+  return { x: 48 + c * ISO.pitch, y: 48 + r * ISO.pitch };
+}
+
+/** Halo au sol de chaque mana zone du plateau, à la couleur de celui qui la tient. */
+export function zoneHalos(board: Board, controllers: ZoneControllers, flipped: boolean): ZoneHalo[] {
+  const halos: ZoneHalo[] = [];
+  for (let r = 0; r < board.rows; r++) {
+    for (let c = 0; c < board.cols; c++) {
+      const cell = getCell(board, { row: r, col: c });
+      if (cell.kind !== 'plain' || !cell.manaZone) continue;
+      halos.push({ key: `azg${r}_${c}`, ...cellCenter(board, r, c, flipped), color: zoneColor(controllers.get(`${r},${c}`) ?? null) });
+    }
+  }
+  return halos;
+}
 
 type Point = readonly [x: number, y: number];
 
@@ -259,4 +292,48 @@ export function gustAt(gust: Gust, t: number): { x: number; alpha: number } {
   const x = f < 0.3 ? gust.x0 + (gust.x1 - gust.x0) * ease(f / 0.3) : gust.x1;
   const alpha = f < 0.08 ? ease(f / 0.08) : f < 0.3 ? 1 - ease((f - 0.08) / 0.22) : 0;
   return { x, alpha };
+}
+
+// --- Ambiance debout (feu et fumée de la forge, éclats des cristaux, particules des mana zones) dessinée par PixiJS
+// (plateau PixiJS, migration étape 3) : les mêmes mouvements que les keyframes `amb*` et `isoFlick` du CSS.
+
+/** Décélération (`ease-out`). */
+const easeOut = (x: number): number => 1 - (1 - x) * (1 - x);
+
+/** Éclat qui scintille (`ambTwinkle`) : éteint 60 % du temps, s'allume vers 78 %, s'éteint ; il grandit en s'allumant. */
+export function twinkle(t: number, period: number, delay: number): { alpha: number; scale: number } {
+  const f = progress(t, period, delay);
+  const alpha = f < 0.6 ? 0 : f < 0.78 ? ease((f - 0.6) / 0.18) : 1 - ease((f - 0.78) / 0.22);
+  return { alpha, scale: 0.3 + 0.7 * alpha };
+}
+
+/**
+ * Particule qui monte et s'efface (`ambEmber`, `ambSmoke`, `ambMote`) : elle file de (0, 0) à (`sx`, −`rise`) en
+ * décélérant, apparaît jusqu'à `peak` (opacité `top`), puis s'efface ; `grow` : échelle de départ et d'arrivée (fumée).
+ */
+export function riser(
+  t: number,
+  period: number,
+  delay: number,
+  motion: { sx: number; rise: number; peak: number; top: number; grow?: readonly [number, number] },
+): { x: number; y: number; alpha: number; scale: number } {
+  const f = progress(t, period, delay);
+  const m = easeOut(f);
+  const alpha = motion.top * (f < motion.peak ? easeOut(f / motion.peak) : 1 - easeOut((f - motion.peak) / (1 - motion.peak)));
+  const [s0, s1] = motion.grow ?? [1, 1];
+  return { x: motion.sx * m, y: -motion.rise * m, alpha, scale: s0 + (s1 - s0) * m };
+}
+
+/** Braise de la forge : monte de 48 px, visible dès 15 %. */
+export const EMBER = { rise: 48, peak: 0.15, top: 1 } as const;
+/** Fumée de la cheminée : monte de 64 px en grossissant de 0,5 à 2,4, visible à 75 % vers 20 %. */
+export const SMOKE = { rise: 64, peak: 0.2, top: 0.75, grow: [0.5, 2.4] as const } as const;
+/** Particule d'une mana zone : monte de 56 px, visible à 95 % vers 25 %. */
+export const MOTE = { rise: 56, peak: 0.25, top: 0.95 } as const;
+
+/** Flamme du four qui vacille (`isoFlick`, aller-retour en 0,3 s) : échelle horizontale et verticale. */
+export function flick(t: number): { sx: number; sy: number } {
+  const f = progress(t, 0.6);
+  const m = ease(f < 0.5 ? f * 2 : 2 - f * 2);
+  return { sx: 1 - 0.14 * m, sy: 1 + 0.2 * m };
 }

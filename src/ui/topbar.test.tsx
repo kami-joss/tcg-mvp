@@ -80,15 +80,16 @@ describe('menu d’options', () => {
       />,
     );
 
-  it('tous les réglages : vue, zoom, stats des jetons, son et volume, animations, nouvelle partie ; plus de plateau tourné', () => {
+  it('tous les réglages : vue, zoom, stats des jetons, son et volume, animations, rendu PixiJS, nouvelle partie ; plus de plateau tourné', () => {
     const html = menu();
-    for (const label of ['Dessus', 'Inclinée 45°', 'Isométrique', 'Zoom', '100 %', 'Stats sur les jetons', 'Son', 'Volume', 'Animations', 'Nouvelle partie']) {
+    for (const label of ['Dessus', 'Inclinée 45°', 'Isométrique', 'Zoom', '100 %', 'Stats sur les jetons', 'Son', 'Volume', 'Animations', 'Rendu PixiJS (expérimental)', 'Nouvelle partie']) {
       expect(html, label).toContain(label);
     }
     // Même angle pour les deux joueurs (validé) : le plateau ne se retourne plus.
     expect(html).not.toContain('Plateau tourné');
     expect(html).toContain('<button type="button" aria-pressed="true">Isométrique</button>');
-    expect(html.match(/type="checkbox"/g)).toHaveLength(6);
+    // Cinq stats, les animations et le rendu PixiJS (expérimental, décoché par défaut).
+    expect(html.match(/type="checkbox"/g)).toHaveLength(7);
     expect(html).toContain('Maintiens Alt pour tout afficher');
     // Un calque transparent sous le panneau : un clic dehors le ferme.
     expect(html).toContain('options__backdrop');

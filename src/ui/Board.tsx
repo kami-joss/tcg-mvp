@@ -29,6 +29,7 @@ import type { Board as BoardData, Direction, MonsterUnit, PlayerView, Position, 
 import { CARD_ART, boardArt, fitBackground, shortName, tokenFit } from './art';
 import { Icon } from './Icon';
 import { isExhausted, posKey } from './interaction';
+import { PixiBoard } from './pixi/PixiBoard';
 import type { AttackPreview, Highlight } from './interaction';
 import { trapLabel } from './cardText';
 import { IsoDecor } from './iso/IsoDecor';
@@ -77,6 +78,11 @@ interface BoardProps {
   onCellHover: (pos: Position | null, rect?: DOMRect) => void;
   /** Case survolée : le décor peint qui la cache s'efface, comme celui qui cache un jeton. */
   hovered?: Position | null;
+  /**
+   * Plateau PixiJS (réglage expérimental, migration étape 3) : sur un plateau peint (15 × 15), le sol, le décor et son
+   * ambiance sont dessinés par PixiJS sous la scène en HTML ; vue isométrique seulement (la vue inclinée y est abandonnée).
+   */
+  pixi?: boolean;
 }
 
 /** Marge laissée autour de la scène de dessus ou inclinée, pour son ombre. */
@@ -273,8 +279,11 @@ function useZoomViewport(
 }
 
 export function Board(props: BoardProps) {
-  const { view, path, showArt, mode, zoom, animated, flipped, onCellHover, margins = NO_MARGINS } = props;
+  const { view, path, showArt, zoom, animated, flipped, onCellHover, margins = NO_MARGINS } = props;
   const scenery = isoScenery(view.board);
+  // Plateau PixiJS (expérimental) : seulement sur un plateau peint, et en vue isométrique (la vue inclinée y revient).
+  const pixiMode = Boolean(props.pixi) && paintedDecor(view.board) !== null && scenery !== null && props.mode !== 'top';
+  const mode: BoardView = pixiMode ? 'iso' : props.mode;
   const iso = mode === 'iso' && scenery !== null;
   const tilted = mode === 'tilt';
   // Décor 2,5D (rochers, eau, mana zones modélisées, enclaves, bordure) : vues isométrique et inclinée, s'il existe.
@@ -286,6 +295,7 @@ export function Board(props: BoardProps) {
   const grounds = usePaintedGround(view.board);
   const art = showArt && !decor ? boardArt(view.board) : undefined;
   const viewportRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<HTMLDivElement>(null);
   const area = useElementSize(viewportRef);
   const { rows, cols } = view.board;
   // Vues de dessus et inclinée : la plus grande case pour laquelle la scène tient dans la zone (le zoom s'y ajoute).
@@ -369,9 +379,29 @@ export function Board(props: BoardProps) {
       data-viewport
       onDragStart={(event) => event.preventDefault()}
     >
+      {pixiMode && (
+        <PixiBoard
+          board={view.board}
+          camera={camera}
+          plan={plan}
+          flipped={flipped}
+          animated={animated}
+          ground={grounds.board}
+          world={grounds.world}
+          controllers={controllers}
+          reveal={reveal}
+          viewport={viewportRef}
+          scene={sceneRef}
+        />
+      )}
       <div className="board-viewport__content">
         {margins.left > 0 && <div className="board-viewport__glide" style={{ width: margins.left }} aria-hidden="true" />}
-        <div className={`scene scene--${iso ? 'iso' : mode === 'iso' ? 'tilt' : mode}`} style={sceneStyle} data-scene>
+        <div
+          ref={sceneRef}
+          className={`scene scene--${iso ? 'iso' : mode === 'iso' ? 'tilt' : mode}${pixiMode ? ' scene--pixi' : ''}`}
+          style={sceneStyle}
+          data-scene
+        >
           <div
             className={['board', art && 'board--art', tilted && 'board--tilt', iso && 'board--iso', decor && 'board--decor', decor && painted && 'board--painted']
               .filter(Boolean)
@@ -380,7 +410,7 @@ export function Board(props: BoardProps) {
             data-lift={iso ? camera.lift.toFixed(1) : undefined}
             onMouseLeave={() => onCellHover(null)}
           >
-            {decor && scenery && (
+            {decor && scenery && !pixiMode && (
               <IsoDecor
                 board={view.board}
                 scenery={scenery}

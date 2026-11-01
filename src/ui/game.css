@@ -2123,6 +2123,35 @@ select {
   align-self: stretch;
 }
 
+/*
+ * Plateau PixiJS (réglage expérimental, migration étape 3) : le canvas a la taille de la partie visible du cadre, collé en
+ * haut à gauche pendant le défilement, sous la scène en HTML (le cadre isole son empilement). Il ne capte pas la souris.
+ * La scène ne s'anime plus quand la caméra change : le canvas, lui, ne suivrait pas la transition.
+ */
+.pixi-board {
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: -1;
+  flex: none;
+  align-self: flex-start;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.pixi-board__canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+}
+
+.scene--pixi,
+.scene--pixi .board {
+  transition: none;
+}
+
 .board-viewport.is-scrollable {
   cursor: grab;
 }

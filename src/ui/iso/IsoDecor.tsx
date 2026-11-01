@@ -9,27 +9,15 @@ import { cloneElement, createElement, useMemo } from 'react';
 import type { CSSProperties, ReactElement } from 'react';
 import { getCell } from '../../engine';
 import type { Board, PlayerId } from '../../engine';
-import { SPRITE_FX, groundAmbience, scatter, spritePoint } from './ambience';
-import type { ZoneHalo } from './ambience';
+import { SPRITE_FX, groundAmbience, scatter, spritePoint, zoneColor, zoneHalos } from './ambience';
+import { SPRITE_URLS } from './spriteUrls';
 import { AmbienceCanvas } from './AmbienceCanvas';
 import { GROUND_WAIT, STAND_DEPTH, paintedBoardDecor, paintedDecor, placePaintedSprites, spritesHiding, useWaterMasks, worldPlan } from './paintedDecor';
 import type { PlacedSprite } from './paintedDecor';
 import { ISO, ISO_TILT, SPRITES, ZONE_DECOR, borderDecor, planSize } from './scenery';
 import type { IsoScenery } from './scenery';
 
-// Sprites Kenney du décor procédural, et sprites peints du 15 × 15 (handoff plateau 15).
-const SPRITE_URLS: Readonly<Record<string, string>> = Object.fromEntries(
-  Object.entries({
-    ...(import.meta.glob('../../assets/decor/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
-    ...(import.meta.glob('../../assets/plateau15/sprites/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
-  }).map(([path, url]) => [path.slice(path.lastIndexOf('/') + 1, -4), url]),
-);
 
-const PLAYER = { 1: 'oklch(0.56 0.15 255)', 2: 'oklch(0.56 0.18 25)' } as const;
-const NEUTRAL = 'oklch(0.82 0.13 85)';
-/** Zone contestée (mode contestation) : entre le bleu de J1 et le rouge de J2. */
-const CONTESTED = 'oklch(0.64 0.18 330)';
-const zoneColor = (owner: PlayerId | 'contested' | null) => (owner === 'contested' ? CONTESTED : owner ? PLAYER[owner] : NEUTRAL);
 const DIRS: readonly (readonly [number, number])[] = [
   [-1, 0],
   [1, 0],
@@ -513,20 +501,11 @@ export function IsoDecor({
   );
   // Ambiance au sol (canvas PixiJS) : décrite une fois par décor, sens du plateau et contrôleurs des mana zones.
   const zoneKey = [...controllers].map(([cell, owner]) => `${cell}=${owner}`).join('|');
-  const groundFx = useMemo(() => {
-    if (!paintedData) return null;
-    const halos: ZoneHalo[] = [];
-    for (let r = 0; r < board.rows; r++) {
-      for (let c = 0; c < board.cols; c++) {
-        const cell = getCell(board, { row: r, col: c });
-        if (cell.kind !== 'plain' || !cell.manaZone) continue;
-        const [dr, dc] = disp(r, c);
-        halos.push({ key: `azg${r}_${c}`, x: 48 + dc * P, y: 48 + dr * P, color: zoneColor(controllers.get(`${r},${c}`) ?? null) });
-      }
-    }
-    return groundAmbience(paintedData, B, halos, flipped);
-    // `controllers` ne compte que par `zoneKey` ; `disp` ne dépend que du plateau et de son sens.
-  }, [paintedData, board, B, P, flipped, zoneKey]);
+  const groundFx = useMemo(
+    () => (paintedData ? groundAmbience(paintedData, B, zoneHalos(board, controllers, flipped), flipped) : null),
+    // `controllers` ne compte que par `zoneKey`.
+    [paintedData, board, B, flipped, zoneKey],
+  );
   const faded = new Set<string>();
   for (const cell of reveal ?? []) for (const key of hiding.get(cell) ?? []) faded.add(key);
   for (const sprite of placed) {

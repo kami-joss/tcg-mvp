@@ -509,6 +509,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
             zoom={settings.zoom}
             animated={animated}
             flipped={flipped}
+            pixi={settings.pixiBoard}
             stats={peek ? ALL_TOKEN_STATS : settings.tokenStats}
             margins={glide}
             onCellClick={handleCellClick}

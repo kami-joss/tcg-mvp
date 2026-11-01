@@ -120,3 +120,41 @@ describe('décor peint qui s’efface (15 × 15, vue iso)', () => {
     expect(faded(html)).toBe(1);
   });
 });
+
+describe('plateau PixiJS (réglage expérimental, 15 × 15)', () => {
+  const view = getPlayerView(gameWith([], { board: BATTLEFIELD_15 }), 1);
+  const renderPixi = (board: PlayerView, mode: BoardView) =>
+    renderToStaticMarkup(
+      <Board
+        view={board}
+        highlights={new Map()}
+        attacks={new Map()}
+        selectedUnitId={null}
+        focused={false}
+        path={[]}
+        reach={new Map()}
+        showArt
+        mode={mode}
+        zoom={1}
+        animated={false}
+        flipped={false}
+        pixi
+        onCellClick={() => {}}
+        onCellHover={() => {}}
+      />,
+    );
+
+  it('le décor passe au canvas PixiJS (sous la scène) : plus de décor en HTML, les cases restent', () => {
+    const html = renderPixi(view, 'iso');
+    expect(html).toContain('class="pixi-board"');
+    expect(html).toContain('scene--pixi');
+    expect(html).not.toContain('iso-decor');
+    expect(html.match(/data-cell=/g)).toHaveLength(15 * 15);
+  });
+
+  it('la vue inclinée revient à l’isométrique ; la vue de dessus et les autres plateaux restent en HTML', () => {
+    expect(renderPixi(view, 'tilt')).toContain('board--iso');
+    expect(renderPixi(view, 'top')).not.toContain('pixi-board');
+    expect(renderPixi(getPlayerView(gameWith([], { board: BATTLEFIELD }), 1), 'iso')).not.toContain('pixi-board');
+  });
+});

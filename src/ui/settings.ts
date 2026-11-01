@@ -43,6 +43,11 @@ export interface DisplaySettings {
   readonly view: BoardView;
   /** Animations des actions et boucles (respiration des jetons, halos, décor). */
   readonly animations: boolean;
+  /**
+   * Plateau dessiné par PixiJS (WebGL), 15 × 15 seulement : réglage expérimental le temps de la migration (étape 3),
+   * l'ancien plateau en HTML reste celui par défaut.
+   */
+  readonly pixiBoard: boolean;
   /** Sons (lot 4). */
   readonly sound: boolean;
   /** Volume des sons, de 0 à 1. */
@@ -60,6 +65,7 @@ export interface DisplaySettings {
 export const DEFAULT_SETTINGS: DisplaySettings = {
   view: 'iso',
   animations: true,
+  pixiBoard: false,
   sound: true,
   volume: 0.7,
   zoom: 1,
@@ -71,6 +77,7 @@ export const DEFAULT_SETTINGS: DisplaySettings = {
 const KEYS = {
   view: 'tcg-plateau-vue-v5',
   animations: 'tcg-animations',
+  pixiBoard: 'tcg-rendu-pixi',
   sound: 'tcg-plateau-son',
   volume: 'tcg-plateau-volume',
   zoom: 'tcg-plateau-zoom-v5',
@@ -110,6 +117,7 @@ function readTokenStats(): TokenStats {
 export function loadSettings(): DisplaySettings {
   const view = read(KEYS.view);
   const animations = read(KEYS.animations);
+  const pixiBoard = read(KEYS.pixiBoard);
   const sound = read(KEYS.sound);
   const volume = Number.parseFloat(read(KEYS.volume) ?? '');
   const zoom = Number.parseFloat(read(KEYS.zoom) ?? '');
@@ -118,6 +126,7 @@ export function loadSettings(): DisplaySettings {
   return {
     view: (Object.keys(VIEW_VALUES) as BoardView[]).find((v) => VIEW_VALUES[v] === view) ?? DEFAULT_SETTINGS.view,
     animations: animations === null ? DEFAULT_SETTINGS.animations : animations === '1',
+    pixiBoard: pixiBoard === null ? DEFAULT_SETTINGS.pixiBoard : pixiBoard === '1',
     sound: sound === null ? DEFAULT_SETTINGS.sound : sound !== '0',
     volume: Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : DEFAULT_SETTINGS.volume,
     zoom: ZOOMS.includes(zoom) ? zoom : DEFAULT_SETTINGS.zoom,
@@ -131,6 +140,7 @@ export function saveSettings(settings: DisplaySettings): void {
   try {
     window.localStorage.setItem(KEYS.view, VIEW_VALUES[settings.view]);
     window.localStorage.setItem(KEYS.animations, settings.animations ? '1' : '0');
+    window.localStorage.setItem(KEYS.pixiBoard, settings.pixiBoard ? '1' : '0');
     window.localStorage.setItem(KEYS.sound, settings.sound ? '1' : '0');
     window.localStorage.setItem(KEYS.volume, String(settings.volume));
     window.localStorage.setItem(KEYS.zoom, String(settings.zoom));
