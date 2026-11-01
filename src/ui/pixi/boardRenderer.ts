@@ -28,6 +28,9 @@ import type { PaintedDecor, PlacedSprite } from '../iso/paintedDecor';
 import { SPRITES } from '../iso/scenery';
 import type { IsoCamera } from '../iso/scenery';
 import { SPRITE_URLS } from '../iso/spriteUrls';
+import { CellLayer } from './cellLayer';
+import { cellVisuals } from './cellModel';
+import type { CellInputs } from './cellModel';
 import { buildGroundFx, loadImage, painted, tint } from './groundFx';
 import type { BuiltScene, Pixi } from './groundFx';
 import { isoDepth, isoPlaneMatrix, isoProject } from './isoProjection';
@@ -78,9 +81,20 @@ interface BuiltDecor {
 
 export class BoardRenderer {
   private readonly world: PixiContainer;
+  /** Plan isométrique : sol, ambiance au sol, cases (dans cet ordre). */
   private readonly plane: PixiContainer;
+  private readonly groundLayer: PixiContainer;
+  private readonly fxLayer: PixiContainer;
+  /** À l'écran : ponts couchés, textes au sol, puis tout ce qui est debout (trié). */
   private readonly flats: PixiContainer;
+  private readonly groundTexts: PixiContainer;
   private readonly standing: PixiContainer;
+  private readonly cells: CellLayer;
+  /** Polices des textes chargées : avant, les cases attendent. */
+  private fontsReady = false;
+  private pendingCells: CellInputs | null = null;
+  /** Dernières entrées des cases (lues par les essais en dev, `window.__pixiBoard`). */
+  lastCells: CellInputs | null = null;
   private camera: Pick<IsoCamera, 'k' | 'width' | 'centerY'> | null = null;
   private plan = 0;
   private decor: BuiltDecor | null = null;
@@ -101,10 +115,37 @@ export class BoardRenderer {
     const { Container } = pixi;
     this.world = new Container();
     this.plane = new Container();
+    this.groundLayer = new Container();
+    this.fxLayer = new Container();
+    this.plane.addChild(this.groundLayer, this.fxLayer);
     this.flats = new Container();
+    this.groundTexts = new Container();
     this.standing = new Container({ sortableChildren: true });
-    this.world.addChild(this.plane, this.flats, this.standing);
+    this.cells = new CellLayer(pixi, this.plane, this.groundTexts, this.standing);
+    this.world.addChild(this.plane, this.flats, this.groundTexts, this.standing);
     app.stage.addChild(this.world);
+    const fonts = typeof document !== 'undefined' && document.fonts ? document.fonts : null;
+    const ready = fonts
+      ? Promise.all([fonts.load('800 12px "Alegreya Sans SC"'), fonts.load('800 12px "Alegreya Sans"')]).catch(() => [])
+      : Promise.resolve([]);
+    void ready.then(() => {
+      this.fontsReady = true;
+      if (this.pendingCells) this.setCells(this.pendingCells);
+    });
+  }
+
+  /** Cases : fond, repères, sélection et surbrillances (redessinées à chaque changement). */
+  setCells(inputs: CellInputs): void {
+    if (this.destroyed) return;
+    if (!this.fontsReady) {
+      this.pendingCells = inputs;
+      return;
+    }
+    this.pendingCells = null;
+    this.lastCells = inputs;
+    this.cells.setCells(cellVisuals(inputs));
+    if (this.camera) this.cells.layout(this.camera, this.plan);
+    this.requestRender();
   }
 
   /** Le canvas a changé de taille (cadre redimensionné) : PixiJS la reprend, puis on redessine. */
@@ -153,6 +194,7 @@ export class BoardRenderer {
     if (this.raf) cancelAnimationFrame(this.raf);
     this.decor?.destroy();
     this.decor = null;
+    this.cells.destroy();
   }
 
   /** Redessine à la prochaine image (et continue tant que l'ambiance ou un fondu l'exige). */
@@ -170,12 +212,13 @@ export class BoardRenderer {
     this.raf = 0;
     if (this.destroyed) return;
     const fading = this.stepFades(now);
-    const animated = this.decor?.animated ?? false;
+    const animated = (this.decor?.animated ?? false) || this.cells.animated;
     if (animated && now - this.lastFrame >= 1000 / FPS - 2) {
       this.lastFrame = now;
       const t = now / 1000;
-      for (const update of this.decor!.fx) update(t);
-      this.decor!.groundFx?.update(t);
+      for (const update of this.decor?.fx ?? []) update(t);
+      this.decor?.groundFx?.update(t);
+      this.cells.update(t);
       this.dirty = true;
     }
     if (this.dirty || fading) {
@@ -191,6 +234,7 @@ export class BoardRenderer {
     if (!camera) return;
     const [a, b, c, d, tx, ty] = isoPlaneMatrix(camera, this.plan);
     this.plane.setFromMatrix(new this.pixi.Matrix(a, b, c, d, tx, ty));
+    this.cells.layout(camera, this.plan);
     for (const item of this.decor?.uprights ?? []) {
       const p = isoProject(camera, this.plan, item.x, item.y);
       const s = item.scale * camera.k;
@@ -280,14 +324,14 @@ export class BoardRenderer {
     } else {
       ground.addChild(new Graphics().rect(gx, gx, gw, gw).fill(GROUND_WAIT));
     }
-    this.plane.addChild(ground);
+    this.groundLayer.addChild(ground);
     nodes.push(ground);
 
     // Ambiance au sol, dans le plan, au-dessus du sol.
     let groundFx: BuiltScene | null = null;
     if (animated) {
       const scene = groundAmbience(data, plan, zoneHalos(board, input.controllers, flipped), flipped);
-      groundFx = await buildGroundFx(pixi, this.plane, scene, input.masks, alive);
+      groundFx = await buildGroundFx(pixi, this.fxLayer, scene, input.masks, alive);
       if (!alive()) {
         groundFx?.destroy();
         ground.destroy({ children: true });

@@ -152,6 +152,17 @@ describe('plateau PixiJS (réglage expérimental, 15 × 15)', () => {
     expect(html.match(/data-cell=/g)).toHaveLength(15 * 15);
   });
 
+  it('les cases sont dessinées dans le canvas : en HTML, ni repères, ni nom de zone, ni surbrillances', () => {
+    const html = renderPixi(view, 'iso');
+    expect(html.match(/cell--pixi/g)).toHaveLength(15 * 15);
+    for (const name of ['zone-label', 'cell__summon', 'cell__glow', 'hl-move', 'layer--dim']) expect(html, name).not.toContain(name);
+    // Sans PixiJS, tout reste en HTML.
+    const plain = render(view, 'iso');
+    expect(plain).toContain('zone-label');
+    expect(plain).toContain('cell__summon');
+    expect(plain).not.toContain('cell--pixi');
+  });
+
   it('la vue inclinée revient à l’isométrique ; la vue de dessus et les autres plateaux restent en HTML', () => {
     expect(renderPixi(view, 'tilt')).toContain('board--iso');
     expect(renderPixi(view, 'top')).not.toContain('pixi-board');

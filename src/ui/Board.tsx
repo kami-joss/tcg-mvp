@@ -392,6 +392,15 @@ export function Board(props: BoardProps) {
           reveal={reveal}
           viewport={viewportRef}
           scene={sceneRef}
+          cells={{
+            view,
+            highlights: props.highlights,
+            attacks: props.attacks,
+            selectedUnitId: props.selectedUnitId,
+            focused: props.focused,
+            path,
+            reach: props.reach,
+          }}
         />
       )}
       <div className="board-viewport__content">
@@ -437,6 +446,7 @@ export function Board(props: BoardProps) {
                 tile={zoneTiles.get(posKey(pos))}
                 isAnchor={props.anchor ? samePos(props.anchor, pos) : false}
                 standScale={tilted ? geometry.standScale(displayRow(pos)) : 1}
+                drawnByPixi={pixiMode}
               />
             ))}
             <span className="board__edge" aria-hidden="true" />
@@ -468,6 +478,7 @@ function BoardCell({
   onCellHover,
   decor,
   isAnchor,
+  drawnByPixi,
 }: BoardProps & {
   pos: Position;
   step: number | undefined;
@@ -476,6 +487,11 @@ function BoardCell({
   standScale: number;
   decor: boolean;
   isAnchor: boolean;
+  /**
+   * Plateau PixiJS : la case est dessinée dans le canvas (fond, repères, surbrillances, nom de zone) ; en HTML, elle ne
+   * garde que la souris et ses unités.
+   */
+  drawnByPixi: boolean;
 }) {
   const cell = getCell(view.board, pos);
   const dataCell = `${pos.row},${pos.col}`;
@@ -499,13 +515,13 @@ function BoardCell({
     const waterClass = water ? ` cell--water${water === 'pond' ? ' cell--pond' : ''}` : '';
     return (
       <div
-        className={`cell cell--blocked${waterClass}${parity}${focused ? ' is-dim' : ''}`}
+        className={`cell cell--blocked${waterClass}${parity}${focused ? ' is-dim' : ''}${drawnByPixi ? ' cell--pixi' : ''}`}
         onMouseEnter={hover}
         onContextMenu={contextMenu}
         aria-label={water === 'pond' ? 'Étang' : water ? 'Rivière' : 'Case bloquée'}
         data-cell={dataCell}
       >
-        {area}
+        {!drawnByPixi && area}
         {cliffs}
       </div>
     );
@@ -534,6 +550,7 @@ function BoardCell({
     monster && 'cell--unit',
     (highlight || monster) && 'is-clickable',
     isAnchor && 'is-anchor',
+    drawnByPixi && 'cell--pixi',
   ];
   // Orientation affichée (plateau retourné compris) : la pointe de la goutte, et la flèche au bord de la case.
   const facing = monster ? (flipped ? FLIP_DIRECTION[monster.facing] : monster.facing) : null;
@@ -553,24 +570,29 @@ function BoardCell({
       aria-label={cellLabel(pos, zone ? MANA_ZONE_NAMES[zone] : null, units)}
       data-cell={dataCell}
     >
-      {cell.summonZoneOf !== null && <span className="cell__summon">J{cell.summonZoneOf}</span>}
-      {area}
-      {zone && <span className="cell__glow" />}
-      {marks && <ZoneMarks marks={marks} />}
-      {dim && <span className="layer layer--dim" />}
-      {step !== undefined ? (
-        <span className="layer hl-path">
-          <span>{step}</span>
-        </span>
-      ) : (
-        highlight === 'move' && <span className="layer hl-move" />
+      {/* Plateau PixiJS : fond, repères et surbrillances de la case sont dans le canvas. */}
+      {!drawnByPixi && (
+        <>
+          {cell.summonZoneOf !== null && <span className="cell__summon">J{cell.summonZoneOf}</span>}
+          {area}
+          {zone && <span className="cell__glow" />}
+          {marks && <ZoneMarks marks={marks} />}
+          {dim && <span className="layer layer--dim" />}
+          {step !== undefined ? (
+            <span className="layer hl-path">
+              <span>{step}</span>
+            </span>
+          ) : (
+            highlight === 'move' && <span className="layer hl-move" />
+          )}
+          {highlight === 'effect' && <span className="layer hl-effect" />}
+          {highlight === 'target' && !onToken && <span className="layer hl-target">{!monster && '+'}</span>}
+          {/* Menace adverse au survol : par-dessus les surbrillances, même avec un de ses monstres sélectionné. */}
+          {reach.get(key) === 'move' && <span className="layer layer--reach" />}
+          {reach.get(key) === 'strike' && <span className="layer layer--threat" />}
+          {trap && !monster && <TrapMarker trap={trap} />}
+        </>
       )}
-      {highlight === 'effect' && <span className="layer hl-effect" />}
-      {highlight === 'target' && !onToken && <span className="layer hl-target">{!monster && '+'}</span>}
-      {/* Menace adverse au survol : par-dessus les surbrillances, même avec un de ses monstres sélectionné. */}
-      {reach.get(key) === 'move' && <span className="layer layer--reach" />}
-      {reach.get(key) === 'strike' && <span className="layer layer--threat" />}
-      {trap && !monster && <TrapMarker trap={trap} />}
       {terrain && <TerrainPlaque terrain={terrain} alone={!monster} selected={isSelected(terrain)} upright={upright} />}
       {monster && facing && (
         <span className={`facing facing--${facing} facing--p${monster.owner}${exhausted ? ' is-done' : ''}`} aria-hidden="true">
@@ -610,7 +632,7 @@ function BoardCell({
           damage={onToken && attack ? attack : null}
         />
       )}
-      {(highlight === 'attack' || attack) && !onToken && (
+      {(highlight === 'attack' || attack) && !onToken && !drawnByPixi && (
         <>
           <span className="layer hl-attack" />
           {attack && (
@@ -621,7 +643,7 @@ function BoardCell({
           )}
         </>
       )}
-      {zone && (
+      {zone && !drawnByPixi && (
         <span className="zone-label">
           {controller && `J${controller} · `}
           {zoneStatus?.contested && 'Contestée · '}

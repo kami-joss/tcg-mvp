@@ -2152,6 +2152,16 @@ select {
   transition: none;
 }
 
+/* Plateau PixiJS : la case est dessinée dans le canvas ; en HTML elle ne garde que la souris et ses unités. */
+.board .cell.cell--pixi {
+  background: none;
+  box-shadow: none;
+}
+
+.board .cell.cell--pixi.is-dim {
+  filter: none;
+}
+
 .board-viewport.is-scrollable {
   cursor: grab;
 }

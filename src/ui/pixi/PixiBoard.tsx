@@ -5,6 +5,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import type { Board } from '../../engine';
+import type { CellInputs } from './cellModel';
 import type { ZoneControllers } from '../iso/ambience';
 import { useWaterMasks } from '../iso/paintedDecor';
 import type { IsoCamera } from '../iso/scenery';
@@ -26,11 +27,13 @@ interface PixiBoardProps {
   /** Le cadre qui défile, et la scène en HTML dont le canvas suit la position. */
   viewport: RefObject<HTMLElement | null>;
   scene: RefObject<HTMLElement | null>;
+  /** Ce que les cases montrent (vue, sélection, surbrillances, chemin, menace). */
+  cells: Omit<CellInputs, 'flipped' | 'animated'>;
 }
 
 const NO_MASKS: Readonly<Record<string, string>> = {};
 
-export function PixiBoard({ board, camera, plan, flipped, animated, ground, world, controllers, reveal, viewport, scene }: PixiBoardProps) {
+export function PixiBoard({ board, camera, plan, flipped, animated, ground, world, controllers, reveal, viewport, scene, cells }: PixiBoardProps) {
   const host = useRef<HTMLDivElement>(null);
   const [renderer, setRenderer] = useState<BoardRenderer | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -110,6 +113,12 @@ export function PixiBoard({ board, camera, plan, flipped, animated, ground, worl
   useEffect(() => {
     renderer?.setCamera(camera, plan);
   }, [renderer, camera.k, camera.width, camera.centerY, plan]);
+
+  // Cases : redessinées quand la vue, la sélection ou le survol changent.
+  const { view, highlights, attacks, selectedUnitId, focused, path, reach } = cells;
+  useEffect(() => {
+    renderer?.setCells({ view, highlights, attacks, selectedUnitId, focused, path, reach, flipped, animated });
+  }, [renderer, view, highlights, attacks, selectedUnitId, focused, path, reach, flipped, animated]);
 
   const revealKey = [...reveal].sort().join('|');
   useEffect(() => {
