@@ -4,7 +4,8 @@
 // PixiJS est chargé à la demande ; sans WebGL, rien n'est dessiné (le sol reste vide) et un avertissement l'explique.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
-import type { Board } from '../../engine';
+import type { Board, Position } from '../../engine';
+import type { TokenStats } from '../settings';
 import type { CellInputs } from './cellModel';
 import type { ZoneControllers } from '../iso/ambience';
 import { useWaterMasks } from '../iso/paintedDecor';
@@ -29,11 +30,19 @@ interface PixiBoardProps {
   scene: RefObject<HTMLElement | null>;
   /** Ce que les cases montrent (vue, sélection, surbrillances, chemin, menace). */
   cells: Omit<CellInputs, 'flipped' | 'animated'>;
+  /** Stats affichées sur les jetons, et case sous la bulle d'action (son jeton ne grossit pas au survol). */
+  stats: TokenStats;
+  anchor: Position | null;
+  /** La souris passe par le canvas : la case sous elle (celle d'un jeton dont la goutte dépasse sur une autre comprise). */
+  onCellClick: (pos: Position) => void;
+  onCellContextMenu?: (pos: Position) => void;
+  onCellHover: (pos: Position | null, rect?: DOMRect) => void;
 }
 
 const NO_MASKS: Readonly<Record<string, string>> = {};
 
-export function PixiBoard({ board, camera, plan, flipped, animated, ground, world, controllers, reveal, viewport, scene, cells }: PixiBoardProps) {
+export function PixiBoard(props: PixiBoardProps) {
+  const { board, camera, plan, flipped, animated, ground, world, controllers, reveal, viewport, scene, cells, stats, anchor } = props;
   const host = useRef<HTMLDivElement>(null);
   const [renderer, setRenderer] = useState<BoardRenderer | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -119,6 +128,63 @@ export function PixiBoard({ board, camera, plan, flipped, animated, ground, worl
   useEffect(() => {
     renderer?.setCells({ view, highlights, attacks, selectedUnitId, focused, path, reach, flipped, animated });
   }, [renderer, view, highlights, attacks, selectedUnitId, focused, path, reach, flipped, animated]);
+
+  // Unités : redessinées quand la vue, la sélection, les cibles ou les stats affichées changent.
+  useEffect(() => {
+    renderer?.setUnits({ view, highlights, attacks, selectedUnitId, flipped, stats, animated, anchor });
+  }, [renderer, view, highlights, attacks, selectedUnitId, flipped, stats, animated, anchor]);
+
+  // Souris : la case sous elle vient du canvas (les cases en HTML ne la captent plus). Les rappels les plus récents
+  // servent, sans réinstaller les écouteurs.
+  const handlers = useRef(props);
+  handlers.current = props;
+  useEffect(() => {
+    const frame = viewport.current;
+    if (!renderer || !frame) return;
+    let hovered: string | null = null;
+    const cellUnder = (event: MouseEvent): Position | null => {
+      // Un autre bouton dans le cadre (bulle d'action…) garde ses clics.
+      if (event.target instanceof Element && event.target.closest('button:not([data-cell]), a, input, select, textarea, label, [role="dialog"]')) return null;
+      const box = frame.getBoundingClientRect();
+      return renderer.cellAt(event.clientX - box.left - frame.clientLeft, event.clientY - box.top - frame.clientTop);
+    };
+    const cellRect = (pos: Position) => scene.current?.querySelector(`[data-cell="${pos.row},${pos.col}"]`)?.getBoundingClientRect();
+    const hover = (pos: Position | null) => {
+      const key = pos ? `${pos.row},${pos.col}` : null;
+      if (key === hovered) return;
+      hovered = key;
+      renderer.setHover(key);
+      const { cells: c, onCellHover } = handlers.current;
+      // Main tendue sur ce qui se clique : une case en surbrillance ou une unité.
+      frame.style.cursor = key && (c.highlights.has(key) || Object.values(c.view.units).some((u) => u.pos.row === pos!.row && u.pos.col === pos!.col)) ? 'pointer' : '';
+      onCellHover(pos, pos ? cellRect(pos) : undefined);
+    };
+    const move = (event: PointerEvent) => hover(frame.classList.contains('is-dragging') ? null : cellUnder(event));
+    const leave = () => hover(null);
+    const click = (event: MouseEvent) => {
+      // Le clic qui suit un glisser du plateau est annulé (`useZoomViewport`).
+      if (event.defaultPrevented || event.button !== 0) return;
+      const pos = cellUnder(event);
+      if (pos) handlers.current.onCellClick(pos);
+    };
+    const context = (event: MouseEvent) => {
+      const pos = cellUnder(event);
+      if (!pos) return;
+      event.preventDefault();
+      handlers.current.onCellContextMenu?.(pos);
+    };
+    frame.addEventListener('pointermove', move);
+    frame.addEventListener('pointerleave', leave);
+    frame.addEventListener('click', click);
+    frame.addEventListener('contextmenu', context);
+    return () => {
+      frame.removeEventListener('pointermove', move);
+      frame.removeEventListener('pointerleave', leave);
+      frame.removeEventListener('click', click);
+      frame.removeEventListener('contextmenu', context);
+      frame.style.cursor = '';
+    };
+  }, [renderer, viewport, scene]);
 
   const revealKey = [...reveal].sort().join('|');
   useEffect(() => {

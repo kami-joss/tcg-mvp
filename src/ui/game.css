@@ -2152,10 +2152,15 @@ select {
   transition: none;
 }
 
-/* Plateau PixiJS : la case est dessinée dans le canvas ; en HTML elle ne garde que la souris et ses unités. */
+/*
+ * Plateau PixiJS : la case et ses unités sont dessinées dans le canvas, qui trouve aussi la case sous la souris ; en
+ * HTML, la case reste à plat (sans 3D, rien à recomposer) pour situer la bulle d'action et les effets.
+ */
 .board .cell.cell--pixi {
   background: none;
   box-shadow: none;
+  pointer-events: none;
+  transform-style: flat;
 }
 
 .board .cell.cell--pixi.is-dim {

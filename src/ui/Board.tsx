@@ -401,6 +401,11 @@ export function Board(props: BoardProps) {
             path,
             reach: props.reach,
           }}
+          stats={props.stats ?? DEFAULT_TOKEN_STATS}
+          anchor={props.anchor ?? null}
+          onCellClick={props.onCellClick}
+          onCellContextMenu={props.onCellContextMenu}
+          onCellHover={onCellHover}
         />
       )}
       <div className="board-viewport__content">
@@ -593,44 +598,49 @@ function BoardCell({
           {trap && !monster && <TrapMarker trap={trap} />}
         </>
       )}
-      {terrain && <TerrainPlaque terrain={terrain} alone={!monster} selected={isSelected(terrain)} upright={upright} />}
-      {monster && facing && (
-        <span className={`facing facing--${facing} facing--p${monster.owner}${exhausted ? ' is-done' : ''}`} aria-hidden="true">
-          <span />
-        </span>
-      )}
-      {upright && (monster || terrain) && (
-        <span
-          className={`token-shadow${terrain ? ' token-shadow--light' : ''}${monster ? '' : ' token-shadow--crest'}`}
-        />
-      )}
-      {upright && terrain && (
-        <TerrainCrest
-          terrain={terrain}
-          small={monster !== undefined}
-          standScale={standScale}
-          target={!monster && highlight === 'target'}
-        />
-      )}
-      {monster && (
-        <MonsterToken
-          monster={monster}
-          atk={getAtk(view, monster)}
-          requiem={requiemCountdown(monster, view.turn, view.activePlayer)}
-          active={monster.owner === view.activePlayer}
-          selected={isSelected(monster)}
-          exhausted={exhausted}
-          hidden={view.hiddenFromOpponent.includes(monster.id)}
-          onZone={zone !== null}
-          angle={(iso ? ISO_ANGLES : FLAT_ANGLES)[facing!]}
-          stats={stats}
-          mobilityBonus={view.board.mobilityBonus}
-          onMoveBonus={monster.owner === view.activePlayer ? getOnMoveBonus(view, monster) : 0}
-          standScale={standScale}
-          bobDelay={bobDelay}
-          target={onToken ? (highlight === 'attack' || attack ? 'attack' : highlight === 'target' ? 'card' : null) : null}
-          damage={onToken && attack ? attack : null}
-        />
+      {/* Plateau PixiJS : les unités, leurs ombres et la flèche d'orientation sont dans le canvas. */}
+      {!drawnByPixi && (
+        <>
+          {terrain && <TerrainPlaque terrain={terrain} alone={!monster} selected={isSelected(terrain)} upright={upright} />}
+          {monster && facing && (
+            <span className={`facing facing--${facing} facing--p${monster.owner}${exhausted ? ' is-done' : ''}`} aria-hidden="true">
+              <span />
+            </span>
+          )}
+          {upright && (monster || terrain) && (
+            <span
+              className={`token-shadow${terrain ? ' token-shadow--light' : ''}${monster ? '' : ' token-shadow--crest'}`}
+            />
+          )}
+          {upright && terrain && (
+            <TerrainCrest
+              terrain={terrain}
+              small={monster !== undefined}
+              standScale={standScale}
+              target={!monster && highlight === 'target'}
+            />
+          )}
+          {monster && (
+            <MonsterToken
+              monster={monster}
+              atk={getAtk(view, monster)}
+              requiem={requiemCountdown(monster, view.turn, view.activePlayer)}
+              active={monster.owner === view.activePlayer}
+              selected={isSelected(monster)}
+              exhausted={exhausted}
+              hidden={view.hiddenFromOpponent.includes(monster.id)}
+              onZone={zone !== null}
+              angle={(iso ? ISO_ANGLES : FLAT_ANGLES)[facing!]}
+              stats={stats}
+              mobilityBonus={view.board.mobilityBonus}
+              onMoveBonus={monster.owner === view.activePlayer ? getOnMoveBonus(view, monster) : 0}
+              standScale={standScale}
+              bobDelay={bobDelay}
+              target={onToken ? (highlight === 'attack' || attack ? 'attack' : highlight === 'target' ? 'card' : null) : null}
+              damage={onToken && attack ? attack : null}
+            />
+          )}
+        </>
       )}
       {(highlight === 'attack' || attack) && !onToken && !drawnByPixi && (
         <>

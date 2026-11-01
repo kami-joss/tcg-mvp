@@ -163,6 +163,22 @@ describe('plateau PixiJS (réglage expérimental, 15 × 15)', () => {
     expect(plain).not.toContain('cell--pixi');
   });
 
+  it('les unités sont dessinées dans le canvas : pas de jeton, de blason ni de flèche en HTML', () => {
+    const units = getPlayerView(
+      gameWith(
+        [
+          { monster: 'chevalier', owner: 1, at: at(6, 6) },
+          { terrain: 'bastion', owner: 1, at: at(8, 8) },
+        ],
+        { board: BATTLEFIELD_15 },
+      ),
+      1,
+    );
+    const html = renderPixi(units, 'iso');
+    for (const name of ['class="token', 'crest', 'plaque', 'facing', 'token-shadow']) expect(html, name).not.toContain(name);
+    expect(render(units, 'iso')).toContain('class="token');
+  });
+
   it('la vue inclinée revient à l’isométrique ; la vue de dessus et les autres plateaux restent en HTML', () => {
     expect(renderPixi(view, 'tilt')).toContain('board--iso');
     expect(renderPixi(view, 'top')).not.toContain('pixi-board');

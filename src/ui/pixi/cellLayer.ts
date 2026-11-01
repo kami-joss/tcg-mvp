@@ -98,7 +98,7 @@ function cellRect(g: Graphics, x: number, y: number, inset: number, radius: numb
 
 /** Texture d'une icône (tracé de 512 × 512 ou Material de 24 × 24), blanche, à teinter. */
 const iconTextures = new Map<string, Texture>();
-function iconTexture(pixi: Pixi, name: IconName): Texture {
+export function iconTexture(pixi: Pixi, name: IconName): Texture {
   const known = iconTextures.get(name);
   if (known) return known;
   const mdi = (MDI_PATHS as Record<string, string>)[name];

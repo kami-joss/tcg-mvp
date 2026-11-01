@@ -32,8 +32,13 @@ import { CellLayer } from './cellLayer';
 import { cellVisuals } from './cellModel';
 import type { CellInputs } from './cellModel';
 import { buildGroundFx, loadImage, painted, tint } from './groundFx';
+import { TokenLayer } from './tokenLayer';
+import { unitVisuals } from './tokenModel';
+import type { TokenInputs } from './tokenModel';
 import type { BuiltScene, Pixi } from './groundFx';
-import { isoDepth, isoPlaneMatrix, isoProject } from './isoProjection';
+import { isoDepth, isoPlaneMatrix, isoProject, isoUnproject } from './isoProjection';
+import type { Board as BoardData, Position } from '../../engine';
+import { ISO } from '../iso/scenery';
 
 /** Images par seconde de l'ambiance. */
 const FPS = 30;
@@ -90,12 +95,20 @@ export class BoardRenderer {
   private readonly groundTexts: PixiContainer;
   private readonly standing: PixiContainer;
   private readonly cells: CellLayer;
+  private readonly units: TokenLayer;
+  /** Plateau affiché (pour retrouver la case sous la souris) et animations permises. */
+  private board: BoardData | null = null;
+  private flipped = false;
+  private animated = false;
+  /** Case sous la bulle d'action : son jeton ne grossit pas au survol. */
+  private anchor: string | null = null;
   /** Polices des textes chargées : avant, les cases attendent. */
   private fontsReady = false;
   private pendingCells: CellInputs | null = null;
+  private pendingUnits: (TokenInputs & { readonly animated: boolean; readonly anchor: Position | null }) | null = null;
   /** Dernières entrées des cases (lues par les essais en dev, `window.__pixiBoard`). */
   lastCells: CellInputs | null = null;
-  private camera: Pick<IsoCamera, 'k' | 'width' | 'centerY'> | null = null;
+  private camera: Pick<IsoCamera, 'k' | 'width' | 'centerY' | 'standScale'> | null = null;
   private plan = 0;
   private decor: BuiltDecor | null = null;
   /** Construction en cours : la dernière demandée gagne. */
@@ -122,6 +135,10 @@ export class BoardRenderer {
     this.groundTexts = new Container();
     this.standing = new Container({ sortableChildren: true });
     this.cells = new CellLayer(pixi, this.plane, this.groundTexts, this.standing);
+    this.units = new TokenLayer(pixi, this.plane, this.standing, () => {
+      if (this.camera) this.units.layout(this.camera, this.plan);
+      this.requestRender();
+    });
     this.world.addChild(this.plane, this.flats, this.groundTexts, this.standing);
     app.stage.addChild(this.world);
     const fonts = typeof document !== 'undefined' && document.fonts ? document.fonts : null;
@@ -131,7 +148,55 @@ export class BoardRenderer {
     void ready.then(() => {
       this.fontsReady = true;
       if (this.pendingCells) this.setCells(this.pendingCells);
+      if (this.pendingUnits) this.setUnits(this.pendingUnits);
     });
+  }
+
+  /** Unités : jetons, terrains, leurs ombres et flèches (redessinés quand ils changent). */
+  setUnits(inputs: TokenInputs & { readonly animated: boolean; readonly anchor: Position | null }): void {
+    if (this.destroyed) return;
+    this.board = inputs.view.board;
+    this.flipped = inputs.flipped;
+    this.animated = inputs.animated;
+    this.anchor = inputs.anchor ? `${inputs.anchor.row},${inputs.anchor.col}` : null;
+    if (!this.fontsReady) {
+      this.pendingUnits = inputs;
+      return;
+    }
+    this.pendingUnits = null;
+    const { tokens, terrains } = unitVisuals(inputs);
+    this.units.setUnits(tokens, terrains);
+    if (this.camera) this.units.layout(this.camera, this.plan);
+    this.requestRender();
+  }
+
+  /** Case survolée (« ligne,colonne ») : son jeton grossit (pas sous la bulle d'action). */
+  setHover(cell: string | null): void {
+    this.units.setHover(cell !== null && cell === this.anchor ? null : cell);
+    if (this.camera) this.units.layout(this.camera, this.plan);
+    this.requestRender();
+  }
+
+  /**
+   * La case sous un point de l'écran (coordonnées du canvas) : celle d'un jeton dont la goutte est sous la souris (le
+   * plus proche de la caméra), sinon la case au sol ; `null` hors du plateau.
+   */
+  cellAt(x: number, y: number): Position | null {
+    const camera = this.camera;
+    const board = this.board;
+    if (!camera || !board) return null;
+    const [sx, sy] = [x - this.world.x, y - this.world.y];
+    const token = this.units.hit(camera, this.plan, sx, sy);
+    if (token) {
+      const [row, col] = token.split(',').map(Number) as [number, number];
+      return { row, col };
+    }
+    const p = isoUnproject(camera, this.plan, sx, sy);
+    // Les cases font 68 px au pas de 72 : l'espace entre deux cases va à la plus proche.
+    const c = Math.floor((p.x - ISO.pad + 2) / ISO.pitch);
+    const r = Math.floor((p.y - ISO.pad + 2) / ISO.pitch);
+    if (r < 0 || c < 0 || r >= board.rows || c >= board.cols) return null;
+    return this.flipped ? { row: board.rows - 1 - r, col: board.cols - 1 - c } : { row: r, col: c };
   }
 
   /** Cases : fond, repères, sélection et surbrillances (redessinées à chaque changement). */
@@ -163,7 +228,7 @@ export class BoardRenderer {
   }
 
   /** Caméra isométrique (échelle, taille de la scène, centre) et côté du plan du plateau. */
-  setCamera(camera: Pick<IsoCamera, 'k' | 'width' | 'centerY'>, plan: number): void {
+  setCamera(camera: Pick<IsoCamera, 'k' | 'width' | 'centerY' | 'standScale'>, plan: number): void {
     this.camera = camera;
     this.plan = plan;
     this.layout();
@@ -195,6 +260,7 @@ export class BoardRenderer {
     this.decor?.destroy();
     this.decor = null;
     this.cells.destroy();
+    this.units.destroy();
   }
 
   /** Redessine à la prochaine image (et continue tant que l'ambiance ou un fondu l'exige). */
@@ -212,20 +278,23 @@ export class BoardRenderer {
     this.raf = 0;
     if (this.destroyed) return;
     const fading = this.stepFades(now);
-    const animated = (this.decor?.animated ?? false) || this.cells.animated;
+    // Le survol (grossissement) se joue à pleine cadence ; l'ambiance et la respiration à 30 images par seconde.
+    const growing = this.units.update(now / 1000, false, now);
+    const animated = (this.decor?.animated ?? false) || this.cells.animated || this.animated;
     if (animated && now - this.lastFrame >= 1000 / FPS - 2) {
       this.lastFrame = now;
       const t = now / 1000;
       for (const update of this.decor?.fx ?? []) update(t);
       this.decor?.groundFx?.update(t);
       this.cells.update(t);
+      this.units.update(t, this.animated, now);
       this.dirty = true;
     }
-    if (this.dirty || fading) {
+    if (this.dirty || fading || growing) {
       this.dirty = false;
       this.app.render();
     }
-    if (animated || fading) this.raf = requestAnimationFrame(this.frame);
+    if (animated || fading || growing) this.raf = requestAnimationFrame(this.frame);
   };
 
   /** Place le plan et chaque élément debout selon la caméra. */
@@ -235,6 +304,7 @@ export class BoardRenderer {
     const [a, b, c, d, tx, ty] = isoPlaneMatrix(camera, this.plan);
     this.plane.setFromMatrix(new this.pixi.Matrix(a, b, c, d, tx, ty));
     this.cells.layout(camera, this.plan);
+    this.units.layout(camera, this.plan);
     for (const item of this.decor?.uprights ?? []) {
       const p = isoProject(camera, this.plan, item.x, item.y);
       const s = item.scale * camera.k;
