@@ -17,7 +17,7 @@ Ce document est la référence pour implémenter le MVP. En cas de doute, demand
 
 ## 2. Architecture
 
-- **TypeScript**, **Vite**, **React** pour l'UI, **Vitest** pour les tests.
+- **TypeScript**, **Vite**, **React** pour l'UI, **Vitest** pour les tests. **PixiJS** (v8, WebGL) dessine l'ambiance animée au sol du plateau peint (eau, halos des mana zones, nuages, rafales), dans un canvas posé dans la scène du plateau ; le reste de l'interface reste en React et CSS.
 - **Moteur de règles pur**, sans aucune dépendance à l'UI, dans `src/engine/` :
   - `createGame(): GameState`
   - `getLegalActions(state): Action[]`

@@ -9,7 +9,9 @@ import { cloneElement, createElement, useMemo } from 'react';
 import type { CSSProperties, ReactElement } from 'react';
 import { getCell } from '../../engine';
 import type { Board, PlayerId } from '../../engine';
-import { SPRITE_FX, scatter, spritePoint, waterPatches } from './ambience';
+import { SPRITE_FX, groundAmbience, scatter, spritePoint } from './ambience';
+import type { ZoneHalo } from './ambience';
+import { AmbienceCanvas } from './AmbienceCanvas';
 import { GROUND_WAIT, STAND_DEPTH, paintedBoardDecor, paintedDecor, placePaintedSprites, spritesHiding, useWaterMasks, worldPlan } from './paintedDecor';
 import type { PlacedSprite } from './paintedDecor';
 import { ISO, ISO_TILT, SPRITES, ZONE_DECOR, borderDecor, planSize } from './scenery';
@@ -67,6 +69,9 @@ interface IsoDecorProps {
 
 /** Opacité d'un sprite peint qui cache un jeton ou la case survolée. */
 export const DECOR_FADE = 0.35;
+
+/** Pas encore de masques de l'eau : l'ambiance au sol commence sans ses reflets. */
+const NO_MASKS: Readonly<Record<string, string>> = {};
 
 
 /** Rotation qui redresse un élément du sol face à l'écran, pour chaque caméra. */
@@ -506,6 +511,22 @@ export function IsoDecor({
     // `depthOf` ne dépend que de `showWorld` et `camera`.
     [placed, paintedData, board.rows, board.cols, flipped, camera, showWorld],
   );
+  // Ambiance au sol (canvas PixiJS) : décrite une fois par décor, sens du plateau et contrôleurs des mana zones.
+  const zoneKey = [...controllers].map(([cell, owner]) => `${cell}=${owner}`).join('|');
+  const groundFx = useMemo(() => {
+    if (!paintedData) return null;
+    const halos: ZoneHalo[] = [];
+    for (let r = 0; r < board.rows; r++) {
+      for (let c = 0; c < board.cols; c++) {
+        const cell = getCell(board, { row: r, col: c });
+        if (cell.kind !== 'plain' || !cell.manaZone) continue;
+        const [dr, dc] = disp(r, c);
+        halos.push({ key: `azg${r}_${c}`, x: 48 + dc * P, y: 48 + dr * P, color: zoneColor(controllers.get(`${r},${c}`) ?? null) });
+      }
+    }
+    return groundAmbience(paintedData, B, halos, flipped);
+    // `controllers` ne compte que par `zoneKey` ; `disp` ne dépend que du plateau et de son sens.
+  }, [paintedData, board, B, P, flipped, zoneKey]);
   const faded = new Set<string>();
   for (const cell of reveal ?? []) for (const key of hiding.get(cell) ?? []) faded.add(key);
   for (const sprite of placed) {
@@ -518,68 +539,8 @@ export function IsoDecor({
   if (paintedData && animated) {
     const dot = (key: string, style: CSSProperties) => div(key, { position: 'absolute', borderRadius: '50%', opacity: 0, ...style });
 
-    // Eau : reflets qui coulent dans le canal, lents dans les étangs, scintillements ; chaque pièce est masquée sur son
-    // eau. Dans le plan du sol, tournées avec lui, sous les ponts couchés.
-    if (waterMasks) {
-      out.push(
-        div(
-          'ambWater',
-          { ...box(0, 0, B, B), transform: `translateZ(-0.75px)${flipped ? ' rotate(180deg)' : ''}` },
-          ...waterPatches(paintedData).flatMap((patch, i) => {
-            const mask = waterMasks[patch.image];
-            if (!mask) return [];
-            const canal = patch.kind === 'canal';
-            return [
-              div(
-                patch.key,
-                {
-                  ...box(patch.x, patch.y, patch.width, patch.height),
-                  transformOrigin: '0 0',
-                  // Transposée puis retournée bout pour bout, dans cet ordre, comme `buildGround` peint la pièce.
-                  transform: `${patch.transposed ? 'matrix(0, 1, 1, 0, 0, 0) ' : ''}${patch.mirrored ? `matrix(1, 0, 0, -1, 0, ${patch.height})` : ''}`.trim() || undefined,
-                  overflow: 'hidden',
-                  WebkitMaskImage: `url(${mask})`,
-                  maskImage: `url(${mask})`,
-                  WebkitMaskSize: '100% 100%',
-                  maskSize: '100% 100%',
-                },
-                div('ripples', {
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  top: -30,
-                  bottom: 0,
-                  background: `repeating-linear-gradient(180deg, transparent 0 12px, oklch(0.98 0.03 200 / ${canal ? 0.42 : 0.2}) 12px 14px, transparent 14px 30px)`,
-                  animation: `ambFlow30 ${canal ? 2.6 : 8}s linear infinite`,
-                }),
-                div('caustics', {
-                  position: 'absolute',
-                  left: -36,
-                  right: 0,
-                  top: -36,
-                  bottom: 0,
-                  backgroundImage:
-                    'radial-gradient(9px 5px at 30% 40%, oklch(0.97 0.04 195 / .45), transparent), radial-gradient(7px 4px at 75% 70%, oklch(0.97 0.04 195 / .35), transparent)',
-                  backgroundSize: '36px 36px',
-                  animation: `ambDrift36 ${canal ? 5 : 13}s linear infinite`,
-                }),
-                ...scatter(31 + i, 3).map((g, j) =>
-                  dot('glint' + j, {
-                    left: `${10 + g.u * 80}%`,
-                    top: `${8 + g.v * 84}%`,
-                    width: 3,
-                    height: 3,
-                    background: 'white',
-                    boxShadow: '0 0 4px 1px oklch(0.98 0.03 200 / .8)',
-                    animation: `ambTwinkle ${(2.2 + g.phase * 1.6).toFixed(2)}s ease-in-out ${(-g.phase * 3).toFixed(2)}s infinite`,
-                  }),
-                ),
-              ),
-            ];
-          }),
-        ),
-      );
-    }
+    // Au sol (eau, halos des mana zones, nuages, rafales) : un seul canvas PixiJS, entre le sol peint et les ponts couchés.
+    if (groundFx) out.push(createElement(AmbienceCanvas, { key: 'ambGround', scene: groundFx, masks: waterMasks ?? NO_MASKS, depth: -0.75 }));
 
     // Forge : lueur du four qui vacille, braises, fumée de la cheminée ; tas de minerai : éclats des cristaux. Posés sur
     // leur sprite, juste devant lui.
@@ -667,7 +628,7 @@ export function IsoDecor({
             6 - y0,
             dz + 1,
             0,
-            ...scatter(50 + Number(key.slice(1)), 4).map((p, i) =>
+            ...scatter(50 + Number(key.slice(1)), 2).map((p, i) =>
               dot('spark' + i, {
                 left: 6 + p.u * w - 4.5,
                 top: 6 + p.v * h - 4.5,
@@ -684,8 +645,8 @@ export function IsoDecor({
       }
     }
 
-    // Mana zones : halo au sol qui respire et particules qui montent, à la couleur de celui qui la tient (dorées si
-    // elle est neutre, violettes si elle est contestée).
+    // Mana zones : particules qui montent, à la couleur de celui qui la tient (dorées si elle est neutre, violettes si
+    // elle est contestée) ; leur halo au sol est dans le canvas.
     for (let r = 0; r < board.rows; r++) {
       for (let c = 0; c < board.cols; c++) {
         const cell = getCell(board, { row: r, col: c });
@@ -696,13 +657,6 @@ export function IsoDecor({
         const owner = controllers.get(`${r},${c}`) ?? null;
         const color = zoneColor(owner);
         out.push(
-          div(`azg${r}_${c}`, {
-            ...box(cx - 46, cy - 46, 92, 92),
-            transform: 'translateZ(-0.3px)',
-            borderRadius: '50%',
-            background: `radial-gradient(closest-side, color-mix(in oklch, ${color} 55%, transparent), transparent)`,
-            animation: 'ambPulse 3.2s ease-in-out infinite',
-          }),
           upright(
             `azm${r}_${c}`,
             cx,
@@ -713,7 +667,7 @@ export function IsoDecor({
             84,
             8,
             0,
-            ...scatter(r * 15 + c, 5).map((p, i) =>
+            ...scatter(r * 15 + c, 3).map((p, i) =>
               dot('mote' + i, {
                 left: 32 + (p.u - 0.5) * 44 - 2,
                 top: 84 - p.v * 14 - 2,
@@ -730,41 +684,6 @@ export function IsoDecor({
       }
     }
 
-    // Vent : ombres de nuages qui passent lentement et rafales (traits clairs) sur le terrain, découpées au plateau.
-    out.push(
-      div(
-        'ambSky',
-        { ...box(0, 0, B, B), transform: 'translateZ(-0.25px)', overflow: 'hidden' },
-        ...[0, 1, 2].map((i) =>
-          div('cloud' + i, {
-            position: 'absolute',
-            left: 0,
-            top: [0.15, 0.5, 0.82][i]! * B - 170,
-            width: 560,
-            height: 340,
-            borderRadius: '50%',
-            background: 'radial-gradient(closest-side, oklch(0.22 0.04 160 / .2), transparent)',
-            ['--x0' as string]: '-620px',
-            ['--x1' as string]: `${B + 40}px`,
-            ['--dy' as string]: `${[60, -40, 30][i]}px`,
-            animation: `ambCloud ${[95, 120, 80][i]}s linear ${-[10, 70, 40][i]!}s infinite`,
-          }),
-        ),
-        ...scatter(7, 6).map((p, i) =>
-          dot('gust' + i, {
-            left: 0,
-            top: 40 + p.u * (B - 80),
-            width: 150 + p.v * 80,
-            height: 2,
-            borderRadius: 1,
-            background: 'linear-gradient(90deg, transparent, oklch(0.98 0.03 120 / .55), transparent)',
-            ['--x0' as string]: `${(-200 + p.v * 300).toFixed(0)}px`,
-            ['--x1' as string]: `${(300 + p.v * 500).toFixed(0)}px`,
-            animation: `ambGust ${(7 + p.phase * 5).toFixed(1)}s ease-in-out ${(-p.phase * 10).toFixed(1)}s infinite`,
-          }),
-        ),
-      ),
-    );
   }
 
   // --- Mana zones : muret et poteaux d'angle à la couleur du contrôleur, repère au coin arrière (pas sur un plateau peint).
