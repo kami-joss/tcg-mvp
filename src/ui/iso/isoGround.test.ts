@@ -106,11 +106,11 @@ describe('décor peint du 15 × 15 (rendu seulement)', () => {
     expect(2 * marge + 15 * pas - (pas - cell)).toBe(planSize(15));
   });
 
-  it('décor complet : 6 cases de décor tout autour (plan de 1968 px), 251 sprites ; le plateau seul : 26 sprites, 6 pièces d’eau', () => {
+  it('décor complet : 6 cases de décor tout autour (plan de 1968 px), 239 sprites ; le plateau seul : 26 sprites, 6 pièces d’eau', () => {
     expect(full.plan.bordure).toBe(6);
     expect(worldPlan(full, 15)).toBe(1968);
     // Le carré de pierres (9, 9)–(10, 10) porte un seul amas de 2 × 2, au lieu de quatre rochers.
-    expect(full.sprites).toHaveLength(251);
+    expect(full.sprites).toHaveLength(239);
     expect(board.plan.bordure).toBe(0);
     expect(worldPlan(board, 15)).toBe(planSize(15));
     expect(board.sprites).toHaveLength(26);
@@ -135,7 +135,7 @@ describe('décor peint du 15 × 15 (rendu seulement)', () => {
 
   it('pièces peintes (canal, étangs) du plateau sur des cases X d’eau, ou sous un pont ; celles du décor extérieur, hors du plateau', () => {
     for (const sprite of board.sprites) expect((sprite.empreinte ?? (sprite.case ? [sprite.case] : sprite.entre ?? [])).every(inBoard)).toBe(true);
-    const bridges = board.sprites.filter((s) => s.id.startsWith('pont') && s.case).map((s) => `${s.case![0]},${s.case![1]}`);
+    const bridges = board.sprites.filter((s) => s.dessus && s.case).map((s) => `${s.case![0]},${s.case![1]}`);
     expect(bridges).toEqual(['9,1', '13,5']);
     for (const { case: [row, col], sens } of board.decals) {
       const second = sens === 'lignes' ? { row: row + 1, col } : { row, col: col + 1 };
@@ -161,7 +161,7 @@ describe('sprites peints du 15 × 15 (rendu seulement)', () => {
   it('chaque sprite a ses mesures dans SPRITES ; sur le plateau, montagnes, rochers, forge, minerai et billots sur des cases X', () => {
     for (const sprite of full.sprites) expect(SPRITES[sprite.id], sprite.id).toBeDefined();
     for (const sprite of board.sprites) {
-      if (sprite.id.startsWith('pont') || sprite.entre) continue;
+      if (sprite.dessus || sprite.entre) continue;
       for (const [row, col] of sprite.empreinte ?? [sprite.case!]) {
         expect(getCell(BATTLEFIELD_15, { row, col }).kind, `${sprite.id} (${row}, ${col})`).toBe('blocked');
       }
@@ -172,19 +172,24 @@ describe('sprites peints du 15 × 15 (rendu seulement)', () => {
     const placed = placePaintedSprites(board, 15, 15, false);
     expect(placed[0]).toMatchObject({ key: 'p0', id: 'hd_cristal_amas', x: center(9), y: center(0), mirror: false, flat: false, inBoard: true });
     expect(placed.find((s) => s.id === 'cadre_mine_1')).toMatchObject({ x: (center(8) + center(9)) / 2, y: center(1) });
-    expect(placed.find((s) => s.id === 'pont_c')).toMatchObject({ x: center(5), y: center(13), mirror: false });
+    expect(placed.find((s) => s.topDown === 'colonnes')).toMatchObject({ id: 'hd_pont', x: center(5), y: center(13), mirror: false });
   });
 
-  it('ancrés sur leur `case` : la forge sur sa case avant, un bâtiment sur sa case centrale, un champ au coin de ses 4 cases', () => {
+  it('ancrés sur leur `case` : la forge au centre de sa dalle 2 × 2, un bâtiment sur sa case centrale, un champ au coin de ses 4 cases', () => {
     const placed = placePaintedSprites(full, 15, 15, false);
-    expect(placed.find((s) => s.id === 'forge_rochers')).toMatchObject({ x: center(5), y: center(5) });
-    expect(placed.find((s) => s.id === 'ecurie')).toMatchObject({ x: center(-3), y: center(5), inBoard: false });
+    expect(placed.find((s) => s.id === 'hd_forge')).toMatchObject({ x: (center(4) + center(5)) / 2, y: (center(4) + center(5)) / 2, inBoard: true });
+    expect(placed.find((s) => s.id === 'hd_ecurie')).toMatchObject({ x: center(-3), y: center(5), inBoard: false });
+    expect(placed.find((s) => s.id === 'hd_parcelle_ble')).toMatchObject({ x: center(18.5), y: center(10.5), inBoard: false });
     expect(placed.find((s) => s.id === 'potager')).toMatchObject({ x: center(16.5), y: center(8.5), inBoard: false });
   });
 
   it('échelle : 0,5 (images en densité 2) ou 0,398 (sprites HD, losange de 256 px), multipliée par `echelle` du décor', () => {
     const placed = placePaintedSprites(full, 15, 15, false);
-    for (const [i, sprite] of full.sprites.entries()) expect(placed[i]!.scale, sprite.id).toBeCloseTo(spriteScale(sprite.id) * (sprite.echelle ?? 1));
+    for (const [i, sprite] of full.sprites.entries()) {
+      // Vu de dessus (le pont) : l'image ramenée à une case du plan.
+      const expected = sprite.dessus ? full.plan.pas / SPRITES[sprite.id]![0] : spriteScale(sprite.id) * (sprite.echelle ?? 1);
+      expect(placed[i]!.scale, sprite.id).toBeCloseTo(expected);
+    }
     expect(full.sprites.some((s) => s.echelle !== undefined && s.echelle !== 1)).toBe(true);
     // Une case du plan (72 px de pas) fait 72 × √2 px de large à l'écran : le losange de 256 px des sprites HD s'y ramène.
     expect(HD_SPRITE_SCALE * 256).toBeCloseTo(72 * Math.SQRT2);
@@ -220,9 +225,13 @@ describe('sprites peints du 15 × 15 (rendu seulement)', () => {
     }
   });
 
-  it('les ponts sont couchés dans le sol (on marche dessus) ; les autres sprites, debout, ne passent jamais sous le sol', () => {
+  it('les ponts sont vus de dessus, à plat dans le sol (on marche dessus) ; les autres sprites, debout, ne passent jamais sous le sol', () => {
     const placed = placePaintedSprites(full, 15, 15, false);
-    expect(placed.filter((s) => s.flat).map((s) => s.id)).toEqual(['pont_r', 'pont_c']);
+    // Leurs longerons franchissent l'eau : le long des lignes en (9, 1), des colonnes en (13, 5).
+    expect(placed.filter((s) => s.flat).map((s) => [s.id, s.topDown, s.x, s.y])).toEqual([
+      ['hd_pont', 'lignes', center(1), center(9)],
+      ['hd_pont', 'colonnes', center(5), center(13)],
+    ]);
     for (const { id, flat, dz, scale } of placed) {
       if (flat) continue;
       const [, h, , ay] = SPRITES[id]!;
@@ -260,6 +269,7 @@ describe('décor qui s’efface devant un jeton', () => {
     scale: HD_SPRITE_SCALE,
     mirror: false,
     flat,
+    topDown: null,
     dz: 24,
     inBoard: true,
   });

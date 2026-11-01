@@ -57,8 +57,13 @@ describe('ambiance du décor peint : calculs', () => {
       const [w, h] = SPRITES[id]!;
       for (const [x, y] of [fx.fire, fx.smoke].filter((p) => p !== undefined)) expect(x >= 0 && x <= w && y >= 0 && y <= h, id).toBe(true);
     }
-    expect(spritePoint('forge_rochers', SPRITE_FX.forge_rochers!.fire!, 0.5, false)).toEqual([-14.5, -12]);
-    expect(spritePoint('forge_rochers', SPRITE_FX.forge_rochers!.fire!, 0.5, true)).toEqual([14.5, -12]);
+    expect(spritePoint('hd_forge', SPRITE_FX.hd_forge!.fire!, 0.5, false)).toEqual([-41.5, -35.5]);
+    expect(spritePoint('hd_forge', SPRITE_FX.hd_forge!.fire!, 0.5, true)).toEqual([41.5, -35.5]);
+    // Le moyeu des ailes du moulin : sur le bout d'axe, dans l'image de la tour.
+    const [w, h] = SPRITES.hd_moulin!;
+    const [x, y] = SPRITE_FX.hd_moulin!.sails!.hub;
+    expect(x >= 0 && x <= w && y >= 0 && y <= h).toBe(true);
+    expect(SPRITES[SPRITE_FX.hd_moulin!.sails!.image]).toBeDefined();
   });
 
   it('particules tirées une fois : toujours les mêmes, dans [0, 1[', () => {

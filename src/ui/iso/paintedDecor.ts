@@ -20,12 +20,14 @@ export const GROUND_IMAGES: Readonly<Record<string, string>> = Object.fromEntrie
 
 /**
  * Sprite peint : sur une case, ou entre deux cases (cadres de mine) ; `miroir` le retourne autour de son ancre ;
- * `echelle` multiplie l'échelle 0,5 (décor extérieur).
+ * `echelle` multiplie l'échelle 0,5 (décor extérieur). `dessus` : image vue de dessus, couchée sur sa case (le pont),
+ * sa hauteur le long des lignes ou, tournée d'un quart de tour, le long des colonnes.
  */
 export interface PaintedSprite extends GroundSprite {
   readonly entre?: readonly (readonly [number, number])[];
   readonly miroir?: boolean;
   readonly echelle?: number;
+  readonly dessus?: 'lignes' | 'colonnes';
 }
 
 export interface PaintedDecor extends GroundDecor {
@@ -122,6 +124,8 @@ export interface PlacedSprite {
   readonly scale: number;
   readonly mirror: boolean;
   readonly flat: boolean;
+  /** Image vue de dessus, posée dans le plan du sol (`scale` la ramène à une case), et son sens ; sinon `null`. */
+  readonly topDown: 'lignes' | 'colonnes' | null;
   /** Avancée vers la caméra d'un sprite debout, pour que le sol (dans le plan des cases) ne le rogne pas. */
   readonly dz: number;
   /** Posé sur le plateau (sinon dans le décor extérieur). */
@@ -153,8 +157,9 @@ export function placePaintedSprites(decor: PaintedDecor, rows: number, cols: num
     } else {
       return [];
     }
-    const flat = FLAT_SPRITES.has(sprite.id);
-    const scale = spriteScale(sprite.id) * (sprite.echelle ?? 1);
+    const topDown = sprite.dessus ?? null;
+    const flat = topDown !== null || FLAT_SPRITES.has(sprite.id);
+    const scale = topDown ? pas / SPRITES[sprite.id]![0] : spriteScale(sprite.id) * (sprite.echelle ?? 1);
     const cells = sprite.entre ?? sprite.empreinte ?? [sprite.case!];
     return [
       {
@@ -165,6 +170,7 @@ export function placePaintedSprites(decor: PaintedDecor, rows: number, cols: num
         scale,
         mirror: sprite.miroir ?? false,
         flat,
+        topDown,
         dz: flat ? 0 : paintedStandDepth(sprite.id, scale),
         inBoard: cells.every(inside),
       },

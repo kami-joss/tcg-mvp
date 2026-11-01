@@ -97,6 +97,8 @@ export class BoardRenderer {
   private readonly plane: PixiContainer;
   private readonly groundLayer: PixiContainer;
   private readonly fxLayer: PixiContainer;
+  /** Images vues de dessus (le pont), dans le plan, au-dessus de l'eau et de ses reflets. */
+  private readonly topFlats: PixiContainer;
   private readonly flats: PixiContainer;
   private readonly planeCells: PixiContainer;
   private readonly textsUnder: PixiContainer;
@@ -141,7 +143,8 @@ export class BoardRenderer {
     this.plane = new Container();
     this.groundLayer = new Container();
     this.fxLayer = new Container();
-    this.plane.addChild(this.groundLayer, this.fxLayer);
+    this.topFlats = new Container();
+    this.plane.addChild(this.groundLayer, this.fxLayer, this.topFlats);
     this.flats = new Container();
     this.planeCells = new Container();
     this.textsUnder = new Container();
@@ -431,7 +434,7 @@ export class BoardRenderer {
     // Images d'abord (la scène se construit ensuite d'un bloc) : le sol et chaque sprite utilisé.
     const groundUrl = showWorld ? input.world : input.ground;
     const groundImage = groundUrl ? await loadImage(groundUrl).catch(() => null) : null;
-    const ids = [...new Set(placed.map((sprite) => sprite.id))];
+    const ids = [...new Set(placed.flatMap((sprite) => [sprite.id, ...(SPRITE_FX[sprite.id]?.sails ? [SPRITE_FX[sprite.id]!.sails!.image] : [])]))];
     const spriteTextures = new Map<string, Texture>();
     await Promise.all(
       ids.map(async (id) => {
@@ -476,12 +479,21 @@ export class BoardRenderer {
       }
     }
 
-    // Sprites : debout (triés) ou couchés (les ponts, sous tout ce qui est debout).
+    // Sprites : debout (triés), couchés (les anciens ponts, sous tout ce qui est debout) ou vus de dessus (dans le plan,
+    // centrés sur leur case, tournés d'un quart de tour le long des colonnes et d'un demi-tour avec le plateau).
     const uprights: Upright[] = [];
     for (const sprite of placed) {
       const texture = spriteTextures.get(sprite.id);
       const size = SPRITES[sprite.id];
       if (!texture || !size) continue;
+      if (sprite.topDown) {
+        const node = new Sprite({ texture, anchor: 0.5, x: sprite.x, y: sprite.y });
+        node.scale.set(sprite.scale);
+        node.rotation = (sprite.topDown === 'colonnes' ? Math.PI / 2 : 0) + (flipped ? Math.PI : 0);
+        this.topFlats.addChild(node);
+        nodes.push(node);
+        continue;
+      }
       const [w, h, ax, ay] = size;
       const node = new Sprite({ texture, anchor: { x: ax / w, y: ay / h } });
       (sprite.flat ? this.flats : this.standing).addChild(node);
@@ -489,8 +501,29 @@ export class BoardRenderer {
       uprights.push({ node, key: sprite.key, x: sprite.x, y: sprite.y, dz: depthOf(sprite), scale: sprite.scale, mirror: sprite.mirror, flat: sprite.flat });
     }
 
-    // Ambiance debout, posée devant son sprite (même ancre, même clé : elle s'efface avec lui).
+    // Ailes des moulins, devant leur tour (même ancre, même clé : elles s'effacent avec elle) : l'image vue de face est
+    // posée dans le plan tourné vers le bas à gauche, (X, Y) → (X cos 30°, X sin 30° + Y), moyeu sur le bout d'axe ; elles
+    // tournent seulement si les animations sont permises.
     const fx: FxUpdate[] = [];
+    for (const sprite of placed) {
+      const sails = SPRITE_FX[sprite.id]?.sails;
+      const texture = sails && spriteTextures.get(sails.image);
+      const size = SPRITES[sprite.id];
+      if (!sails || !texture || !size) continue;
+      const [, , ax, ay] = size;
+      const group = new Container();
+      const plane = new Container();
+      plane.setFromMatrix(new pixi.Matrix(Math.cos(Math.PI / 6), 0.5, 0, 1, sails.hub[0] - ax, sails.hub[1] - ay));
+      const wheel = new Sprite({ texture, anchor: 0.5 });
+      plane.addChild(wheel);
+      group.addChild(plane);
+      this.standing.addChild(group);
+      nodes.push(group);
+      uprights.push({ node: group, key: sprite.key, x: sprite.x, y: sprite.y, dz: depthOf(sprite) + 1, scale: sprite.scale, mirror: sprite.mirror, flat: false });
+      if (animated) fx.push((t) => (wheel.rotation = (-2 * Math.PI * t) / sails.period));
+    }
+
+    // Ambiance debout, posée devant son sprite (même ancre, même clé : elle s'efface avec lui).
     if (animated) {
       const textures = fxTextures(pixi);
       owned.push(...Object.values(textures));

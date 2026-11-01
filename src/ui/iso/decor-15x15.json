@@ -1569,7 +1569,7 @@
    "forceBande": 0.45
   },
   {
-   "sol": "terre_scierie",
+   "sol": "sciure",
    "cases": [
     [
      9,
@@ -1588,68 +1588,8 @@
      3
     ],
     [
-     10,
-     0
-    ],
-    [
-     10,
-     1
-    ],
-    [
-     10,
-     2
-    ],
-    [
-     10,
-     3
-    ],
-    [
-     10,
-     4
-    ],
-    [
-     11,
-     0
-    ],
-    [
-     11,
-     1
-    ],
-    [
-     11,
-     2
-    ],
-    [
-     11,
-     3
-    ],
-    [
-     11,
-     4
-    ],
-    [
      11,
      5
-    ],
-    [
-     12,
-     0
-    ],
-    [
-     12,
-     1
-    ],
-    [
-     12,
-     2
-    ],
-    [
-     12,
-     3
-    ],
-    [
-     12,
-     4
     ],
     [
      12,
@@ -1657,47 +1597,7 @@
     ],
     [
      13,
-     0
-    ],
-    [
-     13,
-     1
-    ],
-    [
-     13,
-     2
-    ],
-    [
-     13,
-     3
-    ],
-    [
-     13,
-     4
-    ],
-    [
-     13,
      5
-    ],
-    [
-     14,
-     0
-    ],
-    [
-     14,
-     1
-    ],
-    [
-     14,
-     2
-    ],
-    [
-     14,
-     3
-    ],
-    [
-     14,
-     4
     ],
     [
      14,
@@ -1945,14 +1845,157 @@
     ]
    ],
    "tuiles": [
+    "sciure_1",
+    "sciure_2",
+    "sciure_3",
+    "sciure_4",
+    "sciure_5",
+    "sciure_6",
+    "sciure_7",
+    "sciure_8",
+    "sciure_9"
+   ],
+   "poids": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ],
+   "plaques": 0.2,
+   "bande": [
+    80,
+    60,
+    35
+   ],
+   "forceBande": 0.3,
+   "motif": [
+    "sciure_1",
+    "sciure_2",
+    "sciure_3",
+    "sciure_4",
+    "sciure_5",
+    "sciure_6",
+    "sciure_7",
+    "sciure_8",
+    "sciure_9"
+   ]
+  },
+  {
+   "sol": "terre_scierie",
+   "cases": [
+    [
+     10,
+     0
+    ],
+    [
+     10,
+     1
+    ],
+    [
+     10,
+     2
+    ],
+    [
+     10,
+     3
+    ],
+    [
+     10,
+     4
+    ],
+    [
+     11,
+     0
+    ],
+    [
+     11,
+     1
+    ],
+    [
+     11,
+     2
+    ],
+    [
+     11,
+     3
+    ],
+    [
+     11,
+     4
+    ],
+    [
+     12,
+     0
+    ],
+    [
+     12,
+     1
+    ],
+    [
+     12,
+     2
+    ],
+    [
+     12,
+     3
+    ],
+    [
+     12,
+     4
+    ],
+    [
+     13,
+     0
+    ],
+    [
+     13,
+     1
+    ],
+    [
+     13,
+     2
+    ],
+    [
+     13,
+     3
+    ],
+    [
+     13,
+     4
+    ],
+    [
+     14,
+     0
+    ],
+    [
+     14,
+     1
+    ],
+    [
+     14,
+     2
+    ],
+    [
+     14,
+     3
+    ],
+    [
+     14,
+     4
+    ]
+   ],
+   "tuiles": [
     "terre_unie",
-    "terre_copeaux",
     "terre_herbe"
    ],
    "poids": [
-    45,
-    30,
-    25
+    60,
+    40
    ],
    "plaques": 0.2,
    "bande": [
@@ -2207,6 +2250,67 @@
    ],
    "forceBande": 0.15,
    "retrait": 12
+  },
+  {
+   "sol": "chaume",
+   "cases": [
+    [
+     8,
+     18
+    ],
+    [
+     8,
+     19
+    ],
+    [
+     9,
+     18
+    ],
+    [
+     9,
+     19
+    ]
+   ],
+   "tuiles": [
+    "chaume_1",
+    "chaume_2",
+    "chaume_3",
+    "chaume_4",
+    "chaume_5",
+    "chaume_6",
+    "chaume_7",
+    "chaume_8",
+    "chaume_9"
+   ],
+   "poids": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ],
+   "motif": [
+    "chaume_1",
+    "chaume_2",
+    "chaume_3",
+    "chaume_4",
+    "chaume_5",
+    "chaume_6",
+    "chaume_7",
+    "chaume_8",
+    "chaume_9"
+   ],
+   "bande": [
+    70,
+    55,
+    35
+   ],
+   "forceBande": 0.2,
+   "retrait": 4
   }
  ],
  "socles": [
@@ -2742,32 +2846,6 @@
   {
    "cases": [
     [
-     15,
-     17
-    ],
-    [
-     15,
-     18
-    ],
-    [
-     16,
-     17
-    ],
-    [
-     16,
-     18
-    ]
-   ],
-   "teinte": [
-    0.72,
-    0.6,
-    0.48
-   ],
-   "retrait": 5
-  },
-  {
-   "cases": [
-    [
      7,
      -5
     ],
@@ -3076,12 +3154,17 @@
    "miroir": false
   },
   {
-   "id": "forge_rochers",
-   "case": [
-    5,
-    5
+   "id": "hd_forge",
+   "entre": [
+    [
+     4,
+     4
+    ],
+    [
+     5,
+     5
+    ]
    ],
-   "miroir": false,
    "empreinte": [
     [
      4,
@@ -3100,14 +3183,16 @@
      5
     ]
    ],
-   "ombre": "haute"
+   "ombre": "haute",
+   "miroir": false
   },
   {
-   "id": "pont_r",
+   "id": "hd_pont",
    "case": [
     9,
     1
    ],
+   "dessus": "lignes",
    "miroir": false
   },
   {
@@ -3289,11 +3374,12 @@
    "echelle": 0.8
   },
   {
-   "id": "pont_c",
+   "id": "hd_pont",
    "case": [
     13,
     5
    ],
+   "dessus": "colonnes",
    "miroir": false
   },
   {
@@ -3372,36 +3458,6 @@
    "miroir": false,
    "ombre": "arbre",
    "echelle": 1.04
-  },
-  {
-   "id": "hd_sapin_haut",
-   "case": [
-    -1,
-    11
-   ],
-   "miroir": false,
-   "ombre": "arbre",
-   "echelle": 0.95
-  },
-  {
-   "id": "hd_sapin_variante",
-   "case": [
-    -1,
-    12
-   ],
-   "miroir": false,
-   "ombre": "arbre",
-   "echelle": 1.09
-  },
-  {
-   "id": "hd_sapin_large",
-   "case": [
-    -1,
-    13
-   ],
-   "miroir": false,
-   "ombre": "arbre",
-   "echelle": 1.0
   },
   {
    "id": "hd_cristal_gros",
@@ -3884,36 +3940,6 @@
    "echelle": 0.93
   },
   {
-   "id": "hd_sapin_large",
-   "case": [
-    -3,
-    11
-   ],
-   "miroir": false,
-   "ombre": "arbre",
-   "echelle": 1.07
-  },
-  {
-   "id": "hd_cristal_amas_b",
-   "case": [
-    -3,
-    12
-   ],
-   "miroir": false,
-   "ombre": "basse",
-   "echelle": 0.98
-  },
-  {
-   "id": "hd_sapin_haut",
-   "case": [
-    -3,
-    13
-   ],
-   "miroir": false,
-   "ombre": "arbre",
-   "echelle": 1.12
-  },
-  {
    "id": "hd_sapin_sombre",
    "case": [
     -3,
@@ -3982,26 +4008,6 @@
    "miroir": false,
    "ombre": "arbre",
    "echelle": 0.99
-  },
-  {
-   "id": "hd_cristal_large",
-   "case": [
-    -2,
-    12
-   ],
-   "miroir": false,
-   "ombre": "basse",
-   "echelle": 0.9
-  },
-  {
-   "id": "hd_sapin_large",
-   "case": [
-    -2,
-    13
-   ],
-   "miroir": false,
-   "ombre": "arbre",
-   "echelle": 1.04
   },
   {
    "id": "hd_sapin_sombre",
@@ -4354,7 +4360,7 @@
    "echelle": 0.56
   },
   {
-   "id": "ecurie",
+   "id": "hd_ecurie",
    "case": [
     5,
     -3
@@ -4400,7 +4406,7 @@
    ]
   },
   {
-   "id": "ferme",
+   "id": "hd_ferme",
    "case": [
     13,
     18
@@ -4446,7 +4452,7 @@
    ]
   },
   {
-   "id": "scierie_roue",
+   "id": "hd_scierie",
    "case": [
     15,
     -3
@@ -4492,7 +4498,7 @@
    ]
   },
   {
-   "id": "entree_mine",
+   "id": "hd_entree_mine",
    "case": [
     -2,
     16
@@ -4608,7 +4614,7 @@
    "miroir": false
   },
   {
-   "id": "champ_ble",
+   "id": "hd_parcelle_ble",
    "case": [
     10.5,
     18.5
@@ -4616,66 +4622,58 @@
    "miroir": false
   },
   {
-   "id": "champ_pousses",
-   "case": [
-    15.5,
-    17.5
-   ],
-   "miroir": false
-  },
-  {
-   "id": "foin_ronds_2",
+   "id": "hd_botte_doree",
    "case": [
     7,
     -5
    ],
-   "miroir": false,
-   "ombre": "basse"
+   "ombre": "basse",
+   "miroir": false
   },
   {
-   "id": "foin_pyramide",
+   "id": "hd_botte_doree",
    "case": [
     7,
     -4
    ],
-   "miroir": false,
-   "ombre": "basse"
+   "ombre": "basse",
+   "miroir": false
   },
   {
-   "id": "foin_tas_fourche",
+   "id": "hd_botte_doree",
    "case": [
     7,
     -2
    ],
-   "miroir": false,
-   "ombre": "basse"
+   "ombre": "basse",
+   "miroir": false
   },
   {
-   "id": "foin_rond",
+   "id": "hd_botte_doree",
    "case": [
     8,
     -5
    ],
-   "miroir": false,
-   "ombre": "basse"
+   "ombre": "basse",
+   "miroir": false
   },
   {
-   "id": "foin_bottes",
+   "id": "hd_botte_doree",
    "case": [
     8,
     -4
    ],
-   "miroir": false,
-   "ombre": "basse"
+   "ombre": "basse",
+   "miroir": false
   },
   {
-   "id": "foin_charrette",
+   "id": "hd_botte_doree",
    "case": [
     8,
     -3
    ],
-   "miroir": false,
-   "ombre": "basse"
+   "ombre": "basse",
+   "miroir": false
   },
   {
    "id": "rocher_rond",
@@ -4813,16 +4811,6 @@
    "echelle": 0.93
   },
   {
-   "id": "hd_arbre_rond",
-   "case": [
-    18.72,
-    18.28
-   ],
-   "miroir": false,
-   "ombre": "arbre",
-   "echelle": 0.96
-  },
-  {
    "id": "hd_sapin_vert",
    "case": [
     -3.97,
@@ -4903,16 +4891,6 @@
    "echelle": 0.91
   },
   {
-   "id": "hd_petit_arbre",
-   "case": [
-    16.73,
-    6.25
-   ],
-   "miroir": false,
-   "ombre": "arbre",
-   "echelle": 0.71
-  },
-  {
    "id": "hd_grand_arbre",
    "case": [
     -3.02,
@@ -4953,16 +4931,6 @@
    "echelle": 1.02
   },
   {
-   "id": "hd_petit_arbre",
-   "case": [
-    18.23,
-    6.23
-   ],
-   "miroir": false,
-   "ombre": "arbre",
-   "echelle": 0.64
-  },
-  {
    "id": "hd_arbre_dome",
    "case": [
     -2.4,
@@ -4993,16 +4961,6 @@
    "echelle": 0.77
   },
   {
-   "id": "hd_arbre_dome",
-   "case": [
-    18.88,
-    6.91
-   ],
-   "miroir": false,
-   "ombre": "arbre",
-   "echelle": 1.15
-  },
-  {
    "id": "hd_arbre_rond",
    "case": [
     -3.94,
@@ -5021,26 +4979,6 @@
    "miroir": false,
    "ombre": "arbre",
    "echelle": 0.67
-  },
-  {
-   "id": "hd_petit_arbre",
-   "case": [
-    17.31,
-    5.57
-   ],
-   "miroir": false,
-   "ombre": "arbre",
-   "echelle": 0.71
-  },
-  {
-   "id": "hd_petit_arbre",
-   "case": [
-    17.4,
-    6.99
-   ],
-   "miroir": false,
-   "ombre": "arbre",
-   "echelle": 0.61
   },
   {
    "id": "hd_sapin_vert",
@@ -5121,16 +5059,6 @@
    "miroir": false,
    "ombre": "arbre",
    "echelle": 0.87
-  },
-  {
-   "id": "hd_petit_arbre",
-   "case": [
-    18.87,
-    5.53
-   ],
-   "miroir": false,
-   "ombre": "arbre",
-   "echelle": 0.88
   },
   {
    "id": "hd_petit_arbre",
@@ -5331,16 +5259,6 @@
    "miroir": false,
    "ombre": "arbre",
    "echelle": 0.73
-  },
-  {
-   "id": "hd_petit_arbre",
-   "case": [
-    16.23,
-    5.56
-   ],
-   "miroir": false,
-   "ombre": "arbre",
-   "echelle": 0.86
   },
   {
    "id": "hd_grand_arbre",
@@ -5605,16 +5523,6 @@
   {
    "id": "hd_petit_arbre",
    "case": [
-    18.51,
-    19.07
-   ],
-   "miroir": false,
-   "ombre": "arbre",
-   "echelle": 0.8
-  },
-  {
-   "id": "hd_petit_arbre",
-   "case": [
     15.54,
     12.72
    ],
@@ -5721,6 +5629,126 @@
    "miroir": false,
    "ombre": "arbre",
    "echelle": 0.79
+  },
+  {
+   "id": "hd_moulin",
+   "entre": [
+    [
+     17,
+     18
+    ],
+    [
+     18,
+     19
+    ]
+   ],
+   "empreinte": [
+    [
+     17,
+     18
+    ],
+    [
+     17,
+     19
+    ],
+    [
+     18,
+     18
+    ],
+    [
+     18,
+     19
+    ]
+   ],
+   "ombre": "moyenne",
+   "miroir": false
+  },
+  {
+   "id": "hd_maison_mineur",
+   "case": [
+    -2,
+    12
+   ],
+   "empreinte": [
+    [
+     -3,
+     11
+    ],
+    [
+     -3,
+     12
+    ],
+    [
+     -3,
+     13
+    ],
+    [
+     -2,
+     11
+    ],
+    [
+     -2,
+     12
+    ],
+    [
+     -2,
+     13
+    ],
+    [
+     -1,
+     11
+    ],
+    [
+     -1,
+     12
+    ],
+    [
+     -1,
+     13
+    ]
+   ],
+   "miroir": false
+  },
+  {
+   "id": "hd_abreuvoir",
+   "case": [
+    7,
+    -3
+   ],
+   "ombre": "basse",
+   "miroir": false
+  },
+  {
+   "id": "hd_roue",
+   "entre": [
+    [
+     17,
+     5
+    ],
+    [
+     18,
+     5
+    ]
+   ],
+   "miroir": false
+  },
+  {
+   "id": "hd_botte_brune",
+   "case": [
+    8.3,
+    18.7
+   ],
+   "ombre": "basse",
+   "miroir": false
+  },
+  {
+   "id": "hd_botte_brune",
+   "case": [
+    9.25,
+    18.25
+   ],
+   "ombre": "basse",
+   "miroir": false
   }
  ]
 }

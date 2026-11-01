@@ -43,11 +43,26 @@ export function zoneHalos(board: Board, controllers: ZoneControllers, flipped: b
 type Point = readonly [x: number, y: number];
 
 /**
- * Points remarquables des sprites peints, en px de leur image, relevés sur les images : la gueule du four et le haut de
- * la cheminée de la forge, le rectangle des cristaux violets des tas de minerai et des cristaux HD.
+ * Ailes d'un moulin : leur image (vue de face, moyeu au centre), le bout d'axe de la tour où se pose le moyeu (px de
+ * l'image de la tour) et la durée d'un tour (s). Le code les pose dans le plan tourné vers le bas à gauche et les fait
+ * tourner si les animations sont permises.
  */
-export const SPRITE_FX: Readonly<Record<string, { readonly fire?: Point; readonly smoke?: Point; readonly crystals?: readonly [number, number, number, number] }>> = {
-  forge_rochers: { fire: [205, 303], smoke: [213, 188] },
+export interface Sails {
+  readonly image: string;
+  readonly hub: Point;
+  readonly period: number;
+}
+
+/**
+ * Points remarquables des sprites peints, en px de leur image, relevés sur les images : la gueule du four et le haut de
+ * la cheminée de la forge, le rectangle des cristaux violets des tas de minerai et des cristaux HD, le bout d'axe du
+ * moulin.
+ */
+export const SPRITE_FX: Readonly<
+  Record<string, { readonly fire?: Point; readonly smoke?: Point; readonly crystals?: readonly [number, number, number, number]; readonly sails?: Sails }>
+> = {
+  hd_forge: { fire: [166, 292], smoke: [208, 18] },
+  hd_moulin: { sails: { image: 'hd_ailes_moulin', hub: [31, 329], period: 9 } },
   tas_minerai: { crystals: [19, 11, 83, 81] },
   // Cristaux HD de la forêt violette : le corps du cristal, sans la base ni la pointe.
   hd_cristal_gros: { crystals: [5, 24, 90, 115] },
