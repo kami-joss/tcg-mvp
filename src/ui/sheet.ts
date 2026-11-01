@@ -19,7 +19,9 @@ import {
   getCell,
   getMonsterCard,
   getNextTurnMobility,
+  getOnMoveBonus,
   getRange,
+  pendingOnMove,
   getUnitsAt,
   getViewZoneStatus,
   getZoneMana,
@@ -462,13 +464,15 @@ function monsterSheet(view: PlayerView, monster: MonsterUnit): SheetData {
   const atk = getAtk(view, monster);
   const range = getRange(monster);
   const base = baseMobility(view, monster);
-  // Maximum de ce tour : moins les slow, plus la Charge ; rien s'il ne peut pas bouger.
-  const max = Math.max(monster.mobilityLeft, canMove(monster) ? base - monster.froze + monster.boost : monster.boost);
+  // Maximum de ce tour : moins les slow, plus la Charge ; rien s'il ne peut pas bouger. Le +1 d'un Terrain de chasse
+  // qu'il aurait en partant d'ici compte déjà.
+  const pending = myTurn ? getOnMoveBonus(view, monster) : 0;
+  const max = Math.max(monster.mobilityLeft, canMove(monster) ? base - monster.froze + monster.boost : monster.boost) + pending;
   const stats = [
     stat('broadsword', 'ATK', atk, atk - card.atk),
     stat('hearts', 'PV', `${monster.hp}/${monster.maxHp}`, monster.maxHp - card.hp, monster.hp < monster.maxHp),
     myTurn
-      ? stat('walking-boot', 'Pas rest.', `${monster.mobilityLeft}/${max}`, max - card.mobility)
+      ? stat('walking-boot', 'Pas rest.', `${monster.mobilityLeft + pending}/${max}`, max - card.mobility)
       : stat('walking-boot', 'Mobilité', base, base - card.mobility),
     stat('high-shot', 'Portée', range, range - card.range),
   ];
@@ -538,6 +542,12 @@ function monsterChips(view: PlayerView, monster: MonsterUnit, terrain: TerrainUn
   const chips: SheetChip[] = [...statusChips(view, monster)];
   // Bonus du tour, un par source : son nom (« Dopage », « Charge »), le bonus et la carte au survol.
   for (const bonus of monster.turnBonuses) chips.push(turnBonusChip(bonus));
+  // Dans la zone d'un Terrain de chasse allié, son +1 l'attend (à son tour, s'il n'est pas encore parti d'une telle zone).
+  const hunt = monster.owner === view.viewer && view.activePlayer === view.viewer ? pendingOnMove(view, monster) : null;
+  if (hunt) {
+    const detail = `+${hunt.onMove.mobility} mobilité en commençant un déplacement ici, une fois par tour`;
+    chips.push(effect('sprint', getCard(hunt.unit.cardId).name, detail, 'boost'));
+  }
   const aura = { atk: auraAtk(view, monster), hp: auraHp(view, monster), mobility: auraMobility(view, monster) };
   if (aura.atk > 0 || aura.hp > 0 || aura.mobility > 0) {
     const sources = auraSources(view, monster).map((other) => getCard(other.cardId).name);

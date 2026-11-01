@@ -64,6 +64,7 @@ function eventUnits(event: GameEvent): UnitId[] {
     case 'trapTriggered':
     case 'teleport':
     case 'rewind':
+    case 'transform':
     case 'passage':
     case 'burningCell':
     case 'effect':

@@ -134,6 +134,7 @@ export type CardId =
   | 'terrain-drainant'
   | 'terrain-piege'
   | 'zone-invocation'
+  | 'terrain-de-chasse'
   // Deck Bodybuilder
   | 'jeune-gomuscu'
   | 'jean-bon'
@@ -151,13 +152,22 @@ export type CardId =
   | 'dragonnet-temps'
   | 'maitre-des-heures'
   | 'piege-temporel'
-  | 'fissure-temporelle';
+  | 'fissure-temporelle'
+  // Deck Vampire (la chauve-souris est une forme d'Emma, hors grimoire)
+  | 'delta'
+  | 'emma'
+  | 'emma-chauve-souris'
+  | 'vladimir'
+  | 'zoldik'
+  | 'appel-du-sang'
+  | 'sacrifice-sanguinaire';
 
 /**
  * Famille de cartes (SPEC.md §5.1) : les bodybuilders, les archers (sauf le Trébuchet), les dragons élémentaires (Jeune
- * dragon compris), les monstres piège (les 4 monstres du deck Pièges), les sorciers du feu, les explorateurs du temps.
+ * dragon compris), les monstres piège (les 4 monstres du deck Pièges), les sorciers du feu, les explorateurs du temps,
+ * les vampires.
  */
-export type Archetype = 'bodybuilder' | 'archer' | 'dragon' | 'piege' | 'sorcier' | 'temps';
+export type Archetype = 'bodybuilder' | 'archer' | 'dragon' | 'piege' | 'sorcier' | 'temps' | 'vampire';
 
 /**
  * Mots-clés (SPEC.md §5.6) et leurs paramètres : chaque carte porte ses propres valeurs (« Givre 1 », « Assassin ×3 »).
@@ -188,6 +198,8 @@ interface KeywordParams {
   readonly assassin: { readonly multiplier: number };
   /** Camouflage : caché à l'adversaire tant qu'aucun monstre ni terrain adverse n'est dans un rayon de `amount` (§10). */
   readonly camouflage: { readonly amount: number };
+  /** À l'attaque : il récupère `amount` PV, après les dégâts et avant la riposte (Vampire, §10). */
+  readonly soif: { readonly amount: number };
 }
 
 export type Keyword = keyof KeywordParams;
@@ -301,8 +313,11 @@ export type Effect =
     }
   /** Mobilité supplémentaire, pour ce tour. */
   | { readonly type: 'addMobility'; readonly amount: number }
-  /** ATK supplémentaire, pour ce tour (Dopage). */
-  | { readonly type: 'addAtkThisTurn'; readonly amount: number }
+  /**
+   * ATK supplémentaire, pour ce tour (Dopage) ; `perHpLost` : `amount` par PV perdu par l'effet précédent, « perd tous
+   * ses PV sauf N » (Sacrifice sanguinaire).
+   */
+  | { readonly type: 'addAtkThisTurn'; readonly amount: number; readonly perHpLost?: true }
   /** Portée supplémentaire, pour ce tour (Flèche divine). */
   | { readonly type: 'addRangeThisTurn'; readonly amount: number }
   /** ATK du moment (bonus du tour compris, auras non comprises) multipliée, pour ce tour (Seringue). */
@@ -345,7 +360,19 @@ export type Effect =
    * cases où il a été depuis le début du tour de son camp), en téléportation ; son déplacement s'arrête, sans plus de
    * mobilité ce tour.
    */
-  | { readonly type: 'rewind'; readonly steps: number };
+  | { readonly type: 'rewind'; readonly steps: number }
+  /**
+   * Absorbe (Vladimir, Zoldik) : retire `amount` PV à la cible, ou tous ses PV sauf `downTo` (sans la détruire) ; la
+   * source récupère les PV retirés, sans dépasser ses PV max. Ce n'est pas une attaque.
+   */
+  | ({ readonly type: 'absorb' } & ({ readonly amount: number } | { readonly downTo: number }))
+  /** La cible perd tous ses PV sauf `downTo`, sans être détruite (Sacrifice sanguinaire). */
+  | { readonly type: 'loseHp'; readonly downTo: number }
+  /**
+   * Transformation (Emma) : la source prend sa forme `into`, avec ses stats, mots-clés et effets ; elle reste le même
+   * monstre (§10). Les PV perdus de la forme quittée sont mis de côté, ceux de la forme prise reviennent.
+   */
+  | { readonly type: 'transform'; readonly into: CardId };
 
 /** Effets possibles d'un piège, ou d'un terrain « Passage », sur le monstre qui entre sur sa case ou dans sa zone. */
 export type TrapEffect = Extract<Effect, { readonly type: 'damage' | 'status' | 'rewind' }>;
@@ -359,6 +386,16 @@ export interface TerrainPassage {
   readonly effects: readonly TrapEffect[];
 }
 
+/**
+ * « Au déplacement » (Terrain de chasse, SPEC.md §5.2, §10) : un de ses monstres qui commence un déplacement sur une case
+ * de sa zone (sa case et les adjacentes) a +`mobility` mobilité ce tour ; une fois par tour et par monstre, tous ces
+ * terrains confondus.
+ */
+export interface TerrainOnMove {
+  readonly zone: 'cellAndAdjacent';
+  readonly mobility: number;
+}
+
 /** Un effet complet (SPEC.md §5.2) : sa cible ou sa zone, puis ses effets. */
 export interface Ability {
   /** Nom de l'effet, s'il en a un (« Déflagration »), sans effet de règle. */
@@ -370,6 +407,10 @@ export interface Ability {
 /** Effet actif d'un monstre : chacun une fois par tour, en payant `manaCost`. */
 export interface ActivatedAbility extends Ability {
   readonly manaCost: number;
+  /** « Sans limite par tour » : autant de fois qu'il paie son coût (Emma, §4.8). */
+  readonly unlimited?: true;
+  /** « Puis plus d'attaque ce tour » : après l'activation, il ne peut plus attaquer ce tour (Zoldik). */
+  readonly endsAttack?: true;
 }
 
 interface CardBase {
@@ -420,6 +461,11 @@ export interface MonsterCard extends CardBase {
   readonly aura: StatAura | null;
   /** « Passage » : effets sur les monstres ennemis qui entrent dans sa zone, comme un terrain (Golem de lave). */
   readonly passage: TerrainPassage | null;
+  /**
+   * Forme d'une autre carte, hors grimoire (la chauve-souris d'Emma) : elle n'apparaît que par transformation, et c'est
+   * cette carte-là qui va au cimetière.
+   */
+  readonly formOf: CardId | null;
 }
 
 export interface SpellCard extends CardBase {
@@ -437,6 +483,8 @@ export interface TerrainCard extends CardBase {
   readonly passage: TerrainPassage | null;
   /** « Point d'invocation » : sa case est une case d'invocation de son camp tant qu'aucun monstre ne s'y trouve. */
   readonly summonPoint: boolean;
+  /** Effet « Au déplacement » sur ses monstres qui partent de sa zone (Terrain de chasse). */
+  readonly onMove: TerrainOnMove | null;
 }
 
 export type Card = MonsterCard | SpellCard | TerrainCard;
@@ -497,6 +545,23 @@ export interface MonsterUnit extends UnitBase {
   readonly facing: Direction;
   /** `invisible` : révélé jusqu'à la fin du tour, pour avoir bloqué une action adverse (§10). */
   readonly revealed: boolean;
+  /**
+   * Son déplacement est fini pour ce tour, sans statut (sablier, retour, arrêt forcé) : une transformation ne lui rend
+   * pas de mobilité. Remis à zéro au début de son tour ; absent sinon.
+   */
+  readonly halted?: true;
+  /**
+   * Il a déjà eu ce tour le bonus d'un terrain « Au déplacement » (Terrain de chasse) : pas un deuxième. Remis à zéro au
+   * début de son tour ; absent sinon.
+   */
+  readonly onMoveTaken?: true;
+  /** PV perdus de son autre forme, mis de côté (Emma, §10) ; absent tant qu'il ne s'est pas transformé. */
+  readonly otherFormDamage?: number;
+  /**
+   * Mobilité dépensée au-delà de celle de sa forme actuelle (chauve-souris qui a beaucoup marché, redevenue Emma) :
+   * une transformation la déduit d'abord. Remise à zéro au début de son tour ; absente tant qu'il ne s'est pas transformé.
+   */
+  readonly mobilityDebt?: number;
 }
 
 export interface TerrainUnit extends UnitBase {
@@ -578,6 +643,16 @@ export type GameEvent =
       /** Rang de l'effet sur la carte (0 si absent : le premier). */
       readonly effect?: number;
     }
+  /** Transformation (Emma) : le monstre passe de la forme `from` à la forme `to` ; `hp` et `maxHp` : ses PV ensuite. */
+  | {
+      readonly type: 'transform';
+      readonly unitId: UnitId;
+      readonly pos: Position;
+      readonly from: CardId;
+      readonly to: CardId;
+      readonly hp: number;
+      readonly maxHp: number;
+    }
   /** Monstre sacrifié pour une évolution : il quitte le plateau, sans être détruit (pas de VP). */
   | { readonly type: 'sacrifice'; readonly unitId: UnitId; readonly pos: Position }
   /** Un pas d'une case : déplacement, avancée après une attaque, ou recul (Bourrasque). */
@@ -630,7 +705,8 @@ export type GameEvent =
   | { readonly type: 'auraHp'; readonly unitId: UnitId; readonly pos: Position; readonly amount: number; readonly hp: number }
   /** Requiem arrivé à son terme : le monstre meurt, sans être détruit par personne (pas de VP). */
   | { readonly type: 'requiem'; readonly unitId: UnitId; readonly pos: Position }
-  | { readonly type: 'mobility'; readonly unitId: UnitId; readonly pos: Position; readonly amount: number }
+  /** Mobilité en plus ce tour ; `source` : le terrain qui la donne (Terrain de chasse), absent pour un sort ou un effet. */
+  | { readonly type: 'mobility'; readonly unitId: UnitId; readonly pos: Position; readonly amount: number; readonly source?: CardId }
   | { readonly type: 'status'; readonly unitId: UnitId; readonly pos: Position; readonly status: Status }
   | { readonly type: 'trapPlaced'; readonly trap: Trap }
   | { readonly type: 'trapTriggered'; readonly trap: Trap; readonly unitId: UnitId }

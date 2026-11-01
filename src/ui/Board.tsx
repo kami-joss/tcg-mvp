@@ -18,6 +18,7 @@ import {
   getCell,
   getCliff,
   getMonsterCard,
+  getOnMoveBonus,
   getUnitsAt,
   getViewZoneStatus,
   requiemCountdown,
@@ -572,6 +573,7 @@ function BoardCell({
           angle={(iso ? ISO_ANGLES : FLAT_ANGLES)[facing!]}
           stats={stats}
           mobilityBonus={view.board.mobilityBonus}
+          onMoveBonus={monster.owner === view.activePlayer ? getOnMoveBonus(view, monster) : 0}
           standScale={standScale}
           bobDelay={bobDelay}
           target={onToken ? (highlight === 'attack' || attack ? 'attack' : highlight === 'target' ? 'card' : null) : null}
@@ -676,6 +678,8 @@ interface MonsterTokenProps {
   stats: TokenStats;
   /** Mobilité en plus sur ce plateau (13 × 13), comptée dans celle affichée pour l'adversaire. */
   mobilityBonus: number;
+  /** +1 d'un Terrain de chasse qu'il aurait en partant maintenant : compté dans sa mobilité restante affichée. */
+  onMoveBonus: number;
   /** Grossissement du jeton debout en vue inclinée. */
   standScale: number;
   bobDelay: string;
@@ -692,14 +696,14 @@ interface MonsterTokenProps {
  * jeton : le support et le corps sont plus grands que lui, pour que rien de ce qui dépasse ne soit rogné en 3D.
  */
 function MonsterToken(props: MonsterTokenProps) {
-  const { monster, atk, requiem, active, selected, exhausted, hidden, onZone, angle, stats, mobilityBonus, standScale } = props;
+  const { monster, atk, requiem, active, selected, exhausted, hidden, onZone, angle, stats, mobilityBonus, onMoveBonus, standScale } = props;
   const { bobDelay, target, damage } = props;
   const card = getCard(monster.cardId);
   const art = CARD_ART[monster.cardId];
   const above = statsAbove(angle);
   const path = dropPath(angle);
   const showMobility = active ? stats.mobility : stats.enemyMobility;
-  const mobility = active ? monster.mobilityLeft : getMonsterCard(monster.cardId).mobility + mobilityBonus;
+  const mobility = active ? monster.mobilityLeft + onMoveBonus : getMonsterCard(monster.cardId).mobility + mobilityBonus;
   const classes = [
     'token',
     `token--p${monster.owner}`,
@@ -748,7 +752,7 @@ function MonsterToken(props: MonsterTokenProps) {
               <span className={statsClasses.filter(Boolean).join(' ')}>
                 {showMobility && (
                   <span
-                    className={`stat stat--mob${active ? ' is-mine' : ''}${active && monster.mobilityLeft === 0 ? ' is-empty' : ''}`}
+                    className={`stat stat--mob${active ? ' is-mine' : ''}${active && mobility === 0 ? ' is-empty' : ''}`}
                     title={active ? 'Pas restants' : 'Mobilité'}
                   >
                     <Icon name="walking-boot" />

@@ -22,6 +22,7 @@ function monster(
     turnStart: null,
     aura: null,
     passage: null,
+    formOf: null,
   };
 }
 
@@ -62,9 +63,9 @@ function terrain(
   id: CardId,
   name: string,
   stats: { cost: number; hp: number },
-  passives: Partial<Pick<TerrainCard, 'zoneManaBonus' | 'passage' | 'summonPoint'>> = {},
+  passives: Partial<Pick<TerrainCard, 'zoneManaBonus' | 'passage' | 'summonPoint' | 'onMove'>> = {},
 ): TerrainCard {
-  return { kind: 'terrain', id, name, ...stats, zoneManaBonus: 0, passage: null, summonPoint: false, ...passives };
+  return { kind: 'terrain', id, name, ...stats, zoneManaBonus: 0, passage: null, summonPoint: false, onMove: null, ...passives };
 }
 
 const VOL: KeywordSpec = { keyword: 'vol' };
@@ -78,6 +79,25 @@ const EMPTY_ADJACENT_CELL: Targeting = { type: 'emptyAdjacentCell' };
 const ADJACENT_ENEMY: Targeting = { type: 'monster', side: 'enemy', reach: { type: 'adjacent' } };
 /** Retour (Explorateur du temps) : 1 mana, il se téléporte sur une case libre où il a été ce tour, puis ne bouge plus (§10). */
 const RETURN: ActivatedAbility = { manaCost: 1, targeting: { type: 'trail' }, effects: [{ type: 'returnOnTrail' }] };
+/** Soif des vampires : à l'attaque, il récupère 1 PV (§10). */
+const SOIF_1: KeywordSpec = { keyword: 'soif', amount: 1 };
+/** Transformation d'Emma, d'une forme à l'autre : 1 mana, sans limite par tour (§10). */
+const transformInto = (into: CardId): ActivatedAbility => ({
+  manaCost: 1,
+  unlimited: true,
+  targeting: { type: 'self' },
+  effects: [{ type: 'transform', into }],
+});
+
+/** Vampire (§6 bis) : Soif 1, et ses effets actifs éventuels. */
+function vampire(
+  id: CardId,
+  name: string,
+  stats: { cost: number; atk: number; hp: number; mobility: number; range: number },
+  activated: ActivatedAbility | null = null,
+): MonsterCard {
+  return inArchetype('vampire', monster(id, name, stats, [SOIF_1], activated));
+}
 
 export const CARDS: Readonly<Record<CardId, Card>> = {
   // Monstres
@@ -288,6 +308,37 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
     passage: { zone: 'adjacent', effects: [{ type: 'status', kind: 'immobilise', turns: 0 }] },
   }),
 
+  // Deck Vampire : famille Vampire, Soif 1 (§10).
+  delta: vampire('delta', 'Delta - Vampire', { cost: 1, atk: 2, hp: 2, mobility: 5, range: 1 }),
+  emma: vampire('emma', 'Emma - Vampire', { cost: 2, atk: 3, hp: 3, mobility: 4, range: 1 }, transformInto('emma-chauve-souris')),
+  // Forme d'Emma, hors grimoire : elle n'apparaît que par la transformation ; son coût est celui d'Emma.
+  'emma-chauve-souris': {
+    ...vampire('emma-chauve-souris', 'Emma chauve-souris - Vampire', { cost: 2, atk: 1, hp: 1, mobility: 8, range: 1 }, transformInto('emma')),
+    formOf: 'emma',
+  },
+  vladimir: vampire('vladimir', 'Vladimir - Vampire', { cost: 5, atk: 3, hp: 5, mobility: 5, range: 1 }, {
+    manaCost: 2,
+    targeting: { type: 'zone', zone: 'adjacent' },
+    effects: [{ type: 'absorb', amount: 1 }],
+  }),
+  zoldik: vampire('zoldik', 'Zoldik - Vampire', { cost: 7, atk: 4, hp: 6, mobility: 5, range: 1 }, {
+    manaCost: 3,
+    endsAttack: true,
+    targeting: ADJACENT_ENEMY,
+    effects: [{ type: 'absorb', downTo: 1 }],
+  }),
+  'appel-du-sang': spell('appel-du-sang', 'Appel du sang - Vampire', 3, {
+    targeting: { type: 'allies', archetype: 'vampire' },
+    effects: [{ type: 'addMobility', amount: 2 }],
+  }),
+  'sacrifice-sanguinaire': spell('sacrifice-sanguinaire', 'Sacrifice sanguinaire - Vampire', 2, {
+    targeting: { type: 'monster', side: 'ally', reach: { type: 'anywhere' }, archetype: 'vampire' },
+    effects: [
+      { type: 'loseHp', downTo: 1 },
+      { type: 'addAtkThisTurn', amount: 1, perHpLost: true },
+    ],
+  }),
+
   // Cartes communes (§6 ter)
   invocateur: monster('invocateur', 'Invocateur', { cost: 4, atk: 1, hp: 3, mobility: 3, range: 2 }, [], {
     manaCost: 1,
@@ -353,6 +404,9 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
     passage: { zone: 'adjacent', effects: [{ type: 'status', kind: 'slow', amount: 1, turns: 0 }] },
   }),
   'zone-invocation': terrain('zone-invocation', 'Zone d’invocation', { cost: 1, hp: 4 }, { summonPoint: true }),
+  'terrain-de-chasse': terrain('terrain-de-chasse', 'Terrain de chasse', { cost: 1, hp: 3 }, {
+    onMove: { zone: 'cellAndAdjacent', mobility: 1 },
+  }),
 };
 
 export function getCard(id: CardId): Card {
@@ -396,10 +450,26 @@ const TEST_GRIMOIRE_QUANTITIES: Composition = [
 ];
 
 /** Cartes communes (SPEC.md §6 ter) : elles complètent les decks, chacun avec ses propres quantités. */
-export const COMMON_CARDS: readonly CardId[] = ['invocateur', 'teleporteur', 'terrain-drainant', 'terrain-piege', 'zone-invocation'];
+export const COMMON_CARDS: readonly CardId[] = [
+  'invocateur',
+  'teleporteur',
+  'terrain-drainant',
+  'terrain-piege',
+  'zone-invocation',
+  'terrain-de-chasse',
+];
 
-/** Les 5 cartes communes en 1 exemplaire. */
-const COMMONS_ONCE: Composition = COMMON_CARDS.map((id) => [id, 1] as const);
+/** Les 5 premières cartes communes en 1 exemplaire (sans le Terrain de chasse). */
+const COMMONS_ONCE: Composition = [
+  ['invocateur', 1],
+  ['teleporteur', 1],
+  ['terrain-drainant', 1],
+  ['terrain-piege', 1],
+  ['zone-invocation', 1],
+];
+
+/** Les mêmes, avec un Terrain de chasse à la place du Terrain drainant (Archers, Vampire). */
+const COMMONS_HUNT: Composition = COMMONS_ONCE.map(([id, n]) => (id === 'terrain-drainant' ? ['terrain-de-chasse', n] : [id, n]));
 
 const expand = (composition: Composition): CardId[] =>
   composition.flatMap(([id, quantity]) => Array.from({ length: quantity }, () => id));
@@ -432,7 +502,7 @@ export const DECKS: readonly Deck[] = [
       ['bourrasque', 1],
       ['benediction', 1],
       ['bastion', 1],
-      ...COMMONS_ONCE,
+      ...COMMONS_HUNT,
     ]),
   },
   {
@@ -525,6 +595,26 @@ export const DECKS: readonly Deck[] = [
       ['benediction', 1],
       ['autel-de-mana', 1],
       ...COMMONS_ONCE,
+    ]),
+  },
+  {
+    // Composition proposée, à ajuster dans le doc.
+    id: 'vampire',
+    name: 'Vampire',
+    // Démo des exemplaires brillants : un Zoldik (images « Sang bleu » de son overframe).
+    shiny: ['zoldik'],
+    cards: expand([
+      ['delta', 3],
+      ['emma', 3],
+      ['vladimir', 3],
+      ['zoldik', 2],
+      ['appel-du-sang', 2],
+      ['sacrifice-sanguinaire', 2],
+      ['boule-de-feu', 1],
+      ['charge', 2],
+      ['benediction', 1],
+      ['autel-de-mana', 1],
+      ...COMMONS_HUNT,
     ]),
   },
 ];

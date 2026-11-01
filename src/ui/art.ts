@@ -4,6 +4,7 @@
 // ou d'un terrain), d'après la taille de l'image et la position des yeux notées ici.
 import type { Board, CardId } from '../engine';
 import apprentiShiny from '../assets/art/apprenti-shiny.jpg';
+import appelDuSang from '../assets/art/appel-du-sang.jpg';
 import apprentiTemps from '../assets/art/apprenti-temps.jpg';
 import apprenti from '../assets/art/apprenti.jpg';
 import archerDeGlaceShiny from '../assets/art/archer-de-glace-shiny.jpg';
@@ -26,7 +27,10 @@ import dragonFeu from '../assets/art/dragon-feu.jpg';
 import dragonOrigine from '../assets/art/dragon-origine.jpg';
 import dragonTerre from '../assets/art/dragon-terre.jpg';
 import dragonVent from '../assets/art/dragon-vent.jpg';
+import delta from '../assets/art/delta.jpg';
 import dragonnetTemps from '../assets/art/dragonnet-temps.jpg';
+import emmaChauveSouris from '../assets/art/emma-chauve-souris.jpg';
+import emma from '../assets/art/emma.jpg';
 import farceur from '../assets/art/farceur.jpg';
 import fissureTemporelle from '../assets/art/fissure-temporelle.jpg';
 import flecheDivine from '../assets/art/fleche-divine.jpg';
@@ -42,12 +46,16 @@ import penombre from '../assets/art/penombre.jpg';
 import piegeTemporel from '../assets/art/piege-temporel.jpg';
 import poseurDeBombe from '../assets/art/poseur-de-bombe.jpg';
 import poseurDePiege from '../assets/art/poseur-de-piege.jpg';
+import sacrificeSanguinaire from '../assets/art/sacrifice-sanguinaire.jpg';
 import seringue from '../assets/art/seringue.jpg';
 import teleporteur from '../assets/art/teleporteur.jpg';
 import terrainDrainant from '../assets/art/terrain-drainant.jpg';
 import terrainPiege from '../assets/art/terrain-piege.jpg';
 import trebuchet from '../assets/art/trebuchet.jpg';
+import vladimir from '../assets/art/vladimir.jpg';
 import zoneInvocation from '../assets/art/zone-invocation.jpg';
+import zoldikShiny from '../assets/art/zoldik-shiny.jpg';
+import zoldik from '../assets/art/zoldik.jpg';
 
 export interface CardArt {
   readonly src: string;
@@ -102,6 +110,15 @@ export const CARD_ART: Partial<Record<CardId, CardArt>> = {
   // Scènes en 9:16 : le point d'intérêt au niveau du bandeau, l'image couvre toute la fiche (pas de bande floue).
   'piege-temporel': art(piegeTemporel, 576, 1024, [49.6, 13], 60),
   'fissure-temporelle': art(fissureTemporelle, 576, 1024, [51, 13], 55),
+  // Deck Vampire (sources dans artworksv2/vampire/, plans larges) : recadrées serré au ratio 1,8, les yeux vers 13 % de
+  // la hauteur, pour couvrir toute la fiche ; les sorts calés en haut de la scène.
+  delta: art(delta, 569, 1024, [50, 14], 28),
+  emma: art(emma, 569, 1024, [38.2, 13.5], 28),
+  'emma-chauve-souris': art(emmaChauveSouris, 569, 1024, [50, 14], 31),
+  vladimir: art(vladimir, 569, 1024, [50, 13.5], 28),
+  zoldik: art(zoldik, 569, 1024, [45.1, 11.8], 28),
+  'appel-du-sang': art(appelDuSang, 569, 1024, [50, 13], 60),
+  'sacrifice-sanguinaire': art(sacrificeSanguinaire, 569, 1024, [50, 13], 50),
   // Cartes communes
   invocateur: art(invocateur, 1024, 559, [40.3, 24], 17),
   teleporteur: art(teleporteur, 1024, 559, [37.2, 23.7], 18),
@@ -124,6 +141,7 @@ export const CARD_ART: Partial<Record<CardId, CardArt>> = {
 export const CARD_ART_SHINY: Partial<Record<CardId, string>> = {
   'archer-de-glace': archerDeGlaceShiny,
   apprenti: apprentiShiny,
+  zoldik: zoldikShiny,
 };
 
 /** L'illustration à montrer pour un exemplaire, brillant ou non. */
@@ -223,6 +241,7 @@ const SHORT_NAMES: Partial<Record<CardId, string>> = {
   'apprenti-temps': 'Apprenti',
   chronomancienne: 'Chronomanc.',
   'dragonnet-temps': 'Dragonnet',
+  'emma-chauve-souris': 'Chauve-souris',
 };
 
 /** Nom court sur un jeton sans illustration : le sien, sinon le nom de la carte sans son archétype. */

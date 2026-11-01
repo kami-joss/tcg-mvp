@@ -54,6 +54,23 @@ describe('IA d’entraînement', () => {
     }
     expect(state.winner).not.toBeNull();
   }, 60_000);
+
+  it('deck Vampire : la partie va à son terme, sans se transformer en boucle (sans limite par tour)', () => {
+    const vampire = DECKS.find((d) => d.id === 'vampire')!.cards;
+    let state = createGame(undefined, { 1: vampire, 2: vampire });
+    let actions = 0;
+    let transforms = 0;
+    let most = 0;
+    while (state.winner === null && state.turn <= 40 && actions < 600) {
+      const action = chooseAction(state, state.activePlayer);
+      state = applyAction(state, action);
+      transforms = action.type === 'endTurn' ? 0 : transforms + (state.events.some((e) => e.type === 'transform') ? 1 : 0);
+      most = Math.max(most, transforms);
+      actions++;
+    }
+    expect(state.winner).not.toBeNull();
+    expect(most).toBeLessThanOrEqual(3);
+  }, 60_000);
 });
 
 describe('IA : mode contestation (SPEC.md §4.4 bis)', () => {

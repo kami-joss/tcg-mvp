@@ -19,6 +19,8 @@ import {
   getMonsterCard,
   getMoveDestinations,
   getNextTurnMobility,
+  getNextTurnOnMoveBonus,
+  getOnMoveBonus,
   getZoneCells,
   getZoneController,
   getZoneMana,
@@ -255,7 +257,7 @@ function monsterActions(state: GameState, monster: MonsterUnit, moves: boolean, 
     actions.push({ type: 'attack', unitId: monster.id, targetId: target.id, advance: false });
     if (canAdvance(state, monster, target)) actions.push({ type: 'attack', unitId: monster.id, targetId: target.id, advance: true });
   }
-  if (moves && monster.mobilityLeft > 0 && canMove(monster)) {
+  if (moves && monster.mobilityLeft + getOnMoveBonus(state, monster) > 0 && canMove(monster)) {
     for (const { pos } of getMoveDestinations(state, monster)) actions.push({ type: 'move', unitId: monster.id, to: pos });
   }
   if (effects.length > 0 && !isStunned(monster)) {
@@ -406,7 +408,11 @@ export function strikeLosses(state: GameState, attacker: PlayerId): number {
     (monster) => {
       const next = ownerNextTurn(state.turn, state.activePlayer, monster.owner);
       if (monster.statuses.some((s) => s.kind === 'stun' && s.expiresAtTurn > next)) return -1;
-      return getNextTurnMobility(monster, state.turn, state.activePlayer, state.board.mobilityBonus);
+      // Avec le +1 d'un Terrain de chasse s'il part de sa zone.
+      return (
+        getNextTurnMobility(monster, state.turn, state.activePlayer, state.board.mobilityBonus) +
+        getNextTurnOnMoveBonus(state, monster, state.turn, state.activePlayer)
+      );
     },
     (monster) => getAtk(state, monster) - monster.atkBonus,
     // Il ne frappe pas ce qu'il ne voit pas (Farceur, Pénombre).

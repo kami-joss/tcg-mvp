@@ -29,8 +29,17 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
   const deck = (id: string) => DECKS.find((d) => d.id === id)!;
   const count = (cards: readonly CardId[], id: CardId) => cards.filter((c) => c === id).length;
 
-  it('sept decks de 25 cartes : classique, archers, pièges, bodybuilder, dragons, sorciers du feu, explorateur du temps', () => {
-    expect(DECKS.map((d) => d.id)).toEqual(['classique', 'archers', 'pieges', 'bodybuilder', 'dragons', 'sorciers-du-feu', 'explorateur-du-temps']);
+  it('huit decks de 25 cartes : classique, archers, pièges, bodybuilder, dragons, sorciers du feu, explorateur du temps, vampire', () => {
+    expect(DECKS.map((d) => d.id)).toEqual([
+      'classique',
+      'archers',
+      'pieges',
+      'bodybuilder',
+      'dragons',
+      'sorciers-du-feu',
+      'explorateur-du-temps',
+      'vampire',
+    ]);
     for (const d of DECKS) expect(d.cards, d.id).toHaveLength(25);
     expect(deck('classique').cards).toBe(TEST_GRIMOIRE);
   });
@@ -38,6 +47,9 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
   it('compositions du doc « Cartes du TCG » (§6 bis) : cartes du deck, complément de cartes de base, cartes communes', () => {
     const composition = (id: string) => Object.fromEntries([...new Set(deck(id).cards)].map((c) => [c, count(deck(id).cards, c)]));
     const commons = { invocateur: 1, teleporteur: 1, 'terrain-drainant': 1, 'terrain-piege': 1, 'zone-invocation': 1 };
+    // Archers et Vampire : un Terrain de chasse à la place du Terrain drainant.
+    const { 'terrain-drainant': _drainant, ...others } = commons;
+    const hunt = { ...others, 'terrain-de-chasse': 1 };
     expect(composition('archers')).toEqual({
       'archer-leger': 3,
       'archer-lourd': 3,
@@ -50,7 +62,7 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
       bourrasque: 1,
       benediction: 1,
       bastion: 1,
-      ...commons,
+      ...hunt,
     });
     expect(composition('pieges')).toEqual({
       'poseur-de-piege': 3,
@@ -107,6 +119,21 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
       bastion: 1,
       ...commons,
     });
+    expect(composition('vampire')).toEqual({
+      delta: 3,
+      emma: 3,
+      vladimir: 3,
+      zoldik: 2,
+      'appel-du-sang': 2,
+      'sacrifice-sanguinaire': 2,
+      'boule-de-feu': 1,
+      charge: 2,
+      benediction: 1,
+      'autel-de-mana': 1,
+      ...hunt,
+    });
+    // La chauve-souris est une forme d'Emma : dans aucun deck.
+    for (const d of DECKS) expect(d.cards, d.id).not.toContain('emma-chauve-souris');
   });
 
   it('3 exemplaires au plus d’une même carte par deck', () => {
@@ -119,9 +146,10 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
   it('le complément vient du grimoire de test ou des cartes communes', () => {
     const archers: CardId[] = ['archer-leger', 'archer-lourd', 'archer-de-glace', 'archer-du-feu', 'trebuchet', 'fleche-divine'];
     const traps: CardId[] = ['poseur-de-piege', 'farceur', 'poseur-de-bombe', 'clown-assassin', 'penombre'];
-    for (const id of COMMON_CARDS) expect(TEST_GRIMOIRE, id).toContain(id);
+    // Le grimoire de test a chaque carte commune, sauf le Terrain de chasse (Archers et Vampire seulement).
+    for (const id of COMMON_CARDS.filter((c) => c !== 'terrain-de-chasse')) expect(TEST_GRIMOIRE, id).toContain(id);
     const filler = (d: string, own: CardId[]) => deck(d).cards.filter((c) => !own.includes(c));
-    for (const id of filler('archers', archers)) expect(TEST_GRIMOIRE, id).toContain(id);
+    for (const id of filler('archers', archers)) expect([...TEST_GRIMOIRE, ...COMMON_CARDS], id).toContain(id);
     for (const id of filler('pieges', traps)) expect(TEST_GRIMOIRE, id).toContain(id);
   });
 

@@ -1,6 +1,6 @@
 // Pendant qu'une animation se joue, l'écran montre un état intermédiaire : la vue d'avant l'action, à laquelle on
 // applique les événements un par un. Pure et testée : à la fin, l'écran reprend la vraie vue.
-import { directionBetween, getCard, samePos } from '../../engine';
+import { directionBetween, getCard, getMonsterCard, samePos } from '../../engine';
 import type { GameEvent, PlayerId, PlayerView, Position, Unit } from '../../engine';
 
 function setPlayer(view: PlayerView, player: PlayerId, patch: { mana?: number; vp?: number }): PlayerView {
@@ -116,12 +116,22 @@ export function applyEvent(view: PlayerView, event: GameEvent, final: PlayerView
     case 'trapTriggered':
       return { ...view, traps: view.traps.filter((t) => !(t.owner === event.trap.owner && samePos(t.pos, event.trap.pos))) };
     case 'effect':
-      // L'effet est utilisé ; zone en ligne : la source se tourne vers la direction choisie.
-      return updateUnit(view, event.unitId, (unit) =>
-        unit.kind === 'monster'
-          ? { ...unit, usedEffects: [...unit.usedEffects, event.effect ?? 0], ...(event.facing ? { facing: event.facing } : {}) }
-          : unit,
-      );
+      // L'effet est utilisé (sauf s'il est sans limite par tour) ; zone en ligne : la source se tourne vers la direction choisie.
+      return updateUnit(view, event.unitId, (unit) => {
+        if (unit.kind !== 'monster') return unit;
+        const rank = event.effect ?? 0;
+        const usedEffects = getMonsterCard(unit.cardId).activated[rank]?.unlimited ? unit.usedEffects : [...unit.usedEffects, rank];
+        return { ...unit, usedEffects, ...(event.facing ? { facing: event.facing } : {}) };
+      });
+    case 'transform':
+      // Nouvelle forme : ses stats et ses PV ; la mobilité restante vient de la vue finale.
+      return updateUnit(view, event.unitId, (unit) => {
+        if (unit.kind !== 'monster') return unit;
+        const after = final.units[event.unitId];
+        const atk = unit.atk + getMonsterCard(event.to).atk - getMonsterCard(event.from).atk;
+        const mobilityLeft = after?.kind === 'monster' ? after.mobilityLeft : unit.mobilityLeft;
+        return { ...unit, cardId: event.to, atk, hp: event.hp, maxHp: event.maxHp, mobilityLeft };
+      });
     case 'cellBurned':
       return { ...view, burningCells: [...view.burningCells, event.cell] };
     case 'turnStart':

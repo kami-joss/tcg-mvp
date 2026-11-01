@@ -71,7 +71,7 @@ export interface OverframeLook {
   readonly label?: string;
 }
 
-export type ParticleSetName = 'snow' | 'embers' | 'sparks' | 'motesGold' | 'motesAmethyst';
+export type ParticleSetName = 'snow' | 'embers' | 'sparks' | 'motesGold' | 'motesAmethyst' | 'blood' | 'bats';
 
 export interface OverframeDef {
   /** Hauteur du débordement au-dessus du cadre, réservée au-dessus de la fiche. */
@@ -99,13 +99,17 @@ const DEFS = data as unknown as Readonly<Record<string, OverframeDef>>;
 
 /**
  * Overframes des cartes du jeu. L'entrée `archer_feu` du kit est l'Apprenti - Sorciers du feu (l'illustration est la
- * sienne) ; `maitre_des_heures`, le Maître des heures - Explorateur du temps.
+ * sienne) ; `maitre_des_heures`, le Maître des heures - Explorateur du temps. Emma, sa forme chauve-souris et Zoldik
+ * (deck Vampire) : pop détouré dans leur illustration.
  */
 export const OVERFRAMES: Partial<Record<CardId, OverframeDef>> = {
   'archer-de-glace': DEFS.archer_glace,
   apprenti: DEFS.archer_feu,
   chronomancienne: DEFS.chronomancienne,
   'maitre-des-heures': DEFS.maitre_des_heures,
+  emma: DEFS.emma,
+  'emma-chauve-souris': DEFS.emma_chauve_souris,
+  zoldik: DEFS.zoldik,
 };
 
 /**
@@ -157,6 +161,9 @@ export interface Particle {
 }
 
 const STAR = 'polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%)';
+/** Silhouette de chauve-souris, ailes ouvertes (deux fois plus large que haute). */
+const BAT =
+  'polygon(50% 38%, 56% 20%, 60% 36%, 72% 16%, 100% 30%, 86% 48%, 78% 70%, 64% 58%, 50% 84%, 36% 58%, 22% 70%, 14% 48%, 0 30%, 28% 16%, 40% 36%, 44% 20%)';
 
 interface ParticleDraw {
   readonly size: number;
@@ -244,7 +251,8 @@ function motes(seed: number, amethyst: boolean, rotate: number) {
 
 /**
  * Neige (Archer de glace), braises (Apprenti - Sorciers du feu), étincelles arc-en-ciel (tout exemplaire brillant),
- * poussière d'or (Maître des heures, étoiles qui tournent) et d'or et d'améthyste (Chronomancienne).
+ * poussière d'or (Maître des heures, étoiles qui tournent) et d'or et d'améthyste (Chronomancienne), gouttes de sang qui
+ * montent (Emma, Zoldik), chauves-souris qui s'envolent (Emma chauve-souris).
  */
 export const PARTICLES: Readonly<Record<ParticleSetName, { readonly back: readonly Particle[]; readonly front: readonly Particle[] }>> = {
   snow: particleSet(7, 16, 6, (front, _i, random) => {
@@ -303,6 +311,40 @@ export const PARTICLES: Readonly<Record<ParticleSetName, { readonly back: readon
   }),
   motesGold: motes(47, false, 180),
   motesAmethyst: motes(31, true, 0),
+  blood: particleSet(41, 14, 6, (front, _i, random) => {
+    const size = front ? 2.5 + random() * 3 : 1.5 + random() * 2.5;
+    const hue = 15 + random() * 15;
+    return {
+      size,
+      duration: (front ? 5 : 6) + random() * 5,
+      delay: random() * 10,
+      drift: (random() - 0.5) * 50,
+      dist: front ? -640 : -540,
+      opacity: front ? 0.65 + random() * 0.3 : 0.5 + random() * 0.4,
+      left: spread(random),
+      top: front ? 600 : 505,
+      look: {
+        borderRadius: '50% 50% 50% 50% / 60% 60% 40% 40%',
+        background: `oklch(0.6 0.21 ${hue.toFixed(0)})`,
+        boxShadow: `0 0 6px 1px oklch(0.5 0.2 ${hue.toFixed(0)} / .85)`,
+      },
+    };
+  }),
+  bats: particleSet(59, 10, 5, (front, _i, random) => {
+    const size = front ? 14 + random() * 8 : 8 + random() * 6;
+    return {
+      size,
+      duration: (front ? 7 : 9) + random() * 6,
+      delay: random() * 12,
+      drift: (random() - 0.3) * 120,
+      dist: front ? -640 : -540,
+      opacity: front ? 0.75 + random() * 0.2 : 0.55 + random() * 0.3,
+      left: spread(random),
+      top: front ? 600 : 505,
+      rotate: (random() - 0.5) * 30,
+      look: { clipPath: BAT, height: `${(size / 2).toFixed(1)}px`, background: 'oklch(0.34 0.11 18)' },
+    };
+  }),
 };
 
 /** Taille et place d'une image du kit, en px CSS. */

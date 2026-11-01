@@ -137,12 +137,16 @@ export function addUnit(state: GameState, create: (id: UnitId) => Unit): GameSta
   return { ...setUnit(state, create(id)), nextUnitId: state.nextUnitId + 1 };
 }
 
-/** L'unité quitte le plateau (détruite, sacrifiée, tuée par requiem) : sa carte va au cimetière de son joueur (§4.3). */
+/**
+ * L'unité quitte le plateau (détruite, sacrifiée, tuée par requiem) : sa carte va au cimetière de son joueur (§4.3) ;
+ * pour une forme hors grimoire (la chauve-souris d'Emma), c'est la carte d'origine.
+ */
 export function removeUnit(state: GameState, unitId: UnitId): GameState {
   const { [unitId]: removed, ...units } = state.units;
   if (!removed) return state;
   const owner = state.players[removed.owner];
-  return { ...state, units, players: { ...state.players, [owner.id]: { ...owner, graveyard: [...owner.graveyard, removed.cardId] } } };
+  const cardId = removed.kind === 'monster' ? (getMonsterCard(removed.cardId).formOf ?? removed.cardId) : removed.cardId;
+  return { ...state, units, players: { ...state.players, [owner.id]: { ...owner, graveyard: [...owner.graveyard, cardId] } } };
 }
 
 /** Bonus d'ATK des auras (Arnold, §5.2) : chaque monstre allié autour dont l'aura vise la famille du monstre (cumulés). */

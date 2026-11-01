@@ -26,7 +26,8 @@ import type { CutIn } from './fx/cutIn';
 import { applyEvent } from './fx/patch';
 import { playEvents } from './fx/player';
 import { GRIMOIRE_DISPLAY, Grimoire, GrimoireTab } from './Grimoire';
-import { HoverSheet, SheetPreview, overframeFit, sheetOverframe, sheetPlacement } from './HoverSheet';
+import { HoverSheet, SHEET_SCALE, SheetPreview, overframeFit, sheetOverframe, sheetPlacement } from './HoverSheet';
+import { SHEET_W } from './Overframe';
 import {
   NO_SELECTION,
   clickCard,
@@ -72,10 +73,11 @@ interface GameScreenProps {
 }
 
 /**
- * Marges de glisse du plateau (lot 13 §1) : à gauche la largeur de la colonne de la fiche, à droite celle du grimoire
- * ouvert (ou un peu d'air quand il est replié) ; aucune sous 900 px de large.
+ * Marges de glisse du plateau (lot 13 §1) : à gauche la largeur de la colonne de la fiche (280 px × `SHEET_SCALE`,
+ * plus son retrait), à droite celle du grimoire ouvert (ou un peu d'air quand il est replié) ; aucune sous 900 px
+ * de large.
  */
-const GLIDE_LEFT = 296;
+const GLIDE_LEFT = 16;
 const GLIDE_GAP = 12;
 const GLIDE_COLLAPSED = 20;
 const GLIDE_MIN_WIDTH = 900;
@@ -196,7 +198,10 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
     () =>
       narrow
         ? { left: 0, right: 0 }
-        : { left: GLIDE_LEFT, right: settings.grimoireOpen ? grimoireWidth + GLIDE_GAP : GLIDE_COLLAPSED },
+        : {
+            left: Math.round(GLIDE_LEFT + SHEET_W * SHEET_SCALE),
+            right: settings.grimoireOpen ? grimoireWidth + GLIDE_GAP : GLIDE_COLLAPSED,
+          },
     [narrow, settings.grimoireOpen, grimoireWidth],
   );
   const myTurn = view.activePlayer === view.viewer && view.winner === null;
@@ -515,7 +520,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
         </main>
 
         {/* À gauche, par-dessus le plateau : la fiche (rien sans fiche), le journal en bas. */}
-        <aside ref={leftRef} className="game__left">
+        <aside ref={leftRef} className="game__left" style={{ '--sheet-k': SHEET_SCALE } as CSSProperties}>
           {sheet && (
             <div
               className={`game__sheet${sheetOf ? ' game__sheet--of' : ''}`}
@@ -558,7 +563,9 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
         />
       )}
       {cutIn && <CutInOverlay key={cutIn.id} cutIn={cutIn.cutIn} target={cutIn.target} onDone={cutIn.done} />}
-      {preview && <SheetPreview sheet={preview} animated={animated} onClose={() => setPreview(null)} />}
+      {preview && (
+        <SheetPreview sheet={preview} animated={animated} onClose={() => setPreview(null)} />
+      )}
       {!busy && <VictoryOverlay view={view} onRestart={onRestart} onHome={onHome} />}
       <div className="fx-stage" ref={layerRef} aria-hidden="true" />
     </div>

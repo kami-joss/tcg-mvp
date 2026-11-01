@@ -5,7 +5,7 @@ import type { CardId, GameState } from '../engine';
 import { at, gameWith } from '../engine/test-utils';
 import { CARD_ART, CARD_ART_SHINY, cardArtFor } from './art';
 import { Grimoire } from './Grimoire';
-import { HoverSheet, SheetPreview, overframeFit, sheetPlacement } from './HoverSheet';
+import { HoverSheet, SHEET_SCALE, SheetPreview, overframeFit, sheetPlacement } from './HoverSheet';
 import { POP_FADE, RISE, popMask } from './Overframe';
 import { MAX_HEADROOM, OVERFRAMES, PARTICLES, breathOrigin, hasShinyImages, overframeLook, overframeUrl } from './overframes';
 import { getSheet } from './sheet';
@@ -97,7 +97,7 @@ describe('fiche à overframe', () => {
   it('scène : débordement réservé, cadre, pop et pièces, bouts, lueur extérieure, particules devant et derrière', () => {
     const html = renderToStaticMarkup(<HoverSheet sheet={cardSheet('apprenti')} animated onOpen={() => {}} />);
     expect(html).toContain('class="of of--anim of--clickable"');
-    expect(html).toContain('padding-top:152px');
+    expect(html).toContain('padding-top:calc(152px * var(--sheet-k, 1))');
     expect(html).toContain('sheet--of');
     expect(html).not.toContain('sheet--shiny');
     expect(html.match(/of__part of__part--/g)).toHaveLength(3);
@@ -136,7 +136,7 @@ describe('fiche à overframe', () => {
 
   it('Maître des heures : reflet dans l’illustration, cadran à deux anneaux, mèches, poussière d’or, reflet en 4,2 s', () => {
     const html = renderToStaticMarkup(<HoverSheet sheet={cardSheet('maitre-des-heures')} animated />);
-    expect(html).toContain('padding-top:162px');
+    expect(html).toContain('padding-top:calc(162px * var(--sheet-k, 1))');
     expect(html).toMatch(/<div class="of__art of__breath"[^>]*><div class="of__shine"[^>]*temporel\.jpg/);
     expect(html).toContain('mask-size:300% 100%');
     expect(html).toContain('class="of__dial"');
@@ -186,27 +186,45 @@ describe('fiche à overframe', () => {
   });
 
   it('le haut du cadre toujours au même endroit : la place du plus grand débordement (186 px) au-dessus de chaque fiche', () => {
+    // Fiche à 1,3 fois le repère 280 × 498 : la place réservée grandit avec elle (186 × 1,3 = 241,8 px).
+    expect(SHEET_SCALE).toBe(1.3);
     expect(MAX_HEADROOM).toBe(186);
-    expect(sheetPlacement(undefined, 1)).toEqual({ paddingTop: 186, '--sheet-fit': 1 });
+    expect(sheetPlacement(undefined, 1)).toEqual({ paddingTop: 241.8, '--sheet-fit': 1 });
     expect(sheetPlacement(chrono, 1)).toEqual({ paddingTop: 0, '--sheet-fit': 1 });
-    expect(sheetPlacement(glace, 1)).toMatchObject({ paddingTop: 68 });
+    expect(sheetPlacement(glace, 1)).toMatchObject({ paddingTop: 88.4 });
     // Fenêtre basse : même réduction pour toutes les fiches, les cadres restent alignés et de même taille.
-    expect(sheetPlacement(undefined, 0.8)).toEqual({ paddingTop: 148.8, '--sheet-fit': 0.8 });
-    expect(sheetPlacement(feu, 0.8)).toMatchObject({ paddingTop: 27.2 });
-    expect(sheetPlacement(feu, 0.8).paddingTop as number + feu.headroom * 0.8).toBeCloseTo(148.8, 5);
+    expect(sheetPlacement(undefined, 0.8)).toEqual({ paddingTop: 193.44, '--sheet-fit': 0.8 });
+    expect(sheetPlacement(feu, 0.8)).toMatchObject({ paddingTop: 35.36 });
+    expect(sheetPlacement(feu, 0.8).paddingTop as number + feu.headroom * 1.3 * 0.8).toBeCloseTo(193.44, 5);
   });
 
   it('fenêtre basse : la fiche à overframe est réduite pour laisser 84 px au journal (0,6 au moins)', () => {
+    // Fiche à 1,3 : il lui faut 684 × 1,3 + 84 = 973,2 px de haut.
     expect(overframeFit(Infinity, 186)).toBe(1);
-    expect(overframeFit(900, 186)).toBe(1);
-    expect(overframeFit(722, 186)).toBeCloseTo((722 - 84) / 684, 5);
+    expect(overframeFit(1000, 186)).toBe(1);
+    expect(overframeFit(822, 186)).toBeCloseTo((822 - 84) / (684 * 1.3), 5);
     expect(overframeFit(300, 186)).toBe(0.6);
+  });
+
+  it('taille de la fiche : cadre, illustration et calques de l’overframe dans le repère 280 × 498, mis à l’échelle', () => {
+    // Le décalage du débordement grandit avec la fiche ; les calques (illustration, pop, bras, cadran) sont posés
+    // dans des `.sheet__scale` ; le voile reste à la taille du cadre.
+    const stage = renderToStaticMarkup(<HoverSheet sheet={cardSheet('maitre-des-heures')} />);
+    expect(stage).toContain('padding-top:calc(162px * var(--sheet-k, 1))');
+    expect(stage.match(/class="sheet__scale"/g)).toHaveLength(3);
+    expect(stage).toMatch(/class="sheet__scale"[^>]*><div class="of__art of__breath"/);
+    expect(stage).toMatch(/class="sheet__scale"[^>]*><div class="of__dial"/);
+    expect(stage).toMatch(/class="sheet__scale"[^>]*><div class="of__rise"/);
+    expect(stage).toMatch(/<div class="of__veil"/);
+    // Sans overframe : l'illustration aussi.
+    expect(renderToStaticMarkup(<HoverSheet sheet={cardSheet('archer-du-feu')} />)).toMatch(/class="sheet__scale"[^>]*><div class="sheet__bg"/);
   });
 
   it('aperçu plein écran : centré, à l’échelle de la fenêtre (1,8 au plus)', () => {
     const html = renderToStaticMarkup(<SheetPreview sheet={cardSheet('apprenti')} animated={false} onClose={() => {}} />);
-    // Fenêtre de 900 px par défaut hors navigateur : (900 − 80) / (498 + 152).
-    expect(html).toContain('transform:translate(-50%, -50%) scale(1.262)');
+    // Fenêtre de 900 px par défaut hors navigateur : (900 − 80) / (498 + 152), pour la fiche entière à 1,3 ; même
+    // mise en page que dans la colonne.
+    expect(html).toContain('transform:translate(-50%, -50%) scale(0.970);--sheet-k:1.3');
     expect(html).toContain('sheet-preview__backdrop');
   });
 });

@@ -138,7 +138,9 @@ export interface AttackPreview {
   readonly destroys: boolean;
   /** Statuts posés si elle survit (`brulure`, `givre`). */
   readonly statuses: readonly StatusSpec[];
-  /** Dégâts de la riposte que l'attaquant subira (0 sans riposte) et ses PV après. */
+  /** PV que l'attaquant récupère avec `soif` (0 sans, ou s'il a tous ses PV). */
+  readonly heal: number;
+  /** Dégâts de la riposte que l'attaquant subira (0 sans riposte) et ses PV après (soin de `soif` compris). */
   readonly riposte: number;
   readonly attackerHpAfter: number;
   /** Il peut prendre la case libérée (§4.7). */
@@ -168,6 +170,7 @@ export function previewAttack(state: BoardState, attacker: MonsterUnit, target: 
     !isStunned(target) &&
     distance(attacker.pos, target.pos) === 1;
   const riposte = ripostes ? getAtk(state, target) : 0;
+  const heal = soifHeal(attacker);
   return {
     damage,
     behind: hitsFromBehind(attacker, target),
@@ -175,8 +178,9 @@ export function previewAttack(state: BoardState, attacker: MonsterUnit, target: 
     hpAfter,
     destroys,
     statuses,
+    heal,
     riposte,
-    attackerHpAfter: Math.max(0, attacker.hp - riposte),
+    attackerHpAfter: Math.max(0, attacker.hp + heal - riposte),
     canAdvance: canAdvance(state, attacker, target),
   };
 }
@@ -224,6 +228,9 @@ export function applyAttack(state: GameState, action: AttackAction): GameState {
     behind,
   });
   let next = dealDamage(setUnit(declared, attacked), target.id, attackDamage(state, attacker, target), attacker.owner, 'attack');
+  // Soif (Vampire) : il récupère ses PV après les dégâts, avant la riposte et l'avancée, même si la cible est détruite (§10).
+  const soif = getKeyword(attacker, 'soif');
+  if (soif) next = applyTriggeredEffects(next, [{ type: 'heal', amount: soif.amount }], attacker.id, attacked);
   const survivor = next.units[target.id];
 
   if (!survivor) {
@@ -262,6 +269,11 @@ export function applyAttack(state: GameState, action: AttackAction): GameState {
     next = dealDamage(next, attacker.id, getAtk(next, defender), defender.owner, 'riposte');
   }
   return next;
+}
+
+/** PV que l'attaquant récupérera avec `soif`, sans dépasser ses PV max. */
+function soifHeal(attacker: MonsterUnit): number {
+  return Math.min(getKeyword(attacker, 'soif')?.amount ?? 0, attacker.maxHp - attacker.hp);
 }
 
 /** Première unité entre `from` et `to` (alignés), exclus : sur l'état réel, c'est un monstre invisible pour le tireur. */

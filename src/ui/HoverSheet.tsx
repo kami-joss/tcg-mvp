@@ -1,6 +1,9 @@
 // Fiche (handoff V8, lot 9), dans la colonne de gauche (jamais sur le plateau). Monstre, terrain ou carte : une carte
 // de 280 × 498, l'illustration en fond cadrée sur les yeux et pleinement visible dans le bandeau du haut, le corps qui
 // défile, « Effets en cours » en bas. Zone, piège ou case : la hauteur de son texte, sans illustration.
+// Taille de la fiche (`SHEET_SCALE`, posée en `--sheet-k`) : elle agrandit le cadre, l'illustration et l'overframe
+// (calques `.sheet__scale`, dans le repère 280 × 498) ; le texte garde sa taille et sa place, tout le gain de hauteur va
+// au bandeau de l'illustration.
 // Overframe (handoff V11, lot 12 §4) : une carte qui a ses calques sort du cadre (`OverframeStage`), la hauteur du
 // débordement réservée au-dessus de la fiche ; un clic l'ouvre en grand. Exemplaire brillant : cadre doré, badge
 // « ★ Brillante », reflets (images brillantes de l'overframe, ou shiny générique sur l'illustration).
@@ -18,6 +21,12 @@ import { CardRules } from './CardRules';
 
 /** Largeur de la fiche, en px : le cadrage de l'illustration s'écrit en px. */
 const SHEET_WIDTH = 280;
+
+/**
+ * Taille de la fiche de la colonne et de son aperçu, par rapport au repère 280 × 498 de ses calques (validé : la plus
+ * grande des tailles essayées, pour l'illustration).
+ */
+export const SHEET_SCALE = 1.3;
 
 const KIND_ICONS: Readonly<Record<NonNullable<SheetData['kind']>, IconName>> = {
   monster: 'dragon-head',
@@ -67,7 +76,9 @@ function SheetBackground({ sheet }: { sheet: SheetData }) {
   return (
     <>
       {gap && <div className="sheet__bg sheet__bg--blur" style={{ backgroundImage: `url("${art.src}")` }} aria-hidden="true" />}
-      <div className="sheet__bg" style={image} aria-hidden="true" />
+      <div className="sheet__scale" aria-hidden="true">
+        <div className="sheet__bg" style={image} />
+      </div>
       <div className="sheet__bg sheet__bg--veil" aria-hidden="true" />
     </>
   );
@@ -80,21 +91,21 @@ export const sheetOverframe = (sheet: SheetData) => (sheet.art ? OVERFRAMES[shee
 const LOG_ROOM = 72 + 12;
 
 /**
- * Échelle d'une fiche à overframe dans une colonne de `column` px de haut : 1 si elle tient avec son débordement, sinon
- * réduite pour laisser sa place au journal (fenêtre basse), 0,6 au moins.
+ * Échelle d'une fiche à overframe (à sa taille, `SHEET_SCALE`) dans une colonne de `column` px de haut : 1 si elle tient
+ * avec son débordement, sinon réduite pour laisser sa place au journal (fenêtre basse), 0,6 au moins.
  */
 export function overframeFit(column: number, headroom: number): number {
-  return Math.min(1, Math.max(0.6, (column - LOG_ROOM) / (SHEET_H + headroom)));
+  return Math.min(1, Math.max(0.6, (column - LOG_ROOM) / ((SHEET_H + headroom) * SHEET_SCALE)));
 }
 
 /**
  * Place de la fiche dans la colonne : le haut du cadre toujours au même endroit, sous la place du plus grand débordement
  * (`MAX_HEADROOM`), qu'elle ait une overframe ou non ; une overframe y loge le sien, les autres fiches laissent l'espace
- * vide (il laisse passer les clics). Fenêtre basse : toutes les fiches et cette place sont réduites du même facteur
- * `fit` (`zoom` posé par game.css), elles restent identiques.
+ * vide (il laisse passer les clics). Cette place grandit avec la fiche (`SHEET_SCALE`). Fenêtre basse : toutes les
+ * fiches et cette place sont réduites du même facteur `fit` (`zoom` posé par game.css), elles restent identiques.
  */
 export function sheetPlacement(overframe: OverframeDef | undefined, fit: number): CSSProperties {
-  const paddingTop = Number(((MAX_HEADROOM - (overframe?.headroom ?? 0)) * fit).toFixed(2));
+  const paddingTop = Number(((MAX_HEADROOM - (overframe?.headroom ?? 0)) * SHEET_SCALE * fit).toFixed(2));
   return { paddingTop, '--sheet-fit': fit } as CSSProperties;
 }
 
@@ -253,7 +264,8 @@ function SheetFrame({ sheet, animated, layers }: { sheet: SheetData; animated: b
 /**
  * Aperçu plein écran d'une fiche à overframe (§6.3 du handoff overframe) : rendu complet avec le débordement, centré,
  * à l'échelle min(1,8 ; (hauteur de la fenêtre − 80) / (498 + débordement)), sur un fond assombri et flouté. Échap
- * (géré par l'écran de jeu) ou un clic sur le fond le referme. Pas d'animation d'ouverture.
+ * (géré par l'écran de jeu) ou un clic sur le fond le referme. Pas d'animation d'ouverture. Même mise en page que
+ * dans la colonne (`SHEET_SCALE`) ; l'échelle de l'aperçu est celle de la fiche entière.
  */
 export function SheetPreview({ sheet, animated, onClose }: { sheet: SheetData; animated: boolean; onClose: () => void }) {
   const overframe = sheetOverframe(sheet);
@@ -263,11 +275,12 @@ export function SheetPreview({ sheet, animated, onClose }: { sheet: SheetData; a
     window.addEventListener('resize', resize);
     return () => window.removeEventListener('resize', resize);
   }, []);
-  const scale = Math.min(1.8, (height - 80) / (SHEET_H + (overframe?.headroom ?? 0)));
+  const scale = Math.min(1.8, (height - 80) / (SHEET_H + (overframe?.headroom ?? 0))) / SHEET_SCALE;
+  const style = { transform: `translate(-50%, -50%) scale(${scale.toFixed(3)})`, '--sheet-k': SHEET_SCALE } as CSSProperties;
   return (
     <div className="sheet-preview" role="dialog" aria-label={`Carte : ${sheet.title}`}>
       <div className="sheet-preview__backdrop" title="Fermer (Échap)" onClick={onClose} />
-      <div className="sheet-preview__card" style={{ transform: `translate(-50%, -50%) scale(${scale.toFixed(3)})` }}>
+      <div className="sheet-preview__card" style={style}>
         <HoverSheet sheet={sheet} animated={animated} />
       </div>
     </div>

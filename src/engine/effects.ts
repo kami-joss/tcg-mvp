@@ -6,7 +6,7 @@ import { getLineOfSightCells } from './combat';
 import { dealDamage } from './damage';
 import { emit } from './events';
 import { isShinyCopy, opponent, shine, takeFromGrimoire } from './players';
-import { addStatus, statusExpiry } from './statuses';
+import { addStatus, canMove, statusExpiry } from './statuses';
 import { perceived, perceivedBy, reveal } from './stealth';
 import { NEW_MOVEMENT, enterCell, rewindMonster } from './traps';
 import { getCard, getMonsterCard } from './cards';
@@ -19,6 +19,7 @@ import type {
   AreaZone,
   BoardState,
   BurningCell,
+  CardId,
   Direction,
   Effect,
   EffectTarget,
@@ -200,6 +201,14 @@ function findPush(effects: readonly Effect[]): PushEffect | undefined {
   return effects.find((effect): effect is PushEffect => effect.type === 'push');
 }
 
+/** PV que garde la cible d'un « tous ses PV sauf N » (Zoldik, Sacrifice sanguinaire) ; `null` sans cet effet. */
+function hpFloor(effects: readonly Effect[]): number | null {
+  for (const effect of effects) {
+    if (effect.type === 'loseHp' || (effect.type === 'absorb' && 'downTo' in effect)) return effect.downTo;
+  }
+  return null;
+}
+
 /**
  * Toutes les cibles possibles d'un effet de `player`. Un recul « direction au choix » donne une cible par direction utile ;
  * un recul « de 1 à N au choix » sur une zone, une cible par distance.
@@ -246,9 +255,10 @@ export function getEffectTargets(
         );
     }
     case 'monster': {
+      const floor = hpFloor(effects);
       const monsters = getTargetableMonsters(state, targeting, player, source).filter(
-        // On ne soigne pas un monstre qui a déjà tous ses PV (§10).
-        (m) => !effects.every((effect) => effect.type === 'heal') || m.hp < m.maxHp,
+        // On ne soigne pas un monstre qui a déjà tous ses PV (§10) ; « tous ses PV sauf N » vise un monstre qui en a plus.
+        (m) => (!effects.every((effect) => effect.type === 'heal') || m.hp < m.maxHp) && (floor === null || m.hp > floor),
       );
       // Téléportation : un allié autre que la source, puis une case adjacente libre de la source (§5.4).
       if (effects.some((effect) => effect.type === 'teleport')) {
@@ -303,6 +313,8 @@ interface EffectContext {
   readonly destination?: Position;
   /** D'où vient l'effet (carte, nom de l'effet) : gardé sur les bonus du tour. */
   readonly origin: EffectSource;
+  /** PV perdus par l'effet précédent sur la même cible (« perd tous ses PV sauf N »), pour « +N ATK par PV perdu ». */
+  readonly hpLost?: number;
 }
 
 /** Applique un effet complet à une cible déjà validée. */
@@ -381,26 +393,52 @@ export function resolveAbility(
   }
 }
 
-/** Les effets, dans l'ordre, sur le monstre `unitId` ; s'arrête s'il quitte le plateau. */
+/**
+ * Les effets, dans l'ordre, sur le monstre `unitId` ; s'arrête s'il quitte le plateau. Les PV perdus par un « perd tous
+ * ses PV sauf N » passent à l'effet suivant (Sacrifice sanguinaire).
+ */
 function applyEffects(state: GameState, effects: readonly Effect[], unitId: string, context: EffectContext): GameState {
   let next = state;
+  let hpLost = 0;
   for (const effect of effects) {
     const monster = next.units[unitId];
     if (monster?.kind !== 'monster') break;
-    next = applyEffect(next, effect, monster, context);
+    next = applyEffect(next, effect, monster, { ...context, hpLost });
+    if (effect.type === 'loseHp') hpLost = monster.hp - (next.units[unitId]?.hp ?? 0);
   }
   return next;
 }
 
+/** Rend `amount` PV à `monster`, sans dépasser ses PV max ; rien s'il les a tous. */
+function heal(state: GameState, monster: MonsterUnit, amount: number): GameState {
+  const hp = Math.min(monster.maxHp, monster.hp + amount);
+  if (hp === monster.hp) return state;
+  return setUnit(emit(state, { type: 'heal', unitId: monster.id, pos: monster.pos, amount: hp - monster.hp }), { ...monster, hp });
+}
+
 function applyEffect(state: GameState, effect: Effect, monster: MonsterUnit, context: EffectContext): GameState {
   const { id: unitId, pos } = monster;
+  const cause = context.source ? 'effect' : 'spell';
   switch (effect.type) {
     case 'damage':
-      return dealDamage(state, unitId, effect.amount, context.by, context.source ? 'effect' : 'spell');
-    case 'heal': {
-      const hp = Math.min(monster.maxHp, monster.hp + effect.amount);
-      return setUnit(emit(state, { type: 'heal', unitId, pos, amount: hp - monster.hp }), { ...monster, hp });
+      return dealDamage(state, unitId, effect.amount, context.by, cause);
+    case 'heal':
+      return heal(state, monster, effect.amount);
+    case 'absorb': {
+      // Les PV retirés (jamais plus que ceux qu'il a) reviennent à la source, sans dépasser ses PV max (§10).
+      const removed = 'downTo' in effect ? monster.hp - effect.downTo : Math.min(effect.amount, monster.hp);
+      if (removed <= 0) return state;
+      const hit = dealDamage(state, unitId, removed, context.by, cause);
+      const drinker = hit.units[requireSource(context.source).id];
+      return drinker?.kind === 'monster' ? heal(hit, drinker, removed) : hit;
     }
+    case 'loseHp': {
+      // Il tombe à `downTo` PV, sans être détruit ; ses PV max ne changent pas.
+      const lost = monster.hp - effect.downTo;
+      return lost > 0 ? dealDamage(state, unitId, lost, context.by, cause) : state;
+    }
+    case 'transform':
+      return transform(state, monster, effect.into);
     case 'status':
       return addStatus(state, unitId, effect);
     case 'addMobility':
@@ -410,8 +448,11 @@ function applyEffect(state: GameState, effect: Effect, monster: MonsterUnit, con
         boost: monster.boost + effect.amount,
         turnBonuses: addTurnBonus(monster, context.origin, { mobility: effect.amount }),
       });
-    case 'addAtkThisTurn':
-      return boost(state, monster, effect.amount, context.origin);
+    case 'addAtkThisTurn': {
+      // « +N ATK par PV perdu » : N fois les PV que vient de perdre la cible (Sacrifice sanguinaire).
+      const atk = effect.perHpLost ? effect.amount * (context.hpLost ?? 0) : effect.amount;
+      return atk > 0 ? boost(state, monster, atk, context.origin) : state;
+    }
     case 'addRangeThisTurn':
       return setUnit(emit(state, { type: 'reach', unitId, pos, amount: effect.amount }), {
         ...monster,
@@ -450,7 +491,7 @@ function applyEffect(state: GameState, effect: Effect, monster: MonsterUnit, con
       if (!to) throw new Error('Un retour demande une case');
       const index = monster.trail.findIndex((cell) => samePos(cell, to));
       const trail = index >= 0 ? monster.trail.slice(0, index + 1) : [...monster.trail, to];
-      return setUnit(emit(state, { type: 'rewind', unitId, from: pos, to }), { ...monster, pos: to, trail, mobilityLeft: 0 });
+      return setUnit(emit(state, { type: 'rewind', unitId, from: pos, to }), { ...monster, pos: to, trail, mobilityLeft: 0, halted: true });
     }
     case 'rewind':
       return rewindMonster(state, unitId, effect.steps).state;
@@ -460,6 +501,34 @@ function applyEffect(state: GameState, effect: Effect, monster: MonsterUnit, con
     case 'summon':
       throw new Error(`L'effet « ${effect.type} » ne s'applique pas à un monstre`);
   }
+}
+
+/**
+ * Transformation (Emma, §10) : le même monstre, sur sa case, prend la forme `into` (stats, mots-clés, effets). Ses
+ * bonus définitifs (Bénédiction) passent à la nouvelle forme. Chaque forme garde ses PV perdus : ceux de la forme
+ * quittée sont mis de côté, ceux de la forme prise reviennent (la première fois, elle a tous ses PV). Mobilité : celle
+ * de la nouvelle forme moins ce qu'il a déjà dépensé ce tour ; rien s'il ne peut plus se déplacer ce tour.
+ */
+function transform(state: GameState, monster: MonsterUnit, into: CardId): GameState {
+  const from = getMonsterCard(monster.cardId);
+  const to = getMonsterCard(into);
+  const maxHp = to.hp + (monster.maxHp - from.hp);
+  const hp = Math.max(1, maxHp - (monster.otherFormDamage ?? 0));
+  // Ce qu'il lui reste à marcher, en comptant ce qu'il a dépensé au-delà de sa forme actuelle.
+  const balance = monster.mobilityLeft - (monster.mobilityDebt ?? 0) + to.mobility - from.mobility;
+  const mobility =
+    monster.halted || !canMove(monster) ? { mobilityLeft: 0 } : { mobilityLeft: Math.max(0, balance), mobilityDebt: Math.max(0, -balance) };
+  const unit: MonsterUnit = {
+    ...monster,
+    ...mobility,
+    cardId: into,
+    atk: to.atk + (monster.atk - from.atk),
+    hp,
+    maxHp,
+    otherFormDamage: monster.maxHp - monster.hp,
+  };
+  const event = { type: 'transform', unitId: monster.id, pos: monster.pos, from: from.id, to: into, hp, maxHp } as const;
+  return setUnit(emit(state, event), unit);
 }
 
 /** ATK en plus pour ce tour (remise à 0 au début du prochain tour). */
@@ -475,7 +544,7 @@ function boost(state: GameState, monster: MonsterUnit, atk: number, origin: Effe
 const sameSource = (a: EffectSource, b: EffectSource) => a.cardId === b.cardId && a.effect === b.effect;
 
 /** Ajoute un bonus du tour à sa source : deux Flèches divines font une seule source, +2 ATK +2 portée. */
-function addTurnBonus(monster: MonsterUnit, source: EffectSource, bonus: Partial<Omit<TurnBonus, 'source'>>): readonly TurnBonus[] {
+export function addTurnBonus(monster: MonsterUnit, source: EffectSource, bonus: Partial<Omit<TurnBonus, 'source'>>): readonly TurnBonus[] {
   const add = (from: TurnBonus): TurnBonus => ({
     source: from.source,
     atk: from.atk + (bonus.atk ?? 0),

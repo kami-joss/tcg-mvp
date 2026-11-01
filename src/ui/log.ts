@@ -5,6 +5,7 @@
 import { getCard, getCell, getMonsterCard, samePos } from '../engine';
 import type { Action, Board, Direction, ManaZoneId, PlayerId, PlayerView, Position, Unit, UnitId } from '../engine';
 import type { IconName } from './Icon';
+import { cardTitle } from './cardText';
 
 /** Couleur d'une conséquence : perte (PV, destruction, piège), gain (bonus), VP, information. */
 export type LogTone = 'hurt' | 'good' | 'vp' | 'info';
@@ -137,8 +138,12 @@ function describeIntent(view: PlayerView, action: Action, after: PlayerView): st
         const distance = action.target.distance ? ` (recul de ${action.target.distance})` : '';
         return `${name(action.unitId)} lance ${effectName(view, action.unitId, action.effect)}${direction}${distance}.`;
       }
-      // Effet sur lui-même (Dopage).
-      if (action.target.unitId === action.unitId) return `${name(action.unitId)} utilise ${effectName(view, action.unitId, action.effect)}.`;
+      // Effet sur lui-même : transformation (Emma), Dopage.
+      if (action.target.unitId === action.unitId) {
+        const transform = abilityOf(view, action.unitId, action.effect)?.effects.find((effect) => effect.type === 'transform');
+        if (transform?.type === 'transform') return `${name(action.unitId)} se transforme en ${cardTitle(transform.into)}.`;
+        return `${name(action.unitId)} utilise ${effectName(view, action.unitId, action.effect)}.`;
+      }
       return `${name(action.unitId)} utilise son effet sur ${name(action.target.unitId)}.`;
     case 'endTurn':
       return `${actor} termine son tour.`;
@@ -221,6 +226,11 @@ function describeUnitChanges(before: PlayerView, action: Action, after: PlayerVi
     }
     if (action.type === 'playCard' && next.mobilityLeft > unit.mobilityLeft) {
       lines.push(item('walking-boot', `${unitName(unit)} : +${next.mobilityLeft - unit.mobilityLeft} mobilité ce tour.`, 'good'));
+    }
+    // Parti de la zone d'un Terrain de chasse ; rien pour un monstre caché à l'adversaire (ce serait dire où il était).
+    for (const event of after.events) {
+      if (event.type !== 'mobility' || event.unitId !== unit.id || !event.source || isSecret(after, unit.id)) continue;
+      lines.push(item('walking-boot', `${unitName(unit)} : +${event.amount} mobilité ce tour (${getCard(event.source).name}).`, 'good'));
     }
     const teleported = action.type === 'activateEffect' && action.target.kind === 'unitAndCell' && action.target.unitId === unit.id;
     const returned = action.type === 'activateEffect' && action.target.kind === 'cell' && action.unitId === unit.id;

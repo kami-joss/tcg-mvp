@@ -4,6 +4,8 @@
 // reflet métallique, lueur, particules, voile, cadran, holo, reflet qui balaie), puis le pop et ses pièces (tresses,
 // mèches, paupières), les bouts qui passent devant les bords, la lueur extérieure et les particules de devant. Tout vient
 // des données de la carte (`overframes.json`) : aucun code propre à une carte.
+// Calques dans le repère de la fiche 280 × 498, posés dans des `.sheet__scale` : ils grandissent avec la fiche
+// (`--sheet-k`, taille de la fiche `SHEET_SCALE`) ; voile, holo et reflet couvrent le cadre, quelle que soit sa taille.
 // Animations en CSS (images clés `of*` de game.css), sur `transform`, `opacity` et `background-position` seulement ;
 // à l'arrêt quand la scène sort de l'écran ou que l'onglet est caché ; rendu fixe quand les animations sont coupées
 // (pas de particules ni d'inclinaison). Le clignement (setTimeout) est annulé au démontage.
@@ -238,21 +240,23 @@ export function OverframeStage({ def, shiny, animated, index = 0, className, onC
 
   const back = (
     <>
-      <div
-        className="of__art of__breath"
-        style={{ ...imageBox(def.art, ownShiny), transformOrigin: breathOrigin(def, def.art) }}
-        aria-hidden="true"
-      >
-        {def.shine && <Shine shine={def.shine} src={overframeUrl(def.art.src, ownShiny)} />}
+      <div className="sheet__scale" aria-hidden="true">
+        <div className="of__art of__breath" style={{ ...imageBox(def.art, ownShiny), transformOrigin: breathOrigin(def, def.art) }}>
+          {def.shine && <Shine shine={def.shine} src={overframeUrl(def.art.src, ownShiny)} />}
+        </div>
+        {def.glow.layer === 'inside' && glow(false)}
+        {animated && (
+          <div className="of__back">
+            <Particles list={particles.back} />
+          </div>
+        )}
       </div>
-      {def.glow.layer === 'inside' && glow(false)}
-      {animated && (
-        <div className="of__back" aria-hidden="true">
-          <Particles list={particles.back} />
+      <div className="of__veil" aria-hidden="true" />
+      {def.dial && (
+        <div className="sheet__scale" aria-hidden="true">
+          <Dial dial={def.dial} />
         </div>
       )}
-      <div className="of__veil" aria-hidden="true" />
-      {def.dial && <Dial dial={def.dial} />}
       {shiny ? (
         <>
           <div ref={holo} className="of__holo" style={{ background: HOLO }} aria-hidden="true" />
@@ -276,7 +280,7 @@ export function OverframeStage({ def, shiny, animated, index = 0, className, onC
     <div
       ref={stage}
       className={classes.filter(Boolean).join(' ')}
-      style={{ paddingTop: def.headroom, '--of-n': index } as CSSProperties}
+      style={{ paddingTop: `calc(${def.headroom}px * var(--sheet-k, 1))`, '--of-n': index } as CSSProperties}
       onMouseMove={move}
       onMouseLeave={leave}
       onClick={onClick}
@@ -285,49 +289,45 @@ export function OverframeStage({ def, shiny, animated, index = 0, className, onC
       <div className="of__float">
         <div ref={tilt} className="of__tilt">
           {children({ back, glare: <div ref={glare} className="of__glare" aria-hidden="true" /> })}
-          <div
-            className="of__rise"
-            style={{ top: -RISE, height: RISE + RISE_OVERLAP, maskImage: RISE_MASK, WebkitMaskImage: RISE_MASK }}
-            aria-hidden="true"
-          >
+          <div className="sheet__scale" aria-hidden="true">
             <div
-              className="of__art of__breath"
-              style={{ ...imageBox({ ...def.art, y: def.art.y + RISE }, ownShiny), transformOrigin: breathOrigin(def, def.art) }}
+              className="of__rise"
+              style={{ top: -RISE, height: RISE + RISE_OVERLAP, maskImage: RISE_MASK, WebkitMaskImage: RISE_MASK }}
             >
-              {def.shine && <Shine shine={def.shine} src={overframeUrl(def.art.src, ownShiny)} />}
-            </div>
-          </div>
-          <div
-            className="of__pop of__breath"
-            style={{ ...popBox, transformOrigin: breathOrigin(def, def.pop), filter: look.popFilter }}
-            aria-hidden="true"
-          >
-            <div className="of__pop-img" style={{ backgroundImage: popImage, maskImage: popFade, WebkitMaskImage: popFade }} />
-            {def.parts.map((part) => (
               <div
-                key={part.id}
-                ref={part.anim === 'blink' ? eyes : undefined}
-                className={`of__part of__part--${part.anim}`}
-                style={{
-                  ...imageBox(part, ownShiny),
-                  ...(part.origin ? { transformOrigin: `${part.origin[0]}px ${part.origin[1]}px` } : {}),
-                }}
-              />
-            ))}
-          </div>
-          {def.sides && (
-            <div
-              className="of__sides of__breath"
-              style={{ ...imageBox(def.sides, ownShiny), transformOrigin: breathOrigin(def, def.sides) }}
-              aria-hidden="true"
-            />
-          )}
-          {def.glow.layer === 'outside' && glow(true)}
-          {animated && (
-            <div className="of__front" style={{ top: -def.headroom }} aria-hidden="true">
-              <Particles list={particles.front} />
+                className="of__art of__breath"
+                style={{ ...imageBox({ ...def.art, y: def.art.y + RISE }, ownShiny), transformOrigin: breathOrigin(def, def.art) }}
+              >
+                {def.shine && <Shine shine={def.shine} src={overframeUrl(def.art.src, ownShiny)} />}
+              </div>
             </div>
-          )}
+            <div className="of__pop of__breath" style={{ ...popBox, transformOrigin: breathOrigin(def, def.pop), filter: look.popFilter }}>
+              <div className="of__pop-img" style={{ backgroundImage: popImage, maskImage: popFade, WebkitMaskImage: popFade }} />
+              {def.parts.map((part) => (
+                <div
+                  key={part.id}
+                  ref={part.anim === 'blink' ? eyes : undefined}
+                  className={`of__part of__part--${part.anim}`}
+                  style={{
+                    ...imageBox(part, ownShiny),
+                    ...(part.origin ? { transformOrigin: `${part.origin[0]}px ${part.origin[1]}px` } : {}),
+                  }}
+                />
+              ))}
+            </div>
+            {def.sides && (
+              <div
+                className="of__sides of__breath"
+                style={{ ...imageBox(def.sides, ownShiny), transformOrigin: breathOrigin(def, def.sides) }}
+              />
+            )}
+            {def.glow.layer === 'outside' && glow(true)}
+            {animated && (
+              <div className="of__front" style={{ top: -def.headroom }}>
+                <Particles list={particles.front} />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

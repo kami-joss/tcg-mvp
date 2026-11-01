@@ -4,6 +4,7 @@
 // La notation compacte de SPEC.md (« Actif (2 mana) · … ») reste dans `cardText.ts`, comparée aux tableaux de SPEC.md.
 import type {
   Ability,
+  ActivatedAbility,
   AllyZoneEffect,
   AreaZone,
   Archetype,
@@ -16,7 +17,8 @@ import type {
   Targeting,
   TerrainCard,
 } from '../engine';
-import { ARCHETYPE_NAMES } from './cardText';
+import { getMonsterCard } from '../engine';
+import { ARCHETYPE_NAMES, cardTitle } from './cardText';
 
 /** Mots du lexique qu'un texte de carte met en gras, et leur définition (survol). */
 export const GLOSSARY = {
@@ -41,6 +43,9 @@ export const GLOSSARY = {
   immobilise: 'Immobilisé : ne peut plus bouger (ni avancer après une attaque), mais peut attaquer et activer ses effets.',
   requiem: 'Requiem N : meurt au début de son N-ième prochain tour. Personne ne gagne de VP.',
   camouflage: 'Camouflage N : caché à l’adversaire tant qu’aucun de ses monstres ni terrains n’est dans un rayon de N.',
+  absorber: 'Absorber : retirer des PV au monstre visé ; ce monstre-ci récupère les PV retirés, sans dépasser ses PV max. Ce n’est pas une attaque.',
+  deplacement: 'Déplacement : le monstre marche de case en case, 1 mobilité par case ; il peut en faire plusieurs par tour avec sa mobilité restante. Un recul, une avancée ou une téléportation n’en est pas un.',
+  transformer: 'Se transformer : prendre son autre forme (stats, mots-clés, effets) en restant le même monstre : même case, mêmes statuts et bonus, une seule attaque par tour. Chaque forme garde ses PV perdus ; la mobilité déjà dépensée ce tour compte.',
 } as const;
 
 export type GlossaryTerm = keyof typeof GLOSSARY;
@@ -262,11 +267,33 @@ function suffers(effects: readonly Effect[]): string {
 
 const ENEMY_ENTERS = `l’ennemi qui y ${t('entrer', 'entre')}`;
 
+/** Chaque ennemi d'une zone, au singulier : « chaque ennemi adjacent » (absorption de Vladimir). */
+const EACH_IN_ZONE: Readonly<Record<AreaZone, string>> = {
+  front3: 'chaque ennemi des 3 cases devant',
+  adjacent: `chaque ennemi ${t('adjacent', 'adjacent')}`,
+  line3: 'chaque ennemi sur 3 cases en ligne dans la direction de ton choix',
+  adjacent2: `chaque ennemi dans un ${t('rayon', 'rayon')} de 2`,
+};
+
+/** Nom d'une forme dans une phrase : « chauve-souris » pour Emma chauve-souris (forme d'Emma), sinon le nom de la carte. */
+function formLabel(card: MonsterCard): string {
+  const title = cardTitle(card.id);
+  const base = card.formOf ? cardTitle(card.formOf) : null;
+  return base && title.startsWith(`${base} `) ? title.slice(base.length + 1) : title;
+}
+
 /**
  * Le texte d'un effet (sort ou effet actif d'un monstre), en phrases : « Inflige 2 dégâts à un ennemi en ligne,
- * portée 2. », « Pose un piège sur une case adjacente libre : l’ennemi qui y entre subit 3 dégâts. ».
+ * portée 2. », « Pose un piège sur une case adjacente libre : l’ennemi qui y entre subit 3 dégâts. ». Un effet actif
+ * dit aussi ses limites : « Il ne peut plus attaquer ce tour. » (Zoldik), « Sans limite par tour. » (Emma).
  */
 export function abilityRules(ability: Ability): string {
+  const active: Partial<ActivatedAbility> = ability;
+  const limits = [active.endsAttack ? 'Il ne peut plus attaquer ce tour.' : null, active.unlimited ? 'Sans limite par tour.' : null];
+  return [abilityBody(ability), ...limits].filter(Boolean).join(' ');
+}
+
+function abilityBody(ability: Ability): string {
   const { targeting, effects } = ability;
   const first = effects[0];
   switch (first?.type) {
@@ -282,6 +309,30 @@ export function abilityRules(ability: Ability): string {
       return `${capitalize(t('teleporter', 'téléporte'))} ce monstre sur une case libre de son ${t('chemin', 'chemin du tour')}. Il ne peut plus se déplacer ce tour.`;
     case 'evolve':
       return `${capitalize(t('sacrifier', 'sacrifie'))} ce monstre pour ${t('invoquer', 'invoquer')} à sa place, sans payer son coût, un monstre de ton grimoire qui en évolue. Le nouveau monstre ne peut pas agir ce tour. Pas le tour où ce monstre arrive.`;
+    case 'transform': {
+      // Vers une forme hors grimoire, ses stats ; vers la carte d'origine, son nom suffit.
+      const form = getMonsterCard(first.into);
+      const stats = form.formOf ? ` (ATK ${form.atk}, PV ${form.hp}, mobilité ${form.mobility}, portée ${form.range})` : '';
+      return `${capitalize(t('transformer', 'se transforme'))} en ${formLabel(form)}${stats}.`;
+    }
+    case 'absorb': {
+      const verb = capitalize(t('absorber', 'absorbe'));
+      // Sur une zone, chaque ennemi touché : « Absorbe 1 PV à chaque ennemi adjacent ».
+      if (targeting.type === 'zone') {
+        const each = EACH_IN_ZONE[targeting.zone];
+        return 'downTo' in first ? `${verb} tous les PV de ${each}, sauf ${first.downTo}.` : `${verb} ${first.amount} PV à ${each}.`;
+      }
+      const target = targetOf(targeting);
+      return 'downTo' in first ? `${verb} tous les PV ${target.of}, sauf ${first.downTo}.` : `${verb} ${first.amount} PV ${target.to}.`;
+    }
+    case 'loseHp': {
+      // « Un allié vampire perd tous ses PV sauf 1 et gagne +1 ATK par PV perdu ce tour. »
+      const gains = effects
+        .slice(1)
+        .map((effect) => (effect.type === 'addAtkThisTurn' && effect.perHpLost ? ` et gagne +${effect.amount} ATK par PV perdu ce tour` : ''))
+        .join('');
+      return `${capitalize(targetOf(targeting).noun)} perd tous ses PV sauf ${first.downTo}${gains}.`;
+    }
     default:
       return `${capitalize(clauses(effects, targetOf(targeting), targeting))}.`;
   }
@@ -318,6 +369,8 @@ export function keywordRules(spec: KeywordSpec): string {
       return `En attaquant ${t('parDerriere', 'par derrière')} : dégâts ×${spec.multiplier}.`;
     case 'camouflage':
       return `Caché à l’adversaire tant qu’aucun de ses monstres ni terrains n’est dans un ${t('rayon', `rayon de ${spec.amount}`)}.`;
+    case 'soif':
+      return `À l’attaque, il récupère ${spec.amount} PV.`;
   }
 }
 
@@ -331,6 +384,13 @@ const statBonus = ({ atk, hp, mobility }: Pick<StatAura, 'atk' | 'hp' | 'mobilit
 /** Passage (terrain ou monstre) : « L’ennemi qui entre sur une case adjacente subit burn 1 pendant 1 tour. » */
 const passageRules = (card: TerrainCard | MonsterCard) =>
   card.passage ? `L’ennemi qui ${t('entrer', 'entre')} sur une case ${t('adjacent', 'adjacente')} ${suffers(card.passage.effects)}.` : null;
+
+/** Au déplacement (Terrain de chasse) : « Quand un de tes monstres commence un déplacement sur sa case… ». */
+const onMoveRules = (card: TerrainCard) =>
+  card.onMove
+    ? `Quand un de tes monstres commence un ${t('deplacement', 'déplacement')} sur sa case ou une case ${t('adjacent', 'adjacente')}, ` +
+      `il a +${card.onMove.mobility} mobilité ce tour. Une fois par tour par monstre.`
+    : null;
 
 /** Un passif d'une carte : son nom (gras sur la fiche) et sa règle. */
 export interface RulesItem {
@@ -346,6 +406,7 @@ export function passiveRules(card: Card): RulesItem[] {
       card.zoneManaBonus > 0 ? { name: '', text: `La mana zone rapporte +${card.zoneManaBonus} mana.` } : null,
       card.passage ? { name: t('passage', 'Passage'), text: passageRules(card)! } : null,
       card.summonPoint ? { name: 'Point d’invocation', text: 'Sa case est une case d’invocation pour toi, tant qu’aucun monstre ne s’y trouve.' } : null,
+      card.onMove ? { name: 'Au déplacement', text: onMoveRules(card)! } : null,
     ].filter((item): item is RulesItem => item !== null);
   }
   const items: RulesItem[] = card.keywords.map((spec) => ({ name: keywordName(spec), text: keywordRules(spec) }));
@@ -380,6 +441,7 @@ function keywordName(spec: KeywordSpec): string {
     sournois: 'Sournois',
     assassin: 'Assassin',
     camouflage: 'Camouflage',
+    soif: 'Soif',
   };
   const name = names[spec.keyword];
   switch (spec.keyword) {

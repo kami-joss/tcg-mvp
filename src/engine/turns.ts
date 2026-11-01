@@ -61,7 +61,11 @@ export function startTurn(state: GameState): GameState {
     next = dealDamage(next, unit.id, burn, opponent(player), 'burn');
   }
 
-  for (const monster of [...getMonsters(next, 1), ...getMonsters(next, 2)]) {
+  for (const current of [...getMonsters(next, 1), ...getMonsters(next, 2)]) {
+    // Son déplacement arrêté (sablier, retour…), la mobilité dépensée au-delà de sa forme et le bonus d'un Terrain de
+    // chasse déjà reçu ne valaient que son tour.
+    const { halted: _halted, mobilityDebt: _debt, onMoveTaken: _taken, ...fresh } = current;
+    const monster = current.owner === player ? fresh : current;
     // Mobilité de la carte, plus les auras et le bonus du plateau, moins les slow ; 0 si stun ou immobilisé (§5 bis).
     const refreshed =
       monster.owner === player

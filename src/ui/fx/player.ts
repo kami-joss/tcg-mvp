@@ -4,7 +4,7 @@
 // visuel qu'ils accompagnent. La première carte qui agit (attaque, effet actif, sort, terrain, invocation) est d'abord
 // mise en avant au centre de l'écran (cut-in, `cutIn.ts`), puis l'action se joue.
 import { distance, getCard, getMonsterCard, statusAmount } from '../../engine';
-import { trapLabel } from '../cardText';
+import { cardTitle, trapLabel } from '../cardText';
 import type { GameEvent, MonsterUnit, PlayerId, PlayerView, Position, StatusKind } from '../../engine';
 import { CARD_ART } from '../art';
 import { cutInIndex, cutInOf } from './cutIn';
@@ -58,6 +58,8 @@ const VIOLET = 'oklch(0.72 0.15 300)';
 /** Retour dans le temps (Explorateur du temps) : turquoise. */
 const TIME_COLOR = 'oklch(0.82 0.11 195)';
 const REQUIEM = 'oklch(0.7 0.06 300)';
+/** Sang des vampires : absorption, transformation. */
+const BLOOD = 'oklch(0.55 0.2 25)';
 
 /** Son de l'effet de zone de chaque dragon. */
 const AREA_SOUNDS: Readonly<Record<string, SoundName>> = {
@@ -199,12 +201,27 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
         } else if (ability?.targeting.type === 'monster' && ability.effects.some((e) => e.type === 'damage')) {
           sfx('spell');
           await shoot(stage, source.pos, event.pos, 'magic');
+        } else if (ability?.targeting.type === 'monster' && ability.effects.some((e) => e.type === 'absorb')) {
+          // Absorbe : le sang de la cible file vers le vampire.
+          sfx('spell');
+          burst(stage, event.pos, BLOOD, { n: 10, spread: 26, size: 5, ring: false });
+          await shoot(stage, event.pos, source.pos, 'magic');
         } else {
           if (ability?.targeting.type === 'monster') sfx('spell');
           await wait(150);
         }
         break;
       }
+
+      case 'transform':
+        // Transformation (Emma) : une nuée de sang, puis la nouvelle forme.
+        sfx('spell');
+        rise(stage, event.pos, BLOOD);
+        burst(stage, event.pos, BLOOD, { n: 14, spread: 34, size: 5, ringScale: 2.6 });
+        float(stage, event.pos, cardTitle(event.to), 'oklch(0.75 0.16 25)');
+        await patch(event);
+        await wait(350);
+        break;
 
       case 'sacrifice':
         sfx('spell');
@@ -486,6 +503,10 @@ async function areaBlast(stage: Stage, cardId: string, from: Position, cells: re
       break;
     case 'dragon-vent':
       for (const pos of cells) gust(stage, from, pos);
+      break;
+    case 'vladimir':
+      for (const pos of cells) burst(stage, pos, BLOOD, { n: 10, spread: 30, size: 5, ring: false, fall: -10 });
+      burst(stage, from, BLOOD, { n: 14, spread: 36, size: 6, ringScale: 2.4 });
       break;
     default:
       quake(stage);

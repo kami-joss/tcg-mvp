@@ -34,6 +34,7 @@ const KEYWORD_NAMES: Readonly<Record<Keyword, string>> = {
   sournois: 'Sournois',
   assassin: 'Assassin',
   camouflage: 'Camouflage',
+  soif: 'Soif',
 };
 
 /** Durée d'un statut (§5.5) : « pendant 2 tours », « jusqu’à son prochain tour ». */
@@ -63,6 +64,7 @@ export function keywordLabel(spec: KeywordSpec): string {
     case 'pillage':
     case 'etendard':
     case 'camouflage':
+    case 'soif':
       return `${name} ${spec.amount}`;
   }
 }
@@ -94,6 +96,8 @@ export function keywordText(spec: KeywordSpec): string {
       return `en attaquant un monstre par derrière, dégâts ×${spec.multiplier}.`;
     case 'camouflage':
       return `invisible pour l’adversaire tant qu’aucun monstre ni terrain adverse n’est dans un rayon de ${spec.amount} autour de lui.`;
+    case 'soif':
+      return `à l’attaque, il récupère ${spec.amount} PV (soin sur lui-même, sans dépasser ses PV max), après les dégâts et avant une riposte.`;
   }
 }
 
@@ -112,6 +116,7 @@ export const ARCHETYPE_NAMES: Readonly<Record<Archetype, { readonly title: strin
   piege: { title: 'Pièges', one: 'monstre piège', many: 'monstres piège' },
   sorcier: { title: 'Sorciers du feu', one: 'sorcier du feu', many: 'sorciers du feu' },
   temps: { title: 'Explorateur du temps', one: 'explorateur du temps', many: 'explorateurs du temps' },
+  vampire: { title: 'Vampire', one: 'vampire', many: 'vampires' },
 };
 
 /**
@@ -193,7 +198,7 @@ export function effectText(effect: Effect): string {
     case 'addMobility':
       return `+${effect.amount} mobilité (pour ce tour)`;
     case 'addAtkThisTurn':
-      return `+${effect.amount} ATK (pour ce tour)`;
+      return `+${effect.amount} ATK${effect.perHpLost ? ' par PV perdu' : ''} (pour ce tour)`;
     case 'addRangeThisTurn':
       return `+${effect.amount} portée (pour ce tour)`;
     case 'multiplyAtkThisTurn':
@@ -214,6 +219,12 @@ export function effectText(effect: Effect): string {
       return 'retour';
     case 'rewind':
       return `remonte ${effect.steps} case${effect.steps > 1 ? 's' : ''}`;
+    case 'absorb':
+      return 'downTo' in effect ? `absorbe tous ses PV sauf ${effect.downTo}` : `absorbe ${effect.amount} PV`;
+    case 'loseHp':
+      return `perd tous ses PV sauf ${effect.downTo}`;
+    case 'transform':
+      return `se transforme en ${cardTitle(effect.into)}`;
     case 'evolve':
       return '';
   }
@@ -241,9 +252,9 @@ function effectsText(effects: readonly Effect[]): string {
  * burn 1 pendant 1 tour ». `named` : commencer par le nom de l'effet, s'il en a un.
  */
 export function abilityText(ability: Ability, named = true): string {
-  // L'évolution et le retour s'écrivent seuls (« Actif (2 mana) · Évolution », « Actif (1 mana) · retour ») : leur
-  // cible va de soi.
-  const alone = ability.effects.some((effect) => effect.type === 'evolve' || effect.type === 'returnOnTrail');
+  // L'évolution, le retour et la transformation s'écrivent seuls (« Actif (2 mana) · Évolution », « Actif (1 mana) ·
+  // retour ») : leur cible va de soi.
+  const alone = ability.effects.some((effect) => effect.type === 'evolve' || effect.type === 'returnOnTrail' || effect.type === 'transform');
   const target = alone ? '' : targetText(ability.targeting);
   const trap = ability.effects.some((effect) => effect.type === 'placeTrap');
   const parts = [
@@ -265,6 +276,10 @@ export function effectName(ability: ActivatedAbility): string {
       return effect.effects.some((e) => e.type === 'damage') ? 'Poser une bombe' : 'Poser un filet';
     case 'returnOnTrail':
       return 'Retour';
+    case 'transform':
+      return 'Se transformer';
+    case 'absorb':
+      return 'Absorber';
     case 'burnCell':
       return 'Mettre le feu';
     case 'heal':
@@ -282,9 +297,18 @@ export function effectName(ability: ActivatedAbility): string {
   }
 }
 
+/**
+ * Déclencheur d'un effet actif : « Actif (3 mana) », « Actif (1 mana, sans limite par tour) » (Emma), « Actif (3 mana,
+ * puis plus d'attaque ce tour) » (Zoldik).
+ */
+export function activatedTrigger(ability: ActivatedAbility): string {
+  const limits = [ability.unlimited ? 'sans limite par tour' : null, ability.endsAttack ? 'puis plus d’attaque ce tour' : null];
+  return `Actif (${[`${ability.manaCost} mana`, ...limits].filter(Boolean).join(', ')})`;
+}
+
 /** Déclencheur et effet de chaque effet actif, dans l'ordre de la carte : « Actif (3 mana) · Déflagration · … ». */
 export function activatedTexts(card: MonsterCard): string[] {
-  return card.activated.map((ability) => `Actif (${ability.manaCost} mana) · ${abilityText(ability)}`);
+  return card.activated.map((ability) => `${activatedTrigger(ability)} · ${abilityText(ability)}`);
 }
 
 /** Déclencheur « Quand il détruit une unité » (§5.2) : « Quand il détruit une unité · +1 ATK +1 PV (définitivement) ». */
@@ -383,6 +407,7 @@ export function cardEffectLine(card: Card): string {
         card.zoneManaBonus > 0 ? `La zone rapporte +${card.zoneManaBonus} mana` : null,
         passageText(card),
         card.summonPoint ? SUMMON_POINT : null,
+        onMoveText(card),
       ].filter(Boolean);
       return parts.length > 0 ? parts.join(' ; ') : '—';
     }
@@ -396,6 +421,12 @@ const SUMMON_POINT = 'Point d’invocation';
 export function passageText(card: TerrainCard | MonsterCard): string | null {
   if (!card.passage) return null;
   return `Passage · ${ZONE_TEXT[card.passage.zone]} · ${card.passage.effects.map(effectText).join(' + ')}`;
+}
+
+/** Effet « Au déplacement » d'un terrain : « Au déplacement · sa case et adjacents · +1 mobilité (pour ce tour) ». */
+export function onMoveText(card: TerrainCard): string | null {
+  if (!card.onMove) return null;
+  return `Au déplacement · sa case et adjacents · ${effectText({ type: 'addMobility', amount: card.onMove.mobility })}`;
 }
 
 /** Nom court d'un piège : « Bombe » s'il fait des dégâts, « Filet » s'il immobilise, « Sablier » s'il fait remonter le temps. */
@@ -441,6 +472,9 @@ export function describeCard(card: Card): string[] {
           : []),
         ...(card.summonPoint
           ? [`Passif · ${SUMMON_POINT} : sa case est une case d’invocation pour vous, tant qu’aucun monstre ne s’y trouve.`]
+          : []),
+        ...(card.onMove
+          ? [`Passif · ${onMoveText(card)} : un de vos monstres qui commence un déplacement sur sa case ou une des 8 cases autour a +${card.onMove.mobility} mobilité ce tour, une fois par tour.`]
           : []),
       ];
     }

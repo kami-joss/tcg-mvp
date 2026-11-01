@@ -669,6 +669,178 @@
       ]
     }
   },
+  "emma": {
+    "_doc": "Emma - Vampire (sources : artworksv2/vampire/Emma.jpg ; pop détouré avec Vision). Son bras tendu sort du cadre à droite (sides, devant le liseré), griffes dans une lueur rouge.",
+    "headroom": 128,
+    "breathAnchor": [
+      140,
+      150
+    ],
+    "art": {
+      "src": "emma.jpg",
+      "w": 784,
+      "h": 1168,
+      "x": -67.8,
+      "y": -168.2,
+      "scale": 0.6
+    },
+    "pop": {
+      "src": "emma_pop.png",
+      "w": 467,
+      "h": 272,
+      "x": 0,
+      "y": -123.2,
+      "scale": 0.6
+    },
+    "sides": {
+      "src": "emma_bras.png",
+      "w": 187,
+      "h": 305,
+      "x": 276,
+      "y": -123.2,
+      "scale": 0.6
+    },
+    "parts": [],
+    "shine": null,
+    "dial": null,
+    "glow": {
+      "layer": "outside",
+      "x": 265,
+      "y": -117,
+      "size": 150
+    },
+    "particles": "blood",
+    "sweep": "white",
+    "looks": {
+      "normal": {
+        "glow": [
+          "oklch(0.7 0.22 25 / .7)",
+          "oklch(0.45 0.2 20 / .25)"
+        ],
+        "glowStop": "55%",
+        "popFilter": "drop-shadow(0 0 .6px oklch(0.15 0.04 20 / .9)) drop-shadow(0 0 8px oklch(0.6 0.22 25 / .35)) drop-shadow(0 3px 4px oklch(0 0 0 / .4))"
+      },
+      "shiny": "generic"
+    }
+  },
+  "emma_chauve_souris": {
+    "_doc": "Emma chauve-souris - Vampire (forme d'Emma) : l'aile gauche monte haut au-dessus du cadre ; des chauves-souris s'envolent.",
+    "headroom": 180,
+    "breathAnchor": [
+      140,
+      150
+    ],
+    "art": {
+      "src": "emma_chauve_souris.jpg",
+      "w": 784,
+      "h": 1168,
+      "x": -58,
+      "y": -202,
+      "scale": 0.6
+    },
+    "pop": {
+      "src": "emma_chauve_souris_pop.png",
+      "w": 467,
+      "h": 360,
+      "x": 0.2,
+      "y": -175,
+      "scale": 0.6
+    },
+    "sides": null,
+    "parts": [],
+    "shine": null,
+    "dial": null,
+    "glow": {
+      "layer": "inside",
+      "x": 70,
+      "y": -40,
+      "size": 170
+    },
+    "particles": "bats",
+    "sweep": "white",
+    "looks": {
+      "normal": {
+        "glow": [
+          "oklch(0.72 0.17 340 / .6)",
+          "oklch(0.45 0.18 15 / .25)"
+        ],
+        "glowStop": "55%",
+        "popFilter": "drop-shadow(0 0 .6px oklch(0.15 0.04 20 / .9)) drop-shadow(0 0 8px oklch(0.6 0.22 25 / .35)) drop-shadow(0 3px 4px oklch(0 0 0 / .4))"
+      },
+      "shiny": "generic"
+    }
+  },
+  "zoldik": {
+    "_doc": "Zoldik - Vampire : sa main tendue sort du cadre à droite (sides) ; reflet métallique sur ses chaînes ; version brillante « Sang bleu » (images _shiny : rouges passés au bleu).",
+    "headroom": 125,
+    "breathAnchor": [
+      140,
+      150
+    ],
+    "art": {
+      "src": "zoldik.jpg",
+      "w": 784,
+      "h": 1168,
+      "x": -48,
+      "y": -138,
+      "scale": 0.6
+    },
+    "pop": {
+      "src": "zoldik_pop.png",
+      "w": 467,
+      "h": 267,
+      "x": 0,
+      "y": -120,
+      "scale": 0.6
+    },
+    "sides": {
+      "src": "zoldik_bras.png",
+      "w": 100,
+      "h": 370,
+      "x": 276,
+      "y": -120,
+      "scale": 0.6
+    },
+    "parts": [],
+    "shine": {
+      "src": "art",
+      "opacity": 0.7,
+      "filter": "brightness(.75) contrast(4) saturate(1.4)",
+      "blend": "screen",
+      "mask": "linear-gradient(115deg, transparent 40%, #000 50%, transparent 60%)",
+      "maskSize": "300% 100%",
+      "anim": "shine"
+    },
+    "dial": null,
+    "glow": {
+      "layer": "inside",
+      "x": 165,
+      "y": -45,
+      "size": 170
+    },
+    "particles": "blood",
+    "sweep": "white",
+    "sweepMs": 5200,
+    "looks": {
+      "normal": {
+        "glow": [
+          "oklch(0.68 0.22 25 / .7)",
+          "oklch(0.42 0.18 20 / .25)"
+        ],
+        "glowStop": "55%",
+        "popFilter": "drop-shadow(0 0 .6px oklch(0.15 0.04 20 / .9)) drop-shadow(0 0 8px oklch(0.6 0.22 25 / .35)) drop-shadow(0 3px 4px oklch(0 0 0 / .4))"
+      },
+      "shiny": {
+        "label": "Sang bleu",
+        "glow": [
+          "oklch(0.85 0.12 235 / .75)",
+          "oklch(0.55 0.18 255 / .3)"
+        ],
+        "glowStop": "55%",
+        "popFilter": "drop-shadow(0 0 .6px oklch(0.2 0.05 250 / .9)) drop-shadow(0 0 8px oklch(0.75 0.16 240 / .45)) drop-shadow(0 3px 4px oklch(0 0 0 / .4))"
+      }
+    }
+  },
   "animations": {
     "_doc": "Animations nommées utilisées par les parts, shine et dial.",
     "hairWind": {

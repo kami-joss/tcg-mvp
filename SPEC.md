@@ -170,7 +170,7 @@ Le mana non dépensé est conservé d'un tour à l'autre, sans plafond.
 
 ### 4.3 Grimoire
 - Toutes les cartes du grimoire sont jouables à tout moment pendant son tour, si on a le mana.
-- Pas de limite par tour pour jouer des cartes : seul le mana compte. Un second exemplaire d'un même sort se lance dans le même tour s'il reste du mana. Seuls les effets de monstres ont une limite : une fois par tour/carte.
+- Pas de limite par tour pour jouer des cartes : seul le mana compte. Un second exemplaire d'un même sort se lance dans le même tour s'il reste du mana. Seuls les effets de monstres ont une limite : une fois par tour/carte (sauf un effet actif « sans limite par tour », §5.2) ; et le bonus d'un terrain « Au déplacement » : une fois par tour pour chaque monstre (§5.2).
 - Une carte jouée quitte le grimoire. Le **cimetière** (public) reçoit les sorts lancés, et les monstres et terrains qui quittent le plateau (détruits, sacrifiés, tués par requiem) ; un monstre ou un terrain posé n'y va pas.
 - **Informations publiques** : cimetière de chaque joueur, nombre de cartes restantes, mana, VP.
 - **Information cachée** : le contenu du grimoire adverse.
@@ -221,8 +221,8 @@ Un second mode de jeu, choisi à l'accueil à côté de la carte : « Normal » 
 - **Avancée** : si l'attaquant était adjacent et a détruit la cible, il peut immédiatement prendre sa place gratuitement (sans dépenser de mobilité). C'est optionnel.
 
 ### 4.8 Effets activés
-- Utilisables une fois par tour/carte, en payant leur coût en mana. Un monstre peut en avoir plusieurs : chacun s'utilise une fois par tour/carte (§10).
-- N'utilisent pas l'attaque du monstre.
+- Utilisables une fois par tour/carte, en payant leur coût en mana. Un monstre peut en avoir plusieurs : chacun s'utilise une fois par tour/carte (§10). Exception : un effet « sans limite par tour » (Emma - Vampire) s'utilise tant qu'on paie son coût.
+- N'utilisent pas l'attaque du monstre (après un effet « puis plus d'attaque ce tour », Zoldik - Vampire, il ne peut plus attaquer ce tour).
 
 ### 4.9 Terrains
 - Se posent sur une mana zone occupée par un de ses propres monstres. Une case peut contenir un monstre et un terrain du même joueur.
@@ -254,10 +254,10 @@ Le vocabulaire des cartes : un mot = une notion, la même dans les textes de car
 | Adjacent | `adjacent` | Une des **8 cases autour**, diagonales comprises (falaises : voir §10). |
 | À N pas | `steps` | À N cases au plus en comptant un chemin orthogonal, en L possible, sans ligne de vue (Boule de feu). |
 | Nom d'une carte de deck | `name` | « Nom - Archétype », l'archétype étant le nom de son deck (« Arnold - Bodybuilder », « Apprenti - Sorciers du feu »). Les cartes de base (§6) et communes (§6 ter) gardent leur nom seul. L'interface écrit le nom en gros, l'archétype dessous (§10). |
-| Archétype | `archetype` | Groupe de cartes d'un deck qui vont ensemble, le même mot que dans « Nom - Archétype » (Archers, Bodybuilder, Dragons, Pièges, Sorciers du feu, Explorateur du temps). « Un allié bodybuilder » : un de ses monstres de l'archétype Bodybuilder ; « un allié archer » : de l'archétype Archers. Une carte générique (de base, commune, ou le Trébuchet) n'a pas d'archétype, même dans un deck (§10). |
+| Archétype | `archetype` | Groupe de cartes d'un deck qui vont ensemble, le même mot que dans « Nom - Archétype » (Archers, Bodybuilder, Dragons, Pièges, Sorciers du feu, Explorateur du temps, Vampire). « Un allié bodybuilder » : un de ses monstres de l'archétype Bodybuilder ; « un allié archer » : de l'archétype Archers ; « un allié vampire » : de l'archétype Vampire. Une carte générique (de base, commune, ou le Trébuchet) n'a pas d'archétype, même dans un deck (§10). |
 | Tour | `turn` | Le tour d'un joueur : le tour de J1 puis celui de J2 font 2 tours. Une durée de statut se compte en tours du camp de l'unité touchée (§5.5). |
 | Rayon N | `radius` | Les cases autour d'une carte : rayon 1 = les 8 cases adjacentes, rayon 2 = 24 cases (le carré 5 × 5 sans la case centrale) ; falaises et cases `X` coupent la zone comme pour « adjacent ». À ne pas confondre avec la portée. |
-| Une fois par tour/carte | — | Chaque exemplaire une fois par tour. C'est la règle de tous les effets de monstres (effet actif, riposte). Le reste (sorts, invocations, terrains) n'a pas de limite : seul le mana compte (§4.3). |
+| Une fois par tour/carte | — | Chaque exemplaire une fois par tour. C'est la règle de tous les effets de monstres (effet actif, riposte), sauf un effet actif « sans limite par tour » (§5.2). Jouer une carte (sort, monstre, terrain) n'a pas de limite : seul le mana compte (§4.3). Les effets des terrains n'en ont pas non plus (Passage : à chaque case), sauf Au déplacement : une fois par tour pour chaque monstre, tous exemplaires confondus (§5.2). |
 | Cimetière | `graveyard` | Zone publique hors du plateau : sorts lancés, monstres et terrains qui ont quitté le plateau (§4.3). |
 | Chemin du tour | `trail` | Les cases où un monstre a été depuis le début du tour de son camp (ou son arrivée), dans l'ordre, sa case de départ comprise ; tout mouvement l'allonge (déplacement, recul, avancée, téléportation). Retour et sablier s'en servent (§10). |
 | Devant · par derrière | `facing` | Un monstre regarde dans le sens de son dernier pas (§10). « Devant » : la case dans ce sens. « Par derrière » : l'attaquant frappe dans le sens où regarde sa cible. |
@@ -270,7 +270,7 @@ Exemple : « Actif (3 mana) · Déflagration · 3 cases devant · 2 dégâts + b
 
 | Déclencheur | Code | Sens |
 |---|---|---|
-| Actif (N mana) | `activated` | Le joueur l'active, une fois par tour/carte, en payant N mana. N'utilise pas l'attaque du monstre. Un monstre qui en a deux peut utiliser chacun, une fois par tour. |
+| Actif (N mana) | `activated` | Le joueur l'active, une fois par tour/carte, en payant N mana. N'utilise pas l'attaque du monstre. Un monstre qui en a deux peut utiliser chacun, une fois par tour. « Actif (N mana, sans limite par tour) » (`unlimited`) : autant de fois qu'il paie N mana (Emma). « Actif (N mana, puis plus d'attaque ce tour) » (`endsAttack`) : utilisable même s'il a déjà attaqué, mais il ne peut plus attaquer ce tour après l'avoir activé (Zoldik). |
 | Passif | `passive` | Toujours en vigueur, sans coût. Les mots-clés (§5.6) sont des passifs. |
 | Sort | `spell` | L'effet se résout quand la carte est jouée. |
 | À l'attaque | `onHit` | Après les dégâts d'une attaque de ce monstre, sur sa cible. |
@@ -279,6 +279,7 @@ Exemple : « Actif (3 mana) · Déflagration · 3 cases devant · 2 dégâts + b
 | Aura | `aura` | Passif : tant qu'ils sont dans la zone de la source, les monstres visés ont le bonus (il se cumule avec celui d'une autre aura). Bonus d'ATK, de PV ou de mobilité (§10 pour les PV et la mobilité). |
 | Piège | `trap` | Quand un monstre ennemi entre sur la case piégée (§10). |
 | Passage | `passage` | Terrain, ou monstre (Golem de lave) : quand un monstre ennemi entre sur une case de sa zone : à chaque case en marchant, une fois par recul (§10). |
+| Au déplacement | `onMove` | Terrain : quand un de ses monstres commence un déplacement (§4.6) sur une case de sa zone, même s'il reste dans la zone ; un recul, une avancée ou une téléportation ne le déclenchent pas. Une fois par tour pour chaque monstre, tous exemplaires de la carte confondus (§10). |
 
 ### 5.3 Cibles et zones
 
@@ -304,6 +305,7 @@ Exemple : « Actif (3 mana) · Déflagration · 3 cases devant · 2 dégâts + b
 | Adjacents | `adjacent` | Les 8 cases autour de la source. |
 | 3 cases en ligne, direction au choix | `line3` | Le joueur choisit une direction (haut, bas, gauche, droite) : les 3 cases en ligne droite à partir de la source, jusqu'à la première falaise ou case `X` (exclue). La source se tourne vers cette direction avant l'effet (un recul « vers l'avant » part donc dans ce sens). |
 | adjacents, rayon 2 | `adjacent2` | Les cases adjacentes à la source, et les cases adjacentes à celles-ci (sans la source) : le carré 5 × 5 sur terrain dégagé ; falaises et cases `X` coupent la zone comme pour « adjacent ». |
+| sa case et adjacents | `cellAndAdjacent` | La case de la source et les 8 cases autour ; falaises et cases `X` coupent la zone comme pour « adjacent ». Pour un déclencheur de terrain sur ses monstres (Au déplacement), pas un effet sur les ennemis. |
 | bodybuilders alliés adjacents | `adjacent`, `archetype` | Pour une aura ou un effet de début de tour : ses monstres de cet archétype sur les 8 cases autour de la source (pas la source elle-même). |
 | tous les monstres piège alliés | `allies`, `archetype` | Tous ses monstres de cet archétype, où qu'ils soient, sans choix (Pénombre) ; jouable s'il en a au moins un. |
 | tous les ennemis | `enemies` | Tous les monstres ennemis que voit le lanceur, où qu'ils soient, sans choix (Piège temporel) ; jouable s'il y en a au moins un. |
@@ -329,6 +331,10 @@ Exemple : « Actif (3 mana) · Déflagration · 3 cases devant · 2 dégâts + b
 | Téléportation | `teleport` | — | Pose le monstre ciblé sur une case adjacente libre de la source, choisie par le joueur. Ce n'est pas un déplacement : il garde sa mobilité, son attaque et son orientation, même immobilisé ou stun. Il apparaît sur la case sans y entrer : ni piège, ni Passage, ni case brûlée ne s'y déclenche (§10). |
 | Retour | `returnOnTrail` | — | La source se téléporte sur une case libre où elle a été ce tour (son chemin du tour, sa case de départ comprise), choisie par le joueur : rien ne s'y déclenche (§10). Elle garde son orientation et son attaque (une seule par tour), mais ne peut plus se déplacer après l'activation de cet effet. |
 | Remonte N cases | `rewind` | `steps` | Effet d'un piège (sablier) : le monstre revient de N cases en arrière sur son chemin du tour (à son départ s'il est plus court), en téléportation (rien ne se déclenche à l'arrivée) ; son déplacement s'arrête, sans plus de mobilité ce tour (§10). |
+| Absorbe N PV · absorbe tous ses PV sauf N | `absorb` | `amount` · `downTo` | Retire N PV à la cible (ou tous ses PV sauf N, sans la détruire) ; la source récupère les PV retirés, sans dépasser ses PV max. Une destruction rapporte le VP au joueur de la source. Ce n'est pas une attaque (pas de riposte). « Tous ses PV sauf N » : impossible sur une cible qui a N PV ou moins. Sur une zone, chaque ennemi touché perd N PV (Vladimir, §10). |
+| Perd tous ses PV sauf N | `loseHp` | `downTo` | La cible tombe à N PV, sans être détruite ; ses PV max ne changent pas. Impossible sur une cible qui a N PV ou moins. |
+| +N ATK par PV perdu (pour ce tour) | `addAtkThisTurn` | `amount`, `perHpLost` | Après « perd tous ses PV sauf N » : +N ATK pour chaque PV perdu, jusqu'à la fin du tour en cours. |
+| Se transforme en X | `transform` | `into` | La source prend sa forme X (stats, mots-clés, effets) : c'est le même monstre, sur sa case (§10, Emma). Une forme qui n'est pas une carte du grimoire (`formOf`) renvoie à sa carte d'origine (cimetière). Le mot « transforme » n'a pas d'autre sens. |
 
 Plusieurs effets s'enchaînent avec « + », dans l'ordre écrit : « 2 dégâts + burn 1 ».
 
@@ -361,11 +367,12 @@ Un mot-clé est un raccourci : un nom, parfois un nombre, et une définition éc
 | Sournois +N | `sournois` | En attaquant un monstre par derrière : +N ATK pour cette attaque. |
 | Assassin ×N | `assassin` | En attaquant un monstre par derrière : dégâts ×N. |
 | Camouflage N | `camouflage` | Invisible pour l'adversaire tant qu'aucun monstre ni terrain adverse n'est dans un rayon de N autour de lui (§10). |
+| Soif N | `soif` | À l'attaque : il récupère N PV (soin N sur lui-même, sans dépasser ses PV max), après les dégâts et avant une riposte ou une avancée ; aussi contre un terrain, et quand la cible est détruite (§10). |
 | Point d'invocation | `summonPoint` | Terrain : sa case est une case d'invocation de son camp, tant qu'aucun monstre ne s'y trouve (§4.5). |
 
 ### 5.7 Conventions du code
 
-- Un paramètre a toujours le même nom : une quantité `amount`, une portée `range`, une distance en pas `steps`, un recul `distance`, un multiplicateur `multiplier`, une durée de statut `turns`.
+- Un paramètre a toujours le même nom : une quantité `amount`, une portée `range`, une distance en pas `steps`, un recul `distance`, un multiplicateur `multiplier`, une durée de statut `turns`, des PV restants `downTo` (« tous ses PV sauf N »).
 - Les nombres d'une carte sont dans ses données, pas dans des constantes globales ; `config.ts` ne garde que les règles générales (30 VP, 3 mana par tour…).
 - Les noms propres du jeu (mots-clés, statuts, cartes, mana zones) gardent le mot français, sans accent (`immobilise`, `brulure`) ; les notions techniques sont en anglais (`damage`, `heal`, `push`).
 - Un effet sans nombre (stun, immobilisé, Vol, Riposte) n'a pas de paramètre `amount`.
@@ -394,7 +401,7 @@ Posés sur une unité par un effet, pour une durée (§5.5).
 
 Les tableaux de cartes (§6, §6 bis, §6 ter) s'écrivent avec le lexique (§5). Un test compare chaque ligne aux données du moteur (coût, stats, colonne « Effet ») : une carte modifiée ici doit l'être aussi dans `src/engine/cards.ts`, et inversement.
 
-Les 20 cartes ci-dessous, plus les 5 cartes communes (§6 ter) en 1 exemplaire : c'est le deck Classique.
+Les 20 cartes ci-dessous, plus 5 cartes communes (§6 ter : toutes sauf le Terrain de chasse) en 1 exemplaire : c'est le deck Classique.
 
 ### Monstres (14)
 
@@ -430,7 +437,7 @@ Les 20 cartes ci-dessous, plus les 5 cartes communes (§6 ter) en 1 exemplaire :
 
 ## 6 bis. Decks pré-construits
 
-Chaque joueur choisit son deck avant la partie, parmi : **Classique** (le grimoire de test du §6), **Archers**, **Pièges**, **Dragons**, **Bodybuilder**, **Sorciers du feu** et **Explorateur du temps**. Pas de deckbuilding. Chaque deck fait 25 cartes, 3 exemplaires au plus d'une même carte : ses cartes propres, un complément de cartes du grimoire de test (§6) et des cartes communes (§6 ter), avec les quantités de sa composition ci-dessous (tableau « Composition » du doc « Cartes du TCG »). Ses cartes propres s'appellent « Nom - Archétype », l'archétype étant le nom du deck (§5.1) ; dans les compositions, on les écrit par leur nom seul.
+Chaque joueur choisit son deck avant la partie, parmi : **Classique** (le grimoire de test du §6), **Archers**, **Pièges**, **Dragons**, **Bodybuilder**, **Sorciers du feu**, **Explorateur du temps** et **Vampire**. Pas de deckbuilding. Chaque deck fait 25 cartes, 3 exemplaires au plus d'une même carte : ses cartes propres, un complément de cartes du grimoire de test (§6) et des cartes communes (§6 ter), avec les quantités de sa composition ci-dessous (tableau « Composition » du doc « Cartes du TCG »). Ses cartes propres s'appellent « Nom - Archétype », l'archétype étant le nom du deck (§5.1) ; dans les compositions, on les écrit par leur nom seul.
 
 ### Deck Archers
 
@@ -448,7 +455,7 @@ Les 4 archers sont de l'archétype Archers ; le Trébuchet est une carte génér
 |---|---|---|
 | Flèche divine - Archers | 2 | Un allié archer · +1 ATK +1 portée (pour ce tour) |
 
-Composition (25) : Archer léger ×3, Archer lourd ×3, Archer de glace ×3, Archer du feu ×3, Trébuchet ×2, Flèche divine ×1 ; complément : Boule de feu, Charge, Bourrasque, Bénédiction, Bastion (×1) ; communes : Invocateur, Téléporteur, Terrain drainant, Terrain piégé, Zone d'invocation (×1).
+Composition (25) : Archer léger ×3, Archer lourd ×3, Archer de glace ×3, Archer du feu ×3, Trébuchet ×2, Flèche divine ×1 ; complément : Boule de feu, Charge, Bourrasque, Bénédiction, Bastion (×1) ; communes : Invocateur, Téléporteur, Terrain piégé, Zone d'invocation, Terrain de chasse (×1).
 
 ### Deck Pièges
 
@@ -537,6 +544,30 @@ Maître des heures : « Un ancien explorateur, qui s'est perdu entre les époque
 
 Composition (25, proposée) : Apprenti ×3, Chronomancienne ×3, Dragonnet ×3, Maître des heures ×2, Piège temporel ×2, Fissure temporelle ×2 ; complément : Charge ×2, Boule de feu, Bénédiction, Autel de mana (×1) ; communes : Invocateur, Téléporteur, Terrain drainant, Terrain piégé, Zone d'invocation (×1).
 
+### Deck Vampire
+
+Les 4 monstres (et la forme chauve-souris d'Emma) sont de l'archétype Vampire. Soif 1 : à l'attaque, il récupère 1 PV.
+
+| Carte | Coût | ATK | PV | Mob. | Portée | Effet |
+|---|---|---|---|---|---|---|
+| Delta - Vampire | 1 | 2 | 2 | 5 | 1 | Soif 1 |
+| Emma - Vampire | 2 | 3 | 3 | 4 | 1 | Soif 1 ; Actif (1 mana, sans limite par tour) · se transforme en Emma chauve-souris |
+| Vladimir - Vampire | 5 | 3 | 5 | 5 | 1 | Soif 1 ; Actif (2 mana) · adjacents · absorbe 1 PV |
+| Zoldik - Vampire | 7 | 4 | 6 | 5 | 1 | Soif 1 ; Actif (3 mana, puis plus d'attaque ce tour) · un ennemi adjacent · absorbe tous ses PV sauf 1 |
+
+Forme d'Emma, hors grimoire (elle n'apparaît que par la transformation, §10) :
+
+| Carte | ATK | PV | Mob. | Portée | Effet |
+|---|---|---|---|---|---|
+| Emma chauve-souris - Vampire | 1 | 1 | 8 | 1 | Soif 1 ; Actif (1 mana, sans limite par tour) · se transforme en Emma |
+
+| Carte | Coût | Effet |
+|---|---|---|
+| Appel du sang - Vampire | 3 | Tous les vampires alliés · +2 mobilité (pour ce tour) |
+| Sacrifice sanguinaire - Vampire | 2 | Un allié vampire · perd tous ses PV sauf 1 + +1 ATK par PV perdu (pour ce tour) |
+
+Composition (25, proposée) : Delta ×3, Emma ×3, Vladimir ×3, Zoldik ×2, Appel du sang ×2, Sacrifice sanguinaire ×2 ; complément : Charge ×2, Boule de feu, Bénédiction, Autel de mana (×1) ; communes : Invocateur, Téléporteur, Terrain piégé, Zone d'invocation, Terrain de chasse (×1).
+
 ## 6 ter. Cartes communes
 
 Elles complètent les decks, chacun avec ses propres quantités (composition du §6 bis).
@@ -551,6 +582,7 @@ Elles complètent les decks, chacun avec ses propres quantités (composition du 
 | Terrain drainant | 1 | 4 | Passage · adjacents · 1 dégât |
 | Terrain piégé | 1 | 4 | Passage · adjacents · slow 1 jusqu'à son prochain tour |
 | Zone d'invocation | 1 | 4 | Point d'invocation |
+| Terrain de chasse | 1 | 3 | Au déplacement · sa case et adjacents · +1 mobilité (pour ce tour) |
 
 ## 7. Interface (minimale)
 
@@ -636,6 +668,7 @@ Réponses aux questions posées pendant le développement. Elles font autorité 
 - **§6 ter — Terrain piégé** : le monstre qui entre est slow 1 jusqu'à son prochain tour ; il perd aussitôt 1 de mobilité restante, pour ce tour seulement. Les déplacements proposés en tiennent compte (entrer dans la zone coûte 1 mobilité de plus, une fois par déplacement). Pris pendant le tour adverse (recul), le slow ne retire rien.
 - **§6 ter — Invocateur** : effet actif, 1 mana, plus le coût du monstre invoqué ; n'importe quel monstre de son grimoire, sur une case adjacente libre (sans unité). Comme une invocation normale, le monstre peut agir aussitôt ; il entre sur sa case (pièges, Passage).
 - **§6 ter — Téléporteur** : un allié n'importe où sur le plateau, sauf le Téléporteur lui-même, même immobilisé ou stun ; il est posé sur une case adjacente libre du Téléporteur. Il garde sa mobilité restante, son attaque et son orientation ; il apparaît sur la case sans y entrer : ni piège, ni Passage, ni case brûlée ne s'y déclenche (§10).
+- **§6 ter — Terrain de chasse** (validé) : carte commune, dans les decks Archers et Vampire seulement (1 exemplaire, à la place du Terrain drainant). Sa zone : sa case et les 8 cases adjacentes (falaises et cases `X` coupent comme pour « adjacent »). Un de ses monstres qui commence un déplacement sur une case de la zone a +1 mobilité ce tour (bonus du tour, comme Charge), même si ce déplacement reste dans la zone ; un allié arrivé dans la zone en cours de tour (marche, téléportation, Invocateur) en profite en repartant, même à 0 mobilité restante. Une fois par tour pour chaque monstre, tous Terrains de chasse confondus : revenir dans une zone ne redonne rien. Actif dès la pose, pour tous, le monstre sous lequel on le pose compris. Rien pour un monstre stun, immobilisé ou dont le déplacement est fini pour le tour (Retour, sablier, arrêt forcé). Le +1 s'ajoute au plateau, à Charge et aux auras, les slow déjà déduits. Il reste si le terrain est détruit ensuite ; Emma le garde en se transformant (et ne le reprend pas sous l'autre forme) ; un monstre camouflé en profite (le journal ne le dit pas à l'adversaire). La menace affichée au survol et celle que calcule l'IA comptent le +1 d'un monstre qui est dans la zone d'un de ses Terrains de chasse.
 - **§6 ter — Zone d'invocation** : terrain de coût 1 (le « coût d'activation » est le coût de la carte). Sa case devient une case d'invocation de son camp ; on y invoque si aucun monstre ne s'y trouve, le monstre partageant la case avec son terrain.
 - **§6 bis — Cartes communes** : Invocateur, Téléporteur, Terrain drainant, Terrain piégé et Zone d'invocation complètent les decks ; leurs quantités varient d'un deck à l'autre (0 à 3), comme celles du complément, selon la composition du deck (25 cartes).
 - **§6 bis — Flèche divine** (deck Archers) : sort à 2 mana sur un de ses archers, c'est-à-dire un monstre de l'archétype Archer : Archer léger, Archer lourd, Archer de glace, Archer du feu (ni le Trébuchet, ni l'Archer du grimoire de test, ni un archer adverse). +1 ATK et +1 portée jusqu'à la fin du tour : une portée 2 devient 3, avec les règles de tir habituelles. Comme tout sort, sans limite par tour : un second exemplaire se lance s'il reste du mana (les bonus s'ajoutent).
@@ -669,7 +702,14 @@ Réponses aux questions posées pendant le développement. Elles font autorité 
 - **§6 bis — Piège temporel** : sort à 3 mana, sans cible à choisir : tous les monstres ennemis que voit le lanceur sont immobilisés pendant 1 tour (tout leur prochain tour). Jouable s'il y en a au moins un.
 - **§6 bis — Fissure temporelle** : terrain à 3 mana, 4 PV : Passage · adjacents (les 8 cases autour) · immobilisé jusqu'à son prochain tour : un ennemi qui entre dans la zone en se déplaçant s'arrête pour le reste de ce tour.
 - **§6 bis — Deck Explorateur du temps** : composition proposée, à ajuster dans le doc « Cartes du TCG ».
-- **§7 — Exemplaires brillants (handoff V11)** : purement visuels, sans effet sur les règles. Un exemplaire de carte peut être brillant (« shiny ») ; une carte jouée l'est d'abord dans un exemplaire brillant s'il en reste, et l'unité qu'elle fait venir (monstre, terrain, évolution, Invocateur) est brillante. L'adversaire ne voit pas les exemplaires brillants de votre grimoire, mais voit une unité brillante. Démo (validée) : un Archer de glace et un Archer du feu brillants dans le deck Archers, un Apprenti dans Sorciers du feu. Les overframes (Chronomancienne, Maître des heures…) ne sont pas brillantes pour autant.
+- **§7 — Exemplaires brillants (handoff V11)** : purement visuels, sans effet sur les règles. Un exemplaire de carte peut être brillant (« shiny ») ; une carte jouée l'est d'abord dans un exemplaire brillant s'il en reste, et l'unité qu'elle fait venir (monstre, terrain, évolution, Invocateur) est brillante. L'adversaire ne voit pas les exemplaires brillants de votre grimoire, mais voit une unité brillante. Démo (validée) : un Archer de glace et un Archer du feu brillants dans le deck Archers, un Apprenti dans Sorciers du feu, un Zoldik dans Vampire (« Sang bleu » : ses rouges passent au bleu). Les overframes (Chronomancienne, Maître des heures…) ne sont pas brillantes pour autant.
 - **§4.10 — Mana sans plafond, orbe de mana (handoff V11)** : le mana reste sans plafond ; l'orbe du score est pleine à 10 mana (au-delà, seul le chiffre monte).
 - **§4.4 bis — Mode contestation (validé)** : nouveau mode, « Contestation », à côté du mode « Normal » (pas « Classique », déjà le nom d'un deck et du plateau 11 × 9). Proposé sur le 13 × 13 et le 15 × 15 seulement. Zone de 9 cases : le carré 3 × 3 centré sur la mana zone, ses cases X comprises (personne ne s'y tient ; Mine et Scierie du 15 × 15 : 7 cases utiles). Contrôle par présence : la zone est au seul joueur qui y a des unités (monstres ou terrains), un terrain seul suffit, personne : neutre. Un terrain la tient pour son propriétaire tant qu'il n'est pas détruit, même si l'adversaire y a des monstres et même si son propriétaire y a aussi les siens ; une zone n'est donc contestée que sans terrain, quand les deux joueurs y ont des monstres. Zone contestée : ni mana ni VP pour personne, et pas de terrain posé. Une zone tenue rapporte comme en mode Normal (+1 mana bonus compris, +1 VP), évalué au début du tour (§4.2). Terrain : seulement sur la mana zone (case centrale), sous un de ses monstres, un par zone (§4.9), si la zone n'est pas contestée. Étendard : le Porte-étendard donne son bonus sur n'importe quelle case de la zone, si son camp la tient. Un monstre camouflé dans la zone compte : l'état de la zone (tenue, neutre, contestée) reste public, comme le contrôle d'une mana zone en mode Normal.
 - **Fiche, pied « Statuts » / « Effets »** : chaque puce ne montre que le nom du lexique (Stun, Immobilisé, Slow N, Burn N, Requiem, Camouflé ; pour un bonus du tour, le nom de sa source : l'effet s'il en a un, « Dopage », sinon la carte, « Charge », « Seringue », « Flèche divine » ; Aura, nom du plateau, Camouflé/Repéré, nom de la mana zone, nom du terrain) ; le détail (valeur, durée, source) est au survol. Chaque bonus du tour garde sa source (pas les statuts : un statut n'affiche que sa valeur et sa durée) ; deux exemplaires d'un même sort font une seule puce, bonus cumulés. Les statuts et les autres effets sont dans deux groupes séparés. Le sens du monstre n'est pas dans la fiche.
+- **§6 bis — Deck Vampire (validé)** : archétype Vampire (Delta, Emma et sa forme chauve-souris, Vladimir, Zoldik) ; cartes « Nom - Vampire » ; dans un texte, « un allié vampire », « tes vampires ». Mots retenus : « Soif N » pour « récupère 1 PV lorsqu'il attaque » ; « absorbe » pour « vole » des PV (« Vol » est déjà un mot-clé, « drainant » est pris par le Terrain drainant) ; « se transforme » pour la transformation, et pour rien d'autre ; le texte de Sacrifice sanguinaire ne dit pas « sacrifie » (sacrifier = quitter le plateau), le nom de la carte reste. Composition proposée, à ajuster dans le doc « Cartes du TCG ».
+- **§5.6 — Soif (Vampire)** : à l'attaque, le vampire récupère N PV (soin sur lui-même, sans dépasser ses PV max ; rien s'il a tous ses PV). Après les dégâts, avant la riposte et l'avancée : Delta à 1 PV qui attaque le Gardien remonte à 2 PV, puis retombe à 1 après la riposte, et survit. Aussi contre un terrain, et quand la cible est détruite. Une riposte n'est pas une attaque : elle ne déclenche pas Soif. Un tir arrêté par un monstre camouflé ne soigne pas.
+- **§6 bis — Vladimir** : effet actif, 2 mana : chaque ennemi adjacent (zone « adjacents » : jamais un allié, jamais un monstre invisible pour lui) perd 1 PV, et Vladimir récupère 1 PV par ennemi touché, sans dépasser ses PV max. Jouable dès qu'un ennemi est adjacent, même s'il a tous ses PV. Un ennemi détruit rapporte 1 VP au joueur de Vladimir. Pas de riposte : ce n'est pas une attaque.
+- **§6 bis — Zoldik** : effet actif, 3 mana : un ennemi adjacent (les 8 cases autour) tombe à 1 PV, et Zoldik récupère les PV retirés, sans dépasser ses PV max. Impossible sur un ennemi à 1 PV ; jouable même si Zoldik a tous ses PV. La cible reste à 1 PV : jamais de destruction, jamais de VP. Il peut attaquer puis activer l'effet ; après l'activation, il ne peut plus attaquer ce tour.
+- **§6 bis — Appel du sang** : sort, 3 mana, sans cible à choisir : tous ses vampires sur le plateau (jamais ceux de l'adversaire) ont +2 mobilité ce tour ; ceux qui arrivent ensuite n'en profitent pas. Jouable s'il a au moins un vampire. La chauve-souris d'Emma est un vampire.
+- **§6 bis — Sacrifice sanguinaire** : sort, 2 mana, sur un de ses vampires : il tombe à 1 PV (PV perdus = ses PV actuels − 1), puis gagne +1 ATK par PV perdu jusqu'à la fin du tour. « La cible perd son attaque le tour suivant » = le bonus d'ATK ne vaut que ce tour ; « ne regagne pas ses PV » = rien ne les lui rend, mais il peut être soigné ensuite (Soif, Chaman, absorbe). Impossible sur un vampire à 1 PV. La perte de PV ne détruit pas et ne rapporte rien.
+- **§6 bis — Emma, transformation** : effet actif, 1 mana, sans limite par tour (exception à « une fois par tour/carte », §4.8) : Emma se transforme en chauve-souris (Emma chauve-souris - Vampire : ATK 1, PV 1, mobilité 8, portée 1, Soif 1, sans Vol), et la chauve-souris redevient Emma par le même effet. C'est le même monstre : case, orientation, statuts, bonus du tour et bonus définitifs (Bénédiction vaut pour les deux formes), attaque déjà utilisée (une seule attaque par tour, quelle que soit la forme) et chemin du tour restent. Ce n'est ni une entrée sur la case ni une invocation : rien ne s'y déclenche. **PV mis de côté** : chaque forme garde ses PV perdus ; en se transformant, il met de côté les PV de la forme qu'il quitte et retrouve ceux de la forme qu'il prend (la première fois, la chauve-souris a tous ses PV ; Emma blessée à 1/3 redevient Emma à 1/3). **Mobilité** : mobilité de la nouvelle forme (bonus du plateau, Charge, Appel du sang compris, slow déduits) moins ce qu'il a déjà dépensé ce tour ; Emma qui a marché 5 cases sur le 13 × 13 (5 de mobilité) devient une chauve-souris à 4 cases, et une chauve-souris qui a tout dépensé ne regagne rien en redevenant chauve-souris. Un monstre qui ne peut plus se déplacer ce tour (stun, immobilisé, sablier, retour, arrêt forcé) ne regagne rien en se transformant. La chauve-souris n'est pas une carte du grimoire (ni invocable, ni dans un deck) : détruite, c'est Emma qui va au cimetière, et l'adversaire marque 1 VP. La forme reste d'un tour à l'autre ; au début de son tour, il a la mobilité de sa forme.

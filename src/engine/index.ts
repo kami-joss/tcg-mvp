@@ -9,7 +9,14 @@ export { getPlayerView, getViewZoneController, getViewZoneStatus } from './view'
 export { IllegalActionError } from './errors';
 export { canAdvance, getAttackTargets, getLineOfSightCells, getStrikeCells } from './combat';
 export { getAreaCells, getAreaTargets, getEffectTargets, getPushDestination } from './effects';
-export { getMoveDestinations, getMovePath, type Destination } from './movement';
+export {
+  getMoveDestinations,
+  getMovePath,
+  getNextTurnOnMoveBonus,
+  getOnMoveBonus,
+  pendingOnMove,
+  type Destination,
+} from './movement';
 export { attackDamage, hitsFromBehind, isBehind, previewAttack, type AttackPreview } from './combat';
 export { getEmptyAdjacentCells, getTrapCells } from './effects';
 export { COMMON_CARDS } from './cards';

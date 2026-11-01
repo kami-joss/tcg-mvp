@@ -15,8 +15,8 @@ describe('cartes (SPEC.md §6)', () => {
     expect(kinds.filter((k) => k === 'terrain')).toHaveLength(5);
   });
 
-  it('cartes communes (§6 ter) : Invocateur, Téléporteur, Terrain drainant, Terrain piégé, Zone d’invocation', () => {
-    expect(COMMON_CARDS).toEqual(['invocateur', 'teleporteur', 'terrain-drainant', 'terrain-piege', 'zone-invocation']);
+  it('cartes communes (§6 ter) : Invocateur, Téléporteur, Terrain drainant, Terrain piégé, Zone d’invocation, Terrain de chasse', () => {
+    expect(COMMON_CARDS).toEqual(['invocateur', 'teleporteur', 'terrain-drainant', 'terrain-piege', 'zone-invocation', 'terrain-de-chasse']);
     expect(CARDS.invocateur).toMatchObject({ cost: 4, atk: 1, hp: 3, mobility: 3, range: 2 });
     expect(CARDS.invocateur).toMatchObject({ activated: [{ manaCost: 1, targeting: { type: 'emptyAdjacentCell' }, effects: [{ type: 'summon' }] }] });
     expect(CARDS.teleporteur).toMatchObject({ cost: 4, atk: 1, hp: 3, mobility: 3, range: 2 });
@@ -28,6 +28,7 @@ describe('cartes (SPEC.md §6)', () => {
       passage: { zone: 'adjacent', effects: [{ type: 'status', kind: 'slow', amount: 1, turns: 0 }] },
     });
     expect(CARDS['zone-invocation']).toMatchObject({ cost: 1, hp: 4, summonPoint: true, passage: null });
+    expect(CARDS['terrain-de-chasse']).toMatchObject({ cost: 1, hp: 3, onMove: { zone: 'cellAndAdjacent', mobility: 1 }, passage: null });
   });
 
   it('Éclaireur, Milicien et Archer sont en 2 exemplaires, les autres cartes en 1', () => {

@@ -7,23 +7,28 @@ import { addMana } from './players';
 import { isStunned } from './statuses';
 import { perceived } from './stealth';
 import { getActiveMonster, getMonsters, setUnit } from './units';
-import type { Action, GameEvent, GameState } from './types';
+import type { Action, ActivatedAbility, GameEvent, GameState, MonsterUnit } from './types';
 
 type ActivateEffectAction = Extract<Action, { type: 'activateEffect' }>;
 
 /** Rang de l'effet actif visé par une action (absent : le premier). */
 export const effectIndex = (action: { readonly effect?: number }): number => action.effect ?? 0;
 
+/** L'effet de rang `effect` ne peut plus servir ce tour : déjà utilisé, sauf s'il est sans limite par tour (Emma). */
+export const effectSpent = (monster: MonsterUnit, ability: ActivatedAbility, effect: number): boolean =>
+  !ability.unlimited && monster.usedEffects.includes(effect);
+
 /**
- * Chaque effet actif d'un monstre, une fois par tour, en payant son coût en mana ; n'utilise pas l'attaque du monstre.
- * Les actions du premier effet n'ont pas de champ `effect` ; celles des suivants portent leur rang.
+ * Chaque effet actif d'un monstre, une fois par tour (ou sans limite, s'il le dit), en payant son coût en mana ;
+ * n'utilise pas l'attaque du monstre. Les actions du premier effet n'ont pas de champ `effect` ; celles des suivants
+ * portent leur rang.
  */
 export function getActivateEffectActions(state: GameState): Action[] {
   const { mana } = state.players[state.activePlayer];
   return getMonsters(state, state.activePlayer).flatMap((monster) => {
     if (isStunned(monster)) return [];
     return getMonsterCard(monster.cardId).activated.flatMap((ability, effect) => {
-      if (monster.usedEffects.includes(effect) || ability.manaCost > mana) return [];
+      if (effectSpent(monster, ability, effect) || ability.manaCost > mana) return [];
       return getEffectTargets(state, ability, monster.owner, monster).map(
         (target): Action => ({ type: 'activateEffect', unitId: monster.id, ...(effect > 0 ? { effect } : {}), target }),
       );
@@ -36,7 +41,7 @@ export function applyActivateEffect(state: GameState, action: ActivateEffectActi
   const effect = effectIndex(action);
   const ability = getMonsterCard(monster.cardId).activated[effect];
   if (!ability) throw new IllegalActionError(`${monster.id} n'a pas d'effet activé n°${effect + 1}`);
-  if (monster.usedEffects.includes(effect)) throw new IllegalActionError(`${monster.id} a déjà utilisé cet effet ce tour`);
+  if (effectSpent(monster, ability, effect)) throw new IllegalActionError(`${monster.id} a déjà utilisé cet effet ce tour`);
   if (isStunned(monster)) throw new IllegalActionError(`${monster.id} est stun : aucune action possible`);
   const { mana } = state.players[monster.owner];
   if (mana < ability.manaCost) {
@@ -49,7 +54,9 @@ export function applyActivateEffect(state: GameState, action: ActivateEffectActi
 
   // Zone en ligne : le monstre se tourne vers la direction choisie, avant que l'effet ne parte (recul « vers l'avant »).
   const facing = action.target.kind === 'area' ? action.target.direction : undefined;
-  const source = { ...monster, usedEffects: [...monster.usedEffects, effect], ...(facing ? { facing } : {}) };
+  // Un effet sans limite par tour n'est pas noté comme utilisé.
+  const usedEffects = ability.unlimited ? monster.usedEffects : [...monster.usedEffects, effect];
+  const source = { ...monster, usedEffects, ...(facing ? { facing } : {}) };
   const used = setUnit(state, source);
   // Pour un piège, l'événement ne donne pas la case : seule la pose (visible de son poseur) la révèle. Pour une
   // invocation ou une téléportation non plus : la case d'arrivée suit, avec le monstre, s'il est visible.
@@ -59,5 +66,8 @@ export function applyActivateEffect(state: GameState, action: ActivateEffectActi
   const cells = targeting.type === 'zone' ? getAreaCells(state, source, targeting.zone) : [];
   const event: GameEvent = { type: 'effect', unitId: monster.id, pos, cells, ...(facing ? { facing } : {}), ...(effect > 0 ? { effect } : {}) };
   const paid = addMana(emit(used, event), monster.owner, -ability.manaCost);
-  return resolveAbility(paid, ability, action.target, monster.owner, source, { cardId: monster.cardId, ...(ability.name ? { effect: ability.name } : {}) });
+  const resolved = resolveAbility(paid, ability, action.target, monster.owner, source, { cardId: monster.cardId, ...(ability.name ? { effect: ability.name } : {}) });
+  // « Puis plus d'attaque ce tour » (Zoldik) : il a pu attaquer avant, plus après.
+  const after = resolved.units[monster.id];
+  return ability.endsAttack && after?.kind === 'monster' ? setUnit(resolved, { ...after, hasAttacked: true }) : resolved;
 }

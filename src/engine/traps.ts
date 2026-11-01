@@ -129,8 +129,8 @@ export function rewindMonster(state: GameState, unitId: UnitId, steps: number): 
   while (index < last && !free(trail[index]!)) index++;
   const to = trail[index] ?? pos;
   const kept = trail.slice(0, index + 1);
-  if (samePos(to, pos)) return { state: setUnit(state, { ...monster, mobilityLeft: 0 }), stopped: true, movement: NEW_MOVEMENT };
-  const moved = setUnit(emit(state, { type: 'rewind', unitId, from: pos, to }), { ...monster, pos: to, trail: kept, mobilityLeft: 0 });
+  if (samePos(to, pos)) return { state: setUnit(state, { ...monster, mobilityLeft: 0, halted: true }), stopped: true, movement: NEW_MOVEMENT };
+  const moved = setUnit(emit(state, { type: 'rewind', unitId, from: pos, to }), { ...monster, pos: to, trail: kept, mobilityLeft: 0, halted: true });
   return { state: moved, stopped: true, movement: NEW_MOVEMENT };
 }
 

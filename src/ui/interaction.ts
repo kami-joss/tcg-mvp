@@ -8,6 +8,7 @@ import {
   getMoveDestinations,
   getMovePath,
   getNextTurnMobility,
+  getNextTurnOnMoveBonus,
   getStrikeCells,
   ownerNextTurn,
   getPushDestination,
@@ -399,8 +400,11 @@ export function getEnemyReach(view: PlayerView, unitId: UnitId): Threat {
   if (unit?.kind !== 'monster' || unit.owner === view.viewer) return NO_THREAT;
   const next = ownerNextTurn(view.turn, view.activePlayer, unit.owner);
   if (unit.statuses.some((s) => s.kind === 'stun' && s.expiresAtTurn > next)) return NO_THREAT;
-  const nextMobility = getNextTurnMobility(unit, view.turn, view.activePlayer, view.board.mobilityBonus);
-  const moves = getMoveDestinations(view, { ...unit, mobilityLeft: nextMobility }).map((d) => d.pos);
+  // Avec le +1 d'un Terrain de chasse s'il part de sa zone (déjà compté : pas une deuxième fois).
+  const nextMobility =
+    getNextTurnMobility(unit, view.turn, view.activePlayer, view.board.mobilityBonus) +
+    getNextTurnOnMoveBonus(view, unit, view.turn, view.activePlayer);
+  const moves = getMoveDestinations(view, { ...unit, mobilityLeft: nextMobility, onMoveTaken: true }).map((d) => d.pos);
   // Il ne se gêne pas lui-même : son tir part de chaque case possible comme si la sienne était libre.
   const { [unitId]: _self, ...others } = view.units;
   const board = { board: view.board, units: others };

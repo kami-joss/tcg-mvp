@@ -64,7 +64,7 @@ export function effectAvailability(view: PlayerView, unitId: UnitId, effect = 0)
   if (!ability) return null;
   if (!myTurn(view) || unit.owner !== view.viewer) return no({ kind: 'notYourTurn' });
   if (isStunned(unit)) return no({ kind: 'stunned' });
-  if (unit.usedEffects.includes(effect)) return no({ kind: 'alreadyUsed' });
+  if (!ability.unlimited && unit.usedEffects.includes(effect)) return no({ kind: 'alreadyUsed' });
   if (view.me.mana < ability.manaCost) return no({ kind: 'mana', missing: ability.manaCost - view.me.mana });
   if (view.legalActions.some((a) => a.type === 'activateEffect' && a.unitId === unitId && (a.effect ?? 0) === effect)) return OK;
   const { targeting, effects } = ability;

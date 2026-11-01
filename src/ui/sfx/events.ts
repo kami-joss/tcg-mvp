@@ -44,6 +44,7 @@ function soundOf(event: GameEvent, cardOf: (unitId: string) => CardId | undefine
       return 'blocked';
     case 'teleport':
     case 'rewind':
+    case 'transform':
       return 'spell';
     case 'cellBurned':
       return 'fire';
