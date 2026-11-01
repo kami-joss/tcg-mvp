@@ -1,6 +1,5 @@
-import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { BATTLEFIELD_13, BATTLEFIELD_15 } from '../../engine';
+import { BATTLEFIELD_15 } from '../../engine';
 import {
   EMBER,
   MOTE,
@@ -20,10 +19,8 @@ import {
   waterPatches,
 } from './ambience';
 import type { Matrix2D } from './ambience';
-import { AmbienceCanvas } from './AmbienceCanvas';
-import { DECOR_FADE, IsoDecor } from './IsoDecor';
-import { paintedBoardDecor, paintedDecor } from './paintedDecor';
-import { SPRITES, isoScenery } from './scenery';
+import { paintedBoardDecor, paintedDecor, placePaintedSprites, spritesHiding } from './paintedDecor';
+import { SPRITES } from './scenery';
 
 const decor = paintedBoardDecor(BATTLEFIELD_15)!;
 
@@ -124,58 +121,13 @@ describe('ambiance au sol (canvas PixiJS) : calculs', () => {
   });
 });
 
-describe('ambiance du décor peint : rendu', () => {
-  const render = (board: typeof BATTLEFIELD_15, animated: boolean) =>
-    renderToStaticMarkup(
-      <IsoDecor
-        board={board}
-        scenery={isoScenery(board)!}
-        flipped={false}
-        controllers={new Map()}
-        animated={animated}
-        painted={paintedDecor(board) !== null}
-        ground={null}
-      />,
-    );
-
-  it('15 × 15, animations permises : forge, cristaux et particules des mana zones en CSS ; le reste dans un canvas', () => {
-    const html = render(BATTLEFIELD_15, true);
-    for (const name of ['ambEmber', 'ambSmoke', 'ambTwinkle', 'ambMote']) expect(html, name).toContain(name);
-    // Eau, halos, nuages et rafales : plus d'éléments animés, un seul calque dessiné par PixiJS.
-    for (const name of ['ambFlow', 'ambDrift', 'ambCloud', 'ambGust', 'ambPulse 3.2s']) expect(html, name).not.toContain(name);
-    expect(html.match(/data-ambience/g)).toHaveLength(1);
-    // Allégé : trois particules par mana zone (cinq zones), deux éclats par sprite de cristaux.
-    expect(html.match(/ambMote/g)).toHaveLength(15);
-    const crystals = paintedBoardDecor(BATTLEFIELD_15)!.sprites.filter((s) => SPRITE_FX[s.id]?.crystals).length;
-    expect(html.match(/ambTwinkle/g)).toHaveLength(2 * crystals);
-  });
-
-  it('le canvas couvre l’emprise de l’ambiance, dans le plan du sol, sans capter la souris (PixiJS se charge ensuite)', () => {
-    const scene = groundAmbience(paintedDecor(BATTLEFIELD_15)!, 1104, []);
-    const html = renderToStaticMarkup(<AmbienceCanvas scene={scene} masks={{}} depth={-0.75} />);
-    const { x, y, width, height } = scene.bounds;
-    expect(html).toBe(
-      `<div data-ambience="" aria-hidden="true" style="position:absolute;left:${x}px;top:${y}px;width:${width}px;height:${height}px;transform:translateZ(-0.75px);pointer-events:none"></div>`,
-    );
-  });
-
-  it('rien sans animations, ni sur un plateau sans décor peint', () => {
-    for (const html of [render(BATTLEFIELD_15, false), render(BATTLEFIELD_13, true)]) {
-      expect(html).not.toMatch(/amb[A-Z]/);
-      expect(html).not.toContain('data-ambience');
-    }
-  });
-
-  it('un sprite peint s’efface quand il cache un jeton ou la case survolée, et seulement lui', () => {
-    const html = (reveal?: ReadonlySet<string>) =>
-      renderToStaticMarkup(
-        <IsoDecor board={BATTLEFIELD_15} scenery={isoScenery(BATTLEFIELD_15)!} flipped={false} controllers={new Map()} animated painted reveal={reveal} />,
-      );
-    const faded = (markup: string) => markup.match(new RegExp(`opacity:${DECOR_FADE}`, 'g'))?.length ?? 0;
-    expect(faded(html())).toBe(0);
-    expect(faded(html(new Set(['0,0', '13,13'])))).toBe(0);
-    // La case (4, 3), devant la forge à gauche : la forge s'efface, avec son feu et sa fumée.
-    expect(faded(html(new Set(['4,3'])))).toBe(2);
+describe('décor peint qui s’efface (plateau PixiJS)', () => {
+  it('la forge s’efface devant un jeton posé derrière elle, en (4, 3), pas devant un jeton ailleurs', () => {
+    const placed = placePaintedSprites(decor, 15, 15, false);
+    const hiding = spritesHiding(placed, decor.plan, 15, 15, false, 'iso');
+    const forge = placed.find((sprite) => SPRITE_FX[sprite.id]?.fire)!;
+    expect(hiding.get('4,3')).toContain(forge.key);
+    for (const cell of ['0,0', '13,13']) expect(hiding.get(cell) ?? []).not.toContain(forge.key);
   });
 });
 

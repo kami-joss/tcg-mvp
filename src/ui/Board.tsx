@@ -78,11 +78,6 @@ interface BoardProps {
   onCellHover: (pos: Position | null, rect?: DOMRect) => void;
   /** Case survolée : le décor peint qui la cache s'efface, comme celui qui cache un jeton. */
   hovered?: Position | null;
-  /**
-   * Plateau PixiJS (réglage expérimental, migration étape 3) : sur un plateau peint (15 × 15), le sol, le décor et son
-   * ambiance sont dessinés par PixiJS sous la scène en HTML ; vue isométrique seulement (la vue inclinée y est abandonnée).
-   */
-  pixi?: boolean;
 }
 
 /** Marge laissée autour de la scène de dessus ou inclinée, pour son ombre. */
@@ -278,20 +273,32 @@ function useZoomViewport(
   return { focusY, scroll };
 }
 
+/**
+ * Cases que le décor peint ne doit pas cacher : celles des jetons que le joueur voit (monstres, terrains) et la case
+ * survolée ; un sprite qui en cache une s'efface.
+ */
+export function revealCells(view: PlayerView, hovered: Position | null): Set<string> {
+  const reveal = new Set(Object.values(view.units).map((unit) => posKey(unit.pos)));
+  if (hovered) reveal.add(posKey(hovered));
+  return reveal;
+}
+
+/** Plateau dessiné par PixiJS (le 15 × 15 et son décor peint), hors vue de dessus. */
+export const isPixiBoard = (board: BoardData): boolean => paintedDecor(board) !== null && isoScenery(board) !== null;
+
 export function Board(props: BoardProps) {
   const { view, path, showArt, zoom, animated, flipped, onCellHover, margins = NO_MARGINS } = props;
   const scenery = isoScenery(view.board);
-  // Plateau PixiJS (expérimental) : seulement sur un plateau peint, et en vue isométrique (la vue inclinée y revient).
-  const pixiMode = Boolean(props.pixi) && paintedDecor(view.board) !== null && scenery !== null && props.mode !== 'top';
+  // Le 15 × 15 est dessiné par PixiJS en vue isométrique (la vue inclinée y revient) ; la vue de dessus reste en HTML.
+  const pixiMode = isPixiBoard(view.board) && props.mode !== 'top';
   const mode: BoardView = pixiMode ? 'iso' : props.mode;
   const iso = mode === 'iso' && scenery !== null;
   const tilted = mode === 'tilt';
   // Décor 2,5D (rochers, eau, mana zones modélisées, enclaves, bordure) : vues isométrique et inclinée, s'il existe.
   const decor = (iso || tilted) && scenery !== null;
-  // Décor peint (15 × 15) : son sol, calculé une fois, remplace celui du décor procédural ; seul en vue de dessus. Celui
-  // du monde, avec son décor extérieur, arrive ensuite (tâche de fond, puis cache de l'appareil).
+  // Décor peint (15 × 15) : son sol, calculé une fois, dessiné par PixiJS, ou seul en vue de dessus. Celui du monde, avec
+  // son décor extérieur, arrive ensuite (tâche de fond, puis cache de l'appareil).
   const paintedData = paintedDecor(view.board);
-  const painted = paintedData !== null;
   const grounds = usePaintedGround(view.board);
   const art = showArt && !decor ? boardArt(view.board) : undefined;
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -301,9 +308,7 @@ export function Board(props: BoardProps) {
   // Vues de dessus et inclinée : la plus grande case pour laquelle la scène tient dans la zone (le zoom s'y ajoute).
   const tiltDecor = tilted && decor;
   const metrics = boardMetrics(fitCell(area.width - FIT_MARGIN, area.height - FIT_MARGIN, rows, cols, tilted, tiltDecor), rows, cols);
-  // Décor extérieur peint : la scène inclinée l'englobe aussi (6 cases tout autour du 15 × 15).
-  const worldBorder = tiltDecor && grounds.world && paintedData ? (paintedData.plan.bordure ?? 0) * paintedData.plan.pas : 0;
-  const geometry = tiltGeometry(metrics, rows, tiltDecor, worldBorder);
+  const geometry = tiltGeometry(metrics, rows, tiltDecor);
   const plan = planSize(Math.max(rows, cols));
   // Avec le décor extérieur, la scène isométrique englobe tout le monde peint (on le parcourt en faisant glisser) ; le
   // plateau garde sa taille, calée sur la largeur de la zone.
@@ -341,13 +346,13 @@ export function Board(props: BoardProps) {
           left: camera.width / 2 - half,
           top: camera.centerY - half,
           transform: `scale(${camera.k.toFixed(4)}) rotateX(${ISO_TILT}deg) rotateZ(45deg)`,
-          background: painted ? 'none' : isoFloor(scenery!, flipped, view.board.rows, view.board.cols),
+          background: pixiMode ? 'none' : isoFloor(scenery!, flipped, view.board.rows, view.board.cols),
         }
       : {
           '--cell': `${metrics.cell}px`,
           top: tilted ? geometry.boardTop : 0,
           left: tilted ? geometry.boardLeft : 0,
-          ...(decor ? { background: painted ? 'none' : isoFloor(scenery!, flipped, rows, cols, metrics.pitch) } : {}),
+          ...(decor ? { background: isoFloor(scenery!, flipped, rows, cols, metrics.pitch) } : {}),
           ...(!decor && paintedData ? { background: flatGroundBackground(paintedData, rows, grounds.board, metrics.pitch, metrics.pad) } : {}),
         }),
     ...(art ? { backgroundImage: `url(${art})` } : {}),
@@ -366,10 +371,7 @@ export function Board(props: BoardProps) {
   // Mode contestation : les zones de 9 cases, dessinées au sol (§4.4 bis).
   const zoneTiles = getZoneTiles(view);
   const scrollable = zoomView.scroll.x || zoomView.scroll.y;
-  // Cases que le décor peint ne doit pas cacher : celles des jetons que le joueur voit (monstres, terrains) et la case
-  // survolée ; un sprite qui en cache une s'efface.
-  const reveal = new Set(Object.values(view.units).map((unit) => posKey(unit.pos)));
-  if (props.hovered) reveal.add(posKey(props.hovered));
+  const reveal = revealCells(view, props.hovered ?? null);
 
   return (
     <div
@@ -417,7 +419,7 @@ export function Board(props: BoardProps) {
           data-scene
         >
           <div
-            className={['board', art && 'board--art', tilted && 'board--tilt', iso && 'board--iso', decor && 'board--decor', decor && painted && 'board--painted']
+            className={['board', art && 'board--art', tilted && 'board--tilt', iso && 'board--iso', decor && 'board--decor']
               .filter(Boolean)
               .join(' ')}
             style={boardStyle}
@@ -433,10 +435,6 @@ export function Board(props: BoardProps) {
                 animated={animated}
                 camera={iso ? 'iso' : 'tilt'}
                 pitch={iso ? undefined : metrics.pitch}
-                painted={painted}
-                ground={grounds.board}
-                world={grounds.world}
-                reveal={reveal}
               />
             )}
             {positions.map((pos) => (

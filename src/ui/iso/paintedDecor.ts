@@ -184,6 +184,9 @@ const TOKEN_BOX = { width: 56, height: 60, depth: 10 } as const;
  */
 export const HIDE_SHARE = 0.35;
 
+/** Opacité d'un sprite peint qui cache un jeton ou la case survolée. */
+export const DECOR_FADE = 0.35;
+
 /** Position à l'écran (avant mise à l'échelle) et avancée vers la caméra d'un point du plan, pour chaque caméra. */
 const PROJECT = {
   iso: (x: number, y: number): [number, number, number] => [(x - y) / Math.SQRT2, (x + y) / Math.sqrt(6), (x + y) / Math.sqrt(3)],
@@ -193,7 +196,7 @@ const PROJECT = {
 /**
  * Sprites debout qui cachent le jeton de chaque case du plateau (clé « ligne,colonne » de la case réelle) : posés devant
  * lui, leur boîte couvre `HIDE_SHARE` de la sienne au moins. Le décor s'efface devant un jeton ou la case survolée.
- * `depth` : avancée de chaque sprite vers la caméra, celle avec laquelle `IsoDecor` le pose.
+ * `depth` : avancée de chaque sprite vers la caméra, celle avec laquelle le plateau PixiJS le pose.
  */
 export function spritesHiding(
   sprites: readonly PlacedSprite[],

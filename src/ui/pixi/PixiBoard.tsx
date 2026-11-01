@@ -1,4 +1,4 @@
-// Plateau 15 × 15 dessiné par PixiJS (réglage expérimental, migration étape 3) : un canvas de la taille du cadre qui
+// Plateau 15 × 15 dessiné par PixiJS (vue isométrique ; la vue de dessus reste en HTML) : un canvas de la taille du cadre qui
 // défile, collé en haut à gauche de ce cadre et sous la scène en HTML (qui ne garde que des cases transparentes, pour
 // la bulle d'action et les effets). Il suit le défilement et la caméra de la scène : chaque défilement le redessine
 // aussitôt, en phase avec le HTML. Tant qu'il est affiché, il joue les animations d'action des jetons (`setTokenMotions`).
@@ -89,10 +89,12 @@ export function PixiBoard(props: PixiBoardProps) {
         return;
       }
       app.ticker.stop();
+      // La souris passe par le cadre en HTML : le survol de PixiJS, vérifié à chaque image par `Ticker.system`, est inutile.
+      pixi.EventsTicker.removeTickerListener();
       Object.assign(app.canvas.style, { position: 'absolute', inset: '0', pointerEvents: 'none' });
       host.current.appendChild(app.canvas);
       created = { app, renderer: new BoardRenderer(pixi, app) };
-      if (import.meta.env.DEV) Object.assign(window, { __pixiBoard: created });
+      if (import.meta.env.DEV) Object.assign(window, { __pixiBoard: { ...created, pixi } });
       setRenderer(created.renderer);
     })().catch((error: unknown) => console.warn('Plateau PixiJS indisponible :', error));
     return () => {

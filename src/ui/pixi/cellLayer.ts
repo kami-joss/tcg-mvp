@@ -37,10 +37,10 @@ export function cssColor(css: string): { color: number; alpha: number } {
   return value;
 }
 
-const mix = (css: string, percent: number, other = 'transparent') => `color-mix(in oklch, ${css} ${percent}%, ${other})`;
+export const mix = (css: string, percent: number, other = 'transparent') => `color-mix(in oklch, ${css} ${percent}%, ${other})`;
 
 /** Traits parallèles dans le carré (x, y, `size`) : lignes x − y = k (`down`) ou x + y = k, espacées de `period`. */
-function hatch(g: Graphics, x: number, y: number, size: number, period: number, width: number, down: boolean, css: string): void {
+export function hatch(g: Graphics, x: number, y: number, size: number, period: number, width: number, down: boolean, css: string): void {
   const step = period * Math.SQRT2;
   for (let k = down ? -size + step / 2 : step / 2; k < (down ? size : 2 * size); k += step) {
     // Sur la droite, y va de y0 à y1 en restant dans le carré ; x s'en déduit.
@@ -166,6 +166,19 @@ interface Placed {
   readonly scaled: boolean;
 }
 
+/**
+ * Où dessiner, comme l'empilement d'une case en HTML : `cells` (plan) pour les fonds, zones et marques ; `textsUnder`
+ * (écran) pour « J1 » et les icônes des marques, que la pénombre couvre ; `over` (plan) pour la pénombre et les
+ * surbrillances ; `texts` (écran) pour ce qui est au-dessus (chemin, dégâts, pièges) ; `standing` pour les noms des zones.
+ */
+export interface CellLayers {
+  readonly cells: PixiContainer;
+  readonly textsUnder: PixiContainer;
+  readonly over: PixiContainer;
+  readonly texts: PixiContainer;
+  readonly standing: PixiContainer;
+}
+
 export class CellLayer {
   /** Fonds, zones de contestation et marques ; puis la zone contestée qui pulse, la lueur, et les surbrillances. */
   private readonly ground: Graphics;
@@ -178,15 +191,14 @@ export class CellLayer {
 
   constructor(
     private readonly pixi: Pixi,
-    plane: PixiContainer,
-    private readonly groundTexts: PixiContainer,
-    private readonly standing: PixiContainer,
+    private readonly layers: CellLayers,
   ) {
     this.ground = new pixi.Graphics();
     this.pulsing = new pixi.Graphics();
     this.glowLayer = new pixi.Container();
     this.overlays = new pixi.Graphics();
-    plane.addChild(this.ground, this.pulsing, this.glowLayer, this.overlays);
+    layers.cells.addChild(this.ground, this.pulsing, this.glowLayer);
+    layers.over.addChild(this.overlays);
   }
 
   /** Redessine toutes les cases. */
@@ -201,9 +213,10 @@ export class CellLayer {
     this.glows.length = 0;
     for (const item of this.placed) item.node.destroy({ children: true });
     this.placed.length = 0;
-    const place = (node: PixiContainer, x: number, y: number, dz: number | null = null, scaled = false) => {
-      (dz === null ? this.groundTexts : this.standing).addChild(node);
-      this.placed.push({ node, x, y, dz, scaled });
+    const { layers } = this;
+    const place = (node: PixiContainer, x: number, y: number, o: { dz?: number; scaled?: boolean; under?: boolean } = {}) => {
+      (o.dz !== undefined ? layers.standing : o.under ? layers.textsUnder : layers.texts).addChild(node);
+      this.placed.push({ node, x, y, dz: o.dz ?? null, scaled: o.scaled ?? false });
     };
 
     // Fonds et traits (plateau peint).
@@ -300,7 +313,7 @@ export class CellLayer {
           label.anchor.set(0.5, 0.58);
           node.addChild(label);
         }
-        place(node, cx, cy, null, true);
+        place(node, cx, cy, { scaled: true, under: true });
       });
     }
 
@@ -367,7 +380,7 @@ export class CellLayer {
       if (!v.summon) continue;
       const s = TEXT_SCALE;
       const fill = v.summon === 1 ? CELL_COLORS.j1 : CELL_COLORS.j2;
-      place(pill(pixi, `J${v.summon}`, { fontSize: S * 0.16 * s, family: 'sc', fill, color: 'white', ring: { css: 'white', width: 1.5 }, padX: 4 * s, padY: 1 * s, radius: 4 * s }), v.x + 0.76 * S, v.y + 0.76 * S);
+      place(pill(pixi, `J${v.summon}`, { fontSize: S * 0.16 * s, family: 'sc', fill, color: 'white', ring: { css: 'white', width: 1.5 }, padX: 4 * s, padY: 1 * s, radius: 4 * s }), v.x + 0.76 * S, v.y + 0.76 * S, { under: true });
     }
 
     // Noms des mana zones : debout à la pointe avant de la case, bien avancés vers la caméra (devant les rochers voisins).
@@ -384,7 +397,7 @@ export class CellLayer {
         padY: 1 * s,
         radius: 6 * s,
       });
-      place(label, v.x + S + 2, v.y + S + 2, 48);
+      place(label, v.x + S + 2, v.y + S + 2, { dz: 48 });
     }
   }
 

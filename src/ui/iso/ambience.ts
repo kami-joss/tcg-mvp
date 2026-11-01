@@ -1,8 +1,8 @@
 // Ambiance animée du décor peint (15 × 15) : reflets de l'eau, feu et fumée de la forge, éclats des cristaux de la Mine,
 // halo et particules des mana zones, ombres de nuages et rafales de vent. Rendu seulement, et seulement quand les
-// animations sont permises. Ici, les données et les calculs ; le rendu est dans `IsoDecor` (éléments debout, en CSS) et
-// `AmbienceCanvas` (ambiance au sol, un seul canvas PixiJS : `groundAmbience` la décrit, `pulse`, `cloudAt`, `gustAt`
-// l'animent comme le faisaient les keyframes `amb*`).
+// animations sont permises. Ici, les données et les calculs ; le rendu est dans le plateau PixiJS (`pixi/`) : au sol,
+// `groundAmbience` la décrit, `pulse`, `cloudAt`, `gustAt` l'animent ; debout, `twinkle`, `riser`, `flick` (comme le
+// faisaient les anciennes keyframes `amb*`).
 import { getCell } from '../../engine';
 import type { Board, PlayerId } from '../../engine';
 import { seeded } from './isoGround';
@@ -105,7 +105,7 @@ export function scatter(seed: number, count: number): { u: number; v: number; ph
   return Array.from({ length: count }, () => ({ u: random(), v: random(), phase: random() }));
 }
 
-// --- Ambiance au sol, dessinée par PixiJS dans un canvas du plan du plateau (`AmbienceCanvas`).
+// --- Ambiance au sol, dessinée par le plateau PixiJS dans le plan du sol (`pixi/groundFx.ts`).
 
 /** Couleurs de l'ambiance au sol : reflets et caustiques de l'eau, ombre des nuages, rafales. */
 export const GROUND_FX_COLORS = {

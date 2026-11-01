@@ -19,6 +19,7 @@ interface TopBarProps {
   settings: DisplaySettings;
   boardView: BoardView;
   isoAvailable: boolean;
+  tiltAvailable: boolean;
   onSettings: (patch: Partial<DisplaySettings>) => void;
   onSound: (on: boolean) => void;
   /** Retour à l'accueil, pour régler une nouvelle partie. */
@@ -54,6 +55,7 @@ export function TopBar(props: TopBarProps) {
           settings={props.settings}
           boardView={props.boardView}
           isoAvailable={props.isoAvailable}
+          tiltAvailable={props.tiltAvailable}
           onChange={props.onSettings}
           onSound={props.onSound}
           confirmHome={view.winner === null}

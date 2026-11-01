@@ -23,9 +23,13 @@ const VIEWS: [BoardView, string][] = [
 
 interface OptionsMenuProps {
   settings: DisplaySettings;
-  /** Vue affichée (l'isométrique se replie sur l'inclinée quand le plateau n'a pas de décor). */
+  /**
+   * Vue affichée (l'isométrique se replie sur l'inclinée quand le plateau n'a pas de décor ; sur le 15 × 15, dessiné par
+   * PixiJS, l'inclinée n'existe plus et revient à l'isométrique).
+   */
   boardView: BoardView;
   isoAvailable: boolean;
+  tiltAvailable: boolean;
   onChange: (patch: Partial<DisplaySettings>) => void;
   /** Son activé ou coupé (un petit son confirme l'activation). */
   onSound: (on: boolean) => void;
@@ -69,7 +73,7 @@ export function OptionsMenu(props: OptionsMenuProps) {
   );
 }
 
-function OptionsPanel({ settings, boardView, isoAvailable, onChange, onSound, confirmHome, onHome }: OptionsMenuProps) {
+function OptionsPanel({ settings, boardView, isoAvailable, tiltAvailable, onChange, onSound, confirmHome, onHome }: OptionsMenuProps) {
   const [confirming, setConfirming] = useState(false);
   const { zoom, tokenStats: stats } = settings;
   const zoomIndex = ZOOMS.indexOf(zoom);
@@ -78,7 +82,7 @@ function OptionsPanel({ settings, boardView, isoAvailable, onChange, onSound, co
       <section className="options__section">
         <h3 className="options__title">Vue</h3>
         <div className="view-switch" role="group" aria-label="Vue du plateau">
-          {VIEWS.filter(([value]) => value !== 'iso' || isoAvailable).map(([value, label]) => (
+          {VIEWS.filter(([value]) => (value !== 'iso' || isoAvailable) && (value !== 'tilt' || tiltAvailable)).map(([value, label]) => (
             <button key={value} type="button" aria-pressed={boardView === value} onClick={() => onChange({ view: value })}>
               {label}
             </button>
@@ -147,10 +151,6 @@ function OptionsPanel({ settings, boardView, isoAvailable, onChange, onSound, co
         <label className="options__check">
           <input type="checkbox" checked={settings.animations} onChange={(event) => onChange({ animations: event.target.checked })} />
           Animations
-        </label>
-        <label className="options__check" title="Plateau 15 × 15 seulement, en cours de migration">
-          <input type="checkbox" checked={settings.pixiBoard} onChange={(event) => onChange({ pixiBoard: event.target.checked })} />
-          Rendu PixiJS (expérimental)
         </label>
       </section>
 

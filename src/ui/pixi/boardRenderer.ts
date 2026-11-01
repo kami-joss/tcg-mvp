@@ -23,8 +23,7 @@ import {
   zoneHalos,
 } from '../iso/ambience';
 import type { ZoneControllers } from '../iso/ambience';
-import { DECOR_FADE } from '../iso/IsoDecor';
-import { GROUND_WAIT, STAND_DEPTH, paintedBoardDecor, paintedDecor, placePaintedSprites, spritesHiding, worldPlan } from '../iso/paintedDecor';
+import { DECOR_FADE, GROUND_WAIT, STAND_DEPTH, paintedBoardDecor, paintedDecor, placePaintedSprites, spritesHiding, worldPlan } from '../iso/paintedDecor';
 import type { PaintedDecor, PlacedSprite } from '../iso/paintedDecor';
 import { SPRITES } from '../iso/scenery';
 import type { IsoCamera } from '../iso/scenery';
@@ -33,6 +32,7 @@ import { CellLayer } from './cellLayer';
 import { cellVisuals } from './cellModel';
 import type { CellInputs } from './cellModel';
 import { buildGroundFx, loadImage, painted, tint } from './groundFx';
+import { ambientFrame } from '../ambientClock';
 import { wait } from '../fx/stage';
 import type { TokenMotions } from '../fx/stage';
 import { TokenLayer } from './tokenLayer';
@@ -45,8 +45,6 @@ import { isoDepth, isoPlaneMatrix, isoProject, isoUnproject } from './isoProject
 import type { Board as BoardData, Position } from '../../engine';
 import { ISO } from '../iso/scenery';
 
-/** Images par seconde de l'ambiance. */
-const FPS = 30;
 /** Durée (ms) du fondu d'un sprite qui s'efface ou réapparaît. */
 const FADE_MS = 250;
 
@@ -91,12 +89,18 @@ interface BuiltDecor {
 
 export class BoardRenderer {
   private readonly world: PixiContainer;
-  /** Plan isométrique : sol, ambiance au sol, cases (dans cet ordre). */
+  /**
+   * De bas en haut, comme l'empilement d'une case en HTML : le sol et son ambiance (plan), les ponts couchés, les
+   * cases (plan), « J1 » et les icônes des marques, la pénombre, les surbrillances et les unités au sol (plan), les
+   * textes au-dessus (chemin, dégâts, pièges), puis tout ce qui est debout (trié).
+   */
   private readonly plane: PixiContainer;
   private readonly groundLayer: PixiContainer;
   private readonly fxLayer: PixiContainer;
-  /** À l'écran : ponts couchés, textes au sol, puis tout ce qui est debout (trié). */
   private readonly flats: PixiContainer;
+  private readonly planeCells: PixiContainer;
+  private readonly textsUnder: PixiContainer;
+  private readonly planeOver: PixiContainer;
   private readonly groundTexts: PixiContainer;
   private readonly standing: PixiContainer;
   private readonly cells: CellLayer;
@@ -119,6 +123,8 @@ export class BoardRenderer {
   /** Construction en cours : la dernière demandée gagne. */
   private building = 0;
   private reveal: ReadonlySet<string> = new Set();
+  /** Cases d'une marche en cours, par unité : le décor qui les cache s'efface le temps du trajet. */
+  private readonly walking = new Map<string, readonly string[]>();
   /** Opacité visée et départ du fondu de chaque sprite (par clé). */
   private readonly fades = new Map<string, { from: number; to: number; start: number }>();
   private raf = 0;
@@ -137,14 +143,17 @@ export class BoardRenderer {
     this.fxLayer = new Container();
     this.plane.addChild(this.groundLayer, this.fxLayer);
     this.flats = new Container();
+    this.planeCells = new Container();
+    this.textsUnder = new Container();
+    this.planeOver = new Container();
     this.groundTexts = new Container();
     this.standing = new Container({ sortableChildren: true });
-    this.cells = new CellLayer(pixi, this.plane, this.groundTexts, this.standing);
-    this.units = new TokenLayer(pixi, this.plane, this.standing, () => {
+    this.cells = new CellLayer(pixi, { cells: this.planeCells, over: this.planeOver, textsUnder: this.textsUnder, texts: this.groundTexts, standing: this.standing });
+    this.units = new TokenLayer(pixi, this.planeOver, this.standing, () => {
       if (this.camera) this.units.layout(this.camera, this.plan);
       this.requestRender();
     });
-    this.world.addChild(this.plane, this.flats, this.groundTexts, this.standing);
+    this.world.addChild(this.plane, this.flats, this.planeCells, this.textsUnder, this.planeOver, this.groundTexts, this.standing);
     app.stage.addChild(this.world);
     const fonts = typeof document !== 'undefined' && document.fonts ? document.fonts : null;
     const ready = fonts
@@ -170,7 +179,7 @@ export class BoardRenderer {
     }
     this.pendingUnits = null;
     const { tokens, terrains } = unitVisuals(inputs);
-    this.units.setUnits(tokens, terrains);
+    this.units.setUnits(tokens, terrains, inputs.animated);
     if (this.camera) this.units.layout(this.camera, this.plan);
     this.requestRender();
   }
@@ -273,7 +282,14 @@ export class BoardRenderer {
     walk: (unitId, start, cells, o) => {
       if (!this.units.has(unitId) || cells.length === 0) return Promise.resolve(null);
       const duration = cells.length * 210 * o.speed;
-      const cancel = this.play(unitId, walkMotions([start, ...cells].map((pos) => this.footOf(pos)), duration, o.hop));
+      const remove = this.play(unitId, walkMotions([start, ...cells].map((pos) => this.footOf(pos)), duration, o.hop));
+      this.walking.set(unitId, [start, ...cells].map((pos) => `${pos.row},${pos.col}`));
+      this.updateFades();
+      const cancel = () => {
+        remove();
+        this.walking.delete(unitId);
+        this.updateFades();
+      };
       return wait(duration).then(() => ({ cancel }));
     },
     lunge: (unitId, from, to) => void this.play(unitId, [lungeMotion(this.footOf(from), this.footOf(to))]),
@@ -329,8 +345,10 @@ export class BoardRenderer {
     // à 30 images par seconde.
     const growing = this.units.step(now);
     const animated = (this.decor?.animated ?? false) || this.cells.animated || this.animated;
-    if (animated && now - this.lastFrame >= 1000 / FPS - 2) {
-      this.lastFrame = now;
+    // Sur les images de l'horloge d'ambiance, les mêmes que celles des boucles CSS (`ambientClock.ts`).
+    const frame = ambientFrame(now);
+    if (animated && frame !== this.lastFrame) {
+      this.lastFrame = frame;
       const t = now / 1000;
       for (const update of this.decor?.fx ?? []) update(t);
       this.decor?.groundFx?.update(t);
@@ -350,7 +368,7 @@ export class BoardRenderer {
     const camera = this.camera;
     if (!camera) return;
     const [a, b, c, d, tx, ty] = isoPlaneMatrix(camera, this.plan);
-    this.plane.setFromMatrix(new this.pixi.Matrix(a, b, c, d, tx, ty));
+    for (const plane of [this.plane, this.planeCells, this.planeOver]) plane.setFromMatrix(new this.pixi.Matrix(a, b, c, d, tx, ty));
     this.cells.layout(camera, this.plan);
     this.units.layout(camera, this.plan);
     for (const item of this.decor?.uprights ?? []) {
@@ -367,7 +385,7 @@ export class BoardRenderer {
     const decor = this.decor;
     if (!decor) return;
     const faded = new Set<string>();
-    for (const cell of this.reveal) for (const key of decor.hiding.get(cell) ?? []) faded.add(key);
+    for (const cell of [...this.reveal, ...[...this.walking.values()].flat()]) for (const key of decor.hiding.get(cell) ?? []) faded.add(key);
     const now = performance.now();
     let changed = false;
     for (const item of decor.uprights) {

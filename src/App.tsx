@@ -44,5 +44,9 @@ export function App() {
 
 function GamePage({ setup, onHome }: { setup: Setup; onHome: () => void }) {
   const [session, dispatch] = useReducer(updateSession, setup, (initial) => newSession(1, initial));
+  // En développement, la partie est jouable depuis la console (essais en navigateur : `__game.dispatch(…)`).
+  useEffect(() => {
+    if (import.meta.env.DEV) Object.assign(window, { __game: { session, dispatch } });
+  }, [session]);
   return <SessionScreen session={session} dispatch={dispatch} onHome={onHome} />;
 }

@@ -44,7 +44,9 @@ import {
   selectedUnitId,
 } from './interaction';
 import type { Selection } from './interaction';
+import { useAmbientLoops } from './ambientClock';
 import { isoScenery } from './iso/scenery';
+import { isPixiBoard } from './Board';
 import { Legend } from './Legend';
 import { MAX_HEADROOM } from './overframes';
 import { ALL_TOKEN_STATS, loadSettings, prefersReducedMotion, saveSettings } from './settings';
@@ -153,13 +155,17 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
 
   const busy = shown !== null;
   const display = shown ?? view;
-  // La vue isométrique n'existe que pour le Champ de bataille : ailleurs, elle se replie sur la vue inclinée.
+  // La vue isométrique n'existe que pour le Champ de bataille : ailleurs, elle se replie sur la vue inclinée. Sur le
+  // 15 × 15, dessiné par PixiJS, c'est l'inverse : la vue inclinée n'y existe plus et revient à l'isométrique.
   const isoAvailable = isoScenery(display.board) !== null;
-  const mode: BoardView = settings.view === 'iso' && !isoAvailable ? 'tilt' : settings.view;
+  const tiltAvailable = !isPixiBoard(display.board);
+  const mode: BoardView = settings.view === 'iso' && !isoAvailable ? 'tilt' : settings.view === 'tilt' && !tiltAvailable ? 'iso' : settings.view;
   const tilted = mode === 'tilt';
   // Même angle pour les deux joueurs (validé) : J1 en haut du plateau, J2 en bas ; il n'est jamais retourné.
   const flipped = false;
   const animated = settings.animations && !prefersReducedMotion();
+  // Les boucles CSS d'ambiance avancent sur les images du plateau PixiJS, 30 par seconde (`ambientClock.ts`).
+  useAmbientLoops(animated);
 
   const hovered = hover?.subject.kind === 'cell' ? hover.subject.pos : null;
   // Bulle d'action : pendant une animation, aucune ; une sélection de bulle qui n'a plus rien à proposer est oubliée.
@@ -480,6 +486,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
         settings={settings}
         boardView={mode}
         isoAvailable={isoAvailable}
+        tiltAvailable={tiltAvailable}
         onSettings={changeSettings}
         onSound={(sound) => {
           changeSettings({ sound });
@@ -509,7 +516,6 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
             zoom={settings.zoom}
             animated={animated}
             flipped={flipped}
-            pixi={settings.pixiBoard}
             stats={peek ? ALL_TOKEN_STATS : settings.tokenStats}
             margins={glide}
             onCellClick={handleCellClick}

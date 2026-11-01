@@ -1,7 +1,7 @@
 // Ambiance au sol du plateau peint (15 × 15) en PixiJS, dans le repère du plan du plateau : reflets de l'eau (un shader
 // par pièce d'eau, masqué sur son eau : reflets qui coulent, caustiques qui dérivent, scintillements), ombres de nuages,
-// rafales et halos des mana zones. Dessinée par `AmbienceCanvas` (canvas posé dans le plan du sol du plateau en CSS) ou
-// par le plateau PixiJS (dans son plan isométrique). Et quelques outils PixiJS communs (couleurs, textures, images).
+// rafales et halos des mana zones, dans le plan isométrique du plateau PixiJS. Et quelques outils PixiJS communs
+// (couleurs, textures, images).
 import type { Container as PixiContainer, Shader, Texture } from 'pixi.js';
 import { GROUND_FX_COLORS, HALO_RADIUS, cloudAt, gustAt, pulse } from '../iso/ambience';
 import type { GroundAmbience } from '../iso/ambience';
@@ -116,7 +116,7 @@ export interface BuiltScene {
 }
 
 /**
- * Construit l'ambiance au sol dans `parent`, dans le repère du plan du plateau décalé de `origin`. `masks` : masque de
+ * Construit l'ambiance au sol dans `parent`, dans le repère du plan du plateau. `masks` : masque de
  * l'eau de chaque image de pièce d'eau (URL). Les images se chargent d'abord ; la scène se construit ensuite d'un bloc,
  * seulement si `alive()` (l'application n'a pas été détruite entre-temps) : sinon `null`.
  */
@@ -126,7 +126,6 @@ export async function buildGroundFx(
   scene: GroundAmbience,
   masks: Readonly<Record<string, string>>,
   alive: () => boolean,
-  origin: { readonly x: number; readonly y: number } = { x: 0, y: 0 },
 ): Promise<BuiltScene | null> {
   const images = new Map<string, HTMLImageElement>();
   for (const name of new Set(scene.water.map((w) => w.image))) {
@@ -137,7 +136,6 @@ export async function buildGroundFx(
 
   const { Container, Sprite, Mesh, MeshGeometry, Shader, Texture, Graphics } = pixi;
   const root = new Container();
-  root.position.set(origin.x, origin.y);
   const textures: Texture[] = [];
 
   // Eau : une maille par pièce, avec son shader ; tournée de 180° avec le plateau.

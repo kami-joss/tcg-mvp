@@ -27,6 +27,7 @@ const topBar = (helpOpen = false) =>
       settings={DEFAULT_SETTINGS}
       boardView="iso"
       isoAvailable
+      tiltAvailable
       onSettings={noop}
       onSound={noop}
       onHome={noop}
@@ -66,12 +67,13 @@ describe('barre du haut', () => {
 });
 
 describe('menu d’options', () => {
-  const menu = (iso = true) =>
+  const menu = (iso = true, tilt = true) =>
     renderToStaticMarkup(
       <OptionsMenu
         settings={DEFAULT_SETTINGS}
         boardView="iso"
         isoAvailable={iso}
+        tiltAvailable={tilt}
         onChange={noop}
         onSound={noop}
         confirmHome
@@ -80,16 +82,17 @@ describe('menu d’options', () => {
       />,
     );
 
-  it('tous les réglages : vue, zoom, stats des jetons, son et volume, animations, rendu PixiJS, nouvelle partie ; plus de plateau tourné', () => {
+  it('tous les réglages : vue, zoom, stats des jetons, son et volume, animations, nouvelle partie ; plus de plateau tourné', () => {
     const html = menu();
-    for (const label of ['Dessus', 'Inclinée 45°', 'Isométrique', 'Zoom', '100 %', 'Stats sur les jetons', 'Son', 'Volume', 'Animations', 'Rendu PixiJS (expérimental)', 'Nouvelle partie']) {
+    for (const label of ['Dessus', 'Inclinée 45°', 'Isométrique', 'Zoom', '100 %', 'Stats sur les jetons', 'Son', 'Volume', 'Animations', 'Nouvelle partie']) {
       expect(html, label).toContain(label);
     }
     // Même angle pour les deux joueurs (validé) : le plateau ne se retourne plus.
     expect(html).not.toContain('Plateau tourné');
     expect(html).toContain('<button type="button" aria-pressed="true">Isométrique</button>');
-    // Cinq stats, les animations et le rendu PixiJS (expérimental, décoché par défaut).
-    expect(html.match(/type="checkbox"/g)).toHaveLength(7);
+    // Cinq stats et les animations ; plus de réglage du rendu PixiJS (le 15 × 15 l'est toujours).
+    expect(html.match(/type="checkbox"/g)).toHaveLength(6);
+    expect(html).not.toContain('PixiJS');
     expect(html).toContain('Maintiens Alt pour tout afficher');
     // Un calque transparent sous le panneau : un clic dehors le ferme.
     expect(html).toContain('options__backdrop');
@@ -104,8 +107,10 @@ describe('menu d’options', () => {
     expect(html.match(/checked=""/g)).toHaveLength(4);
   });
 
-  it('sans décor, pas de vue isométrique', () => {
+  it('sans décor, pas de vue isométrique ; sur le 15 × 15 (PixiJS), pas de vue inclinée', () => {
     expect(menu(false)).not.toContain('Isométrique');
+    expect(menu(true, false)).not.toContain('Inclinée 45°');
+    expect(menu(true, false)).toContain('Isométrique');
   });
 });
 

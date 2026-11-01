@@ -13,7 +13,7 @@ import type { IconName } from '../Icon';
 import type { IsoCamera } from '../iso/scenery';
 import { STATUS_ICONS } from '../zoneMarks';
 import { CELL_COLORS, CELL_SIZE } from './cellModel';
-import { cssColor, iconTexture } from './cellLayer';
+import { cssColor, hatch, iconTexture, mix } from './cellLayer';
 import { painted } from './groundFx';
 import type { Pixi } from './groundFx';
 import { isoDepth, isoProject } from './isoProjection';
@@ -54,6 +54,13 @@ function drop(g: Graphics, angle: number, cx = 0, cy = DROP_CY, r = DROP_R): Gra
 }
 
 const easeBob = (x: number) => x * x * (3 - 2 * x);
+/** Lueur des socles (`glowPulse`, 2,4 s), comme celle des mana zones. */
+const glowPulse = (t: number) => {
+  const f = (((t / 2.4) % 1) + 1) % 1;
+  return 0.12 + 0.78 * easeBob(f < 0.5 ? f * 2 : 2 - f * 2);
+};
+/** Marge de la texture de la lueur d'un socle autour de sa case. */
+const GLOW_PAD = 20;
 
 /** Un texte en Alegreya Sans 800, net même grossi (survol), ancré au centre. */
 function text(pixi: Pixi, value: string, size: number, color: string): PixiContainer {
@@ -192,6 +199,9 @@ const SETTLE = 50;
 export class TokenLayer {
   private readonly ground: Graphics;
   private readonly shadows: PixiContainer;
+  /** Lueurs des socles (animations permises), sous les socles. */
+  private readonly glows: PixiContainer;
+  private glowTexture: Texture | null = null;
   private readonly standing: Standing[] = [];
   private readonly arts = new Map<string, Texture | 'loading'>();
   private signature = '';
@@ -199,7 +209,7 @@ export class TokenLayer {
   private hovered: string | null = null;
   /** Grossissement de survol en cours, par case : départ et cible. */
   private readonly grow = new Map<string, { from: number; to: number; start: number }>();
-  private last: { tokens: readonly TokenVisual[]; terrains: readonly TerrainVisual[] } = { tokens: [], terrains: [] };
+  private last: { tokens: readonly TokenVisual[]; terrains: readonly TerrainVisual[]; glow: boolean } = { tokens: [], terrains: [], glow: false };
   /** Ombre au sol de chaque unité (par identifiant), pour la déplacer avec elle. */
   private readonly shadowOf = new Map<string, { sprite: Sprite; x: number; y: number; alpha: number }>();
   /** Animations d'action en cours, par unité (elles survivent aux redessins), et la pose qui en découle. */
@@ -215,16 +225,17 @@ export class TokenLayer {
     private readonly onChange: () => void,
   ) {
     this.shadows = new pixi.Container();
+    this.glows = new pixi.Container();
     this.ground = new pixi.Graphics();
-    plane.addChild(this.shadows, this.ground);
+    plane.addChild(this.glows, this.shadows, this.ground);
   }
 
-  /** Redessine les unités (seulement si quelque chose a changé). */
-  setUnits(tokens: readonly TokenVisual[], terrains: readonly TerrainVisual[]): void {
-    const signature = JSON.stringify([tokens, terrains, [...this.arts].filter(([, t]) => t !== 'loading').map(([id]) => id)]);
+  /** Redessine les unités (seulement si quelque chose a changé) ; `glow` : lueur des socles (animations permises). */
+  setUnits(tokens: readonly TokenVisual[], terrains: readonly TerrainVisual[], glow = false): void {
+    const signature = JSON.stringify([tokens, terrains, glow, [...this.arts].filter(([, t]) => t !== 'loading').map(([id]) => id)]);
     if (signature === this.signature) return;
     this.signature = signature;
-    this.last = { tokens, terrains };
+    this.last = { tokens, terrains, glow };
     this.clear();
     // Une unité qui a quitté le plateau n'a plus d'animation.
     const present = new Set([...tokens, ...terrains].map((u) => u.id));
@@ -242,9 +253,32 @@ export class TokenLayer {
     });
 
     // Au sol : socles des terrains (et leur lueur), ombres, flèches d'orientation.
+    if (glow) {
+      // `.plaque__glow` : une ombre portée de 10 px de flou, élargie de 3 px, autour de la case, à la couleur du joueur.
+      this.glowTexture ??= painted(pixi, S + 2 * GLOW_PAD, S + 2 * GLOW_PAD, (ctx) => {
+        ctx.shadowColor = 'white';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.roundRect(GLOW_PAD - 3, GLOW_PAD - 3, S + 6, S + 6, 9);
+        ctx.fill();
+        ctx.shadowColor = 'transparent';
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.roundRect(GLOW_PAD, GLOW_PAD, S, S, 6);
+        ctx.fill();
+      });
+      for (const t of terrains) {
+        const sprite = new pixi.Sprite({ texture: this.glowTexture, x: t.x - GLOW_PAD, y: t.y - GLOW_PAD });
+        sprite.tint = cssColor(player(t.owner)).color;
+        this.glows.addChild(sprite);
+      }
+    }
     for (const t of terrains) {
       const [x, y] = [t.x + 3, t.y + 3];
       g.roundRect(x, y, S - 6, S - 6, 6).fill(cssColor('oklch(0.96 0.015 85)'));
+      // Fines rayures à 45° de la plaque : 2 px tous les 7, à la couleur du joueur.
+      hatch(g, x, y, S - 6, 7, 2, true, mix(player(t.owner), 12));
       g.roundRect(x, y, S - 6, S - 6, 6).stroke({ width: 3, ...cssColor(player(t.owner)), alignment: 1 });
       if (t.selected) g.roundRect(x, y, S - 6, S - 6, 6).stroke({ width: 3, ...cssColor(GOLD), alignment: 0 });
       if (!t.small) this.shadow(t.id, t.x + 34, t.y + 34, 'oklch(0.25 0.03 60 / 0.35)');
@@ -283,8 +317,9 @@ export class TokenLayer {
     for (const item of this.standing) this.place(item);
   }
 
-  /** Respiration des jetons et halo de la sélection qui pulse (à 30 images par seconde). */
+  /** Respiration des jetons, halo de la sélection et lueur des socles qui pulsent (à 30 images par seconde). */
   update(t: number): void {
+    this.glows.alpha = glowPulse(t);
     for (const item of this.standing) {
       if (!item.body) continue;
       // `unitBob`, 1,8 s : 0, −4 px à 45 %, 0.
@@ -368,12 +403,15 @@ export class TokenLayer {
     this.poses.clear();
     this.ground.destroy();
     this.shadows.destroy();
+    this.glows.destroy();
     this.shadowTexture?.destroy(true);
+    this.glowTexture?.destroy(true);
   }
 
   private clear(): void {
     this.ground.clear();
     for (const child of this.shadows.removeChildren()) child.destroy();
+    for (const child of this.glows.removeChildren()) child.destroy();
     this.shadowOf.clear();
     for (const item of this.standing) {
       item.flash?.destroy();
@@ -456,7 +494,7 @@ export class TokenLayer {
         (texture) => {
           this.arts.set(cardId, texture);
           this.signature = '';
-          this.setUnits(this.last.tokens, this.last.terrains);
+          this.setUnits(this.last.tokens, this.last.terrains, this.last.glow);
           this.onChange();
         },
         () => this.arts.delete(cardId),
@@ -527,7 +565,19 @@ export class TokenLayer {
     if (art) {
       if (t.hidden) art.alpha = 0.55;
     } else {
-      frame.addChild(new pixi.Graphics().circle(0, DROP_CY, DROP_R - 1.5).fill(cssColor(t.owner === 1 ? 'oklch(0.4 0.11 255)' : 'oklch(0.4 0.13 25)')));
+      // Sans illustration : rayures à 135° de 7 px (`.art`), sombre et couleur du joueur.
+      const r = DROP_R - 1.5;
+      const disc = new pixi.Graphics().circle(0, DROP_CY, r).fill(cssColor(t.owner === 1 ? 'oklch(0.4 0.11 255)' : 'oklch(0.4 0.13 25)'));
+      const stripes = new pixi.Graphics();
+      const [u, v] = [Math.SQRT1_2, Math.SQRT1_2];
+      for (let d = -2 * r + 7; d < 2 * r; d += 14) {
+        const at = (s: number, l: number): [number, number] => [u * s + v * l, DROP_CY + v * s - u * l];
+        stripes.poly([...at(d, 2 * r), ...at(d + 7, 2 * r), ...at(d + 7, -2 * r), ...at(d, -2 * r)]);
+      }
+      stripes.fill(cssColor(color));
+      const mask = new pixi.Graphics().circle(0, DROP_CY, r).fill(0xffffff);
+      stripes.mask = mask;
+      frame.addChild(disc, stripes, mask);
       const label = text(pixi, t.label, 7.6, 'white');
       label.position.set(0, DROP_CY);
       frame.addChild(label);

@@ -3,8 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { BATTLEFIELD, BATTLEFIELD_15, getPlayerView } from '../engine';
 import type { PlayerView } from '../engine';
 import { at, gameWith } from '../engine/test-utils';
-import { Board } from './Board';
-import { DECOR_FADE } from './iso/IsoDecor';
+import { Board, revealCells } from './Board';
 import type { BoardView } from './settings';
 
 const render = (view: PlayerView, mode: BoardView, zoom = 1, margins?: { left: number; right: number }) =>
@@ -81,68 +80,17 @@ describe('marges de glisse (handoff V11, lot 13 §1)', () => {
   });
 });
 
-describe('décor peint qui s’efface (15 × 15, vue iso)', () => {
-  const view = (units: Parameters<typeof gameWith>[0] = []) => getPlayerView(gameWith(units, { board: BATTLEFIELD_15 }), 1);
-  const faded = (html: string) => html.match(new RegExp(`opacity:${DECOR_FADE}`, 'g'))?.length ?? 0;
-
-  it('la forge s’efface devant un monstre posé derrière elle, pas devant un monstre ailleurs', () => {
-    expect(faded(render(view([{ monster: 'chevalier', owner: 1, at: at(0, 0) }]), 'iso'))).toBe(0);
-    // (4, 3), à gauche de la forge (4, 4)–(5, 5) : elle s'efface (sans animations, elle n'a pas de feu).
-    expect(faded(render(view([{ monster: 'chevalier', owner: 1, at: at(4, 3) }]), 'iso'))).toBe(1);
-  });
-
-  it('plateau peint : quadrillage adouci (`board--painted`), seulement en vue décorée du 15 × 15', () => {
-    expect(render(view(), 'iso')).toContain('board--painted');
-    expect(render(view(), 'top')).not.toContain('board--painted');
-    expect(render(battlefield(), 'iso')).not.toContain('board--painted');
-  });
-
-  it('la case survolée compte comme un jeton', () => {
-    const html = renderToStaticMarkup(
-      <Board
-        view={view()}
-        highlights={new Map()}
-        attacks={new Map()}
-        selectedUnitId={null}
-        focused={false}
-        path={[]}
-        reach={new Map()}
-        showArt
-        mode="iso"
-        zoom={1}
-        animated={false}
-        flipped={false}
-        onCellClick={() => {}}
-        onCellHover={() => {}}
-        hovered={at(4, 3)}
-      />,
-    );
-    expect(faded(html)).toBe(1);
+describe('décor peint qui s’efface (15 × 15)', () => {
+  it('cases à dégager : celles des unités que le joueur voit, et la case survolée', () => {
+    const view = getPlayerView(gameWith([{ monster: 'chevalier', owner: 1, at: at(4, 3) }], { board: BATTLEFIELD_15 }), 1);
+    expect([...revealCells(view, null)]).toEqual(['4,3']);
+    expect([...revealCells(view, at(0, 0))].sort()).toEqual(['0,0', '4,3']);
   });
 });
 
-describe('plateau PixiJS (réglage expérimental, 15 × 15)', () => {
+describe('plateau PixiJS (15 × 15)', () => {
   const view = getPlayerView(gameWith([], { board: BATTLEFIELD_15 }), 1);
-  const renderPixi = (board: PlayerView, mode: BoardView) =>
-    renderToStaticMarkup(
-      <Board
-        view={board}
-        highlights={new Map()}
-        attacks={new Map()}
-        selectedUnitId={null}
-        focused={false}
-        path={[]}
-        reach={new Map()}
-        showArt
-        mode={mode}
-        zoom={1}
-        animated={false}
-        flipped={false}
-        pixi
-        onCellClick={() => {}}
-        onCellHover={() => {}}
-      />,
-    );
+  const renderPixi = (board: PlayerView, mode: BoardView) => render(board, mode);
 
   it('le décor passe au canvas PixiJS (sous la scène) : plus de décor en HTML, les cases restent', () => {
     const html = renderPixi(view, 'iso');
@@ -156,8 +104,8 @@ describe('plateau PixiJS (réglage expérimental, 15 × 15)', () => {
     const html = renderPixi(view, 'iso');
     expect(html.match(/cell--pixi/g)).toHaveLength(15 * 15);
     for (const name of ['zone-label', 'cell__summon', 'cell__glow', 'hl-move', 'layer--dim']) expect(html, name).not.toContain(name);
-    // Sans PixiJS, tout reste en HTML.
-    const plain = render(view, 'iso');
+    // En vue de dessus, tout reste en HTML.
+    const plain = render(view, 'top');
     expect(plain).toContain('zone-label');
     expect(plain).toContain('cell__summon');
     expect(plain).not.toContain('cell--pixi');
@@ -176,7 +124,7 @@ describe('plateau PixiJS (réglage expérimental, 15 × 15)', () => {
     );
     const html = renderPixi(units, 'iso');
     for (const name of ['class="token', 'crest', 'plaque', 'facing', 'token-shadow']) expect(html, name).not.toContain(name);
-    expect(render(units, 'iso')).toContain('class="token');
+    expect(render(units, 'top')).toContain('class="token');
   });
 
   it('la vue inclinée revient à l’isométrique ; la vue de dessus et les autres plateaux restent en HTML', () => {

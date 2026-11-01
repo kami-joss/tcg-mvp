@@ -2124,7 +2124,7 @@ select {
 }
 
 /*
- * Plateau PixiJS (réglage expérimental, migration étape 3) : le canvas a la taille de la partie visible du cadre, collé en
+ * Plateau PixiJS (15 × 15, vue isométrique) : le canvas a la taille de la partie visible du cadre, collé en
  * haut à gauche pendant le défilement, sous la scène en HTML (le cadre isole son empilement). Il ne capte pas la souris.
  * La scène ne s'anime plus quand la caméra change : le canvas, lui, ne suivrait pas la transition.
  */
@@ -2238,16 +2238,6 @@ select {
 
 .board--decor .cell--plain.cell--odd {
   background: oklch(1 0 0 / 0.08);
-}
-
-/* Plateau peint : damier et trait des cases adoucis, pour que l'herbe reste une pelouse ; les cases se lisent encore. */
-.board--painted .cell--plain {
-  background: oklch(0.25 0.04 165 / 0.03);
-  box-shadow: inset 0 0 0 1px oklch(0.28 0.04 165 / 0.2);
-}
-
-.board--painted .cell--plain.cell--odd {
-  background: oklch(1 0 0 / 0.035);
 }
 
 .board--decor .cell--blocked {
@@ -2540,109 +2530,6 @@ select {
   }
   100% {
     transform: translate(var(--sx), -44px);
-    opacity: 0;
-  }
-}
-
-/* Ambiance du décor peint (15 × 15) : eau, forge, cristaux, mana zones, nuages et vent. Seulement si les animations
-   sont permises (sinon ces éléments ne sont pas rendus). */
-@keyframes ambFlow30 {
-  to {
-    transform: translateY(30px);
-  }
-}
-
-@keyframes ambDrift36 {
-  to {
-    transform: translate(36px, 36px);
-  }
-}
-
-@keyframes ambTwinkle {
-  0%,
-  60%,
-  100% {
-    opacity: 0;
-    transform: scale(0.3);
-  }
-  78% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes ambPulse {
-  0%,
-  100% {
-    opacity: 0.45;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-@keyframes ambEmber {
-  0% {
-    transform: translate(0, 0);
-    opacity: 0;
-  }
-  15% {
-    opacity: 1;
-  }
-  100% {
-    transform: translate(var(--sx), -48px);
-    opacity: 0;
-  }
-}
-
-@keyframes ambSmoke {
-  0% {
-    transform: translate(0, 0) scale(0.5);
-    opacity: 0;
-  }
-  20% {
-    opacity: 0.75;
-  }
-  100% {
-    transform: translate(var(--sx), -64px) scale(2.4);
-    opacity: 0;
-  }
-}
-
-@keyframes ambMote {
-  0% {
-    transform: translate(0, 0);
-    opacity: 0;
-  }
-  25% {
-    opacity: 0.95;
-  }
-  100% {
-    transform: translate(var(--sx), -56px);
-    opacity: 0;
-  }
-}
-
-@keyframes ambCloud {
-  from {
-    transform: translate(var(--x0), 0);
-  }
-  to {
-    transform: translate(var(--x1), var(--dy));
-  }
-}
-
-@keyframes ambGust {
-  0% {
-    transform: translateX(var(--x0));
-    opacity: 0;
-  }
-  8% {
-    opacity: 1;
-  }
-  30%,
-  100% {
-    transform: translateX(var(--x1));
     opacity: 0;
   }
 }
