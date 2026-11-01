@@ -1,7 +1,8 @@
 // Plateau 15 × 15 dessiné par PixiJS (migration, étape 3a) : le sol peint dans le plan isométrique, les sprites peints
 // debout, triés par profondeur comme la 3D du plateau en CSS, les ponts couchés sous eux, le décor qui s'efface devant
 // un jeton ou la case survolée, l'ambiance au sol (`buildGroundFx`) et debout (feu et fumée de la forge, éclats des
-// cristaux, particules des mana zones). Les cases et les jetons restent en HTML par-dessus (sous-étapes 3b, 3c).
+// cristaux, particules des mana zones), puis les cases (sous-étape 3b), les unités (3c) et leurs animations d'action
+// (3d : `motions`, que `fx/stage.ts` appelle à la place des animations des jetons HTML).
 // Le dessin n'a lieu que quand il le faut : à chaque image de l'ambiance (30 par seconde), d'un fondu, ou après un
 // changement (défilement, caméra, décor) ; rien quand tout est immobile.
 import type { Application, Container as PixiContainer, Sprite, Texture } from 'pixi.js';
@@ -32,9 +33,13 @@ import { CellLayer } from './cellLayer';
 import { cellVisuals } from './cellModel';
 import type { CellInputs } from './cellModel';
 import { buildGroundFx, loadImage, painted, tint } from './groundFx';
+import { wait } from '../fx/stage';
+import type { TokenMotions } from '../fx/stage';
 import { TokenLayer } from './tokenLayer';
-import { unitVisuals } from './tokenModel';
+import { TOKEN_FOOT, unitVisuals } from './tokenModel';
 import type { TokenInputs } from './tokenModel';
+import { DIE, DROP, LAND, RECOIL, SLAM, lungeMotion, shakeMotions, walkMotions } from './tokenMotion';
+import type { Motion, Point } from './tokenMotion';
 import type { BuiltScene, Pixi } from './groundFx';
 import { isoDepth, isoPlaneMatrix, isoProject, isoUnproject } from './isoProjection';
 import type { Board as BoardData, Position } from '../../engine';
@@ -263,10 +268,52 @@ export class BoardRenderer {
     this.units.destroy();
   }
 
+  /** Animations d'action des unités, aux mêmes durées que celles des jetons HTML (`fx/stage.ts`). */
+  readonly motions: TokenMotions = {
+    walk: (unitId, start, cells, o) => {
+      if (!this.units.has(unitId) || cells.length === 0) return Promise.resolve(null);
+      const duration = cells.length * 210 * o.speed;
+      const cancel = this.play(unitId, walkMotions([start, ...cells].map((pos) => this.footOf(pos)), duration, o.hop));
+      return wait(duration).then(() => ({ cancel }));
+    },
+    lunge: (unitId, from, to) => void this.play(unitId, [lungeMotion(this.footOf(from), this.footOf(to))]),
+    land: (unitId) => void this.play(unitId, [LAND]),
+    die: (unitId) => {
+      if (!this.units.has(unitId)) return Promise.resolve();
+      this.play(unitId, [DIE]);
+      return wait(DIE.duration);
+    },
+    drop: (unitId) => void this.play(unitId, [DROP]),
+    slam: (unitId) => void this.play(unitId, [SLAM]),
+    shake: (unitId, hard) => void this.play(unitId, shakeMotions(hard)),
+    recoil: (unitId) => void this.play(unitId, [RECOIL]),
+  };
+
   /** Redessine à la prochaine image (et continue tant que l'ambiance ou un fondu l'exige). */
   requestRender(): void {
     this.dirty = true;
     if (!this.raf && !this.destroyed) this.raf = requestAnimationFrame(this.frame);
+  }
+
+  /**
+   * Lance des animations et dessine aussitôt leur première pose : le lecteur d'effets les lance juste après une image
+   * où l'unité vient d'apparaître (`patch`), qui ne doit pas s'afficher (un monstre invoqué, entier avant sa chute).
+   */
+  private play(unitId: string, motions: readonly Motion[]): () => void {
+    const remove = this.units.play(unitId, motions);
+    this.renderNow();
+    this.requestRender();
+    return () => {
+      remove();
+      this.requestRender();
+    };
+  }
+
+  /** Pied d'un jeton sur une case, dans le plan (plateau retourné compris). */
+  private footOf(pos: Position): Point {
+    const board = this.board;
+    const [r, c] = board && this.flipped ? [board.rows - 1 - pos.row, board.cols - 1 - pos.col] : [pos.row, pos.col];
+    return { x: ISO.pad + c * ISO.pitch + TOKEN_FOOT, y: ISO.pad + r * ISO.pitch + TOKEN_FOOT };
   }
 
   private renderNow(): void {
@@ -278,8 +325,9 @@ export class BoardRenderer {
     this.raf = 0;
     if (this.destroyed) return;
     const fading = this.stepFades(now);
-    // Le survol (grossissement) se joue à pleine cadence ; l'ambiance et la respiration à 30 images par seconde.
-    const growing = this.units.update(now / 1000, false, now);
+    // Le survol (grossissement) et les animations d'action se jouent à pleine cadence ; l'ambiance et la respiration
+    // à 30 images par seconde.
+    const growing = this.units.step(now);
     const animated = (this.decor?.animated ?? false) || this.cells.animated || this.animated;
     if (animated && now - this.lastFrame >= 1000 / FPS - 2) {
       this.lastFrame = now;
@@ -287,7 +335,7 @@ export class BoardRenderer {
       for (const update of this.decor?.fx ?? []) update(t);
       this.decor?.groundFx?.update(t);
       this.cells.update(t);
-      this.units.update(t, this.animated, now);
+      if (this.animated) this.units.update(t);
       this.dirty = true;
     }
     if (this.dirty || fading || growing) {

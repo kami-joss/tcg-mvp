@@ -15,6 +15,29 @@ export interface Stage {
 
 export const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Animations des jetons quand ils ne sont pas en HTML (plateau PixiJS) : le plateau s'inscrit ici tant qu'il est
+ * affiché ; sinon (`null`), les animations jouent sur les jetons HTML. Mêmes durées et mêmes étapes des deux côtés.
+ */
+export interface TokenMotions {
+  /** Marche (210 ms par case × `speed`, un saut de `hop` px par pas) ; à annuler une fois le jeton sur sa case. */
+  walk(unitId: string, start: Position, cells: readonly Position[], o: { speed: number; hop: number }): Promise<{ cancel(): void } | null>;
+  lunge(unitId: string, from: Position, to: Position): void;
+  land(unitId: string): void;
+  die(unitId: string): Promise<void>;
+  drop(unitId: string): void;
+  slam(unitId: string): void;
+  shake(unitId: string, hard: boolean): void;
+  recoil(unitId: string): void;
+}
+
+let motions: TokenMotions | null = null;
+
+/** Le plateau PixiJS prend (ou rend, avec `null`) les animations des jetons. */
+export function setTokenMotions(next: TokenMotions | null): void {
+  motions = next;
+}
+
 type Keyframes = Keyframe[];
 
 export function cellEl(stage: Stage, pos: Position): HTMLElement | null {
@@ -289,6 +312,12 @@ export function flyTo(stage: Stage, pos: Position, selector: string, icon: IconN
   setTimeout(() => pulse(stage, selector, true), ms + delay);
 }
 
+/** Secousse d'une unité touchée : sur son jeton (HTML ou PixiJS). */
+export function shakeUnit(stage: Stage, unitId: string, hard: boolean): void {
+  if (motions) motions.shake(unitId, hard);
+  else shake(bodyEl(stage, unitId), hard);
+}
+
 /** Secousse et éclair blanc d'un coup reçu (plus fort pour un coup dur). */
 export function shake(el: HTMLElement | null, hard: boolean): void {
   const m = hard ? 1.7 : 1;
@@ -308,6 +337,11 @@ export function shake(el: HTMLElement | null, hard: boolean): void {
 
 /** Élan d'une attaque au contact, vers la cible (dans le plan du sol : le retournement est pris en compte). */
 export async function lunge(stage: Stage, unitId: string, from: Position, to: Position): Promise<void> {
+  if (motions) {
+    motions.lunge(unitId, from, to);
+    await wait(275);
+    return;
+  }
   const { dx, dy } = planeDelta(stage, from, to);
   const sx = Math.sign(dx);
   const sy = Math.sign(dy);
@@ -334,7 +368,8 @@ export async function walk(
   start: Position,
   cells: readonly Position[],
   o: { speed?: number; hop?: number } = {},
-): Promise<Animation | null> {
+): Promise<{ cancel(): void } | null> {
+  if (motions) return motions.walk(unitId, start, cells, { speed: o.speed ?? 1, hop: o.hop ?? 13 });
   const el = tokenEl(stage, unitId);
   const body = bodyEl(stage, unitId);
   const n = cells.length;
@@ -359,7 +394,8 @@ export async function walk(
 
 /** Atterrissage : écrasement et poussière. */
 export function land(stage: Stage, unitId: string, pos: Position): void {
-  animate(bodyEl(stage, unitId), [{ transform: 'scale(1.14,.84)' }, { transform: 'scale(.96,1.05)', offset: 0.5 }, { transform: 'scale(1,1)' }], {
+  if (motions) motions.land(unitId);
+  else animate(bodyEl(stage, unitId), [{ transform: 'scale(1.14,.84)' }, { transform: 'scale(.96,1.05)', offset: 0.5 }, { transform: 'scale(1,1)' }], {
     duration: 260,
     easing: 'ease-out',
     composite: 'add',
@@ -371,6 +407,7 @@ export function land(stage: Stage, unitId: string, pos: Position): void {
 export async function die(stage: Stage, unitId: string, pos: Position): Promise<void> {
   await wait(260);
   burst(stage, pos, 'oklch(0.8 0.02 80)', { n: 12, spread: 40, size: 9, ms: 700, ring: false, fall: -10 });
+  if (motions) return motions.die(unitId);
   const animation = animate(
     bodyEl(stage, unitId),
     [
@@ -385,7 +422,8 @@ export async function die(stage: Stage, unitId: string, pos: Position): Promise<
 
 /** Monstre invoqué : chute sur sa case, écrasement, onde à la couleur du joueur. */
 export async function drop(stage: Stage, unitId: string, pos: Position, color: string): Promise<void> {
-  animate(
+  if (motions) motions.drop(unitId);
+  else animate(
     bodyEl(stage, unitId),
     [
       { transform: 'translateY(-26px) scale(.2)', opacity: 0 },
@@ -400,7 +438,8 @@ export async function drop(stage: Stage, unitId: string, pos: Position, color: s
 
 /** Terrain posé : écrasement, poussière et tremblement. */
 export async function slam(stage: Stage, unitId: string, pos: Position): Promise<void> {
-  animate(bodyEl(stage, unitId), [{ transform: 'scale(1.7)', opacity: 0 }, { transform: 'scale(.9)', opacity: 1, offset: 0.6 }, { transform: 'scale(1)' }], {
+  if (motions) motions.slam(unitId);
+  else animate(bodyEl(stage, unitId), [{ transform: 'scale(1.7)', opacity: 0 }, { transform: 'scale(.9)', opacity: 1, offset: 0.6 }, { transform: 'scale(1)' }], {
     duration: 380,
     easing: 'ease-in',
   });
@@ -411,6 +450,7 @@ export async function slam(stage: Stage, unitId: string, pos: Position): Promise
 
 /** Recul du tireur au moment du tir. */
 export function recoil(stage: Stage, unitId: string): void {
+  if (motions) return motions.recoil(unitId);
   animate(bodyEl(stage, unitId), [{ transform: 'translateY(0px) scale(1)' }, { transform: 'translateY(6px) scale(.92)', offset: 0.3 }, { transform: 'translateY(0px) scale(1)' }], {
     duration: 300,
     easing: 'ease-out',

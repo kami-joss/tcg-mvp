@@ -14,7 +14,6 @@ import type { Projectile } from './missiles';
 import { sfx } from '../sfx/sound';
 import type { SoundName } from '../sfx/sound';
 import {
-  bodyEl,
   burst,
   die,
   drop,
@@ -31,7 +30,7 @@ import {
   quake,
   recoil,
   rise,
-  shake,
+  shakeUnit,
   slam,
   wait,
   walk,
@@ -382,11 +381,10 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
 
       case 'damage': {
         const hard = behind || event.amount >= 3;
-        const el = bodyEl(stage, event.unitId);
         if (event.cause === 'burn') {
           burst(stage, event.pos, 'oklch(0.78 0.19 50)', { n: 10, spread: 26, size: 5, ring: false, fall: -18 });
         }
-        shake(el, hard);
+        shakeUnit(stage, event.unitId, hard);
         sfx(event.cause === 'burn' ? 'burn' : hard ? 'hitHard' : 'hit');
         const label = event.cause === 'attack' && behind ? `−${event.amount} dans le dos !` : `−${event.amount}`;
         float(stage, event.pos, label, event.cause === 'burn' ? 'oklch(0.8 0.16 55)' : DAMAGE);
@@ -476,10 +474,10 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
           rise(stage, event.pos, 'oklch(0.7 0.05 280)');
           float(stage, event.pos, 'Invisible', 'oklch(0.8 0.06 280)', 380);
         } else if (kind === 'immobilise') {
-          shake(bodyEl(stage, event.unitId), false);
+          shakeUnit(stage, event.unitId, false);
           float(stage, event.pos, 'Immobilisé', 'oklch(0.85 0.1 300)');
         } else {
-          shake(bodyEl(stage, event.unitId), true);
+          shakeUnit(stage, event.unitId, true);
           burst(stage, event.pos, 'oklch(0.9 0.13 95)', { n: 10, spread: 30, size: 5, square: true });
           float(stage, event.pos, 'Stun', 'oklch(0.9 0.13 95)');
         }

@@ -1,6 +1,7 @@
 // Plateau 15 × 15 dessiné par PixiJS (réglage expérimental, migration étape 3) : un canvas de la taille du cadre qui
-// défile, collé en haut à gauche de ce cadre et sous la scène en HTML (qui garde pour l'instant les cases et les jetons).
-// Il suit le défilement et la caméra de la scène : chaque défilement le redessine aussitôt, en phase avec le HTML.
+// défile, collé en haut à gauche de ce cadre et sous la scène en HTML (qui ne garde que des cases transparentes, pour
+// la bulle d'action et les effets). Il suit le défilement et la caméra de la scène : chaque défilement le redessine
+// aussitôt, en phase avec le HTML. Tant qu'il est affiché, il joue les animations d'action des jetons (`setTokenMotions`).
 // PixiJS est chargé à la demande ; sans WebGL, rien n'est dessiné (le sol reste vide) et un avertissement l'explique.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
@@ -10,6 +11,7 @@ import type { CellInputs } from './cellModel';
 import type { ZoneControllers } from '../iso/ambience';
 import { useWaterMasks } from '../iso/paintedDecor';
 import type { IsoCamera } from '../iso/scenery';
+import { setTokenMotions } from '../fx/stage';
 import { BoardRenderer } from './boardRenderer';
 
 interface PixiBoardProps {
@@ -102,6 +104,13 @@ export function PixiBoard(props: PixiBoardProps) {
       }
     };
   }, []);
+
+  // Les animations d'action des jetons passent par le canvas tant qu'il est là.
+  useEffect(() => {
+    if (!renderer) return;
+    setTokenMotions(renderer.motions);
+    return () => setTokenMotions(null);
+  }, [renderer]);
 
   // Taille du canvas : PixiJS la suit (`resizeTo`), puis on redessine.
   useEffect(() => {

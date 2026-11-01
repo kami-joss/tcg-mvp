@@ -4,8 +4,10 @@
 // (`tokenFit`), avec la sélection (liseré et halo flou qui pulse), les anneaux de cible, les pastilles de stats et de
 // statuts, les dégâts annoncés ; il respire et grossit au survol. Un terrain est un socle au sol et un blason debout.
 // Au sol : l'ombre de chaque unité et la flèche d'orientation au bord de la case. Les cotes debout sont en « px de
-// jeton » ; le jeton est mis à l'échelle de la caméra (`standScale` × k), comme `scale(var(--su))` du CSS.
-import type { Container as PixiContainer, Graphics, Sprite, Texture } from 'pixi.js';
+// jeton » ; le jeton est mis à l'échelle de la caméra (`standScale` × k), comme `scale(var(--su))` du CSS. Les
+// animations d'action (sous-étape 3d, `tokenMotion.ts`) déplacent l'unité dans le plan, son ombre avec elle, et
+// secouent, écrasent ou effacent son corps.
+import type { ColorMatrixFilter, Container as PixiContainer, Graphics, Sprite, Texture } from 'pixi.js';
 import { CARD_ART, tokenFit } from '../art';
 import type { IconName } from '../Icon';
 import type { IsoCamera } from '../iso/scenery';
@@ -14,9 +16,11 @@ import { CELL_COLORS, CELL_SIZE } from './cellModel';
 import { cssColor, iconTexture } from './cellLayer';
 import { painted } from './groundFx';
 import type { Pixi } from './groundFx';
-import { isoProject } from './isoProjection';
+import { isoDepth, isoProject } from './isoProjection';
 import { TOKEN_FOOT } from './tokenModel';
 import type { StatPill, StatusPill, TerrainVisual, TokenVisual } from './tokenModel';
+import { REST, poseOf } from './tokenMotion';
+import type { Motion, Playing, Point, Pose } from './tokenMotion';
 
 const S = CELL_SIZE;
 /** Rayon du rond de la goutte, son centre (sous le pied, relevé de 27 + 4,77 px) et le centre du cadre (survol). */
@@ -161,6 +165,10 @@ function damagePill(pixi: Pixi, value: string): PixiContainer {
 interface Standing {
   readonly key: string;
   readonly node: PixiContainer;
+  /** Ce que bougent les animations d'action, autour de `pivotY` (le centre du cadre, ou du blason) ; son éclair. */
+  readonly fx: PixiContainer;
+  readonly pivotY: number;
+  flash: ColorMatrixFilter | null;
   /** Le cadre qui grossit au survol (jetons) et le corps qui respire. */
   readonly frame: PixiContainer | null;
   readonly body: PixiContainer | null;
@@ -176,6 +184,11 @@ interface Standing {
   readonly glow: Graphics | null;
 }
 
+type Camera = Pick<IsoCamera, 'k' | 'width' | 'centerY' | 'standScale'>;
+const STILL: { pose: Pose; at: Point | null } = { pose: REST, at: null };
+/** Une animation finie est encore dessinée pendant ce temps (ms), pour que sa dernière pose soit à l'écran. */
+const SETTLE = 50;
+
 export class TokenLayer {
   private readonly ground: Graphics;
   private readonly shadows: PixiContainer;
@@ -187,6 +200,12 @@ export class TokenLayer {
   /** Grossissement de survol en cours, par case : départ et cible. */
   private readonly grow = new Map<string, { from: number; to: number; start: number }>();
   private last: { tokens: readonly TokenVisual[]; terrains: readonly TerrainVisual[] } = { tokens: [], terrains: [] };
+  /** Ombre au sol de chaque unité (par identifiant), pour la déplacer avec elle. */
+  private readonly shadowOf = new Map<string, { sprite: Sprite; x: number; y: number; alpha: number }>();
+  /** Animations d'action en cours, par unité (elles survivent aux redessins), et la pose qui en découle. */
+  private readonly playing = new Map<string, Playing[]>();
+  private readonly poses = new Map<string, { pose: Pose; at: Point | null }>();
+  private view: { camera: Camera; plan: number } | null = null;
 
   constructor(
     private readonly pixi: Pixi,
@@ -207,6 +226,10 @@ export class TokenLayer {
     this.signature = signature;
     this.last = { tokens, terrains };
     this.clear();
+    // Une unité qui a quitté le plateau n'a plus d'animation.
+    const present = new Set([...tokens, ...terrains].map((u) => u.id));
+    for (const id of [...this.playing.keys()]) if (!present.has(id)) this.playing.delete(id);
+    for (const id of [...this.poses.keys()]) if (!present.has(id)) this.poses.delete(id);
     const { pixi } = this;
     const g = this.ground;
     this.shadowTexture ??= painted(pixi, 64, 64, (ctx) => {
@@ -224,11 +247,11 @@ export class TokenLayer {
       g.roundRect(x, y, S - 6, S - 6, 6).fill(cssColor('oklch(0.96 0.015 85)'));
       g.roundRect(x, y, S - 6, S - 6, 6).stroke({ width: 3, ...cssColor(player(t.owner)), alignment: 1 });
       if (t.selected) g.roundRect(x, y, S - 6, S - 6, 6).stroke({ width: 3, ...cssColor(GOLD), alignment: 0 });
-      if (!t.small) this.shadow(t.x + 34, t.y + 34, 'oklch(0.25 0.03 60 / 0.35)');
+      if (!t.small) this.shadow(t.id, t.x + 34, t.y + 34, 'oklch(0.25 0.03 60 / 0.35)');
     }
     for (const t of tokens) {
       const [cx, cy] = [t.x, t.y];
-      this.shadow(cx, cy, t.onTerrain ? 'oklch(0.25 0.03 60 / 0.35)' : null);
+      this.shadow(t.id, cx, cy, t.onTerrain ? 'oklch(0.25 0.03 60 / 0.35)' : null);
       // Flèche d'orientation au bord de la case, à la couleur du joueur (grise quand il a fini), cernée de crème.
       const [x0, y0] = [t.x - TOKEN_FOOT, t.y - TOKEN_FOOT];
       const a = S * 0.235;
@@ -255,32 +278,28 @@ export class TokenLayer {
   }
 
   /** Place les unités à l'écran selon la caméra. */
-  layout(camera: Pick<IsoCamera, 'k' | 'width' | 'centerY' | 'standScale'>, plan: number): void {
-    const su = camera.standScale;
+  layout(camera: Camera, plan: number): void {
+    this.view = { camera, plan };
+    for (const item of this.standing) this.place(item);
+  }
+
+  /** Respiration des jetons et halo de la sélection qui pulse (à 30 images par seconde). */
+  update(t: number): void {
     for (const item of this.standing) {
-      const p = isoProject(camera, plan, item.x, item.y);
-      const s = su * camera.k * item.scale;
-      item.node.position.set(p.x + item.offset[0] * su * camera.k, p.y + item.offset[1] * su * camera.k);
-      item.node.scale.set(s);
-      item.node.zIndex = item.depth + (this.hovered === item.cell && item.frame ? 160 : 0);
+      if (!item.body) continue;
+      // `unitBob`, 1,8 s : 0, −4 px à 45 %, 0.
+      const f = ((((t - item.bobDelay) / 1.8) % 1) + 1) % 1;
+      item.body.y = -4 * easeBob(f < 0.45 ? f / 0.45 : 1 - (f - 0.45) / 0.55);
+      if (item.glow) {
+        const p = (((t / 1.6) % 1) + 1) % 1;
+        item.glow.alpha = 0.55 + 0.4 * easeBob(p < 0.5 ? p * 2 : 2 - p * 2);
+      }
     }
   }
 
-  /** Respiration des jetons, halo de la sélection qui pulse, grossissement de survol. Vrai s'il faut continuer. */
-  update(t: number, animated: boolean, now: number): boolean {
-    if (animated) {
-      for (const item of this.standing) {
-        if (!item.body) continue;
-        // `unitBob`, 1,8 s : 0, −4 px à 45 %, 0.
-        const f = ((((t - item.bobDelay) / 1.8) % 1) + 1) % 1;
-        item.body.y = -4 * easeBob(f < 0.45 ? f / 0.45 : 1 - (f - 0.45) / 0.55);
-        if (item.glow) {
-          const p = (((t / 1.6) % 1) + 1) % 1;
-          item.glow.alpha = 0.55 + 0.4 * easeBob(p < 0.5 ? p * 2 : 2 - p * 2);
-        }
-      }
-    }
-    let growing = false;
+  /** Grossissement de survol et animations d'action, à pleine cadence. Vrai s'il faut redessiner à l'image suivante. */
+  step(now: number): boolean {
+    let busy = false;
     for (const item of this.standing) {
       const g = this.grow.get(item.cell);
       if (!g || !item.frame) continue;
@@ -288,9 +307,43 @@ export class TokenLayer {
       const f = Math.min(1, (now - g.start) / 200);
       const spring = 1 + Math.sin(f * Math.PI) * 0.12 * (1 - f);
       item.frame.scale.set(g.from + (g.to - g.from) * Math.min(1, f * spring));
-      if (f < 1) growing = true;
+      if (f < 1) busy = true;
     }
-    return growing || (animated && this.standing.length > 0);
+    if (this.playing.size === 0 && this.poses.size === 0) return busy;
+    this.poses.clear();
+    for (const [id, list] of this.playing) {
+      // Une animation finie s'arrête, sauf celles qui gardent leur pose (marche, mort) jusqu'à leur retrait.
+      const kept = list.filter((p) => p.motion.hold || now - p.start < p.motion.duration + SETTLE);
+      if (kept.length < list.length) busy = true;
+      if (kept.length === 0) {
+        this.playing.delete(id);
+        continue;
+      }
+      this.playing.set(id, kept);
+      this.poses.set(id, poseOf(kept, now));
+      if (kept.some((p) => now - p.start < p.motion.duration + SETTLE)) busy = true;
+    }
+    for (const item of this.standing) this.place(item);
+    return busy;
+  }
+
+  /** Une unité est dessinée (on peut l'animer). */
+  has(unitId: string): boolean {
+    return this.standing.some((item) => item.key === unitId);
+  }
+
+  /** Joue des animations sur une unité ; renvoie de quoi les retirer (une marche, une fois le jeton sur sa case). */
+  play(unitId: string, motions: readonly Motion[]): () => void {
+    const now = performance.now();
+    const entries = motions.map((motion) => ({ motion, start: now }));
+    this.playing.set(unitId, [...(this.playing.get(unitId) ?? []), ...entries]);
+    this.step(now);
+    return () => {
+      const list = this.playing.get(unitId)?.filter((p) => !entries.includes(p)) ?? [];
+      if (list.length > 0) this.playing.set(unitId, list);
+      else this.playing.delete(unitId);
+      this.step(performance.now());
+    };
   }
 
   /** Les unités sous un point de l'écran (px de la scène), de la plus proche à la plus lointaine : leur case. */
@@ -311,6 +364,8 @@ export class TokenLayer {
 
   destroy(): void {
     this.clear();
+    this.playing.clear();
+    this.poses.clear();
     this.ground.destroy();
     this.shadows.destroy();
     this.shadowTexture?.destroy(true);
@@ -319,11 +374,48 @@ export class TokenLayer {
   private clear(): void {
     this.ground.clear();
     for (const child of this.shadows.removeChildren()) child.destroy();
-    for (const item of this.standing) item.node.destroy({ children: true });
+    this.shadowOf.clear();
+    for (const item of this.standing) {
+      item.flash?.destroy();
+      item.node.destroy({ children: true });
+    }
     this.standing.length = 0;
   }
 
-  private shadow(cx: number, cy: number, tone: string | null): void {
+  /**
+   * Place une unité à l'écran : sur sa case, ou là où l'emmène son animation (son ombre la suit ; plus proche de la
+   * caméra, elle passe devant), son corps secoué, écrasé ou effacé.
+   */
+  private place(item: Standing): void {
+    if (!this.view) return;
+    const { camera, plan } = this.view;
+    const { pose, at } = this.poses.get(item.key) ?? STILL;
+    const [x, y] = [(at?.x ?? item.x) + pose.dx, (at?.y ?? item.y) + pose.dy];
+    const su = camera.standScale * camera.k;
+    const p = isoProject(camera, plan, x, y);
+    item.node.position.set(p.x + item.offset[0] * su, p.y + item.offset[1] * su);
+    item.node.scale.set(su * item.scale);
+    item.node.zIndex = item.depth + isoDepth(x - item.x, y - item.y, 0) + (this.hovered === item.cell && item.frame ? 160 : 0);
+    const { fx } = item;
+    fx.position.set(pose.x, item.pivotY + pose.y);
+    fx.scale.set(pose.sx, pose.sy);
+    fx.angle = pose.rot;
+    fx.alpha = pose.alpha;
+    // Éclair d'un coup reçu : `brightness(2.6) saturate(.3)` qui revient à la normale.
+    if (pose.flash > 0.001) {
+      item.flash ??= new this.pixi.ColorMatrixFilter();
+      item.flash.brightness(1 + pose.flash, false);
+      item.flash.saturate((-0.7 * pose.flash) / 1.6, true);
+      fx.filters = [item.flash];
+    } else if (item.flash) fx.filters = null;
+    const shadow = this.shadowOf.get(item.key);
+    if (shadow) {
+      shadow.sprite.position.set(shadow.x + x - item.x, shadow.y + y - item.y);
+      shadow.sprite.alpha = shadow.alpha * pose.alpha;
+    }
+  }
+
+  private shadow(key: string, cx: number, cy: number, tone: string | null): void {
     const sprite = new this.pixi.Sprite({ texture: this.shadowTexture!, anchor: 0.5, x: cx, y: cy, width: S * 0.56, height: S * 0.56 });
     if (tone) {
       const { color, alpha } = cssColor(tone);
@@ -331,6 +423,7 @@ export class TokenLayer {
       sprite.alpha = alpha / 0.5;
     }
     this.shadows.addChild(sprite);
+    this.shadowOf.set(key, { sprite, x: cx, y: cy, alpha: sprite.alpha });
   }
 
   private applyHover(immediate: boolean): void {
@@ -398,11 +491,14 @@ export class TokenLayer {
   private token(t: TokenVisual): Standing {
     const { pixi } = this;
     const node = new pixi.Container();
+    const fx = new pixi.Container();
     const body = new pixi.Container();
     const frame = new pixi.Container();
+    fx.pivot.set(0, FRAME_CY);
     frame.pivot.set(0, FRAME_CY);
     frame.position.set(0, FRAME_CY);
-    node.addChild(body);
+    node.addChild(fx);
+    fx.addChild(body);
     body.addChild(frame);
     const color = player(t.owner);
 
@@ -465,12 +561,15 @@ export class TokenLayer {
       frame.addChild(pill);
     }
     this.layer.addChild(node);
-    return { key: t.id, node, frame, body, x: t.x, y: t.y, depth: t.depth, scale: 1, offset: [0, 0], bobDelay: t.bobDelay, cell: `${t.pos.row},${t.pos.col}`, glow };
+    const cell = `${t.pos.row},${t.pos.col}`;
+    return { key: t.id, node, fx, pivotY: FRAME_CY, flash: null, frame, body, x: t.x, y: t.y, depth: t.depth, scale: 1, offset: [0, 0], bobDelay: t.bobDelay, cell, glow };
   }
 
   private crest(t: TerrainVisual): Standing {
     const { pixi } = this;
     const node = new pixi.Container();
+    const fx = new pixi.Container();
+    node.addChild(fx);
     const color = player(t.owner);
     const h = 27.2;
     const shield = (inset: number, bottom = inset) => [
@@ -481,13 +580,13 @@ export class TokenLayer {
       -h + inset, -h + inset + (2 * h - inset - bottom) * 0.6,
     ];
     if (t.target) {
-      node.addChild(new pixi.Graphics().roundRect(-h - 6, -h - 6, 2 * h + 12, 2 * h + 12, 12).stroke({ width: 3, ...cssColor('oklch(0.86 0.15 90)') }));
+      fx.addChild(new pixi.Graphics().roundRect(-h - 6, -h - 6, 2 * h + 12, 2 * h + 12, 12).stroke({ width: 3, ...cssColor('oklch(0.86 0.15 90)') }));
     }
-    node.addChild(new pixi.Graphics().poly(shield(0)).fill({ color: 0, alpha: 0.3 }));
-    node.children.at(-1)!.position.set(0, 3);
-    node.addChild(new pixi.Graphics().poly(shield(0)).fill(cssColor(color)));
+    fx.addChild(new pixi.Graphics().poly(shield(0)).fill({ color: 0, alpha: 0.3 }));
+    fx.children.at(-1)!.position.set(0, 3);
+    fx.addChild(new pixi.Graphics().poly(shield(0)).fill(cssColor(color)));
     const face = new pixi.Graphics().poly(shield(4, 5)).fill(cssColor('oklch(0.96 0.015 85)'));
-    node.addChild(face);
+    fx.addChild(face);
     const image = CARD_ART[t.cardId as keyof typeof CARD_ART];
     const texture = image ? this.art(t.cardId) : null;
     if (image && texture) {
@@ -495,12 +594,12 @@ export class TokenLayer {
       const w = 2 * (h - 4);
       const sprite = new pixi.Sprite({ texture, x: -h + 4 + fit.x * w, y: -h + 4 + fit.y * w, width: fit.size * w, height: fit.size * w * (image.h / image.w) });
       const mask = new pixi.Graphics().poly(shield(4, 5)).fill(0xffffff);
-      node.addChild(sprite, mask);
+      fx.addChild(sprite, mask);
       sprite.mask = mask;
     } else if (!image) {
       const castle = icon(pixi, 'castle', 26, '#2b241d');
       castle.position.set(0, -h + 4 + 7 + 13);
-      node.addChild(castle);
+      fx.addChild(castle);
     }
     if (!t.small) {
       const hp = chip(pixi, {
@@ -517,17 +616,18 @@ export class TokenLayer {
         padR: S * 0.06,
       });
       hp.node.position.set(-hp.width / 2, -h + 44.4 + (S * 0.265) / 2);
-      node.addChild(hp.node);
+      fx.addChild(hp.node);
     }
     t.statuses.forEach((status, i) => {
       const chipNode = statusChip(pixi, status, S * 0.206);
       chipNode.position.set(-h - 1.4 + i * 16, -h - 1.4 + 7);
-      node.addChild(chipNode);
+      fx.addChild(chipNode);
     });
     this.layer.addChild(node);
     // Seul : au centre de la case, relevé de 16 px ; sous un monstre : à droite de la goutte, à mi-hauteur.
+    const base = { key: t.id, node, fx, pivotY: 0, flash: null, frame: null, body: null, depth: t.depth, bobDelay: 0, cell: `${t.pos.row},${t.pos.col}`, glow: null };
     return t.small
-      ? { key: t.id, node, frame: null, body: null, x: t.x + TOKEN_FOOT, y: t.y + TOKEN_FOOT, depth: t.depth, scale: 0.34, offset: [30, -30], bobDelay: 0, cell: `${t.pos.row},${t.pos.col}`, glow: null }
-      : { key: t.id, node, frame: null, body: null, x: t.x + 34, y: t.y + 34, depth: t.depth, scale: 0.55, offset: [0, -16], bobDelay: 0, cell: `${t.pos.row},${t.pos.col}`, glow: null };
+      ? { ...base, x: t.x + TOKEN_FOOT, y: t.y + TOKEN_FOOT, scale: 0.34, offset: [30, -30] }
+      : { ...base, x: t.x + 34, y: t.y + 34, scale: 0.55, offset: [0, -16] };
   }
 }
