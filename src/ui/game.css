@@ -2196,6 +2196,16 @@ select {
   background: oklch(1 0 0 / 0.08);
 }
 
+/* Plateau peint : damier et trait des cases adoucis, pour que l'herbe reste une pelouse ; les cases se lisent encore. */
+.board--painted .cell--plain {
+  background: oklch(0.25 0.04 165 / 0.03);
+  box-shadow: inset 0 0 0 1px oklch(0.28 0.04 165 / 0.2);
+}
+
+.board--painted .cell--plain.cell--odd {
+  background: oklch(1 0 0 / 0.035);
+}
+
 .board--decor .cell--blocked {
   background: radial-gradient(closest-side, oklch(0.34 0.04 150 / 0.55), oklch(0.34 0.04 150 / 0.18));
   box-shadow: inset 0 0 0 1px oklch(0.28 0.04 165 / 0.32);

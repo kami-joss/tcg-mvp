@@ -7,6 +7,40 @@ export interface GroundTilesDef {
   readonly tuiles: readonly string[];
   readonly poids: readonly number[];
 }
+/** L'herbe : ses tuiles et poids, plus des cases sobres et le filtre posé sur elle. */
+export interface GroundGrass extends GroundTilesDef {
+  /** Cases où seules ces tuiles sont posées : pas de fleurs sur une mana zone ni autour (leur rose est proche de la teinte « contestée »). */
+  readonly sobre?: { readonly tuiles: readonly string[]; readonly cases: readonly (readonly [number, number])[] };
+  /** Filtre CSS de l'herbe une fois posée (défaut : celui des premières tuiles) ; `none` pour des tuiles déjà à leur teinte. */
+  readonly filtre?: string;
+  /**
+   * Herbe posée en continu : n × n tuiles découpées dans une même texture raccordée, dans l'ordre des lignes, répétées
+   * tous les n cases à la place du tirage. Ses grandes plages se suivent d'une case à l'autre (tirées au hasard, elles
+   * feraient un damier) ; les tuiles sont jointives, sans fondu.
+   */
+  readonly motif?: readonly string[];
+}
+/** Filtre de l'herbe par défaut, réglé pour les premières tuiles. */
+export const GRASS_FILTER = 'saturate(0.8) sepia(0.1) brightness(0.93)';
+
+/** La tuile d'une case dans un motif de n × n tuiles posé en continu (répété tous les n cases, indices négatifs compris). */
+export function motifTile(motif: readonly string[], row: number, col: number): string {
+  const n = Math.round(Math.sqrt(motif.length));
+  const mod = (v: number) => ((v % n) + n) % n;
+  return motif[mod(row) * n + mod(col)]!;
+}
+
+/** La tuile d'herbe d'une case : celle du motif, ou tirée parmi toutes, ou parmi les seules tuiles sobres sur une case sobre. */
+export function grassTile(random: () => number, grass: GroundGrass, row: number, col: number): string {
+  if (grass.motif) return motifTile(grass.motif, row, col);
+  const sober = grass.sobre;
+  if (sober && sober.cases.some(([r, c]) => r === row && c === col)) {
+    const weights = sober.tuiles.map((name) => grass.poids[grass.tuiles.indexOf(name)] ?? 1);
+    return weightedPick(random, sober.tuiles, weights);
+  }
+  return weightedPick(random, grass.tuiles, grass.poids);
+}
+
 export interface GroundZone extends GroundTilesDef {
   readonly sol: string;
   readonly cases: readonly (readonly [number, number])[];
@@ -17,6 +51,10 @@ export interface GroundZone extends GroundTilesDef {
   /** Teinte multipliée sur les tuiles de la zone (0..1 par canal) et saturation (1 = inchangée). */
   readonly teinte?: readonly [number, number, number];
   readonly saturation?: number;
+  /** Filtre CSS posé sur les tuiles de la zone avant la teinte, à la place de la saturation (celui de l'herbe, pour un sous-bois d'herbe). */
+  readonly filtre?: string;
+  /** Tuiles posées en continu, comme `herbe.motif` : le sous-bois prolonge l'herbe peinte, seulement à l'ombre. */
+  readonly motif?: readonly string[];
   /** Rétrécit la zone de ce nombre de px de plan sur chaque bord (allées plus fines que les cases). */
   readonly retrait?: number;
 }
@@ -48,7 +86,7 @@ export interface GroundDecor {
   /** `bordure` : nombre de cases de décor peintes autour du plateau (0 si absent). */
   readonly plan: { readonly pas: number; readonly case: number; readonly marge: number; readonly densite: number; readonly bordure?: number };
   readonly graine: number;
-  readonly herbe: GroundTilesDef;
+  readonly herbe: GroundGrass;
   readonly zones: readonly GroundZone[];
   readonly socles: readonly GroundSocle[];
   readonly decals: readonly GroundDecal[];
@@ -181,11 +219,14 @@ export function buildGround(size: number, decor: GroundDecor, images: Readonly<R
     feathered.set(name, c);
     return c;
   };
-  /** Pose des tuiles en deux passes : d'abord nettes et jointives (aucun trou), puis fondues par-dessus. */
-  const paint = (ctx: Ctx, cells: readonly (readonly [number, number])[], pick: () => string) => {
-    const names = cells.map(() => pick());
+  /**
+   * Pose des tuiles en deux passes : d'abord nettes et jointives (aucun trou), puis fondues par-dessus ; une seule pour
+   * des tuiles qui se suivent (`feather` faux : le fondu y mêlerait leurs bords en miroir).
+   */
+  const paint = (ctx: Ctx, cells: readonly (readonly [number, number])[], pick: (row: number, col: number) => string, feather = true) => {
+    const names = cells.map(([row, col]) => pick(row, col));
     cells.forEach(([row, col], i) => ctx.drawImage(images[names[i]!]!, cellX(col), cellY(row), pas, pas));
-    cells.forEach(([row, col], i) =>
+    if (feather) cells.forEach(([row, col], i) =>
       ctx.drawImage(featheredTile(names[i]!), cellX(col) - pas * FEATHER, cellY(row) - pas * FEATHER, pas * (1 + 2 * FEATHER), pas * (1 + 2 * FEATHER)),
     );
   };
@@ -278,7 +319,7 @@ export function buildGround(size: number, decor: GroundDecor, images: Readonly<R
   {
     const all: [number, number][] = [];
     for (let row = -border - 1; row <= size + border; row++) for (let col = -border - 1; col <= size + border; col++) all.push([row, col]);
-    paint(g, all, () => weightedPick(random, decor.herbe.tuiles, decor.herbe.poids));
+    paint(g, all, (row, col) => grassTile(random, decor.herbe, row, col), !decor.herbe.motif);
   }
   scoped(() => {
     // grandes nuances : bruit étiré sur ~6 cases, en lumière douce, pour casser la répétition des tuiles
@@ -295,7 +336,7 @@ export function buildGround(size: number, decor: GroundDecor, images: Readonly<R
   });
   scoped(() => {
     const [c, x] = fresh();
-    x.filter = 'saturate(0.8) sepia(0.1) brightness(0.93)';
+    x.filter = decor.herbe.filtre ?? GRASS_FILTER;
     x.drawImage(ground, 0, 0);
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, W, W);
@@ -306,10 +347,12 @@ export function buildGround(size: number, decor: GroundDecor, images: Readonly<R
   for (const zone of decor.zones) scoped(() => {
     const [layer, lx] = fresh();
     inPlan(lx);
-    paint(lx, ring(zone.cases), () => weightedPick(random, zone.tuiles, zone.poids));
-    if (zone.teinte || zone.saturation !== undefined) {
+    const motif = zone.motif;
+    if (motif) paint(lx, ring(zone.cases), (row, col) => motifTile(motif, row, col), false);
+    else paint(lx, ring(zone.cases), () => weightedPick(random, zone.tuiles, zone.poids));
+    if (zone.teinte || zone.saturation !== undefined || zone.filtre) {
       const [t2, t2x] = fresh();
-      t2x.filter = `saturate(${zone.saturation ?? 1})`;
+      t2x.filter = zone.filtre ?? `saturate(${zone.saturation ?? 1})`;
       t2x.drawImage(layer, 0, 0);
       t2x.filter = 'none';
       if (zone.teinte) {

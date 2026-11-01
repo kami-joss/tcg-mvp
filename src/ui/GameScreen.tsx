@@ -509,6 +509,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
             onCellClick={handleCellClick}
             onCellContextMenu={handleCellContextMenu}
             onCellHover={handleCellHover}
+            hovered={hovered}
           />
           {helpOpen && <Legend onClose={() => setHelpOpen(false)} mode={view.mode} />}
         </main>

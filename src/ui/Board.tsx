@@ -74,6 +74,8 @@ interface BoardProps {
   /** Clic droit sur une case (le menu du navigateur est bloqué). */
   onCellContextMenu?: (pos: Position) => void;
   onCellHover: (pos: Position | null, rect?: DOMRect) => void;
+  /** Case survolée : le décor peint qui la cache s'efface, comme celui qui cache un jeton. */
+  hovered?: Position | null;
 }
 
 /** Marge laissée autour de la scène de dessus ou inclinée, pour son ombre. */
@@ -353,6 +355,10 @@ export function Board(props: BoardProps) {
   // Mode contestation : les zones de 9 cases, dessinées au sol (§4.4 bis).
   const zoneTiles = getZoneTiles(view);
   const scrollable = zoomView.scroll.x || zoomView.scroll.y;
+  // Cases que le décor peint ne doit pas cacher : celles des jetons que le joueur voit (monstres, terrains) et la case
+  // survolée ; un sprite qui en cache une s'efface.
+  const reveal = new Set(Object.values(view.units).map((unit) => posKey(unit.pos)));
+  if (props.hovered) reveal.add(posKey(props.hovered));
 
   return (
     <div
@@ -366,7 +372,7 @@ export function Board(props: BoardProps) {
         {margins.left > 0 && <div className="board-viewport__glide" style={{ width: margins.left }} aria-hidden="true" />}
         <div className={`scene scene--${iso ? 'iso' : mode === 'iso' ? 'tilt' : mode}`} style={sceneStyle} data-scene>
           <div
-            className={['board', art && 'board--art', tilted && 'board--tilt', iso && 'board--iso', decor && 'board--decor']
+            className={['board', art && 'board--art', tilted && 'board--tilt', iso && 'board--iso', decor && 'board--decor', decor && painted && 'board--painted']
               .filter(Boolean)
               .join(' ')}
             style={boardStyle}
@@ -385,6 +391,7 @@ export function Board(props: BoardProps) {
                 painted={painted}
                 ground={grounds.board}
                 world={grounds.world}
+                reveal={reveal}
               />
             )}
             {positions.map((pos) => (

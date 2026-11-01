@@ -5,12 +5,13 @@
 // Plateau à décor peint (15 × 15) : son sol calculé remplace le bloc, le lac, la rivière et les enclaves, ses sprites
 // peints les rochers, les mana zones modélisées et la bordure.
 // Rien ici ne capte la souris : les cases restent seules cliquables.
-import { createElement } from 'react';
+import { cloneElement, createElement, useMemo } from 'react';
 import type { CSSProperties, ReactElement } from 'react';
 import { getCell } from '../../engine';
 import type { Board, PlayerId } from '../../engine';
 import { SPRITE_FX, scatter, spritePoint, waterPatches } from './ambience';
-import { GROUND_WAIT, STAND_DEPTH, paintedBoardDecor, paintedDecor, placePaintedSprites, useWaterMasks, worldPlan } from './paintedDecor';
+import { GROUND_WAIT, STAND_DEPTH, paintedBoardDecor, paintedDecor, placePaintedSprites, spritesHiding, useWaterMasks, worldPlan } from './paintedDecor';
+import type { PlacedSprite } from './paintedDecor';
 import { ISO, ISO_TILT, SPRITES, ZONE_DECOR, borderDecor, planSize } from './scenery';
 import type { IsoScenery } from './scenery';
 
@@ -57,7 +58,15 @@ interface IsoDecorProps {
   ground?: string | null;
   /** Sol du monde peint, décor extérieur compris (`null` tant qu'il n'est pas prêt) : il remplace `ground`. */
   world?: string | null;
+  /**
+   * Cases à dégager (« ligne,colonne ») : celles des jetons et la case survolée. Un sprite peint qui en cache une s'efface
+   * (`DECOR_FADE`), comme l'arbre ou le bâtiment qui cache un pion dans un jeu isométrique.
+   */
+  reveal?: ReadonlySet<string>;
 }
+
+/** Opacité d'un sprite peint qui cache un jeton ou la case survolée. */
+export const DECOR_FADE = 0.35;
 
 
 /** Rotation qui redresse un élément du sol face à l'écran, pour chaque caméra. */
@@ -82,7 +91,19 @@ const box = (left: number, top: number, width: number, height: number): CSSPrope
 
 const div = (key: string, style: CSSProperties, ...children: Node[]): Node => createElement('div', { key, style }, ...children);
 
-export function IsoDecor({ board, scenery, flipped, controllers, animated, camera = 'iso', pitch = ISO.pitch, painted = false, ground = null, world = null }: IsoDecorProps) {
+export function IsoDecor({
+  board,
+  scenery,
+  flipped,
+  controllers,
+  animated,
+  camera = 'iso',
+  pitch = ISO.pitch,
+  painted = false,
+  ground = null,
+  world = null,
+  reveal,
+}: IsoDecorProps) {
   const { R, N, D, W } = ISO;
   const B = planSize(Math.max(board.rows, board.cols));
   const P = ISO.pitch;
@@ -145,6 +166,15 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
         },
       }),
     );
+  };
+
+  /**
+   * Élément debout qui s'efface (`faded`) ou réapparaît en fondu. L'opacité va sur l'élément debout lui-même : sur un
+   * conteneur, elle l'aplatirait dans le plan du sol.
+   */
+  const fading = (node: Node, faded: boolean): Node => {
+    const element = node as ReactElement<{ style: CSSProperties }>;
+    return cloneElement(element, { style: { ...element.props.style, opacity: faded ? DECOR_FADE : 1, transition: 'opacity 0.25s ease' } });
   };
 
   /** Sprite du décor, debout face caméra, ancré au sol en (x, y) ; `mirror` le retourne autour de son ancre. */
@@ -464,12 +494,23 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
   // mana zones modélisées et le décor de bordure (validé) ; leurs ombres sont peintes dans le sol.
   // Décor extérieur seulement quand son sol est là : sinon, le plateau seul (ses sprites, ses pièces d'eau).
   const paintedData = showWorld ? fullDecor : painted ? paintedBoardDecor(board) : null;
-  if (paintedData) {
-    for (const { key, id, x, y, scale, mirror, flat, dz, inBoard } of placePaintedSprites(paintedData, board.rows, board.cols, flipped)) {
-      // Hors du plateau, le sol reculé (iso) ne rogne rien : l'avancée par défaut garde l'ordre naturel de profondeur.
-      const depth = showWorld && camera === 'iso' && !inBoard ? STAND_DEPTH : dz;
-      out.push(flat ? flatSprite(key, id, x, y, scale, mirror) : billboard(key, id, x, y, scale, depth, 0, mirror));
-    }
+  // Hors du plateau, le sol reculé (iso) ne rogne rien : l'avancée par défaut garde l'ordre naturel de profondeur.
+  const depthOf = (sprite: PlacedSprite) => (showWorld && camera === 'iso' && !sprite.inBoard ? STAND_DEPTH : sprite.dz);
+  const placed = useMemo(
+    () => (paintedData ? placePaintedSprites(paintedData, board.rows, board.cols, flipped) : []),
+    [paintedData, board.rows, board.cols, flipped],
+  );
+  // Ce que chaque sprite cache, calculé une fois par décor et par caméra ; puis les sprites à effacer.
+  const hiding = useMemo(
+    () => (paintedData ? spritesHiding(placed, paintedData.plan, board.rows, board.cols, flipped, camera, depthOf) : new Map<string, string[]>()),
+    // `depthOf` ne dépend que de `showWorld` et `camera`.
+    [placed, paintedData, board.rows, board.cols, flipped, camera, showWorld],
+  );
+  const faded = new Set<string>();
+  for (const cell of reveal ?? []) for (const key of hiding.get(cell) ?? []) faded.add(key);
+  for (const sprite of placed) {
+    const { key, id, x, y, scale, mirror, flat } = sprite;
+    out.push(flat ? flatSprite(key, id, x, y, scale, mirror) : fading(billboard(key, id, x, y, scale, depthOf(sprite), 0, mirror), faded.has(key)));
   }
 
   // --- Ambiance du plateau peint, seulement quand les animations sont permises : reflets de l'eau, feu et fumée de la
@@ -542,7 +583,7 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
 
     // Forge : lueur du four qui vacille, braises, fumée de la cheminée ; tas de minerai : éclats des cristaux. Posés sur
     // leur sprite, juste devant lui.
-    for (const { key, id, x, y, scale, mirror, dz } of placePaintedSprites(paintedData, board.rows, board.cols, flipped)) {
+    for (const { key, id, x, y, scale, mirror, dz } of placed) {
       const fx = SPRITE_FX[id];
       if (fx?.fire && fx.smoke) {
         const [fx0, fy0] = spritePoint(id, fx.fire, scale, mirror);
@@ -550,8 +591,9 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
         // Boîte de 100 × 230 px autour de l'ancre : elle couvre la fumée jusqu'en haut de sa course.
         const AX = 60;
         const AY = 210;
+        // Feu et fumée s'effacent avec la forge.
         out.push(
-          upright(
+          fading(upright(
             key + 'fire',
             x,
             y,
@@ -604,7 +646,7 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
                 animation: `ambSmoke ${(3.4 + p.v * 1.2).toFixed(2)}s ease-out ${(-i * 1.1 - p.phase).toFixed(2)}s infinite`,
               }),
             ),
-          ),
+          ), faded.has(key)),
         );
       }
       if (fx?.crystals) {
@@ -615,7 +657,7 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
         const w = Math.abs(x1 - x0);
         const h = y1 - y0;
         out.push(
-          upright(
+          fading(upright(
             key + 'crystals',
             x,
             y,
@@ -637,7 +679,7 @@ export function IsoDecor({ board, scenery, flipped, controllers, animated, camer
                 animation: `ambTwinkle ${(2 + p.v * 2).toFixed(2)}s ease-in-out ${(-p.phase * 4).toFixed(2)}s infinite`,
               }),
             ),
-          ),
+          ), faded.has(key)),
         );
       }
     }

@@ -10,15 +10,39 @@
  "graine": 4,
  "herbe": {
   "tuiles": [
-   "herbe_fleurs",
-   "herbe_trefles",
-   "herbe_unie"
+   "herbe_peinte_1",
+   "herbe_peinte_2",
+   "herbe_peinte_3",
+   "herbe_peinte_4",
+   "herbe_peinte_5",
+   "herbe_peinte_6",
+   "herbe_peinte_7",
+   "herbe_peinte_8",
+   "herbe_peinte_9"
   ],
   "poids": [
-   10,
-   22,
-   68
-  ]
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1
+  ],
+  "motif": [
+   "herbe_peinte_1",
+   "herbe_peinte_2",
+   "herbe_peinte_3",
+   "herbe_peinte_4",
+   "herbe_peinte_5",
+   "herbe_peinte_6",
+   "herbe_peinte_7",
+   "herbe_peinte_8",
+   "herbe_peinte_9"
+  ],
+  "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
  },
  "zones": [
   {
@@ -322,490 +346,1065 @@
     ]
    ],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
    "sol": "sous_bois",
    "cases": [],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
    "sol": "sous_bois",
    "cases": [],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
    "sol": "sous_bois",
    "cases": [],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
    "sol": "sous_bois",
    "cases": [],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
    "sol": "sous_bois",
    "cases": [],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
    "sol": "sous_bois",
    "cases": [],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
    "sol": "sous_bois",
    "cases": [],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
    "sol": "sous_bois",
    "cases": [],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
    "sol": "sous_bois",
    "cases": [],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
    "sol": "sous_bois",
    "cases": [],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
    "sol": "sous_bois",
    "cases": [],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
    "sol": "sous_bois",
    "cases": [],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
    "sol": "sous_bois",
    "cases": [],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
    "sol": "sous_bois",
    "cases": [],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
    "sol": "sous_bois",
    "cases": [],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
    "sol": "sous_bois",
    "cases": [],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
    "sol": "sous_bois",
    "cases": [],
    "tuiles": [
-    "herbe_unie",
-    "terre_herbe",
-    "herbe_trefles"
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
    ],
    "poids": [
-    45,
-    35,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     40,
     52,
     30
    ],
-   "forceBande": 0.18,
+   "forceBande": 0.08,
    "teinte": [
-    0.72,
-    0.78,
-    0.64
+    0.8,
+    0.86,
+    0.74
    ],
-   "saturation": 0.85,
-   "plaques": 0.35
+   "plaques": 0.35,
+   "motif": [
+    "herbe_peinte_1",
+    "herbe_peinte_2",
+    "herbe_peinte_3",
+    "herbe_peinte_4",
+    "herbe_peinte_5",
+    "herbe_peinte_6",
+    "herbe_peinte_7",
+    "herbe_peinte_8",
+    "herbe_peinte_9"
+   ],
+   "filtre": "hue-rotate(10deg) saturate(1.35) contrast(1.05)"
   },
   {
-   "sol": "pierre_mine",
+   "sol": "violet",
+   "cases": [
+    [
+     0,
+     15
+    ],
+    [
+     0,
+     16
+    ],
+    [
+     0,
+     17
+    ],
+    [
+     1,
+     15
+    ],
+    [
+     1,
+     16
+    ],
+    [
+     1,
+     17
+    ],
+    [
+     -3,
+     15
+    ],
+    [
+     -3,
+     16
+    ],
+    [
+     -3,
+     17
+    ],
+    [
+     -2,
+     15
+    ],
+    [
+     -2,
+     16
+    ],
+    [
+     -2,
+     17
+    ],
+    [
+     -1,
+     15
+    ],
+    [
+     -1,
+     16
+    ],
+    [
+     -1,
+     17
+    ],
+    [
+     -1,
+     9
+    ],
+    [
+     -1,
+     10
+    ],
+    [
+     -1,
+     11
+    ],
+    [
+     -1,
+     12
+    ],
+    [
+     -1,
+     13
+    ],
+    [
+     -1,
+     14
+    ],
+    [
+     2,
+     15
+    ],
+    [
+     3,
+     15
+    ],
+    [
+     4,
+     15
+    ],
+    [
+     5,
+     15
+    ],
+    [
+     6,
+     15
+    ],
+    [
+     2,
+     16
+    ],
+    [
+     2,
+     17
+    ],
+    [
+     2,
+     18
+    ],
+    [
+     1,
+     18
+    ],
+    [
+     0,
+     18
+    ],
+    [
+     -1,
+     18
+    ]
+   ],
+   "tuiles": [
+    "sol_violet_1",
+    "sol_violet_2",
+    "sol_violet_3",
+    "sol_violet_4",
+    "sol_violet_5",
+    "sol_violet_6",
+    "sol_violet_7",
+    "sol_violet_8",
+    "sol_violet_9"
+   ],
+   "poids": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ],
+   "bande": [
+    70,
+    55,
+    40
+   ],
+   "forceBande": 0.45
+  },
+  {
+   "sol": "violet_eteint",
    "cases": [
     [
      0,
@@ -938,145 +1537,29 @@
     [
      5,
      14
-    ],
-    [
-     0,
-     15
-    ],
-    [
-     0,
-     16
-    ],
-    [
-     0,
-     17
-    ],
-    [
-     1,
-     15
-    ],
-    [
-     1,
-     16
-    ],
-    [
-     1,
-     17
-    ],
-    [
-     -3,
-     15
-    ],
-    [
-     -3,
-     16
-    ],
-    [
-     -3,
-     17
-    ],
-    [
-     -2,
-     15
-    ],
-    [
-     -2,
-     16
-    ],
-    [
-     -2,
-     17
-    ],
-    [
-     -1,
-     15
-    ],
-    [
-     -1,
-     16
-    ],
-    [
-     -1,
-     17
-    ],
-    [
-     -1,
-     9
-    ],
-    [
-     -1,
-     10
-    ],
-    [
-     -1,
-     11
-    ],
-    [
-     -1,
-     12
-    ],
-    [
-     -1,
-     13
-    ],
-    [
-     -1,
-     14
-    ],
-    [
-     2,
-     15
-    ],
-    [
-     3,
-     15
-    ],
-    [
-     4,
-     15
-    ],
-    [
-     5,
-     15
-    ],
-    [
-     6,
-     15
-    ],
-    [
-     2,
-     16
-    ],
-    [
-     2,
-     17
-    ],
-    [
-     2,
-     18
-    ],
-    [
-     1,
-     18
-    ],
-    [
-     0,
-     18
-    ],
-    [
-     -1,
-     18
     ]
    ],
    "tuiles": [
-    "pierre_cristaux",
-    "pierre_poussiere",
-    "pierre_unie"
+    "sol_violet_eteint_1",
+    "sol_violet_eteint_2",
+    "sol_violet_eteint_3",
+    "sol_violet_eteint_4",
+    "sol_violet_eteint_5",
+    "sol_violet_eteint_6",
+    "sol_violet_eteint_7",
+    "sol_violet_eteint_8",
+    "sol_violet_eteint_9"
    ],
    "poids": [
-    10,
-    30,
-    60
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     70,
@@ -1696,12 +2179,26 @@
     ]
    ],
    "tuiles": [
-    "terre_unie",
-    "terre_copeaux"
+    "chemin_1",
+    "chemin_2",
+    "chemin_3",
+    "chemin_4",
+    "chemin_5",
+    "chemin_6",
+    "chemin_7",
+    "chemin_8",
+    "chemin_9"
    ],
    "poids": [
-    80,
-    20
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "bande": [
     60,
@@ -1709,12 +2206,6 @@
     30
    ],
    "forceBande": 0.15,
-   "teinte": [
-    0.9,
-    0.84,
-    0.72
-   ],
-   "saturation": 0.55,
    "retrait": 12
   }
  ],
@@ -1736,42 +2227,6 @@
     [
      5,
      5
-    ],
-    [
-     7,
-     4
-    ],
-    [
-     8,
-     4
-    ],
-    [
-     9,
-     4
-    ],
-    [
-     9,
-     5
-    ],
-    [
-     9,
-     9
-    ],
-    [
-     9,
-     10
-    ],
-    [
-     10,
-     5
-    ],
-    [
-     10,
-     9
-    ],
-    [
-     10,
-     10
     ],
     [
      -3,
@@ -2598,13 +3053,13 @@
  ],
  "sprites": [
   {
-   "id": "montagne_large",
+   "id": "hd_cristal_amas",
    "case": [
     0,
     9
    ],
-   "miroir": true,
-   "ombre": "haute"
+   "miroir": false,
+   "ombre": "basse"
   },
   {
    "id": "cadre_mine_1",
@@ -2656,67 +3111,74 @@
    "miroir": false
   },
   {
-   "id": "montagne_large",
+   "id": "hd_jeune_sapin",
    "case": [
     2,
     9
    ],
    "miroir": false,
-   "ombre": "haute"
+   "ombre": "moyenne",
+   "echelle": 0.8
   },
   {
-   "id": "rocher_plat",
+   "id": "hd_bloc_fissure",
    "case": [
     7,
     4
    ],
    "miroir": false,
-   "ombre": "moyenne"
+   "ombre": "moyenne",
+   "echelle": 0.92
   },
   {
-   "id": "montagne_large",
+   "id": "hd_jeune_sapin_b",
    "case": [
     3,
     9
    ],
    "miroir": false,
-   "ombre": "haute"
+   "ombre": "moyenne",
+   "echelle": 0.8
   },
   {
-   "id": "rocher_pics",
+   "id": "hd_bloc_seul",
    "case": [
     8,
     4
    ],
    "miroir": false,
-   "ombre": "moyenne"
+   "ombre": "moyenne",
+   "echelle": 0.78
   },
   {
-   "id": "tas_minerai",
+   "id": "hd_jeune_sapin",
    "case": [
     2,
     11
    ],
    "miroir": false,
-   "ombre": "moyenne"
+   "ombre": "basse",
+   "echelle": 0.6
   },
   {
-   "id": "montagne_double",
+   "id": "hd_jeune_sapin_b",
    "case": [
     4,
     9
    ],
    "miroir": false,
-   "ombre": "haute"
+   "ombre": "moyenne",
+   "echelle": 0.8
   },
   {
-   "id": "rocher_plat",
+   "id": "hd_bloc_fissure",
    "case": [
     9,
     4
    ],
-   "miroir": true,
-   "ombre": "moyenne"
+   "miroir": false,
+   "ombre": "moyenne",
+   "echelle": 0.7
   },
   {
    "id": "billot",
@@ -2728,49 +3190,54 @@
    "ombre": "basse"
   },
   {
-   "id": "montagne_pic",
+   "id": "hd_jeune_sapin",
    "case": [
     5,
     9
    ],
-   "miroir": true,
-   "ombre": "haute"
+   "miroir": false,
+   "ombre": "moyenne",
+   "echelle": 0.8
   },
   {
-   "id": "rocher_dalle",
+   "id": "hd_bloc_seul",
    "case": [
     9,
     5
    ],
-   "miroir": true,
-   "ombre": "moyenne"
+   "miroir": false,
+   "ombre": "moyenne",
+   "echelle": 0.9
   },
   {
-   "id": "tas_minerai",
+   "id": "hd_jeune_sapin_b",
    "case": [
     3,
     12
    ],
    "miroir": false,
-   "ombre": "moyenne"
+   "ombre": "basse",
+   "echelle": 0.6
   },
   {
-   "id": "montagne_double",
+   "id": "hd_jeune_sapin",
    "case": [
     5,
     10
    ],
-   "miroir": true,
-   "ombre": "haute"
+   "miroir": false,
+   "ombre": "moyenne",
+   "echelle": 0.8
   },
   {
-   "id": "rocher_plat",
+   "id": "hd_bloc_fissure",
    "case": [
     10,
     5
    ],
    "miroir": false,
-   "ombre": "moyenne"
+   "ombre": "moyenne",
+   "echelle": 0.8
   },
   {
    "id": "billot",
@@ -2782,49 +3249,44 @@
    "ombre": "basse"
   },
   {
-   "id": "montagne_large",
+   "id": "hd_jeune_sapin_b",
    "case": [
     5,
     11
    ],
-   "miroir": true,
-   "ombre": "haute"
+   "miroir": false,
+   "ombre": "moyenne",
+   "echelle": 0.8
   },
   {
-   "id": "montagne_pic",
+   "id": "hd_jeune_sapin",
    "case": [
     6,
     10
    ],
    "miroir": false,
-   "ombre": "haute"
+   "ombre": "moyenne",
+   "echelle": 0.8
   },
   {
-   "id": "montagne_large",
+   "id": "hd_jeune_sapin_b",
    "case": [
     5,
     12
    ],
    "miroir": false,
-   "ombre": "haute"
+   "ombre": "moyenne",
+   "echelle": 0.8
   },
   {
-   "id": "montagne_double",
+   "id": "hd_jeune_sapin",
    "case": [
     7,
     10
    ],
    "miroir": false,
-   "ombre": "haute"
-  },
-  {
-   "id": "rocher_rond",
-   "case": [
-    9,
-    9
-   ],
-   "miroir": false,
-   "ombre": "moyenne"
+   "ombre": "moyenne",
+   "echelle": 0.8
   },
   {
    "id": "pont_c",
@@ -2849,170 +3311,177 @@
    "miroir": true
   },
   {
-   "id": "montagne_large",
+   "id": "hd_cristal_large",
    "case": [
     5,
     14
    ],
    "miroir": false,
-   "ombre": "haute"
+   "ombre": "basse"
   },
   {
-   "id": "rocher_pics",
-   "case": [
-    9,
-    10
+   "id": "hd_amas_blocs",
+   "entre": [
+    [
+     9,
+     9
+    ],
+    [
+     10,
+     10
+    ]
    ],
-   "miroir": false,
-   "ombre": "moyenne"
-  },
-  {
-   "id": "rocher_rond",
-   "case": [
-    10,
-    9
+   "empreinte": [
+    [
+     9,
+     9
+    ],
+    [
+     9,
+     10
+    ],
+    [
+     10,
+     9
+    ],
+    [
+     10,
+     10
+    ]
    ],
-   "miroir": true,
-   "ombre": "moyenne"
+   "ombre": "haute",
+   "echelle": 0.7,
+   "miroir": false
   },
   {
-   "id": "rocher_plat",
-   "case": [
-    10,
-    10
-   ],
-   "miroir": false,
-   "ombre": "moyenne"
-  },
-  {
-   "id": "montagne_v3",
+   "id": "hd_sapin_large",
    "case": [
     -1,
     9
    ],
-   "miroir": true,
-   "ombre": "haute",
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.9
+  },
+  {
+   "id": "hd_sapin_fin",
+   "case": [
+    -1,
+    10
+   ],
+   "miroir": false,
+   "ombre": "arbre",
    "echelle": 1.04
   },
   {
-   "id": "montagne_v4",
-   "case": [
-    -1,
-    10
-   ],
-   "miroir": false,
-   "ombre": "haute",
-   "echelle": 0.96
-  },
-  {
-   "id": "montagne_v1",
+   "id": "hd_sapin_haut",
    "case": [
     -1,
     11
    ],
    "miroir": false,
-   "ombre": "haute",
-   "echelle": 1.01
+   "ombre": "arbre",
+   "echelle": 0.95
   },
   {
-   "id": "montagne_pic",
+   "id": "hd_sapin_variante",
    "case": [
     -1,
     12
    ],
    "miroir": false,
-   "ombre": "haute",
-   "echelle": 0.98
+   "ombre": "arbre",
+   "echelle": 1.09
   },
   {
-   "id": "montagne_v1",
+   "id": "hd_sapin_large",
    "case": [
     -1,
     13
    ],
    "miroir": false,
-   "ombre": "haute",
-   "echelle": 1.05
+   "ombre": "arbre",
+   "echelle": 1.0
   },
   {
-   "id": "montagne_double",
+   "id": "hd_cristal_gros",
    "case": [
     -1,
     14
    ],
    "miroir": false,
-   "ombre": "haute",
-   "echelle": 0.95
+   "ombre": "basse",
+   "echelle": 0.91
   },
   {
-   "id": "montagne_large",
+   "id": "hd_jeune_sapin",
    "case": [
     2,
     15
    ],
-   "miroir": true,
-   "ombre": "moyenne",
-   "echelle": 0.62
-  },
-  {
-   "id": "montagne_v3",
-   "case": [
-    3,
-    15
-   ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "moyenne",
    "echelle": 0.7
   },
   {
-   "id": "montagne_large",
+   "id": "hd_jeune_sapin",
+   "case": [
+    3,
+    15
+   ],
+   "miroir": false,
+   "ombre": "moyenne",
+   "echelle": 0.7
+  },
+  {
+   "id": "hd_jeune_sapin",
    "case": [
     4,
     15
    ],
    "miroir": false,
    "ombre": "moyenne",
-   "echelle": 0.65
+   "echelle": 0.7
   },
   {
-   "id": "montagne_large",
+   "id": "hd_jeune_sapin",
    "case": [
     5,
     15
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "moyenne",
    "echelle": 0.7
   },
   {
-   "id": "montagne_large",
+   "id": "hd_sapin_sombre",
    "case": [
     6,
     15
    ],
    "miroir": false,
-   "ombre": "moyenne",
-   "echelle": 0.72
+   "ombre": "arbre",
+   "echelle": 0.85
   },
   {
-   "id": "montagne_large",
+   "id": "hd_cristal_eclat",
    "case": [
     2,
     16
    ],
    "miroir": false,
-   "ombre": "moyenne",
-   "echelle": 0.63
+   "ombre": "basse",
+   "echelle": 1.06
   },
   {
-   "id": "montagne_large",
+   "id": "hd_sapin_large",
    "case": [
     2,
     17
    ],
    "miroir": false,
-   "ombre": "moyenne",
-   "echelle": 0.68
+   "ombre": "arbre",
+   "echelle": 0.97
   },
   {
    "id": "montagne_large",
@@ -3385,74 +3854,74 @@
    "echelle": 0.95
   },
   {
-   "id": "montagne_v6",
+   "id": "hd_sapin_sombre",
    "case": [
     -3,
     8
    ],
    "miroir": false,
-   "ombre": "haute",
-   "echelle": 0.96
+   "ombre": "arbre",
+   "echelle": 1.11
   },
   {
-   "id": "montagne_v5",
+   "id": "hd_sapin_haut",
    "case": [
     -3,
     9
    ],
    "miroir": false,
-   "ombre": "haute",
-   "echelle": 0.92
+   "ombre": "arbre",
+   "echelle": 1.02
   },
   {
-   "id": "montagne_large",
+   "id": "hd_sapin_sombre",
    "case": [
     -3,
     10
    ],
    "miroir": false,
-   "ombre": "haute",
+   "ombre": "arbre",
    "echelle": 0.93
   },
   {
-   "id": "montagne_pic",
+   "id": "hd_sapin_large",
    "case": [
     -3,
     11
    ],
    "miroir": false,
-   "ombre": "haute",
-   "echelle": 1.2
+   "ombre": "arbre",
+   "echelle": 1.07
   },
   {
-   "id": "montagne_large",
+   "id": "hd_cristal_amas_b",
    "case": [
     -3,
     12
    ],
    "miroir": false,
-   "ombre": "haute",
-   "echelle": 0.89
+   "ombre": "basse",
+   "echelle": 0.98
   },
   {
-   "id": "montagne_v2",
+   "id": "hd_sapin_haut",
    "case": [
     -3,
     13
    ],
-   "miroir": true,
-   "ombre": "haute",
-   "echelle": 0.86
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.12
   },
   {
-   "id": "montagne_v3",
+   "id": "hd_sapin_sombre",
    "case": [
     -3,
     14
    ],
-   "miroir": true,
-   "ombre": "haute",
-   "echelle": 0.88
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.03
   },
   {
    "id": "montagne_v3",
@@ -3485,64 +3954,64 @@
    "echelle": 1.04
   },
   {
-   "id": "montagne_v6",
+   "id": "hd_sapin_large",
    "case": [
     -2,
     8
    ],
    "miroir": false,
-   "ombre": "haute",
-   "echelle": 1.19
+   "ombre": "arbre",
+   "echelle": 0.94
   },
   {
-   "id": "montagne_v4",
+   "id": "hd_sapin_sombre",
    "case": [
     -2,
     9
    ],
-   "miroir": true,
-   "ombre": "haute",
-   "echelle": 1.04
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.08
   },
   {
-   "id": "montagne_v4",
+   "id": "hd_sapin_haut",
    "case": [
     -2,
     10
    ],
    "miroir": false,
-   "ombre": "haute",
-   "echelle": 1.05
+   "ombre": "arbre",
+   "echelle": 0.99
   },
   {
-   "id": "montagne_v3",
+   "id": "hd_cristal_large",
    "case": [
     -2,
     12
    ],
    "miroir": false,
-   "ombre": "haute",
-   "echelle": 1.14
+   "ombre": "basse",
+   "echelle": 0.9
   },
   {
-   "id": "montagne_v3",
+   "id": "hd_sapin_large",
    "case": [
     -2,
     13
    ],
    "miroir": false,
-   "ombre": "haute",
-   "echelle": 1.05
+   "ombre": "arbre",
+   "echelle": 1.04
   },
   {
-   "id": "montagne_v4",
+   "id": "hd_sapin_sombre",
    "case": [
     -2,
     14
    ],
    "miroir": false,
-   "ombre": "haute",
-   "echelle": 1.16
+   "ombre": "arbre",
+   "echelle": 0.95
   },
   {
    "id": "montagne_v1",
@@ -3575,104 +4044,104 @@
    "echelle": 1.11
   },
   {
-   "id": "montagne_large",
+   "id": "hd_sapin_sombre",
    "case": [
     3,
     16
    ],
    "miroir": false,
-   "ombre": "moyenne",
-   "echelle": 0.6
+   "ombre": "arbre",
+   "echelle": 0.85
   },
   {
-   "id": "montagne_v3",
+   "id": "hd_sapin_sombre",
    "case": [
     4,
     16
    ],
-   "miroir": true,
-   "ombre": "moyenne",
-   "echelle": 0.57
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.8
   },
   {
-   "id": "montagne_v3",
+   "id": "hd_sapin_large",
    "case": [
     5,
     16
    ],
-   "miroir": true,
-   "ombre": "moyenne",
-   "echelle": 0.59
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.8
   },
   {
-   "id": "montagne_v3",
+   "id": "hd_cristal_gros",
    "case": [
     6,
     16
    ],
    "miroir": false,
-   "ombre": "moyenne",
-   "echelle": 0.55
+   "ombre": "basse",
+   "echelle": 1.05
   },
   {
-   "id": "montagne_v3",
+   "id": "hd_sapin_sombre",
    "case": [
     7,
     16
    ],
-   "miroir": true,
-   "ombre": "moyenne",
-   "echelle": 0.67
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.85
   },
   {
-   "id": "montagne_large",
+   "id": "hd_sapin_sombre",
    "case": [
     3,
     17
    ],
-   "miroir": true,
-   "ombre": "haute",
+   "miroir": false,
+   "ombre": "arbre",
    "echelle": 1.1
   },
   {
-   "id": "montagne_v3",
+   "id": "hd_sapin_large",
    "case": [
     4,
     17
    ],
    "miroir": false,
-   "ombre": "moyenne",
-   "echelle": 0.63
+   "ombre": "arbre",
+   "echelle": 1.01
   },
   {
-   "id": "montagne_large",
+   "id": "hd_sapin_sombre",
    "case": [
     5,
     17
    ],
-   "miroir": true,
-   "ombre": "moyenne",
-   "echelle": 0.55
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.92
   },
   {
-   "id": "montagne_v6",
+   "id": "hd_sapin_haut",
    "case": [
     6,
     17
    ],
-   "miroir": true,
-   "ombre": "moyenne",
-   "echelle": 0.6
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.8
   },
   {
-   "id": "montagne_v3",
+   "id": "hd_cristal_eclat",
    "case": [
     7,
     17
    ],
    "miroir": false,
-   "ombre": "moyenne",
-   "echelle": 0.6
+   "ombre": "basse",
+   "echelle": 0.97
   },
   {
    "id": "montagne_large",
@@ -4254,47 +4723,47 @@
    "ombre": "moyenne"
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     -4.39,
     -0.26
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.08
+   "echelle": 0.76
   },
   {
-   "id": "arbre_touffu",
+   "id": "hd_grand_arbre",
    "case": [
     19.19,
     8.33
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
    "echelle": 1.04
   },
   {
-   "id": "arbre_boule",
+   "id": "hd_arbre_rond",
    "case": [
     -4.74,
     -4.05
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
    "echelle": 0.95
   },
   {
-   "id": "arbre_ovale",
+   "id": "hd_arbre_haut",
    "case": [
     -2.14,
     -0.29
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
    "echelle": 0.99
   },
   {
-   "id": "arbre_boule",
+   "id": "hd_arbre_rond",
    "case": [
     1.73,
     -3.3
@@ -4304,17 +4773,17 @@
    "echelle": 1.03
   },
   {
-   "id": "sapin_1",
+   "id": "hd_sapin_vert",
    "case": [
     -5.13,
     4.32
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.05
+   "echelle": 0.9
   },
   {
-   "id": "arbre_ovale",
+   "id": "hd_arbre_haut",
    "case": [
     -0.63,
     -4.46
@@ -4324,17 +4793,17 @@
    "echelle": 1.13
   },
   {
-   "id": "sapin_2",
+   "id": "hd_sapin_vert",
    "case": [
     -2.48,
     2.99
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.99
+   "echelle": 0.75
   },
   {
-   "id": "arbre_touffu",
+   "id": "hd_arbre_dome",
    "case": [
     -2.68,
     -2.69
@@ -4344,37 +4813,37 @@
    "echelle": 0.93
   },
   {
-   "id": "arbre_boule",
+   "id": "hd_arbre_rond",
    "case": [
     18.72,
     18.28
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
    "echelle": 0.96
   },
   {
-   "id": "sapin_1",
+   "id": "hd_sapin_vert",
    "case": [
     -3.97,
     5.07
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.03
+   "echelle": 0.89
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     -2.62,
     4.55
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.05
+   "echelle": 0.73
   },
   {
-   "id": "arbre_ovale",
+   "id": "hd_arbre_haut",
    "case": [
     0.93,
     -4.59
@@ -4384,67 +4853,67 @@
    "echelle": 0.94
   },
   {
-   "id": "arbre_touffu",
+   "id": "hd_arbre_dome",
    "case": [
     18.14,
     11.39
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
    "echelle": 1.0
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     -2.57,
     1.12
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.07
+   "echelle": 0.75
   },
   {
-   "id": "sapin_2",
+   "id": "hd_sapin_vert",
    "case": [
     -3.52,
     -4.24
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.06
+   "echelle": 0.81
   },
   {
-   "id": "arbre_boule",
+   "id": "hd_arbre_rond",
    "case": [
     -4.4,
     6.69
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
    "echelle": 0.89
   },
   {
-   "id": "sapin_1",
+   "id": "hd_sapin_vert",
    "case": [
     -1.6,
     -3.81
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.06
+   "echelle": 0.91
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     16.73,
     6.25
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.02
+   "echelle": 0.71
   },
   {
-   "id": "arbre_touffu",
+   "id": "hd_grand_arbre",
    "case": [
     -3.02,
     0.17
@@ -4454,27 +4923,27 @@
    "echelle": 1.02
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     18.91,
     12.44
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.01
+   "echelle": 0.71
   },
   {
-   "id": "sapin_2",
+   "id": "hd_sapin_vert",
    "case": [
     -3.65,
     2.68
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.0
+   "echelle": 0.76
   },
   {
-   "id": "arbre_ovale",
+   "id": "hd_arbre_haut",
    "case": [
     19.0,
     -4.85
@@ -4484,17 +4953,17 @@
    "echelle": 1.02
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     18.23,
     6.23
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.92
+   "echelle": 0.64
   },
   {
-   "id": "arbre_touffu",
+   "id": "hd_arbre_dome",
    "case": [
     -2.4,
     6.23
@@ -4504,27 +4973,27 @@
    "echelle": 0.89
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     0.15,
     -2.45
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.87
+   "echelle": 0.7
   },
   {
-   "id": "sapin_1",
+   "id": "hd_sapin_vert",
    "case": [
     -4.36,
     1.75
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.9
+   "echelle": 0.77
   },
   {
-   "id": "arbre_touffu",
+   "id": "hd_arbre_dome",
    "case": [
     18.88,
     6.91
@@ -4534,57 +5003,57 @@
    "echelle": 1.15
   },
   {
-   "id": "arbre_boule",
+   "id": "hd_arbre_rond",
    "case": [
     -3.94,
     -2.53
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
    "echelle": 1.04
   },
   {
-   "id": "sapin_2",
+   "id": "hd_sapin_vert",
    "case": [
     18.67,
     -0.89
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.88
+   "echelle": 0.67
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     17.31,
     5.57
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.89
+   "echelle": 0.71
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     17.4,
     6.99
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.87
+   "echelle": 0.61
   },
   {
-   "id": "sapin_2",
+   "id": "hd_sapin_vert",
    "case": [
     18.28,
     14.36
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.86
+   "echelle": 0.65
   },
   {
-   "id": "arbre_boule",
+   "id": "hd_arbre_rond",
    "case": [
     -1.01,
     -2.66
@@ -4594,17 +5063,17 @@
    "echelle": 1.11
   },
   {
-   "id": "arbre_touffu",
+   "id": "hd_grand_arbre",
    "case": [
     18.03,
     12.68
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
    "echelle": 0.86
   },
   {
-   "id": "arbre_touffu",
+   "id": "hd_arbre_dome",
    "case": [
     19.04,
     10.08
@@ -4614,147 +5083,147 @@
    "echelle": 1.15
   },
   {
-   "id": "arbre_rond",
+   "id": "hd_arbre_rond",
    "case": [
     -3.46,
     6.79
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
    "echelle": 1.13
   },
   {
-   "id": "sapin_2",
+   "id": "hd_sapin_vert",
    "case": [
     -5.15,
     5.48
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.04
+   "echelle": 0.79
   },
   {
-   "id": "arbre_boule",
+   "id": "hd_arbre_rond",
    "case": [
     -2.84,
     -1.24
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
    "echelle": 0.99
   },
   {
-   "id": "sapin_1",
+   "id": "hd_sapin_vert",
    "case": [
     -0.35,
     -3.25
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.01
+   "echelle": 0.87
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     18.87,
     5.53
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.1
+   "echelle": 0.88
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     15.9,
     14.08
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.94
+   "echelle": 0.75
   },
   {
-   "id": "sapin_1",
+   "id": "hd_sapin_vert",
    "case": [
     -5.2,
     2.45
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.0
+   "echelle": 0.86
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     -5.19,
     -3.05
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.07
+   "echelle": 0.75
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     17.79,
     9.46
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.09
+   "echelle": 0.87
   },
   {
-   "id": "sapin_1",
+   "id": "hd_sapin_vert",
    "case": [
     2.22,
     -4.57
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.02
+   "echelle": 0.88
   },
   {
-   "id": "arbre_boule",
+   "id": "hd_arbre_rond",
    "case": [
     -4.17,
     3.4
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
    "echelle": 0.89
   },
   {
-   "id": "sapin_2",
+   "id": "hd_sapin_vert",
    "case": [
     18.94,
     17.04
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.06
+   "echelle": 0.81
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     18.48,
     1.24
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.13
+   "echelle": 0.9
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     -3.62,
     0.64
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.17
+   "echelle": 0.94
   },
   {
-   "id": "arbre_boule",
+   "id": "hd_arbre_rond",
    "case": [
     19.03,
     11.59
@@ -4764,27 +5233,27 @@
    "echelle": 1.17
   },
   {
-   "id": "arbre_boule",
+   "id": "hd_arbre_rond",
    "case": [
     18.21,
     7.89
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
    "echelle": 0.85
   },
   {
-   "id": "arbre_ovale",
+   "id": "hd_arbre_haut",
    "case": [
     18.58,
     4.32
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
    "echelle": 1.03
   },
   {
-   "id": "arbre_ovale",
+   "id": "hd_arbre_haut",
    "case": [
     19.15,
     3.43
@@ -4794,47 +5263,47 @@
    "echelle": 1.17
   },
   {
-   "id": "sapin_2",
+   "id": "hd_sapin_vert",
    "case": [
     1.15,
     -2.69
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.88
+   "echelle": 0.67
   },
   {
-   "id": "sapin_2",
+   "id": "hd_sapin_vert",
    "case": [
     -4.6,
     -1.49
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.14
+   "echelle": 0.87
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     17.08,
     14.97
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.17
+   "echelle": 0.82
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     16.8,
     9.35
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.9
+   "echelle": 0.63
   },
   {
-   "id": "arbre_touffu",
+   "id": "hd_arbre_dome",
    "case": [
     0.27,
     -5.14
@@ -4844,37 +5313,37 @@
    "echelle": 0.96
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     17.62,
     13.28
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.91
+   "echelle": 0.73
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     16.69,
     13.77
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.04
+   "echelle": 0.73
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     16.23,
     5.56
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.07
+   "echelle": 0.86
   },
   {
-   "id": "arbre_touffu",
+   "id": "hd_grand_arbre",
    "case": [
     -3.22,
     5.79
@@ -4884,17 +5353,17 @@
    "echelle": 1.18
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     17.37,
     11.93
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.94
+   "echelle": 0.75
   },
   {
-   "id": "arbre_ovale",
+   "id": "hd_arbre_haut",
    "case": [
     -4.16,
     -5.13
@@ -4904,47 +5373,47 @@
    "echelle": 0.9
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     16.53,
     7.87
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.96
+   "echelle": 0.77
   },
   {
-   "id": "sapin_2",
+   "id": "hd_sapin_vert",
    "case": [
     -2.22,
     1.93
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.94
+   "echelle": 0.71
   },
   {
-   "id": "arbre_boule",
+   "id": "hd_arbre_rond",
    "case": [
     0.8,
     -3.56
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
    "echelle": 0.98
   },
   {
-   "id": "sapin_1",
+   "id": "hd_sapin_vert",
    "case": [
     18.9,
     9.18
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.15
+   "echelle": 0.99
   },
   {
-   "id": "arbre_touffu",
+   "id": "hd_arbre_dome",
    "case": [
     -3.53,
     -3.41
@@ -4954,7 +5423,7 @@
    "echelle": 1.06
   },
   {
-   "id": "arbre_boule",
+   "id": "hd_arbre_rond",
    "case": [
     -5.16,
     0.36
@@ -4964,27 +5433,27 @@
    "echelle": 1.03
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     18.71,
     10.95
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.91
+   "echelle": 0.64
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     16.64,
     3.78
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.91
+   "echelle": 0.64
   },
   {
-   "id": "arbre_ovale",
+   "id": "hd_arbre_haut",
    "case": [
     18.36,
     15.3
@@ -4994,67 +5463,67 @@
    "echelle": 1.07
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     16.26,
     12.94
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.05
+   "echelle": 0.84
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     16.03,
     9.61
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.91
+   "echelle": 0.73
   },
   {
-   "id": "sapin_2",
+   "id": "hd_sapin_vert",
    "case": [
     -3.33,
     -1.93
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.09
+   "echelle": 0.83
   },
   {
-   "id": "arbre_boule",
+   "id": "hd_arbre_rond",
    "case": [
     -2.69,
     -4.08
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
    "echelle": 1.14
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     16.65,
     11.33
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.93
+   "echelle": 0.65
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     -4.91,
     -4.79
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.15
+   "echelle": 0.92
   },
   {
-   "id": "arbre_touffu",
+   "id": "hd_arbre_dome",
    "case": [
     18.35,
     3.01
@@ -5064,7 +5533,7 @@
    "echelle": 0.94
   },
   {
-   "id": "arbre_touffu",
+   "id": "hd_grand_arbre",
    "case": [
     -3.48,
     -0.52
@@ -5074,47 +5543,47 @@
    "echelle": 1.16
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     16.6,
     2.94
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.88
+   "echelle": 0.7
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     -1.34,
     -4.82
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.86
+   "echelle": 0.6
   },
   {
-   "id": "sapin_2",
+   "id": "hd_sapin_vert",
    "case": [
     -5.19,
     1.25
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.04
+   "echelle": 0.79
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     17.47,
     14.14
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.95
+   "echelle": 0.76
   },
   {
-   "id": "arbre_boule",
+   "id": "hd_arbre_rond",
    "case": [
     19.15,
     -0.13
@@ -5124,67 +5593,67 @@
    "echelle": 0.99
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     17.92,
     3.76
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.98
+   "echelle": 0.69
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     18.51,
     19.07
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.0
+   "echelle": 0.8
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     15.54,
     12.72
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.16
+   "echelle": 0.93
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     -2.51,
     5.43
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.03
+   "echelle": 0.72
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     -5.11,
     -0.39
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.14
+   "echelle": 0.91
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     0.17,
     -4.31
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.87
+   "echelle": 0.61
   },
   {
-   "id": "arbre_rond",
+   "id": "hd_arbre_rond",
    "case": [
     -3.32,
     1.46
@@ -5194,64 +5663,64 @@
    "echelle": 1.1
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     19.0,
     2.35
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 0.93
+   "echelle": 0.65
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     15.53,
     14.93
    ],
    "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.04
+   "echelle": 0.73
   },
   {
-   "id": "arbre_rond",
+   "id": "hd_arbre_rond",
    "case": [
     19.11,
     16.16
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
    "echelle": 1.01
   },
   {
-   "id": "buisson_1",
+   "id": "hd_petit_arbre",
    "case": [
     15.51,
     3.69
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.17
+   "echelle": 0.94
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     15.82,
     7.88
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.06
+   "echelle": 0.74
   },
   {
-   "id": "buisson_2",
+   "id": "hd_petit_arbre",
    "case": [
     15.71,
     1.45
    ],
-   "miroir": true,
+   "miroir": false,
    "ombre": "arbre",
-   "echelle": 1.13
+   "echelle": 0.79
   }
  ]
 }

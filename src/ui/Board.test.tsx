@@ -1,9 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { BATTLEFIELD, getPlayerView } from '../engine';
+import { BATTLEFIELD, BATTLEFIELD_15, getPlayerView } from '../engine';
 import type { PlayerView } from '../engine';
 import { at, gameWith } from '../engine/test-utils';
 import { Board } from './Board';
+import { DECOR_FADE } from './iso/IsoDecor';
 import type { BoardView } from './settings';
 
 const render = (view: PlayerView, mode: BoardView, zoom = 1, margins?: { left: number; right: number }) =>
@@ -77,5 +78,45 @@ describe('marges de glisse (handoff V11, lot 13 §1)', () => {
     // Zone de 900 px de large : la scène iso calée sur sa largeur, plus les marges, la dépasse et le cadre défile.
     expect(html).toContain('overflow-x:auto');
     expect(render(battlefield(), 'iso')).not.toContain('board-viewport__glide');
+  });
+});
+
+describe('décor peint qui s’efface (15 × 15, vue iso)', () => {
+  const view = (units: Parameters<typeof gameWith>[0] = []) => getPlayerView(gameWith(units, { board: BATTLEFIELD_15 }), 1);
+  const faded = (html: string) => html.match(new RegExp(`opacity:${DECOR_FADE}`, 'g'))?.length ?? 0;
+
+  it('la forge s’efface devant un monstre posé derrière elle, pas devant un monstre ailleurs', () => {
+    expect(faded(render(view([{ monster: 'chevalier', owner: 1, at: at(0, 0) }]), 'iso'))).toBe(0);
+    // (4, 3), à gauche de la forge (4, 4)–(5, 5) : elle s'efface (sans animations, elle n'a pas de feu).
+    expect(faded(render(view([{ monster: 'chevalier', owner: 1, at: at(4, 3) }]), 'iso'))).toBe(1);
+  });
+
+  it('plateau peint : quadrillage adouci (`board--painted`), seulement en vue décorée du 15 × 15', () => {
+    expect(render(view(), 'iso')).toContain('board--painted');
+    expect(render(view(), 'top')).not.toContain('board--painted');
+    expect(render(battlefield(), 'iso')).not.toContain('board--painted');
+  });
+
+  it('la case survolée compte comme un jeton', () => {
+    const html = renderToStaticMarkup(
+      <Board
+        view={view()}
+        highlights={new Map()}
+        attacks={new Map()}
+        selectedUnitId={null}
+        focused={false}
+        path={[]}
+        reach={new Map()}
+        showArt
+        mode="iso"
+        zoom={1}
+        animated={false}
+        flipped={false}
+        onCellClick={() => {}}
+        onCellHover={() => {}}
+        hovered={at(4, 3)}
+      />,
+    );
+    expect(faded(html)).toBe(1);
   });
 });

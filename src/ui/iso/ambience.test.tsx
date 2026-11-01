@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BATTLEFIELD_13, BATTLEFIELD_15 } from '../../engine';
 import { SPRITE_FX, isWaterPixel, scatter, spritePoint, waterPatches } from './ambience';
-import { IsoDecor } from './IsoDecor';
+import { DECOR_FADE, IsoDecor } from './IsoDecor';
 import { paintedBoardDecor, paintedDecor } from './paintedDecor';
 import { SPRITES, isoScenery } from './scenery';
 
@@ -75,5 +75,17 @@ describe('ambiance du décor peint : rendu', () => {
   it('rien sans animations, ni sur un plateau sans décor peint', () => {
     expect(render(BATTLEFIELD_15, false)).not.toMatch(/amb[A-Z]/);
     expect(render(BATTLEFIELD_13, true)).not.toMatch(/amb[A-Z]/);
+  });
+
+  it('un sprite peint s’efface quand il cache un jeton ou la case survolée, et seulement lui', () => {
+    const html = (reveal?: ReadonlySet<string>) =>
+      renderToStaticMarkup(
+        <IsoDecor board={BATTLEFIELD_15} scenery={isoScenery(BATTLEFIELD_15)!} flipped={false} controllers={new Map()} animated painted reveal={reveal} />,
+      );
+    const faded = (markup: string) => markup.match(new RegExp(`opacity:${DECOR_FADE}`, 'g'))?.length ?? 0;
+    expect(faded(html())).toBe(0);
+    expect(faded(html(new Set(['0,0', '13,13'])))).toBe(0);
+    // La case (4, 3), devant la forge à gauche : la forge s'efface, avec son feu et sa fumée.
+    expect(faded(html(new Set(['4,3'])))).toBe(2);
   });
 });

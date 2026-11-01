@@ -9,7 +9,7 @@ import { groundKey, readGround, writeGround } from './groundCache';
 import type { GroundRequest, GroundResponse } from './groundWorker';
 import { buildGround } from './isoGround';
 import type { GroundDecor, GroundSprite } from './isoGround';
-import { SPRITES } from './scenery';
+import { HD_SPRITE_IDS, SPRITES } from './scenery';
 
 /** Tuiles du sol, pièces de 1 × 2 cases et texture de bruit, par nom de fichier. */
 export const GROUND_IMAGES: Readonly<Record<string, string>> = Object.fromEntries(
@@ -85,6 +85,15 @@ export function flatGroundBackground(decor: PaintedDecor, cells: number, url: st
 export const PAINTED_SPRITE_SCALE = 0.5;
 
 /**
+ * Les sprites HD sont dessinés pour un losange de case de 256 px de large ; à l'écran, une case du plan (72 px de pas)
+ * fait 72 × √2 px de large : échelle 0,398.
+ */
+export const HD_SPRITE_SCALE = (72 * Math.SQRT2) / 256;
+
+/** Échelle d'un sprite peint dans le plan du plateau, avant l'`echelle` du décor. */
+export const spriteScale = (id: string): number => (HD_SPRITE_IDS.has(id) ? HD_SPRITE_SCALE : PAINTED_SPRITE_SCALE);
+
+/**
  * Sprites couchés sur des cases où l'on marche (les ponts) : dessinés à plat dans le plan du sol, sous les jetons. Debout,
  * leur moitié basse passerait sous le sol (coupée net) et ils cacheraient le monstre posé dessus.
  */
@@ -98,7 +107,7 @@ export const STAND_DEPTH = 24;
  * `v` px sous son ancre à l'écran est `v × √2` px plus près de la caméra. Les sprites peints descendent sous leur ancre
  * (leur base est dessinée en perspective) : sans cela, le bas des rochers, des billots ou de la forge serait rogné.
  */
-export function paintedStandDepth(id: string, scale = PAINTED_SPRITE_SCALE): number {
+export function paintedStandDepth(id: string, scale = spriteScale(id)): number {
   const [, h, , ay] = SPRITES[id]!;
   return Math.max(STAND_DEPTH, Math.ceil((h - ay) * scale * Math.SQRT2) + 2);
 }
@@ -109,7 +118,7 @@ export interface PlacedSprite {
   readonly id: string;
   readonly x: number;
   readonly y: number;
-  /** Échelle d'affichage : 0,5 (densité 2), multipliée par `echelle` du décor. */
+  /** Échelle d'affichage : 0,5 (densité 2) ou celle des sprites HD, multipliée par `echelle` du décor. */
   readonly scale: number;
   readonly mirror: boolean;
   readonly flat: boolean;
@@ -145,7 +154,7 @@ export function placePaintedSprites(decor: PaintedDecor, rows: number, cols: num
       return [];
     }
     const flat = FLAT_SPRITES.has(sprite.id);
-    const scale = PAINTED_SPRITE_SCALE * (sprite.echelle ?? 1);
+    const scale = spriteScale(sprite.id) * (sprite.echelle ?? 1);
     const cells = sprite.entre ?? sprite.empreinte ?? [sprite.case!];
     return [
       {
@@ -163,10 +172,73 @@ export function placePaintedSprites(decor: PaintedDecor, rows: number, cols: num
   });
 }
 
+/**
+ * Jeton tel que le voit le décor, dans le plan des sprites (losange de 102 px) : une goutte d'environ 56 × 60 px posée
+ * sur le centre de sa case (mesurée en jeu à l'échelle 1), avancée de 10 px vers la caméra par son support.
+ */
+const TOKEN_BOX = { width: 56, height: 60, depth: 10 } as const;
+
+/**
+ * Part de la boîte d'un jeton que celle d'un sprite doit couvrir pour qu'il s'efface : sur les images, 35 % de boîte
+ * repèrent tous les sprites qui cachent au moins le quart du jeton (mesuré sur les masques des images du 15 × 15).
+ */
+export const HIDE_SHARE = 0.35;
+
+/** Position à l'écran (avant mise à l'échelle) et avancée vers la caméra d'un point du plan, pour chaque caméra. */
+const PROJECT = {
+  iso: (x: number, y: number): [number, number, number] => [(x - y) / Math.SQRT2, (x + y) / Math.sqrt(6), (x + y) / Math.sqrt(3)],
+  tilt: (x: number, y: number): [number, number, number] => [x, y / Math.SQRT2, y / Math.SQRT2],
+} as const;
+
+/**
+ * Sprites debout qui cachent le jeton de chaque case du plateau (clé « ligne,colonne » de la case réelle) : posés devant
+ * lui, leur boîte couvre `HIDE_SHARE` de la sienne au moins. Le décor s'efface devant un jeton ou la case survolée.
+ * `depth` : avancée de chaque sprite vers la caméra, celle avec laquelle `IsoDecor` le pose.
+ */
+export function spritesHiding(
+  sprites: readonly PlacedSprite[],
+  plan: PaintedDecor['plan'],
+  rows: number,
+  cols: number,
+  flipped: boolean,
+  camera: 'iso' | 'tilt',
+  depth: (sprite: PlacedSprite) => number = (sprite) => sprite.dz,
+): Map<string, string[]> {
+  const project = PROJECT[camera];
+  const boxes = sprites
+    .filter((sprite) => !sprite.flat)
+    .map((sprite) => {
+      const [w, h, ax, ay] = SPRITES[sprite.id]!;
+      const [x, y, z] = project(sprite.x, sprite.y);
+      // Retourné autour de son ancre : l'image s'étend de (w − ax) à gauche et de ax à droite.
+      const left = x - (sprite.mirror ? w - ax : ax) * sprite.scale;
+      return { key: sprite.key, left, right: left + w * sprite.scale, top: y - ay * sprite.scale, bottom: y + (h - ay) * sprite.scale, z: z + depth(sprite) };
+    });
+  const area = TOKEN_BOX.width * TOKEN_BOX.height;
+  const hidden = new Map<string, string[]>();
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const [r, c] = flipped ? [rows - 1 - row, cols - 1 - col] : [row, col];
+      const [x, y, z] = project(plan.marge + c * plan.pas + plan.case / 2, plan.marge + r * plan.pas + plan.case / 2);
+      const [left, right, top] = [x - TOKEN_BOX.width / 2, x + TOKEN_BOX.width / 2, y - TOKEN_BOX.height];
+      const keys = boxes
+        .filter((box) => {
+          if (box.z <= z + TOKEN_BOX.depth) return false;
+          const w = Math.min(right, box.right) - Math.max(left, box.left);
+          const h = Math.min(y, box.bottom) - Math.max(top, box.top);
+          return w > 0 && h > 0 && w * h >= HIDE_SHARE * area;
+        })
+        .map((box) => box.key);
+      if (keys.length > 0) hidden.set(`${row},${col}`, keys);
+    }
+  }
+  return hidden;
+}
+
 /** Noms des images dont le sol a besoin : herbe, sols de zones, terre des socles, pièces peintes, bruit. */
 export function groundImageNames(decor: GroundDecor): string[] {
-  const names = new Set<string>(['bruit', 'terre_unie', 'terre_copeaux', ...decor.herbe.tuiles]);
-  for (const zone of decor.zones) for (const tile of zone.tuiles) names.add(tile);
+  const names = new Set<string>(['bruit', 'terre_unie', 'terre_copeaux', ...decor.herbe.tuiles, ...(decor.herbe.motif ?? [])]);
+  for (const zone of decor.zones) for (const tile of [...zone.tuiles, ...(zone.motif ?? [])]) names.add(tile);
   for (const decal of decor.decals) names.add(decal.image);
   return [...names];
 }

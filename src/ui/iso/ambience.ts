@@ -8,12 +8,18 @@ import { SPRITES } from './scenery';
 type Point = readonly [x: number, y: number];
 
 /**
- * Points remarquables des sprites peints, en px de leur image (densité 2), relevés sur les images : la gueule du four
- * et le haut de la cheminée de la forge, le rectangle des cristaux violets des tas de minerai.
+ * Points remarquables des sprites peints, en px de leur image, relevés sur les images : la gueule du four et le haut de
+ * la cheminée de la forge, le rectangle des cristaux violets des tas de minerai et des cristaux HD.
  */
 export const SPRITE_FX: Readonly<Record<string, { readonly fire?: Point; readonly smoke?: Point; readonly crystals?: readonly [number, number, number, number] }>> = {
   forge_rochers: { fire: [205, 303], smoke: [213, 188] },
   tas_minerai: { crystals: [19, 11, 83, 81] },
+  // Cristaux HD de la forêt violette : le corps du cristal, sans la base ni la pointe.
+  hd_cristal_gros: { crystals: [5, 24, 90, 115] },
+  hd_cristal_eclat: { crystals: [5, 29, 63, 143] },
+  hd_cristal_amas: { crystals: [5, 26, 120, 125] },
+  hd_cristal_amas_b: { crystals: [5, 26, 105, 125] },
+  hd_cristal_large: { crystals: [5, 24, 92, 118] },
 };
 
 /** Pixel d'eau d'une pièce peinte (canal, étang) : bleu franc ; ni les berges, ni les planches, ni les nénuphars. */

@@ -3,6 +3,7 @@
 // les enclaves sont celles que dessinent déjà les falaises du plateau. Le décor vient du plateau (`Board.scenery`).
 import type { Board, Enclave, ManaZoneId, Position } from '../../engine';
 import PAINTED_SPRITES from '../../assets/plateau15/sprites/sprites.json';
+import HD_SPRITES from '../../assets/plateau15/sprites/sprites-hd.json';
 
 /** Inclinaison de la vraie isométrie : arctan(1/√2), en degrés. */
 export const ISO_TILT = 54.7356;
@@ -42,7 +43,12 @@ export const SPRITES: Readonly<Record<string, readonly [number, number, number, 
   q6: [78, 105, 39, 82], q7: [132, 62, 66, 37], q8: [132, 77, 66, 46], q9: [49, 104, 25, 90],
   // Sprites peints du 15 × 15 (handoff plateau 15), en densité 2 : affichés à l'échelle 0,5.
   ...(PAINTED_SPRITES as unknown as Readonly<Record<string, readonly [number, number, number, number]>>),
+  // Sprites HD (refonte d'après la maquette, préfixe hd_), dessinés pour un losange de 256 px : voir `HD_SPRITE_SCALE`.
+  ...(HD_SPRITES as unknown as Readonly<Record<string, readonly [number, number, number, number]>>),
 };
+
+/** Les sprites HD (préfixe hd_), dessinés pour un losange de case de 256 px de large. */
+export const HD_SPRITE_IDS: ReadonlySet<string> = new Set(Object.keys(HD_SPRITES));
 
 /** Un élément de décor posé sur la bordure du bloc : sprite, position dans le plan du plateau, échelle. */
 export type DecorItem = readonly [id: string, x: number, y: number, scale: number];
