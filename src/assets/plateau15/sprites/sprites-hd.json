@@ -29,12 +29,6 @@
   95,
   184
  ],
- "hd_sapin_vert": [
-  183,
-  356,
-  92,
-  355
- ],
  "hd_bloc_seul": [
   239,
   216,
@@ -130,6 +124,48 @@
   118,
   51,
   117
+ ],
+ "hd_sapin_vert": [
+  183,
+  356,
+  92,
+  355
+ ],
+ "hd_sapin_large_vert": [
+  240,
+  416,
+  119,
+  415
+ ],
+ "hd_sapin_fin_vert": [
+  203,
+  412,
+  99,
+  411
+ ],
+ "hd_sapin_haut_vert": [
+  272,
+  547,
+  137,
+  545
+ ],
+ "hd_sapin_variante_vert": [
+  213,
+  412,
+  104,
+  411
+ ],
+ "hd_jeune_sapin_vert": [
+  181,
+  254,
+  90,
+  253
+ ],
+ "hd_jeune_sapin_b_vert": [
+  183,
+  254,
+  91,
+  253
  ],
  "hd_forge": [
   491,

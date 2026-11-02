@@ -48,11 +48,6 @@ export function boardOnly(decor: PaintedDecor, size: number): PaintedDecor {
   };
 }
 
-/** Décors peints, par nom de plateau : complet et réduit au plateau (des objets stables : les effets de React en dépendent). */
-const PAINTED: Readonly<Record<string, { readonly full: PaintedDecor; readonly board: PaintedDecor }>> = {
-  'Champ de bataille (15 × 15)': { full: DECOR_15 as unknown as PaintedDecor, board: boardOnly(DECOR_15 as unknown as PaintedDecor, 15) },
-};
-
 /** Le décor peint complet du plateau (décor extérieur compris), ou `null` s'il n'en a pas. */
 export const paintedDecor = (board: Board): PaintedDecor | null => PAINTED[board.name]?.full ?? null;
 
@@ -94,6 +89,26 @@ export const HD_SPRITE_SCALE = (72 * Math.SQRT2) / 256;
 
 /** Échelle d'un sprite peint dans le plan du plateau, avant l'`echelle` du décor. */
 export const spriteScale = (id: string): number => (HD_SPRITE_IDS.has(id) ? HD_SPRITE_SCALE : PAINTED_SPRITE_SCALE);
+
+/** Le décor avec la `taille` de chaque arbre à l'écran (image × échelle) : son ombre portée en dépend. */
+export function withTreeSizes(decor: PaintedDecor): PaintedDecor {
+  return {
+    ...decor,
+    sprites: decor.sprites.map((s) => {
+      if (s.ombre !== 'arbre') return s;
+      const [w, h] = SPRITES[s.id]!;
+      const scale = spriteScale(s.id) * (s.echelle ?? 1);
+      return { ...s, taille: [Math.round(w * scale), Math.round(h * scale)] };
+    }),
+  };
+}
+
+const DECOR_15_FULL = withTreeSizes(DECOR_15 as unknown as PaintedDecor);
+
+/** Décors peints, par nom de plateau : complet et réduit au plateau (des objets stables : les effets de React en dépendent). */
+const PAINTED: Readonly<Record<string, { readonly full: PaintedDecor; readonly board: PaintedDecor }>> = {
+  'Champ de bataille (15 × 15)': { full: DECOR_15_FULL, board: boardOnly(DECOR_15_FULL, 15) },
+};
 
 /**
  * Sprites couchés sur des cases où l'on marche (les ponts) : dessinés à plat dans le plan du sol, sous les jetons. Debout,

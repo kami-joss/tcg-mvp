@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BATTLEFIELD_13, BATTLEFIELD_15, getCell } from '../../engine';
-import { grassTile, seeded, smoothstep, socleBlend, weightedPick, zoneBlend } from './isoGround';
+import { SHADOW_DIR, grassTile, seeded, smoothstep, socleBlend, treeShadow, weightedPick, zoneBlend } from './isoGround';
 import {
   GROUND_IMAGES,
   GROUND_WAIT,
@@ -91,6 +91,23 @@ describe('sol peint : fonctions de calcul (handoff plateau 15)', () => {
     expect(socleBlend(1, 0, 0).alpha).toBe(1);
     expect(socleBlend(0, 0, 0).alpha).toBe(0);
     expect(socleBlend(0.22, 0, 0).rim).toBeCloseTo(0.18);
+  });
+
+  it('ombres portées : vers le bas à droite de l’écran (sud-est), à 45° sous l’horizontale', () => {
+    // Projection de la vue isométrique : X = (colonne − ligne) / √2, Y = (colonne + ligne) / √6.
+    const [col, row] = SHADOW_DIR;
+    const x = (col - row) / Math.SQRT2;
+    const y = (col + row) / Math.sqrt(6);
+    expect(x).toBeGreaterThan(0);
+    expect(y).toBeCloseTo(x, 9);
+  });
+
+  it('ombre d’un arbre : une goutte qui part de son pied, plus longue pour un arbre plus haut', () => {
+    const small = treeShadow(100, 50, [40, 80]);
+    const tall = treeShadow(100, 50, [40, 160]);
+    expect(small.r).toBe(tall.r);
+    expect(Math.atan2(tall.tip[1] - 50, tall.tip[0] - 100)).toBeCloseTo(Math.PI / 12, 9);
+    expect(Math.hypot(tall.tip[0] - 100, tall.tip[1] - 50)).toBeCloseTo(2 * Math.hypot(small.tip[0] - 100, small.tip[1] - 50), 9);
   });
 });
 
@@ -202,10 +219,29 @@ describe('sprites peints du 15 × 15 (rendu seulement)', () => {
     expect(spriteScale('arbre_rond')).toBe(PAINTED_SPRITE_SCALE);
   });
 
-  it('arbres verts : les six de la refonte, plus aucun ancien arbre, buisson ni sapin vert', () => {
+  it('chaque arbre a sa taille à l’écran (image × échelle), pour son ombre portée', () => {
+    const trees = full.sprites.filter((s) => s.ombre === 'arbre');
+    expect(trees.length).toBeGreaterThan(100);
+    for (const s of trees) {
+      const [w, h] = SPRITES[s.id]!;
+      const scale = spriteScale(s.id) * (s.echelle ?? 1);
+      expect(s.taille, s.id).toEqual([Math.round(w * scale), Math.round(h * scale)]);
+    }
+  });
+
+  it('chaque bâtiment projette une ombre haute sur toute son emprise (aucun n’en a de peinte au sol)', () => {
+    for (const id of ['hd_forge', 'hd_ecurie', 'hd_ferme', 'hd_scierie', 'hd_maison_mineur', 'hd_entree_mine']) {
+      const s = full.sprites.find((t) => t.id === id);
+      expect(s?.ombre, id).toBe('haute');
+      expect(s?.empreinte?.length, id).toBeGreaterThanOrEqual(4);
+    }
+  });
+
+  it('arbres verts : que des sapins autour du plateau, plus aucun feuillu, ancien arbre, buisson ni sapin', () => {
     const ids = new Set(full.sprites.map((s) => s.id));
-    for (const id of ['hd_arbre_rond', 'hd_arbre_dome', 'hd_arbre_haut', 'hd_grand_arbre', 'hd_petit_arbre', 'hd_sapin_vert']) expect(ids.has(id), id).toBe(true);
-    expect([...ids].filter((id) => /^(arbre|buisson|sapin)_/.test(id))).toEqual([]);
+    for (const id of ['hd_sapin_vert', 'hd_sapin_large_vert', 'hd_sapin_haut_vert', 'hd_sapin_fin_vert', 'hd_sapin_variante_vert', 'hd_jeune_sapin_vert', 'hd_jeune_sapin_b_vert'])
+      expect(ids.has(id), id).toBe(true);
+    expect([...ids].filter((id) => /^(hd_)?(arbre|grand_arbre|petit_arbre|buisson|sapin)_/.test(id) && !id.startsWith('hd_sapin_'))).toEqual([]);
   });
 
   it('sprites HD : jamais retournés (la lumière vient du haut à gauche), images présentes', () => {

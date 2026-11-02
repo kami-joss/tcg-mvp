@@ -79,8 +79,10 @@ export interface GroundSprite {
   readonly id: string;
   readonly case?: readonly [number, number];
   readonly empreinte?: readonly (readonly [number, number])[];
-  /** `arbre` : ombre ronde sous le feuillage, la case peut être décimale (arbres semés librement). */
+  /** `arbre` : ombre ronde sous le feuillage et ombre portée à sa `taille`, la case peut être décimale (arbres semés librement). */
   readonly ombre?: 'haute' | 'moyenne' | 'basse' | 'arbre';
+  /** Largeur et hauteur de l'arbre à l'écran (px, au pas de 72 px), d'après son image et son échelle : la taille de son ombre. */
+  readonly taille?: readonly [number, number];
 }
 export interface GroundDecor {
   /** `bordure` : nombre de cases de décor peintes autour du plateau (0 si absent). */
@@ -151,7 +153,34 @@ export function socleBlend(mask: number, coarse: number, fine: number): { alpha:
   return { alpha: Math.min(1, Math.max(0, (s - 0.2) / 0.14)) * gate, rim: Math.exp(-(((s - 0.22) / 0.04) ** 2)) * 0.18 * gate };
 }
 
-const SHADOW_LENGTH = { haute: 0.9, moyenne: 0.45, basse: 0.15, arbre: 0 } as const;
+/** Longueur de l'ombre portée d'un relief, d'un bâtiment ou d'un objet, en cases, selon sa hauteur. */
+const SHADOW_LENGTH = { haute: 1.2, moyenne: 0.55, basse: 0.35, arbre: 0 } as const;
+
+/**
+ * Sens des ombres portées dans le plan : vers le bas à droite de l'écran (sud-est), comme celles peintes dans la forge,
+ * la lumière venant du haut à gauche. 15° des colonnes vers les lignes : en isométrie, ce sens tombe à 45° sous
+ * l'horizontale.
+ */
+export const SHADOW_DIR = [Math.cos(Math.PI / 12), Math.sin(Math.PI / 12)] as const;
+
+/**
+ * Toutes les ombres portées (arbres, reliefs, bâtiments, objets) sur un même calque : opacité `alpha` après un flou de
+ * `blur` px du plan ; noires, elles se fondent là où elles se croisent au lieu de s'additionner.
+ */
+const CAST_SHADOW = { alpha: 0.42, blur: 7 } as const;
+
+/**
+ * Ombre portée d'un arbre : une goutte qui part du pied, large de `base` × sa largeur à l'écran, longue de `length` × sa
+ * hauteur (une hauteur debout de 1 px du plan fait √(2/3) px à l'écran, isométrie vraie).
+ */
+const TREE_SHADOW = { base: 0.4, length: 0.62 } as const;
+
+/** La goutte de l'ombre d'un arbre au pied (x, y) du plan : enveloppe du cercle du pied et de la pointe. */
+export function treeShadow(x: number, y: number, [width, height]: readonly [number, number]): { r: number; tip: readonly [number, number] } {
+  const r = width * TREE_SHADOW.base;
+  const length = Math.max((height / Math.sqrt(2 / 3)) * TREE_SHADOW.length, r * 1.5);
+  return { r, tip: [x + SHADOW_DIR[0] * length, y + SHADOW_DIR[1] * length] };
+}
 
 /**
  * Construit le sol d'un plateau `size` × `size`. `images` contient les tuiles vues de dessus (côté 2 × `pas` px), les
@@ -423,7 +452,7 @@ export function buildGround(size: number, decor: GroundDecor, images: Readonly<R
     g.drawImage(images[d.image]!, 0, 0, pas, 2 * pas);
   }
 
-  // --- 5. occlusion sous les reliefs, ombres portées vers l'avant droit de l'écran (+colonne) -----------------
+  // --- 5. occlusion sous les reliefs, ombres portées vers le bas à droite de l'écran (`SHADOW_DIR`) ------------
   const [ao, aox] = fresh();
   const [cast, cx] = fresh();
   inPlan(aox);
@@ -438,15 +467,28 @@ export function buildGround(size: number, decor: GroundDecor, images: Readonly<R
       aox.beginPath();
       aox.ellipse(cx0, cy0, pas * 0.34, pas * 0.34, 0, 0, Math.PI * 2);
       aox.fill();
+      // Goutte : de la pointe à un bord du cercle du pied, autour de son dos, puis à l'autre bord.
+      const { r, tip } = treeShadow(cx0, cy0, s.taille ?? [pas, 2 * pas]);
+      const dir = Math.atan2(SHADOW_DIR[1], SHADOW_DIR[0]);
+      const side = Math.acos(r / Math.hypot(tip[0] - cx0, tip[1] - cy0));
       cx.beginPath();
-      cx.ellipse(cx0 + pas * 0.55, cy0 + pas * 0.1, pas * 0.6, pas * 0.32, 0, 0, Math.PI * 2);
+      cx.moveTo(tip[0], tip[1]);
+      cx.arc(cx0, cy0, r, dir + side, dir + 2 * Math.PI - side);
+      cx.closePath();
       cx.fill();
       continue;
     }
+    // Le pied de la case (un peu à droite) étiré dans le sens des ombres : un hexagone.
+    const length = pas * SHADOW_LENGTH[s.ombre];
+    const [dx, dy] = [SHADOW_DIR[0] * length, SHADOW_DIR[1] * length];
     const cells = s.empreinte ?? (s.case ? [s.case] : []);
     for (const [row, col] of cells) {
       aox.fillRect(cellX(col) - 4, cellY(row) - 4, pas + 8, pas + 8);
-      cx.fillRect(cellX(col) + pas * 0.2, cellY(row) + pas * 0.1, pas * (0.8 + SHADOW_LENGTH[s.ombre]), pas * 0.8);
+      const [x0, y0, x1, y1] = [cellX(col) + pas * 0.2, cellY(row) + pas * 0.1, cellX(col) + pas, cellY(row) + pas * 0.9];
+      cx.beginPath();
+      for (const [x, y] of [[x0, y0], [x1, y0], [x1 + dx, y0 + dy], [x1 + dx, y1 + dy], [x0 + dx, y1 + dy], [x0, y1]] as const) cx.lineTo(x, y);
+      cx.closePath();
+      cx.fill();
     }
   }
   g.setTransform(1, 0, 0, 1, 0, 0);
@@ -456,8 +498,8 @@ export function buildGround(size: number, decor: GroundDecor, images: Readonly<R
     x.drawImage(src, 0, 0);
     return c;
   };
-  g.globalAlpha = 0.26;
-  g.drawImage(blurred(cast, 14), 0, 0);
+  g.globalAlpha = CAST_SHADOW.alpha;
+  g.drawImage(blurred(cast, CAST_SHADOW.blur), 0, 0);
   g.globalAlpha = 0.34;
   g.drawImage(blurred(ao, 12), 0, 0);
   g.globalAlpha = 1;

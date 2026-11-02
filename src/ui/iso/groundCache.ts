@@ -9,7 +9,7 @@ const STORE = 'sols';
  * Version du calcul du sol (`isoGround.ts`) : à augmenter à chaque changement de ce calcul qui modifie son image, pour
  * ne pas resservir un sol calculé par l'ancienne version.
  */
-export const GROUND_VERSION = 'v3';
+export const GROUND_VERSION = 'v7';
 
 /** Empreinte courte d'un texte (FNV-1a 32 bits) : change dès que le décor change. */
 export function fingerprint(text: string): string {
