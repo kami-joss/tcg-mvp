@@ -4544,40 +4544,40 @@
    ]
   },
   {
-   "id": "rondins_case_2",
+   "id": "hd_rondins",
    "case": [
     12,
     -3
    ],
-   "miroir": false,
-   "ombre": "basse"
+   "ombre": "basse",
+   "miroir": false
   },
   {
-   "id": "rondins_case_1",
+   "id": "hd_planches",
    "case": [
     12,
     -5
    ],
-   "miroir": false,
-   "ombre": "basse"
+   "ombre": "basse",
+   "miroir": false
   },
   {
-   "id": "rondins_case_2",
+   "id": "hd_planches",
    "case": [
     11,
     -2
    ],
-   "miroir": true,
-   "ombre": "basse"
+   "ombre": "basse",
+   "miroir": false
   },
   {
-   "id": "rondins_case_2",
+   "id": "hd_rondins",
    "case": [
-    18,
+    19,
     -3
    ],
-   "miroir": true,
-   "ombre": "basse"
+   "ombre": "basse",
+   "miroir": false
   },
   {
    "id": "billot",
@@ -5746,6 +5746,24 @@
    "case": [
     9.25,
     18.25
+   ],
+   "ombre": "basse",
+   "miroir": false
+  },
+  {
+   "id": "hd_chevalet",
+   "case": [
+    10,
+    -3
+   ],
+   "ombre": "basse",
+   "miroir": false
+  },
+  {
+   "id": "hd_barre_attache",
+   "case": [
+    8,
+    -2
    ],
    "ombre": "basse",
    "miroir": false

@@ -106,11 +106,11 @@ describe('décor peint du 15 × 15 (rendu seulement)', () => {
     expect(2 * marge + 15 * pas - (pas - cell)).toBe(planSize(15));
   });
 
-  it('décor complet : 6 cases de décor tout autour (plan de 1968 px), 239 sprites ; le plateau seul : 26 sprites, 6 pièces d’eau', () => {
+  it('décor complet : 6 cases de décor tout autour (plan de 1968 px), 241 sprites ; le plateau seul : 26 sprites, 6 pièces d’eau', () => {
     expect(full.plan.bordure).toBe(6);
     expect(worldPlan(full, 15)).toBe(1968);
     // Le carré de pierres (9, 9)–(10, 10) porte un seul amas de 2 × 2, au lieu de quatre rochers.
-    expect(full.sprites).toHaveLength(239);
+    expect(full.sprites).toHaveLength(241);
     expect(board.plan.bordure).toBe(0);
     expect(worldPlan(board, 15)).toBe(planSize(15));
     expect(board.sprites).toHaveLength(26);
@@ -181,6 +181,11 @@ describe('sprites peints du 15 × 15 (rendu seulement)', () => {
     expect(placed.find((s) => s.id === 'hd_ecurie')).toMatchObject({ x: center(-3), y: center(5), inBoard: false });
     expect(placed.find((s) => s.id === 'hd_parcelle_ble')).toMatchObject({ x: center(18.5), y: center(10.5), inBoard: false });
     expect(placed.find((s) => s.id === 'potager')).toMatchObject({ x: center(16.5), y: center(8.5), inBoard: false });
+    // Signes de l'Écurie et de la Scierie : au centre de leur case ; plus aucun ancien tas de rondins.
+    expect(placed.find((s) => s.id === 'hd_barre_attache')).toMatchObject({ x: center(-2), y: center(8), inBoard: false });
+    expect(placed.find((s) => s.id === 'hd_chevalet')).toMatchObject({ x: center(-3), y: center(10), inBoard: false });
+    expect(full.sprites.filter((s) => s.id === 'hd_rondins' || s.id === 'hd_planches')).toHaveLength(4);
+    expect(full.sprites.some((s) => s.id.startsWith('rondins_case'))).toBe(false);
   });
 
   it('échelle : 0,5 (images en densité 2) ou 0,398 (sprites HD, losange de 256 px), multipliée par `echelle` du décor', () => {
