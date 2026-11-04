@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { BATTLEFIELD_13, DECKS, applyAction, createGame, getLegalActions, getZoneController } from '../engine';
+import { BATTLEFIELD_13, BATTLEFIELD_15, DECKS, applyAction, createGame, getLegalActions, getZoneController, getZoneStatus } from '../engine';
 import type { Action, CardId, GameState } from '../engine';
 import { at, gameWith } from '../engine/test-utils';
-import { SEARCH, chooseAction, knownState, lastEvaluations, strikeLosses } from './bot';
+import { SEARCH, chooseAction, evaluate, knownState, lastEvaluations, strikeLosses } from './bot';
 
 // IA d'entraînement (SPEC.md §7 bis) : une action à la fois, cherchée sur la fin du tour, sans tricher.
 
@@ -140,18 +140,22 @@ describe('IA : deux coups d’avance pour un même monstre', () => {
     expect(chooseAction(applyAction(state, dopage), 1)).toMatchObject({ type: 'attack', unitId: 'u1', targetId: 'u2' });
   });
 
-  it('Pénombre pour cacher un monstre piège menacé, pas sans menace', () => {
+  it('Pénombre pour cacher des monstres piège menacés, pas sans menace', () => {
+    // Deux Trébuchets visent chacun un monstre piège : 5 mana pour en sauver deux. Pour un seul Poseur à 1 mana, elle
+    // garde son sort (voir « sorts gardés pour un moment décisif »).
     const threatened = gameWith(
       [
         { monster: 'poseur-de-piege', owner: 1, at: at(3, 1), mobilityLeft: 0 },
-        { monster: 'chevalier', owner: 2, at: at(7, 1) },
+        { monster: 'clown-assassin', owner: 1, at: at(3, 7), mobilityLeft: 0 },
+        { monster: 'trebuchet', owner: 2, at: at(8, 1) },
+        { monster: 'trebuchet', owner: 2, at: at(8, 7) },
       ],
       { players: { 1: { mana: 5, grimoire: ['penombre'] as CardId[] } } },
     );
     const penombre: Action = { type: 'playCard', cardId: 'penombre', target: { kind: 'all' } };
     expect(chooseAction(threatened, 1)).toEqual(penombre);
-    const safe = { ...threatened, units: { ...threatened.units, u2: { ...threatened.units.u2!, pos: at(9, 8) } } };
-    expect(chooseAction(safe, 1)).not.toEqual(penombre);
+    const { u3: _a, u4: _b, ...mine } = threatened.units;
+    expect(chooseAction({ ...threatened, units: mine }, 1)).not.toEqual(penombre);
   });
 });
 
@@ -217,5 +221,249 @@ describe('IA : recherche dans un budget de calcul', () => {
     const capped = chooseAction(state, 1, { ...SEARCH, budget: 10 });
     expect(lastEvaluations()).toBeLessThan(unlimited);
     for (const action of [free, capped]) expect(isLegal(state, action)).toBe(true);
+  });
+});
+
+describe('IA : valeur des pièges', () => {
+  // Deux Chevaliers de J1, chacun à 2 cases d'un des pièges : les deux sont à portée.
+  const trapAt = (row: number, col: number): GameState => ({
+    ...gameWith(
+      [
+        { monster: 'chevalier', owner: 1, at: at(8, 6) },
+        { monster: 'chevalier', owner: 1, at: at(1, 3) },
+      ],
+      { activePlayer: 2 },
+    ),
+    traps: [{ owner: 2, pos: at(row, col), effects: [{ type: 'damage', amount: 3 }], cardId: 'poseur-de-bombe' }],
+  });
+
+  it('préfère un piège sur une mana zone à un piège dans son coin', () => {
+    expect(evaluate(trapAt(8, 4), 2)).toBeGreaterThan(evaluate(trapAt(1, 1), 2));
+  });
+
+  it('un monstre piège s’avance avant de poser son piège, au lieu de le poser là où il apparaît', () => {
+    const state = gameWith([{ monster: 'poseur-de-bombe', owner: 2, at: at(8, 1) }], { activePlayer: 2, players: { 2: { mana: 2, grimoire: [] } } });
+    const action = chooseAction(state, 2);
+    expect(action.type === 'move' || action.type === 'activateEffect').toBe(true);
+    if (action.type === 'activateEffect' && action.target.kind === 'cell') {
+      expect(Math.abs(action.target.pos.col - 1) + Math.abs(action.target.pos.row - 8)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('un piège ne vaut que si un ennemi peut marcher dessus à son prochain tour', () => {
+    const withEnemy = (row: number, trap = true): GameState => ({
+      ...gameWith([{ monster: 'chevalier', owner: 1, at: at(row, 1) }], { activePlayer: 2 }),
+      traps: trap ? [{ owner: 2, pos: at(8, 4), effects: [{ type: 'damage', amount: 3 }], cardId: 'poseur-de-bombe' }] : [],
+    });
+    // Chevalier : 3 de mobilité ; à 3 cases (sur la rangée du piège) il l'atteint, à 11 non : le piège ne vaut rien.
+    expect(evaluate(withEnemy(8), 2)).toBeGreaterThan(evaluate(withEnemy(8, false), 2) + 0.5);
+    expect(evaluate(withEnemy(0), 2)).toBe(evaluate(withEnemy(0, false), 2));
+  });
+
+  it('ne pose pas de piège quand aucun ennemi ne peut l’atteindre au prochain tour', () => {
+    // Un Chevalier de J1 au loin : le Poseur de bombe est sur la Ferme, mais rien ne passera par là.
+    const state = gameWith(
+      [
+        { monster: 'poseur-de-bombe', owner: 2, at: at(8, 4), mobilityLeft: 0 },
+        { monster: 'chevalier', owner: 1, at: at(1, 1) },
+      ],
+      { activePlayer: 2, players: { 2: { mana: 5, grimoire: [] } } },
+    );
+    expect(chooseAction(state, 2)).toEqual({ type: 'endTurn' });
+  });
+
+  it('ne pose pas un piège qui ne rapporte presque rien : loin de tout, sans ennemi en vue', () => {
+    const state = gameWith([{ monster: 'poseur-de-piege', owner: 1, at: at(0, 0), mobilityLeft: 0 }], { players: { 1: { mana: 5, grimoire: [] } } });
+    expect(chooseAction(state, 1)).toEqual({ type: 'endTurn' });
+  });
+});
+
+/** Joue le tour de `me` jusqu'à sa fin ; rend les actions jouées (et l'état d'arrivée). */
+function playTurn(state: GameState, me: 1 | 2): { actions: Action[]; state: GameState } {
+  const actions: Action[] = [];
+  let current = state;
+  for (let i = 0; i < 40; i++) {
+    const action = chooseAction(current, me);
+    if (action.type === 'endTurn') break;
+    actions.push(action);
+    current = applyAction(current, action);
+  }
+  return { actions, state: current };
+}
+
+describe('IA : mode contestation, ce que rapportent les zones (15 × 15)', () => {
+  const board = BATTLEFIELD_15;
+  const mode = 'contestation';
+
+  it('une zone que l’adversaire tient en fin de tour lui rapporte aussitôt : la contester vaut un VP', () => {
+    // Forge (7, 7) tenue par un Chevalier de J1 ; l'Éclaireur de J2 juste dehors, ou dedans (contestée).
+    const withScout = (row: number) =>
+      gameWith(
+        [
+          { monster: 'chevalier', owner: 1, at: at(7, 7) },
+          { monster: 'eclaireur', owner: 2, at: at(row, 7) },
+        ],
+        { board, mode, activePlayer: 2, players: { 2: { mana: 0, grimoire: [] } } },
+      );
+    expect(evaluate(withScout(8), 2) - evaluate(withScout(9), 2)).toBeGreaterThan(12);
+  });
+
+  it('un petit monstre va contester une zone adverse, même s’il risque d’y être détruit', () => {
+    const state = gameWith(
+      [
+        { monster: 'chevalier', owner: 1, at: at(7, 7) },
+        { monster: 'eclaireur', owner: 2, at: at(9, 7) },
+      ],
+      { board, mode, activePlayer: 2, players: { 2: { mana: 0, grimoire: [] } } },
+    );
+    const { state: after } = playTurn(state, 2);
+    expect(getZoneStatus(after, at(7, 7)).contested).toBe(true);
+  });
+
+  it('une zone que tient un de ses terrains n’a pas besoin de gardien : le monstre repart vers une autre', () => {
+    // Bastion de J1 sur l'Écurie (2, 2), un Chevalier dans la zone : il part vers la Forge au lieu d'y rester.
+    const state = gameWith(
+      [
+        { terrain: 'bastion', owner: 1, at: at(2, 2) },
+        { monster: 'chevalier', owner: 1, at: at(2, 3) },
+      ],
+      { board, mode, players: { 1: { mana: 0, grimoire: [] } } },
+    );
+    const action = chooseAction(state, 1);
+    expect(action).toMatchObject({ type: 'move', unitId: 'u2' });
+    expect(getZoneController(applyAction(state, action), at(2, 2))).toBe(1);
+  });
+
+  it('un gardien ne lâche pas sa zone pour la rendre « à prendre » aux alliés qui en sont proches', () => {
+    // J2 tient la Forge (terrain), la Mine et la Ferme ; ses autres monstres sont loin des zones de J1 (Écurie,
+    // Scierie). Si le Gardien sortait de la Ferme, elle deviendrait une zone à prendre toute proche d'eux.
+    const state = gameWith(
+      [
+        { terrain: 'bastion', owner: 2, at: at(7, 7) },
+        { monster: 'chevalier', owner: 2, at: at(2, 13) },
+        { monster: 'eclaireur', owner: 2, at: at(3, 13) },
+        { monster: 'chasseur-de-primes', owner: 2, at: at(6, 13) },
+        { monster: 'gardien', owner: 2, at: at(12, 13) },
+        { monster: 'milicien', owner: 2, at: at(13, 14) },
+        { monster: 'chevalier', owner: 1, at: at(2, 2) },
+        { terrain: 'terrain-piege', owner: 1, at: at(12, 2) },
+        { monster: 'emma-chauve-souris', owner: 1, at: at(8, 8) },
+      ],
+      { board, mode, activePlayer: 2, players: { 2: { mana: 0, grimoire: [] } } },
+    );
+    expect(getZoneController(playTurn(state, 2).state, at(12, 12))).toBe(2);
+  });
+
+  it('une zone tenue que l’adversaire peut venir contester vaut moins qu’une zone hors de sa portée', () => {
+    const withEnemy = (col: number) =>
+      gameWith(
+        [
+          { monster: 'chevalier', owner: 1, at: at(2, 2) },
+          { monster: 'chevalier', owner: 2, at: at(5, col) },
+        ],
+        { board, mode, players: { 1: { mana: 0, grimoire: [] } } },
+      );
+    // Chevalier adverse : 3 + 1 de mobilité ; à 3 cases de l'Écurie, ou à 11.
+    const near = withEnemy(2);
+    const far = withEnemy(14);
+    expect(evaluate(far, 1) - evaluate(near, 1)).toBeGreaterThan(4);
+  });
+});
+
+describe('IA : sorts gardés pour un moment décisif', () => {
+  it('ne lance ni Bénédiction ni Charge quand ils ne changent rien', () => {
+    // Le Chevalier tient l'Écurie, sans ennemi en vue : rien à protéger ni à prendre.
+    const state = gameWith([{ monster: 'chevalier', owner: 1, at: at(2, 4) }], {
+      players: { 1: { mana: 2, grimoire: ['benediction', 'charge'] as CardId[] } },
+    });
+    const { actions } = playTurn(state, 1);
+    expect(actions.filter((a) => a.type === 'playCard')).toEqual([]);
+  });
+
+  it('Bénédiction pour sauver un monstre d’une destruction', () => {
+    // Le Golem (4 ATK) peut venir détruire le Chevalier (4 PV) ; avec +1 PV, il y survit.
+    const state = gameWith(
+      [
+        { monster: 'chevalier', owner: 1, at: at(1, 1), mobilityLeft: 0, hasAttacked: true },
+        { monster: 'golem', owner: 2, at: at(1, 4) },
+      ],
+      { players: { 1: { mana: 1, grimoire: ['benediction'] as CardId[] } } },
+    );
+    expect(chooseAction(state, 1)).toEqual({ type: 'playCard', cardId: 'benediction', target: { kind: 'unit', unitId: 'u1' } });
+  });
+
+  it('Boule de feu pour détruire, pas pour entamer', () => {
+    const facing = (monster: 'eclaireur' | 'golem') =>
+      gameWith(
+        [
+          { monster: 'chevalier', owner: 1, at: at(1, 0), mobilityLeft: 0, hasAttacked: true },
+          { monster, owner: 2, at: at(1, 3) },
+        ],
+        { players: { 1: { mana: 2, grimoire: ['boule-de-feu'] as CardId[] } } },
+      );
+    const fireball = (target: string): Action => ({ type: 'playCard', cardId: 'boule-de-feu', target: { kind: 'unit', unitId: target } });
+    expect(chooseAction(facing('eclaireur'), 1)).toEqual(fireball('u2'));
+    expect(chooseAction(facing('golem'), 1)).not.toEqual(fireball('u2'));
+  });
+});
+
+describe('IA : échanges', () => {
+  it('un monstre qu’un allié peut venger coûte moins cher à perdre', () => {
+    // Le Golem de J2 peut détruire le Milicien dans la Scierie ; Arnold (7 ATK), à son entrée, peut ensuite venir
+    // détruire le Golem.
+    const alone = gameWith([
+      { monster: 'golem', owner: 2, at: at(6, 2) },
+      { monster: 'milicien', owner: 1, at: at(4, 2) },
+    ]);
+    const avenged = gameWith([
+      { monster: 'golem', owner: 2, at: at(6, 2) },
+      { monster: 'milicien', owner: 1, at: at(4, 2) },
+      { monster: 'arnold', owner: 1, at: at(3, 1) },
+    ]);
+    expect(strikeLosses(avenged, 2)).toBeLessThan(strikeLosses(alone, 2) - 6);
+  });
+});
+
+describe('IA : pas d’allers-retours', () => {
+  it('partie Pièges contre Pièges en contestation sur le 15 × 15 : aucun monstre ne refait son dernier pas en sens inverse', () => {
+    const traps = DECKS.find((d) => d.id === 'pieges')!.cards;
+    let state = createGame(BATTLEFIELD_15, { 1: traps, 2: traps }, undefined, 'contestation');
+    const cell = (pos: { row: number; col: number }) => `${pos.row},${pos.col}`;
+    // Pour chaque monstre, la case que son dernier déplacement a quittée ; une attaque ou un effet entre deux remet à zéro
+    // (avancer, frapper puis revenir est permis).
+    const left = new Map<string, string>();
+    let backAndForth = 0;
+    while (state.turn <= 10 && state.winner === null) {
+      const action = chooseAction(state, state.activePlayer);
+      if (action.type === 'move') {
+        if (left.get(action.unitId) === cell(action.to)) backAndForth++;
+        left.set(action.unitId, cell(state.units[action.unitId]!.pos));
+      } else left.clear();
+      state = applyAction(state, action);
+    }
+    expect(backAndForth).toBe(0);
+  }, 60_000);
+
+  it('Emma vaut la meilleure de ses formes : se transformer ne coûte que son mana', () => {
+    const emma = gameWith([{ monster: 'emma', owner: 1, at: at(1, 1) }], { players: { 1: { mana: 2, grimoire: [] } } });
+    const bat = applyAction(emma, { type: 'activateEffect', unitId: 'u1', target: { kind: 'unit', unitId: 'u1' } });
+    expect(bat.units.u1?.cardId).toBe('emma-chauve-souris');
+    expect(evaluate(bat, 1)).toBeGreaterThan(evaluate(emma, 1) - 1);
+  });
+});
+
+describe('IA : riposte adverse', () => {
+  it('la riposte est comptée à part du budget de recherche, et se coupe avec `reply: 0`', () => {
+    const state = gameWith(
+      [
+        { monster: 'chevalier', owner: 1, at: at(5, 4) },
+        { monster: 'chevalier', owner: 2, at: at(5, 6) },
+      ],
+      { players: { 1: { mana: 3, grimoire: [] } } },
+    );
+    chooseAction(state, 1, { ...SEARCH, reply: 0 });
+    const without = lastEvaluations();
+    chooseAction(state, 1, { ...SEARCH, reply: 4 });
+    expect(lastEvaluations()).toBeGreaterThan(without);
   });
 });
