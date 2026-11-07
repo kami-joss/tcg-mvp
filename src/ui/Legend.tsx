@@ -42,7 +42,7 @@ export function Legend({ onClose, mode = 'normal' }: { onClose: () => void; mode
           <span className="sw sw--drop sw--drop-p2" /> Joueur 2 · goutte rouge, liseré blanc
         </p>
         <p>
-          <span className="sw sw--zone" /> {mode === 'contestation' ? 'Zone de 9 cases, seul dedans : +1 mana, +1 VP' : 'Mana zone : +1 mana, +1 VP'}
+          <span className="sw sw--zone" /> {mode === 'contestation' ? 'Zone de 9 cases, seul dedans : +1 VP (+1 mana avec un terrain)' : 'Mana zone : +1 VP (+1 mana avec un terrain)'}
         </p>
         {mode === 'contestation' && (
           <p>

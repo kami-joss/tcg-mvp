@@ -350,8 +350,9 @@ function outcome(before: PlayerView, action: Action, after: PlayerView): Outcome
   let turn: LogEntry['turn'];
   if (action.type === 'endTurn') {
     const player = after.activePlayer;
-    const gain = (key: 'mana' | 'vp') => publicInfo(after, player)[key] - publicInfo(before, player)[key];
-    turn = { number: after.turn, player, mana: gain('mana'), vp: gain('vp') };
+    const gain = (key: 'vp') => publicInfo(after, player)[key] - publicInfo(before, player)[key];
+    // Le mana non dépensé est perdu au début du tour : ce qu'il a maintenant, c'est ce qu'il reçoit.
+    turn = { number: after.turn, player, mana: publicInfo(after, player).mana, vp: gain('vp') };
     gains.push(item('water-drop', `Tour ${after.turn} : J${player} reçoit ${turn.mana} mana et ${turn.vp} VP.`, 'info'));
   } else {
     for (const player of [1, 2] as const) {

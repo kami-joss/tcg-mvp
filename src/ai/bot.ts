@@ -398,7 +398,8 @@ export function evaluate(state: GameState, me: PlayerId): number {
   evaluations++;
   if (state.winner !== null) return state.winner === me ? W.win : -W.win;
   const other = foe(me);
-  const mana = state.players[me].mana;
+  // Le mana non dépensé est perdu au début du tour suivant : il ne vaut que tant que c'est son tour.
+  const mana = state.activePlayer === me ? state.players[me].mana : 0;
   let score =
     (state.players[me].vp - state.players[other].vp) * W.vp +
     Math.min(mana, W.hoardFrom) * W.mana +

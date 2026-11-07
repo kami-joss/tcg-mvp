@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction } from './actions';
 import { CARDS, COMMON_CARDS, DECKS, TEST_GRIMOIRE, getCard } from './cards';
-import { BASE_MANA_PER_TURN, MAX_COPIES_PER_DECK } from './config';
+import { MAX_COPIES_PER_DECK } from './config';
+import { getBaseMana } from './turns';
 import { createGame } from './game';
 import { getPlayerView } from './view';
 import { getLegalActions } from './actions';
@@ -510,6 +511,6 @@ describe('pièges (SPEC.md §6 bis, §10)', () => {
     expect(state.traps).toHaveLength(1);
     state = applyAction(state, END_TURN); // retour à J1 : il disparaît
     expect(state.traps).toEqual([]);
-    expect(state.players[1].mana).toBe(2 * BASE_MANA_PER_TURN);
+    expect(state.players[1].mana).toBe(getBaseMana(3)); // son mana ne se cumule pas
   });
 });

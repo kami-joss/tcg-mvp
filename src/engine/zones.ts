@@ -56,14 +56,15 @@ export function getControlledZones(state: ZoneState, player: PlayerId): { zone: 
 }
 
 /**
- * Mana que rapporte une mana zone à `controller` (par défaut, celui qui la tient) : la base, + le bonus de son terrain
- * (Autel de mana), + le bonus de ses monstres `etendard` dans la zone (sur la case en mode Normal). Les bonus se
- * cumulent (§10).
+ * Mana que rapporte une mana zone à `controller` (par défaut, celui qui la tient) : rien sans un de ses terrains dans la
+ * zone (un monstre seul n'en génère pas, §4.2) ; sinon la base, + le bonus de son terrain (Autel de mana), + le bonus de
+ * ses monstres `etendard` dans la zone (sur la case en mode Normal). Les bonus se cumulent (§10).
  */
 export function getZoneMana(state: ZoneState, pos: Position, controller = getZoneController(state, pos)): number {
   const units = getZoneCells(state.board, state.mode, pos)
     .flatMap((cell) => getUnitsAt(state, cell))
     .filter((unit) => unit.owner === controller);
+  if (!units.some((unit) => unit.kind === 'terrain')) return 0;
   return units.reduce(
     (mana, unit) =>
       mana +

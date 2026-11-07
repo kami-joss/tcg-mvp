@@ -79,3 +79,18 @@ describe('IA : portée du prochain tour (calcul rapide)', () => {
     expect(stunned).toEqual([]);
   });
 });
+
+describe('IA : attaque en diagonale (§10)', () => {
+  it('un monstre de portée 2 frappe aussi en diagonale, comme le moteur', () => {
+    const state = gameWith(
+      [
+        { monster: 'archer', owner: 1, at: at(8, 2) },
+        { monster: 'milicien', owner: 1, at: at(9, 2) },
+        { monster: 'golem', owner: 2, at: at(7, 3) },
+      ],
+      { activePlayer: 2 },
+    );
+    expect(strikes(state, 1).find((s) => s.id === 'u1')?.hits.u3).toBe(2);
+    expectSameAsEngine(state, 1);
+  });
+});

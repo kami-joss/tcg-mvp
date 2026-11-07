@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BOARD } from './board';
 import { TEST_GRIMOIRE } from './cards';
-import { BASE_MANA_PER_TURN } from './config';
+import { BASE_MANA_FIRST_TURN } from './config';
 import { createGame } from './game';
 
 describe('createGame — mise en place (SPEC.md §4.1)', () => {
@@ -21,7 +21,7 @@ describe('createGame — mise en place (SPEC.md §4.1)', () => {
 
   it('J1 commence avec le mana de base (début de son premier tour, SPEC.md §10), J2 avec 0', () => {
     const state = createGame();
-    expect(state.players[1].mana).toBe(BASE_MANA_PER_TURN);
+    expect(state.players[1].mana).toBe(BASE_MANA_FIRST_TURN);
     expect(state.players[2].mana).toBe(0);
   });
 

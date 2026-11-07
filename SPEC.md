@@ -57,7 +57,7 @@ r10    .  .  .  2  2  2  .  .  .
 | `S` | Mana zone « Scierie » |
 | `M` | Mana zone « Mine » |
 
-Les mana zones sont des cases jouables normales. Toutes les distances sont orthogonales (pas de diagonale).
+Les mana zones sont des cases jouables normales. Toutes les distances sont orthogonales (pas de diagonale), sauf l'attaque en diagonale (§4.7, §10).
 
 **Falaises** (bords infranchissables entre deux cases, voir §10) : la Scierie (lignes 4 à 6, colonnes 0 à 2) et la Mine (lignes 4 à 6, colonnes 6 à 8) sont entourées de falaises côté centre (colonnes 2|3 et 5|6), ainsi qu'en haut (lignes 3|4) et en bas (lignes 6|7), sauf au milieu (colonnes 1 et 7) : on y entre par le haut ou par le bas. La Mine est une zone fermée : même un monstre `vol` ne survole pas ses falaises, et aucune attaque ne les traverse.
 
@@ -155,7 +155,7 @@ r14   P  P  P  P  P  B  P  P  P  P  P  P  P  2  2
 ### 4.2 Déroulé d'un tour
 1. **Début de tour** du joueur actif, dans cet ordre (§10) :
    - Les statuts, pièges et cases brûlées arrivés à échéance disparaissent.
-   - **Revenus** : 3 mana + 1 mana par mana zone qu'il contrôle (+ bonus éventuels : Autel de mana, Porte-étendard) ; 1 VP par mana zone qu'il contrôle (mode contestation : une zone contestée ne rapporte rien, §4.4 bis) ; aucun bonus pour le second joueur.
+   - **Revenus** : son mana non dépensé est d'abord perdu ; puis le **mana de base de son tour** (3 à son premier tour, +1 à chacun de ses tours suivants, sans plafond : 3, 3, 4, 4, 5, 5… en comptant les deux joueurs) + 1 mana par mana zone qu'il contrôle **où il a un terrain** (+ bonus éventuels : Autel de mana, Porte-étendard ; un monstre seul sur une zone ne génère pas de mana) ; 1 VP par mana zone qu'il contrôle (mode contestation : une zone contestée ne rapporte rien, §4.4 bis) ; aucun bonus pour le second joueur.
    - **Effets passifs** de début de tour (Ki né).
    - **Statuts** : requiem (le monstre meurt, sans VP), puis burn.
    - Ses monstres récupèrent toute leur mobilité, leur attaque et leurs effets actifs.
@@ -166,7 +166,7 @@ r14   P  P  P  P  P  B  P  P  P  P  P  P  P  2  2
    - utiliser l'effet activé d'un monstre.
 3. **Fin de tour** : le joueur clique sur « Fin du tour ».
 
-Le mana non dépensé est conservé d'un tour à l'autre, sans plafond.
+Le mana ne se cumule pas d'un tour à l'autre : ce qu'on n'a pas dépensé est perdu au début de son tour suivant (§10).
 
 ### 4.3 Grimoire
 - Toutes les cartes du grimoire sont jouables à tout moment pendant son tour, si on a le mana.
@@ -195,7 +195,7 @@ Un second mode de jeu, choisi à l'accueil à côté de la carte : « Normal » 
   - personne : elle est neutre ;
   - sans terrain, si les deux joueurs y ont des monstres, elle est **contestée**.
 - **Capturer** une zone : se débarrasser des terrains adverses et des monstres ennemis de la zone, et y avoir une unité.
-- **Revenus** (début de tour, §4.2) : une zone tenue rapporte comme une mana zone du mode Normal, +1 mana (bonus compris) et +1 VP. Une zone contestée ne rapporte rien à personne, ni mana ni VP. Bonus : l'Autel de mana de la zone, et chaque monstre `etendard` du joueur qui la tient, sur n'importe quelle case de la zone.
+- **Revenus** (début de tour, §4.2) : une zone tenue rapporte comme une mana zone du mode Normal, +1 VP, et +1 mana (bonus compris) si son propriétaire y a un terrain. Une zone contestée ne rapporte rien à personne, ni mana ni VP. Bonus : l'Autel de mana de la zone, et chaque monstre `etendard` du joueur qui la tient, sur n'importe quelle case de la zone.
 - **Terrains** : seulement sur la mana zone (la case centrale), sous un de ses monstres, comme au §4.9, et jamais dans une zone contestée (un monstre ennemi dans la zone l'interdit donc).
 
 ### 4.5 Invocation
@@ -213,7 +213,7 @@ Un second mode de jeu, choisi à l'accueil à côté de la carte : « Normal » 
 
 ### 4.7 Attaque
 - Une attaque par monstre et par tour.
-- Cible : une unité ennemie (monstre ou terrain) en ligne droite orthogonale, à une distance ≤ portée.
+- Cible : une unité ennemie (monstre ou terrain) en ligne droite orthogonale, à une distance ≤ portée. **Attaque en diagonale** (§10) : un monstre de portée effective 2 ou plus peut aussi frapper une unité ennemie sur une des 4 cases en diagonale, à 1 case.
 - Ligne de vue : les cases entre l'attaquant et la cible doivent exister, ne pas être `X`, et être vides.
 - Si une case contient un monstre et un terrain, l'attaque touche le monstre ; le terrain n'est attaquable que seul.
 - Dégâts = ATK de l'attaquant, retirés aux points de vie de la cible. Les dégâts restent.
@@ -250,8 +250,8 @@ Le vocabulaire des cartes : un mot = une notion, la même dans les textes de car
 | Coût | `cost` | Mana à payer pour jouer la carte. |
 | ATK · PV · PV max | `atk` · `hp` · `maxHp` | PV = points de vie. Les points de victoire s'écrivent **VP** (`vp`). |
 | Mobilité | `mobility` | Nombre de cases parcourues par tour, en orthogonal (§4.6). |
-| Portée | `range` | Distance maximale d'une attaque ou d'un effet, **en ligne droite**, avec ligne de vue (§4.7). |
-| Au contact | `contact` | À 1 case, en ligne droite (pas en diagonale). Attaques de portée 1, riposte, avancée, Trophée, Pillage. |
+| Portée | `range` | Distance maximale d'une attaque ou d'un effet, **en ligne droite**, avec ligne de vue (§4.7). Seule exception : l'attaque en diagonale d'un monstre de portée 2+ (§10). |
+| Au contact | `contact` | À 1 case, en ligne droite (pas en diagonale : une attaque en diagonale n'est pas un contact). Attaques de portée 1, riposte, avancée, Trophée, Pillage. |
 | Adjacent | `adjacent` | Une des **8 cases autour**, diagonales comprises (falaises : voir §10). |
 | À N pas | `steps` | À N cases au plus en comptant un chemin orthogonal, en L possible, sans ligne de vue (Boule de feu). |
 | Nom d'une carte de deck | `name` | « Nom - Archétype », l'archétype étant le nom de son deck (« Arnold - Bodybuilder », « Apprenti - Sorciers du feu »). Les cartes de base (§6) et communes (§6 ter) gardent leur nom seul. L'interface écrit le nom en gros, l'archétype dessous (§10). |
@@ -364,7 +364,7 @@ Un mot-clé est un raccourci : un nom, parfois un nombre, et une définition éc
 | Prime N | `prime` | Quand il détruit : +N VP, en plus du VP habituel. |
 | Trophée N | `trophee` | Quand il détruit un monstre au contact : +N VP, en plus du VP habituel. |
 | Pillage N | `pillage` | Quand il détruit un monstre au contact : +N mana. |
-| Étendard N | `etendard` | La mana zone qu'il occupe rapporte +N mana (mode contestation : la zone où il se trouve, si son camp la tient, §4.4 bis). |
+| Étendard N | `etendard` | La mana zone qu'il occupe rapporte +N mana, si son camp y a un terrain (mode contestation : la zone où il se trouve, si son camp la tient, §4.4 bis). |
 | Givre N | `givre` | À l'attaque : slow N pendant 1 tour (pas sur un terrain). Une autre durée s'écrit après : « Givre 1, 2 tours ». |
 | Brûlure N | `brulure` | À l'attaque : burn N pendant 1 tour. Une autre durée s'écrit après : « Brûlure 1, 2 tours ». |
 | Siège ×N | `siege` | Dégâts ×N contre un terrain. |
@@ -746,3 +746,5 @@ Réponses aux questions posées pendant le développement. Elles font autorité 
 - **§6 bis — Appel du sang** : sort, 3 mana, sans cible à choisir : tous ses vampires sur le plateau (jamais ceux de l'adversaire) ont +2 mobilité ce tour ; ceux qui arrivent ensuite n'en profitent pas. Jouable s'il a au moins un vampire. La chauve-souris d'Emma est un vampire.
 - **§6 bis — Sacrifice sanguinaire** : sort, 2 mana, sur un de ses vampires : il tombe à 1 PV (PV perdus = ses PV actuels − 1), puis gagne +1 ATK par PV perdu jusqu'à la fin du tour. « La cible perd son attaque le tour suivant » = le bonus d'ATK ne vaut que ce tour ; « ne regagne pas ses PV » = rien ne les lui rend, mais il peut être soigné ensuite (Soif, Chaman, absorbe). Impossible sur un vampire à 1 PV. La perte de PV ne détruit pas et ne rapporte rien.
 - **§6 bis — Emma, transformation** : effet actif, 1 mana, sans limite par tour (exception à « une fois par tour/carte », §4.8) : Emma se transforme en chauve-souris (Emma chauve-souris - Vampire : ATK 1, PV 1, mobilité 8, portée 1, Soif 1, sans Vol), et la chauve-souris redevient Emma par le même effet. C'est le même monstre : case, orientation, statuts, bonus du tour et bonus définitifs (Bénédiction vaut pour les deux formes), attaque déjà utilisée (une seule attaque par tour, quelle que soit la forme) et chemin du tour restent. Ce n'est ni une entrée sur la case ni une invocation : rien ne s'y déclenche. **PV mis de côté** : chaque forme garde ses PV perdus ; en se transformant, il met de côté les PV de la forme qu'il quitte et retrouve ceux de la forme qu'il prend (la première fois, la chauve-souris a tous ses PV ; Emma blessée à 1/3 redevient Emma à 1/3). **Mobilité** : mobilité de la nouvelle forme (bonus du plateau, Charge, Appel du sang compris, slow déduits) moins ce qu'il a déjà dépensé ce tour ; Emma qui a marché 5 cases sur le 13 × 13 (5 de mobilité) devient une chauve-souris à 4 cases, et une chauve-souris qui a tout dépensé ne regagne rien en redevenant chauve-souris. Un monstre qui ne peut plus se déplacer ce tour (stun, immobilisé, sablier, retour, arrêt forcé) ne regagne rien en se transformant. La chauve-souris n'est pas une carte du grimoire (ni invocable, ni dans un deck) : détruite, c'est Emma qui va au cimetière, et l'adversaire marque 1 VP. La forme reste d'un tour à l'autre ; au début de son tour, il a la mobilité de sa forme.
+- **§4.7 / §10 — Attaque en diagonale (validé le 2026-11-07)** : un monstre de **portée effective 2 ou plus** (portée de la carte + bonus du tour : un monstre de portée 1 qui gagne +1 portée avec Flèche divine y a droit pour le tour) peut attaquer une unité ennemie (monstre ou terrain) sur une des 4 cases **en diagonale, à 1 case**, en plus de sa ligne droite. La diagonale ne s'étend pas (jamais à 2 cases, quelle que soit la portée). La case doit être **adjacente** au sens du §10 (jouable, avec au moins un chemin en L sans falaise ni case X) ; les monstres et terrains du coin ne gênent pas le tir. Ce n'est **pas un contact** : ni riposte du défenseur, ni avancée, ni Trophée, ni Pillage, ni bonus de dos (Assassin, Sournois) ; les autres mots-clés de l'attaque (Brûlure, Givre, Soif, Prime, Siège) s'appliquent. Seules les **attaques** changent : les effets « un ennemi en ligne, portée N » (Mage) restent en ligne droite. La menace adverse au survol (hachures rouges) et l'IA comptent les diagonales. À rééquilibrer au besoin avec les stats des monstres de portée 2+ (Archers, Mage, Feria, Archimage, Trébuchet…).
+- **§4.2 — Mana : plus de cumul, +1 par tour, mana de zone par terrain (validé le 2026-11-07)** : au début de son tour, un joueur **perd le mana qu'il n'a pas dépensé**, puis reçoit son **mana de base** : 3 à son premier tour, +1 à chacun de ses tours suivants (3, 3, 4, 4, 5, 5… : J1 T1 3, J2 T1 3, J1 T2 4, J2 T2 4…), **sans plafond** ; le mana gagné pendant le tour (Pillage, effets) se dépense dans le tour ou se perd de même. Le premier tour est celui du joueur désigné par le lancer de dés (§4.1), son adversaire a aussi 3 à son premier tour. Une mana zone tenue rapporte toujours **1 VP**, mais **le mana de la zone (+1) n'est généré que si le joueur y a un terrain** (Autel de mana : +2 en tout) ; un monstre seul dans une zone n'en génère pas. L'**Étendard** n'ajoute son +N que dans une zone où son camp a un terrain (Étendard + Autel : 3). Le contrôle des zones, la contestation et les VP ne changent pas. L'IA ne compte plus son mana en réserve une fois son tour fini.

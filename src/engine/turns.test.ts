@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getLegalActions } from './actions';
 import {
-  BASE_MANA_PER_TURN,
+  BASE_MANA_FIRST_TURN,
   MANA_PER_CONTROLLED_ZONE,
   VICTORY_VP,
   VP_PER_CONTROLLED_ZONE,
 } from './config';
 import { createGame } from './game';
+import { getBaseMana } from './turns';
 import { addVp } from './players';
 import { at, deepFreeze, gameWith } from './test-utils';
 import type { Action, GameState, Position, UnitId } from './types';
@@ -59,33 +60,41 @@ describe('fin du tour (SPEC.md §4.2)', () => {
 describe('début de tour : mana (SPEC.md §4.2)', () => {
   it('J1 commence avec le mana de base ; le premier tour de J2 n’a plus de bonus', () => {
     const game = createGame();
-    expect(game.players[1].mana).toBe(BASE_MANA_PER_TURN);
-    expect(endTurns(game, 1).players[2].mana).toBe(BASE_MANA_PER_TURN);
+    expect(game.players[1].mana).toBe(BASE_MANA_FIRST_TURN);
+    expect(endTurns(game, 1).players[2].mana).toBe(BASE_MANA_FIRST_TURN);
   });
 
   it('le joueur désigné par le lancer de dés commence (J2 : tour 1, mana de base) ; l’autre joue ensuite avec le même mana', () => {
     const game = createGame(undefined, undefined, undefined, 'normal', 2);
     expect(game).toMatchObject({ activePlayer: 2, turn: 1 });
-    expect(game.players[2].mana).toBe(BASE_MANA_PER_TURN);
+    expect(game.players[2].mana).toBe(BASE_MANA_FIRST_TURN);
     expect(game.players[1].mana).toBe(0);
     const next = endTurns(game, 1);
     expect(next).toMatchObject({ activePlayer: 1, turn: 2 });
-    expect(next.players[1].mana).toBe(BASE_MANA_PER_TURN);
+    expect(next.players[1].mana).toBe(BASE_MANA_FIRST_TURN);
     const turn3 = endTurns(game, 2);
-    expect(turn3.players[2].mana).toBe(2 * BASE_MANA_PER_TURN);
+    expect(turn3.players[2].mana).toBe(BASE_MANA_FIRST_TURN + 1);
   });
 
-  it('chacun gagne le mana de base à chacun de ses tours', () => {
-    const turn3 = endTurns(createGame(), 2);
-    expect(turn3.players[1].mana).toBe(2 * BASE_MANA_PER_TURN);
-    expect(endTurns(turn3, 1).players[2].mana).toBe(2 * BASE_MANA_PER_TURN);
+  it('le mana de base gagne 1 à chaque tour de chaque joueur : 3, 3, 4, 4, 5, 5…', () => {
+    const mana: number[] = [];
+    let state = createGame();
+    for (let i = 0; i < 6; i++) {
+      mana.push(state.players[state.activePlayer].mana);
+      state = endTurns(state, 1);
+    }
+    expect(mana).toEqual([3, 3, 4, 4, 5, 5]);
   });
 
-  it('le mana non dépensé est conservé d’un tour à l’autre, sans plafond', () => {
+  it('sans plafond', () => {
+    expect(getBaseMana(2 * 20 - 1)).toBe(BASE_MANA_FIRST_TURN + 19);
+  });
+
+  it('le mana non dépensé est perdu : le mana d’un tour ne se cumule pas avec le suivant', () => {
     const state = gameWith([], { players: { 1: { mana: 50 }, 2: { mana: 40 } } });
-    const next = endTurns(state, 2); // début du tour de J2 (son premier), puis de J1
-    expect(next.players[1].mana).toBe(50 + BASE_MANA_PER_TURN);
-    expect(next.players[2].mana).toBe(40 + BASE_MANA_PER_TURN);
+    const next = endTurns(state, 2); // début du tour de J2 (son premier), puis de J1 (son deuxième)
+    expect(next.players[1].mana).toBe(BASE_MANA_FIRST_TURN + 1);
+    expect(next.players[2].mana).toBe(BASE_MANA_FIRST_TURN);
   });
 
   it('seul le joueur actif reçoit du mana au début de son tour', () => {
@@ -95,41 +104,49 @@ describe('début de tour : mana (SPEC.md §4.2)', () => {
 });
 
 describe('début de tour : mana zones contrôlées (SPEC.md §4.2, §4.4)', () => {
-  it('chaque mana zone contrôlée rapporte du mana et 1 VP au joueur actif', () => {
+  it('chaque mana zone contrôlée rapporte 1 VP au joueur actif, et du mana seulement s’il y a un terrain dessus', () => {
     const state = gameWith(
       [
         { monster: 'milicien', owner: 1, at: FORGE },
+        { terrain: 'bastion', owner: 1, at: FORGE },
         { monster: 'eclaireur', owner: 1, at: SCIERIE },
       ],
       { activePlayer: 2, players: { 1: { mana: 0, vp: 0 } } },
     );
     const turn = endTurns(state, 1);
-    expect(turn.players[1].mana).toBe(BASE_MANA_PER_TURN + 2 * MANA_PER_CONTROLLED_ZONE);
+    expect(turn.players[1].mana).toBe(getBaseMana(3) + MANA_PER_CONTROLLED_ZONE); // la Scierie, avec un monstre seul, n'en rapporte pas
     expect(turn.players[1].vp).toBe(2 * VP_PER_CONTROLLED_ZONE);
+  });
+
+  it('un monstre seul sur une zone ne génère pas de mana (+1 VP seulement)', () => {
+    const state = gameWith([{ monster: 'milicien', owner: 1, at: FORGE }], { activePlayer: 2, players: { 1: { mana: 0, vp: 0 } } });
+    expect(endTurns(state, 1).players[1]).toMatchObject({ mana: getBaseMana(3), vp: VP_PER_CONTROLLED_ZONE });
   });
 
   it('une zone neutre ne rapporte rien', () => {
     const turn = endTurns(gameWith([], { activePlayer: 2, players: { 1: { mana: 0, vp: 0 } } }), 1);
-    expect(turn.players[1]).toMatchObject({ mana: BASE_MANA_PER_TURN, vp: 0 });
+    expect(turn.players[1]).toMatchObject({ mana: getBaseMana(3), vp: 0 });
   });
 
   it('les zones de chaque joueur ne lui rapportent qu’au début de son propre tour', () => {
     const state = gameWith(
       [
         { monster: 'milicien', owner: 1, at: FORGE },
+        { terrain: 'bastion', owner: 1, at: FORGE },
         { monster: 'golem', owner: 2, at: MINE },
+        { terrain: 'bastion', owner: 2, at: MINE },
       ],
       { activePlayer: 2, players: { 1: { mana: 0, vp: 0 }, 2: { mana: 0, vp: 0 } } },
     );
-    const withOneZone = { mana: BASE_MANA_PER_TURN + MANA_PER_CONTROLLED_ZONE, vp: VP_PER_CONTROLLED_ZONE };
+    const withOneZone = (turn: number) => ({ mana: getBaseMana(turn) + MANA_PER_CONTROLLED_ZONE, vp: VP_PER_CONTROLLED_ZONE });
 
     const turn3 = endTurns(state, 1); // début du tour de J1
-    expect(turn3.players[1]).toMatchObject(withOneZone);
+    expect(turn3.players[1]).toMatchObject(withOneZone(3));
     expect(turn3.players[2]).toMatchObject({ mana: 0, vp: 0 });
 
     const turn4 = endTurns(turn3, 1); // début du tour de J2
-    expect(turn4.players[2]).toMatchObject(withOneZone);
-    expect(turn4.players[1]).toMatchObject(withOneZone);
+    expect(turn4.players[2]).toMatchObject(withOneZone(4));
+    expect(turn4.players[1]).toMatchObject(withOneZone(3)); // inchangé : il n'a rien reçu à ce tour
   });
 
   it('un terrain seul tient la zone et rapporte à son propriétaire (§4.9)', () => {
@@ -138,7 +155,7 @@ describe('début de tour : mana zones contrôlées (SPEC.md §4.2, §4.4)', () =
       players: { 1: { mana: 0, vp: 0 } },
     });
     expect(endTurns(state, 1).players[1]).toMatchObject({
-      mana: BASE_MANA_PER_TURN + MANA_PER_CONTROLLED_ZONE,
+      mana: getBaseMana(3) + MANA_PER_CONTROLLED_ZONE,
       vp: VP_PER_CONTROLLED_ZONE,
     });
   });
@@ -150,19 +167,16 @@ describe('début de tour : mana zones contrôlées (SPEC.md §4.2, §4.4)', () =
       expect(state.players[1]).toMatchObject({ mana: 0, vp: 0 });
       state = applyAction(state, move('u1', at(5, 5)));
       state = endTurns(state, 2); // début du tour suivant de J1
-      expect(state.players[1]).toMatchObject({ mana: BASE_MANA_PER_TURN, vp: 0 });
+      expect(state.players[1]).toMatchObject({ mana: getBaseMana(3), vp: 0 });
     });
 
-    it('occuper une zone en fin de tour rapporte au début de son tour suivant', () => {
+    it('occuper une zone en fin de tour rapporte son VP au début de son tour suivant (sans terrain, pas de mana)', () => {
       let state = gameWith([{ monster: 'eclaireur', owner: 1, at: at(5, 3) }], { players: { 1: { mana: 0, vp: 0 } } });
       state = applyAction(state, move('u1', FORGE));
       state = endTurns(state, 1); // début du tour de J2 : rien pour J1
       expect(state.players[1]).toMatchObject({ mana: 0, vp: 0 });
       state = endTurns(state, 1); // début du tour de J1
-      expect(state.players[1]).toMatchObject({
-        mana: BASE_MANA_PER_TURN + MANA_PER_CONTROLLED_ZONE,
-        vp: VP_PER_CONTROLLED_ZONE,
-      });
+      expect(state.players[1]).toMatchObject({ mana: getBaseMana(3), vp: VP_PER_CONTROLLED_ZONE });
     });
 
     it('une zone perdue pendant le tour adverse ne rapporte plus rien', () => {
@@ -175,7 +189,7 @@ describe('début de tour : mana zones contrôlées (SPEC.md §4.2, §4.4)', () =
       );
       state = applyAction(state, attack('u2', 'u1'));
       state = endTurns(state, 1);
-      expect(state.players[1]).toMatchObject({ mana: BASE_MANA_PER_TURN, vp: 0 });
+      expect(state.players[1]).toMatchObject({ mana: getBaseMana(3), vp: 0 });
     });
   });
 });

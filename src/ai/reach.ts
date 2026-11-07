@@ -29,7 +29,17 @@ interface Grid {
   readonly noFly: Uint8Array;
   /** Une falaise qui arrête aussi les tirs de portée 2 ou plus (Mine). */
   readonly noShot: Uint8Array;
+  /** Les cases en diagonale que `adjacentCells` donne (§10), -1 sinon : `index * 4 + (haut-gauche, haut-droite, bas-gauche, bas-droite)`. */
+  readonly diagonal: Int16Array;
 }
+
+/** Les 4 diagonales dans l'ordre de `Grid.diagonal`. */
+const DIAGONALS = [
+  [-1, -1],
+  [-1, 1],
+  [1, -1],
+  [1, 1],
+] as const;
 
 const grids = new WeakMap<Board, Grid>();
 
@@ -42,11 +52,18 @@ function gridOf(board: Board): Grid {
   const cliff = new Uint8Array(size);
   const noFly = new Uint8Array(size);
   const noShot = new Uint8Array(size);
+  const diagonal = new Int16Array(size * 4).fill(-1);
   for (let row = 0; row < board.rows; row++) {
     for (let col = 0; col < board.cols; col++) {
       const i = row * board.cols + col;
       const cell = getCell(board, { row, col });
       kind[i] = cell.kind === 'plain' ? PLAIN : cell.kind === 'offBoard' ? HIGH_X : cell.height === 'low' ? LOW_X : cell.height === 'high' ? HIGH_X : X;
+      if (kind[i] === PLAIN) {
+        for (const pos of adjacentCells(board, { row, col })) {
+          const k = DIAGONALS.findIndex(([dr, dc]) => pos.row === row + dr && pos.col === col + dc);
+          if (k >= 0) diagonal[i * 4 + k] = pos.row * board.cols + pos.col;
+        }
+      }
       for (let d = 0; d < 4; d++) {
         const to = { row: row + DR[d]!, col: col + DC[d]! };
         if (to.row < 0 || to.col < 0 || to.row >= board.rows || to.col >= board.cols) continue;
@@ -59,7 +76,7 @@ function gridOf(board: Board): Grid {
       }
     }
   }
-  const grid = { cols: board.cols, size, kind, next, cliff, noFly, noShot };
+  const grid = { cols: board.cols, size, kind, next, cliff, noFly, noShot, diagonal };
   grids.set(board, grid);
   return grid;
 }
@@ -239,6 +256,17 @@ export function getStrikers(
           }
           break;
         }
+      }
+      // Attaque en diagonale (§10) : à 1 case, sans bonus de dos.
+      if (range < 2) continue;
+      for (let k = 0; k < 4; k++) {
+        const cell = grid.diagonal[from * 4 + k]!;
+        if (cell < 0 || cell === start || owner[cell] === 0) continue;
+        const target = targetAt.get(cell);
+        if (!target) continue;
+        const damage = target.kind === 'terrain' ? atk * siege : atk;
+        best ??= new Map();
+        if (damage > (best.get(target) ?? 0)) best.set(target, damage);
       }
     }
     if (best) strikers.push({ monster, hits: [...best].map(([target, damage]) => ({ target, damage })) });

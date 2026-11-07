@@ -1,5 +1,5 @@
 // Déroulé des tours (SPEC.md §4.2) : fin de tour, puis début de tour du joueur suivant.
-import { BASE_MANA_PER_TURN, VP_PER_CONTROLLED_ZONE } from './config';
+import { BASE_MANA_FIRST_TURN, MANA_GROWTH_PER_TURN, VP_PER_CONTROLLED_ZONE } from './config';
 import { dealDamage } from './damage';
 import { emit } from './events';
 import { addMana, addVp, opponent } from './players';
@@ -12,9 +12,15 @@ import { isInZone } from './board';
 import { getControlledZones, getZoneMana } from './zones';
 import type { GameState } from './types';
 
+/** Mana de base du tour `turn` (numéro global) : 3 à son premier tour, +1 à chacun de ses tours suivants (§4.2). */
+export function getBaseMana(turn: number): number {
+  return BASE_MANA_FIRST_TURN + (Math.ceil(turn / 2) - 1) * MANA_GROWTH_PER_TURN;
+}
+
 /**
- * Début de tour du joueur actif : il gagne le mana de base et, pour chaque mana zone contrôlée
- * (contrôle évalué maintenant, §4.4), son mana (bonus compris) et des VP. Ses monstres récupèrent
+ * Début de tour du joueur actif : le mana qu'il n'a pas dépensé est perdu, puis il reçoit le mana de base de son tour
+ * et, pour chaque mana zone contrôlée (contrôle évalué maintenant, §4.4), des VP, et le mana (bonus compris) de celles où
+ * il a un terrain. Ses monstres récupèrent
  * toute leur mobilité, leur attaque et leur effet activé. Tous les monstres récupèrent leur riposte,
  * limitée à une par tour, et un monstre `invisible` révélé redevient caché (§10).
  */
@@ -33,7 +39,8 @@ export function startTurn(state: GameState): GameState {
 
   // 1. Revenus : mana et VP (§4.2).
   const zones = getControlledZones(next, player);
-  next = addMana(next, player, BASE_MANA_PER_TURN);
+  next = addMana(next, player, -next.players[player].mana);
+  next = addMana(next, player, getBaseMana(next.turn));
   for (const { pos } of zones) next = addMana(next, player, getZoneMana(next, pos), pos);
   for (const { pos } of zones) next = addVp(next, player, VP_PER_CONTROLLED_ZONE, pos);
 
@@ -89,7 +96,7 @@ export function startTurn(state: GameState): GameState {
   return next;
 }
 
-/** « Fin du tour » : la main passe à l'adversaire, dont le tour commence. Le mana non dépensé est conservé. */
+/** « Fin du tour » : la main passe à l'adversaire, dont le tour commence. Le mana non dépensé est perdu au début de son prochain tour. */
 export function applyEndTurn(state: GameState): GameState {
   return startTurn({ ...state, activePlayer: opponent(state.activePlayer), turn: state.turn + 1 });
 }

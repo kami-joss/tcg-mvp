@@ -3,10 +3,17 @@
 /** VP à atteindre pour gagner immédiatement. */
 export const VICTORY_VP = 30;
 
-/** Mana gagné par le joueur actif à chaque début de tour, avant les mana zones. */
-export const BASE_MANA_PER_TURN = 3;
+/**
+ * Mana de base du premier tour de chaque joueur (SPEC.md §4.2), puis `MANA_GROWTH_PER_TURN` de plus à chacun de ses tours,
+ * sans plafond ; le mana non dépensé est perdu en fin de tour.
+ */
+export const BASE_MANA_FIRST_TURN = 3;
+export const MANA_GROWTH_PER_TURN = 1;
 
-/** Mana et VP rapportés au début du tour par chaque mana zone contrôlée (SPEC.md §4.2). */
+/**
+ * VP rapportés au début du tour par chaque mana zone contrôlée, et mana rapporté par celle où l'on a un terrain : un monstre
+ * seul ne génère pas de mana (SPEC.md §4.2).
+ */
 export const MANA_PER_CONTROLLED_ZONE = 1;
 export const VP_PER_CONTROLLED_ZONE = 1;
 

@@ -78,17 +78,18 @@ describe('attaque (SPEC.md §4.7)', () => {
     });
   });
 
-  describe('cible : unité ennemie en ligne droite orthogonale, à distance ≤ portée', () => {
-    it('portée 2 : atteint 2 cases en ligne droite, pas au-delà ni en diagonale', () => {
+  describe('cible : unité ennemie en ligne droite orthogonale, à distance ≤ portée (ou en diagonale à 1 case, portée 2+)', () => {
+    it('portée 2 : atteint 2 cases en ligne droite et 1 case en diagonale (§10), pas au-delà', () => {
       const state = gameWith([
         { monster: 'archer', owner: 1, at: at(8, 1) }, // portée 2
         { monster: 'golem', owner: 2, at: at(8, 3) }, // distance 2
-        { monster: 'golem', owner: 2, at: at(7, 2) }, // diagonale
+        { monster: 'golem', owner: 2, at: at(7, 2) }, // diagonale à 1 case
         { monster: 'golem', owner: 2, at: at(5, 1) }, // distance 3
+        { monster: 'golem', owner: 2, at: at(6, 3) }, // diagonale à 2 cases
       ]);
-      expect(targetIds(state, 'u1')).toEqual(['u2']);
-      expect(() => applyAction(state, attack('u1', 'u3'))).toThrow(IllegalActionError);
+      expect(targetIds(state, 'u1').sort()).toEqual(['u2', 'u3']);
       expect(() => applyAction(state, attack('u1', 'u4'))).toThrow(IllegalActionError);
+      expect(() => applyAction(state, attack('u1', 'u5'))).toThrow(IllegalActionError);
     });
 
     it('portée 1 : seulement les cases adjacentes', () => {

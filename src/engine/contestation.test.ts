@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getLegalActions } from './actions';
 import { BATTLEFIELD, BATTLEFIELD_13, BATTLEFIELD_15, BOARD, BOARDS, isPlayable } from './board';
-import { BASE_MANA_PER_TURN } from './config';
+import { getBaseMana } from './turns';
 import { createGame } from './game';
 import { isHiddenFrom } from './stealth';
 import { at, gameWith, type UnitSpec } from './test-utils';
@@ -109,9 +109,14 @@ describe('mode contestation : revenus (SPEC.md §4.4 bis)', () => {
   /** J2 finit son tour : début du tour de J1, qui part de 0 mana et 0 VP. */
   const j1TurnStart = (units: readonly UnitSpec[]) => applyAction(contest(units, 2, { 1: { mana: 0, vp: 0 } }), { type: 'endTurn' });
 
-  it('une zone tenue rapporte +1 mana et +1 VP', () => {
+  it('une zone tenue par un terrain rapporte +1 mana et +1 VP', () => {
+    const next = j1TurnStart([{ terrain: 'bastion', owner: 1, at: FORGE }]);
+    expect(next.players[1]).toMatchObject({ mana: getBaseMana(3) + 1, vp: 1 });
+  });
+
+  it('une zone tenue par un monstre seul rapporte +1 VP, pas de mana', () => {
     const next = j1TurnStart([{ monster: 'golem', owner: 1, at: at(7, 5) }]);
-    expect(next.players[1]).toMatchObject({ mana: BASE_MANA_PER_TURN + 1, vp: 1 });
+    expect(next.players[1]).toMatchObject({ mana: getBaseMana(3), vp: 1 });
   });
 
   it('une zone contestée ne rapporte rien à personne, ni mana ni VP', () => {
@@ -119,18 +124,23 @@ describe('mode contestation : revenus (SPEC.md §4.4 bis)', () => {
       { monster: 'golem', owner: 1, at: at(7, 5) },
       { monster: 'eclaireur', owner: 2, at: at(5, 7) },
     ]);
-    expect(next.players[1]).toMatchObject({ mana: BASE_MANA_PER_TURN, vp: 0 });
+    expect(next.players[1]).toMatchObject({ mana: getBaseMana(3), vp: 0 });
   });
 
   it('l’Autel de mana de la zone rapporte son bonus', () => {
     const next = j1TurnStart([{ terrain: 'autel-de-mana', owner: 1, at: FORGE }]);
-    expect(next.players[1]).toMatchObject({ mana: BASE_MANA_PER_TURN + 2, vp: 1 });
+    expect(next.players[1]).toMatchObject({ mana: getBaseMana(3) + 2, vp: 1 });
   });
 
   it('le Porte-étendard donne son bonus sur n’importe quelle case de la zone, si son camp la tient', () => {
-    const held = contest([{ monster: 'porte-etendard', owner: 1, at: at(5, 7) }]);
-    expect(getZoneMana(held, FORGE)).toBe(2);
-    expect(j1TurnStart([{ monster: 'porte-etendard', owner: 1, at: at(5, 7) }]).players[1].mana).toBe(BASE_MANA_PER_TURN + 2);
+    const units: UnitSpec[] = [
+      { monster: 'porte-etendard', owner: 1, at: at(5, 7) },
+      { terrain: 'bastion', owner: 1, at: FORGE },
+    ];
+    expect(getZoneMana(contest(units), FORGE)).toBe(2);
+    expect(j1TurnStart(units).players[1].mana).toBe(getBaseMana(3) + 2);
+    // Sans terrain, la zone ne rapporte pas de mana : l'étendard seul n'en donne pas.
+    expect(getZoneMana(contest([{ monster: 'porte-etendard', owner: 1, at: at(5, 7) }]), FORGE)).toBe(0);
     // La zone tenue par un terrain adverse : son étendard ne compte pas, et la zone ne lui rapporte rien.
     const enemyTerrain = contest([
       { terrain: 'bastion', owner: 2, at: FORGE },

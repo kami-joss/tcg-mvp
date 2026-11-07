@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction } from './actions';
 import { isPlayable } from './board';
-import { BASE_MANA_PER_TURN, MANA_PER_CONTROLLED_ZONE, VICTORY_VP } from './config';
+import { MANA_PER_CONTROLLED_ZONE, VICTORY_VP } from './config';
+import { getBaseMana } from './turns';
 import { getMoveDestinations } from './movement';
 import { at, gameWith } from './test-utils';
 import type { Action, GameState, UnitId } from './types';
@@ -204,15 +205,26 @@ describe('prime (SPEC.md §5, Chasseur de primes)', () => {
 describe('etendard (SPEC.md §5, Porte-étendard)', () => {
   const atStartOfMyTurn = (state: GameState) => applyAction(state, END_TURN).players[1];
 
-  it('la mana zone qu’il occupe rapporte +1 mana ; le VP reste à 1', () => {
+  it('la mana zone qu’il occupe rapporte +1 mana de plus si elle a un terrain ; le VP reste à 1', () => {
+    const state = gameWith(
+      [
+        { monster: 'porte-etendard', owner: 1, at: FORGE },
+        { terrain: 'bastion', owner: 1, at: FORGE },
+      ],
+      { activePlayer: 2, players: { 1: { mana: 0, vp: 0 } } },
+    );
+    expect(atStartOfMyTurn(state)).toMatchObject({
+      mana: getBaseMana(3) + MANA_PER_CONTROLLED_ZONE + 1, // Étendard 1
+      vp: 1,
+    });
+  });
+
+  it('sans terrain, la zone ne rapporte pas de mana : l’étendard seul n’en donne pas', () => {
     const state = gameWith([{ monster: 'porte-etendard', owner: 1, at: FORGE }], {
       activePlayer: 2,
       players: { 1: { mana: 0, vp: 0 } },
     });
-    expect(atStartOfMyTurn(state)).toMatchObject({
-      mana: BASE_MANA_PER_TURN + MANA_PER_CONTROLLED_ZONE + 1, // Étendard 1
-      vp: 1,
-    });
+    expect(atStartOfMyTurn(state)).toMatchObject({ mana: getBaseMana(3), vp: 1 });
   });
 
   it('hors mana zone, aucun bonus', () => {
@@ -220,7 +232,7 @@ describe('etendard (SPEC.md §5, Porte-étendard)', () => {
       activePlayer: 2,
       players: { 1: { mana: 0, vp: 0 } },
     });
-    expect(atStartOfMyTurn(state)).toMatchObject({ mana: BASE_MANA_PER_TURN, vp: 0 });
+    expect(atStartOfMyTurn(state)).toMatchObject({ mana: getBaseMana(3), vp: 0 });
   });
 
   it('se cumule avec l’Autel de mana : la zone rapporte 3 mana (§10)', () => {
@@ -231,6 +243,6 @@ describe('etendard (SPEC.md §5, Porte-étendard)', () => {
       ],
       { activePlayer: 2, players: { 1: { mana: 0, vp: 0 } } },
     );
-    expect(atStartOfMyTurn(state)).toMatchObject({ mana: BASE_MANA_PER_TURN + 3, vp: 1 });
+    expect(atStartOfMyTurn(state)).toMatchObject({ mana: getBaseMana(3) + 3, vp: 1 });
   });
 });

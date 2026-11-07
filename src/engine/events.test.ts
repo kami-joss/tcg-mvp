@@ -63,6 +63,7 @@ describe('événements des actions (handoff, lot 2)', () => {
     const state = gameWith([
       { monster: 'milicien', owner: 2, at: at(5, 4), hp: 3 },
       { monster: 'eclaireur', owner: 2, at: at(8, 1) },
+      { terrain: 'bastion', owner: 2, at: at(5, 4) }, // sans terrain, la zone ne rapporte pas de mana
     ]);
     const burning = withStatus(state, 'u2', 'burn', 1);
     const after = applyAction(burning, END_TURN);

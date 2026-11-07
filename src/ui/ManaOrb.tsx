@@ -7,8 +7,7 @@ import type { CSSProperties } from 'react';
 import type { PlayerId } from '../engine';
 
 /**
- * Mana pour lequel l'orbe est pleine. Le moteur n'a pas de plafond de mana (SPEC.md §4.10 : il est conservé d'un tour
- * à l'autre) : l'orbe est pleine à 10, comme dans la maquette ; au-delà, seul le chiffre monte.
+ * Mana pour lequel l'orbe est pleine. Le moteur n'a pas de plafond de mana (SPEC.md §4.2 : le mana de base gagne 1 à chaque tour, sans limite) : l'orbe est pleine à 10, comme dans la maquette ; au-delà, seul le chiffre monte.
  */
 export const ORB_FULL_MANA = 10;
 

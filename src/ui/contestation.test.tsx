@@ -88,15 +88,21 @@ describe('mode contestation : fiche et aide', () => {
     expect(getSheet(v, { kind: 'cell', pos: at(8, 6) })).toBeNull();
   });
 
-  it('tenue : le joueur et le mana qu’elle rapporte', () => {
-    const v = view([{ monster: 'porte-etendard', owner: 1, at: at(5, 5) }]);
-    expect(getSheet(v, { kind: 'cell', pos: FORGE })?.lines[0]?.status).toEqual({ text: 'Joueur 1 · +2 mana', tone: 'info' });
+  it('tenue par un monstre seul : le joueur, sans mana', () => {
+    // Un monstre seul ne génère pas de mana (avec un terrain, la case montre le terrain : voir la puce du monstre).
+    const alone = view([{ monster: 'porte-etendard', owner: 1, at: at(5, 5) }]);
+    expect(getSheet(alone, { kind: 'cell', pos: FORGE })?.lines[0]?.status).toEqual({ text: 'Joueur 1 · pas de mana sans terrain', tone: 'info' });
   });
 
   it('la puce de la zone d’un monstre : tenue, contestée, ou tenue par un terrain adverse', () => {
     const chip = (v: PlayerView, unitId: string) =>
       getSheet(v, { kind: 'unit', unitId })?.status?.find((c) => c.text === 'Forge');
-    expect(chip(view([{ monster: 'golem', owner: 1, at: at(5, 5) }]), 'u1')).toMatchObject({ kind: 'zone', detail: 'Tient Forge : +1 mana, +1 VP' });
+    expect(chip(view([{ monster: 'golem', owner: 1, at: at(5, 5) }]), 'u1')).toMatchObject({ kind: 'zone', detail: 'Tient Forge : pas de mana sans terrain, +1 VP' });
+    const withTerrain = view([
+      { monster: 'golem', owner: 1, at: at(5, 5) },
+      { terrain: 'bastion', owner: 1, at: FORGE },
+    ]);
+    expect(chip(withTerrain, 'u1')).toMatchObject({ kind: 'zone', detail: 'Tient Forge : +1 mana, +1 VP' });
     expect(chip(contested(), 'u1')).toMatchObject({ kind: 'warn', detail: expect.stringContaining('contestée') });
     const enemyTerrain = view([
       { monster: 'golem', owner: 1, at: at(5, 5) },

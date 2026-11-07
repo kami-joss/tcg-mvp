@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getLegalActions } from './actions';
-import { BASE_MANA_PER_TURN, MANA_PER_CONTROLLED_ZONE, VP_PER_CONTROLLED_ZONE } from './config';
+import { MANA_PER_CONTROLLED_ZONE, VP_PER_CONTROLLED_ZONE } from './config';
+import { getBaseMana } from './turns';
 import { IllegalActionError } from './errors';
 import { at, gameWith } from './test-utils';
 import { getUnitsAt } from './units';
@@ -57,7 +58,7 @@ describe('terrains (SPEC.md §4.9)', () => {
     state = applyAction(applyAction(state, END_TURN), END_TURN);
     expect(getUnitsAt(state, FORGE).map((u) => u.id)).toEqual(['u2']);
     expect(state.players[1]).toMatchObject({
-      mana: BASE_MANA_PER_TURN + MANA_PER_CONTROLLED_ZONE,
+      mana: getBaseMana(3) + MANA_PER_CONTROLLED_ZONE,
       vp: VP_PER_CONTROLLED_ZONE,
     });
   });
@@ -83,6 +84,6 @@ describe('Autel de mana (SPEC.md §6)', () => {
       activePlayer: 2,
       players: { 1: { mana: 0, vp: 0 } },
     });
-    expect(applyAction(state, END_TURN).players[1]).toMatchObject({ mana: BASE_MANA_PER_TURN + 2, vp: 1 });
+    expect(applyAction(state, END_TURN).players[1]).toMatchObject({ mana: getBaseMana(3) + 2, vp: 1 });
   });
 });

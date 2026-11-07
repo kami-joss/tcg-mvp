@@ -7,7 +7,7 @@ export { createGame } from './game';
 export { applyAction, getLegalActions } from './actions';
 export { getPlayerView, getViewZoneController, getViewZoneStatus } from './view';
 export { IllegalActionError } from './errors';
-export { canAdvance, getAttackTargets, getLineOfSightCells, getStrikeCells } from './combat';
+export { canAdvance, getAttackTargets, getDiagonalCells, getLineOfSightCells, getStrikeCells } from './combat';
 export { getAreaCells, getAreaTargets, getEffectTargets, getPushDestination } from './effects';
 export {
   getMoveDestinations,

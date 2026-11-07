@@ -1,5 +1,5 @@
 // Attaque (SPEC.md §4.7), avec les mots-clés `riposte`, `prime` (§5) et ceux des decks archer et piège (§6 bis).
-import { DIRECTION_OFFSETS, directionBetween, distance, getCell, getCliff } from './board';
+import { DIRECTION_OFFSETS, adjacentCells, directionBetween, distance, getCell, getCliff } from './board';
 import { getMonsterCard } from './cards';
 import { dealDamage } from './damage';
 import { IllegalActionError } from './errors';
@@ -51,6 +51,16 @@ export function getLineOfSightCells(state: BoardState, from: Position, range: nu
 }
 
 /**
+ * Attaque en diagonale (§10) : un monstre de portée 2 ou plus frappe aussi les 4 cases en diagonale, à 1 case, si elles
+ * sont adjacentes au sens du §10 (jouables, un chemin en L sans falaise ni case X). Ni les monstres ni les terrains du
+ * coin ne gênent. Ce n'est pas un contact : ni riposte, ni avancée, ni bonus de dos.
+ */
+export function getDiagonalCells(state: BoardState, from: Position, range: number): Position[] {
+  if (range < 2) return [];
+  return adjacentCells(state.board, from).filter((pos) => pos.row !== from.row && pos.col !== from.col);
+}
+
+/**
  * Cases qu'un monstre de portée `range` peut frapper depuis `from` : dans chaque direction, les cases traversées par
  * son tir, jusqu'à la première occupée comprise (mêmes règles que la ligne de vue). Sert à montrer la menace adverse.
  */
@@ -67,7 +77,7 @@ export function getStrikeCells(state: BoardState, from: Position, range: number)
       if (getUnitsAt(state, pos).length > 0) break;
     }
   }
-  return cells;
+  return [...cells, ...getDiagonalCells(state, from, range)];
 }
 
 /**
@@ -76,7 +86,12 @@ export function getStrikeCells(state: BoardState, from: Position, range: number)
  */
 export function getAttackTargets(state: GameState, attacker: MonsterUnit): Unit[] {
   if (attacker.hasAttacked || isStunned(attacker)) return [];
-  return getLineOfSightCells(state, attacker.pos, getRange(attacker)).flatMap((pos) => {
+  const range = getRange(attacker);
+  const cells = [
+    ...getLineOfSightCells(state, attacker.pos, range),
+    ...getDiagonalCells(state, attacker.pos, range).filter((pos) => getUnitsAt(state, pos).length > 0),
+  ];
+  return cells.flatMap((pos) => {
     const units = getUnitsAt(state, pos);
     const target = units.find((u) => u.kind === 'monster') ?? units[0];
     return target && target.owner !== attacker.owner ? [target] : [];
@@ -287,6 +302,7 @@ function soifHeal(attacker: MonsterUnit): number {
 
 /** Première unité entre `from` et `to` (alignés), exclus : sur l'état réel, c'est un monstre invisible pour le tireur. */
 function getShotBlocker(state: GameState, from: Position, to: Position): Unit | undefined {
+  if (from.row !== to.row && from.col !== to.col) return undefined; // Diagonale : à 1 case, rien entre les deux.
   const d = distance(from, to);
   const step = { row: Math.sign(to.row - from.row), col: Math.sign(to.col - from.col) };
   for (let i = 1; i < d; i++) {
