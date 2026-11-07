@@ -5,6 +5,7 @@ import { gameWith } from '../engine/test-utils';
 import { Legend } from './Legend';
 import { ManaOrb, ORB_FULL_MANA } from './ManaOrb';
 import { OptionsMenu } from './OptionsMenu';
+import type { PileSelection } from './piles';
 import { DEFAULT_SETTINGS } from './settings';
 import { TopBar } from './TopBar';
 
@@ -15,10 +16,10 @@ const setup = { board: BATTLEFIELD_13, decks };
 const state = gameWith([], { activePlayer: 2, players: { 1: { mana: 4, vp: 12 }, 2: { mana: 7, vp: 3 } } });
 const noop = () => {};
 
-const topBar = (helpOpen = false) =>
+const topBar = (helpOpen = false, pile: PileSelection | null = null, game = state) =>
   renderToStaticMarkup(
     <TopBar
-      view={getPlayerView(state, 2)}
+      view={getPlayerView(game, 2)}
       setup={setup}
       canEndTurn
       onEndTurn={noop}
@@ -31,6 +32,8 @@ const topBar = (helpOpen = false) =>
       onSettings={noop}
       onSound={noop}
       onHome={noop}
+      pile={pile}
+      onPile={noop}
     />,
   );
 
@@ -55,6 +58,20 @@ describe('barre du haut', () => {
     expect(html).toContain('<span data-vp="1">12</span><small>/30 VP</small>');
     expect(html).toContain('<span class="score__deck">Archers</span>');
     expect(html).toContain('<span class="score__deck">Pièges</span>');
+  });
+
+  it('chaque score : à côté des VP, les compteurs de ses cartes jouées et de son cimetière (§10)', () => {
+    const played = gameWith([], {
+      activePlayer: 2,
+      players: { 1: { played: [{ cardId: 'milicien' }, { cardId: 'charge' }], graveyard: [{ cardId: 'charge' }] } },
+    });
+    const html = topBar(false, { player: 1, pile: 'graveyard' }, played);
+    expect(html).toContain('aria-label="Cartes jouées par J1 : 2"');
+    expect(html).toContain('aria-pressed="true" aria-label="Cimetière de J1 : 1"');
+    expect(html).toContain('aria-pressed="false" aria-label="Cartes jouées par J2 : 0"');
+    expect(html).toContain('aria-pressed="false" aria-label="Cimetière de J2 : 0"');
+    expect(html.indexOf('data-vp="1"')).toBeLessThan(html.indexOf('Cartes jouées par J1'));
+    expect(html.indexOf('Cimetière de J1')).toBeLessThan(html.indexOf('Fin du tour'));
   });
 
   it('à droite : le tour, l’icône de l’aide (allumée quand elle est ouverte), la roue des options fermée', () => {

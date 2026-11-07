@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getLegalActions } from './actions';
 import { COMMON_CARDS, DECKS, TEST_GRIMOIRE } from './cards';
-import { attackDamage } from './combat';
+import { attackDamage, previewAttack } from './combat';
+import { syncAuraHp } from './auras';
+import { dealDamage } from './damage';
 import { IllegalActionError } from './errors';
 import { at, gameWith } from './test-utils';
 import { requiemCountdown } from './statuses';
-import { getAtk } from './units';
+import { getAtk, removeUnit } from './units';
 import type { Action, CardId, GameState, MonsterUnit, UnitId } from './types';
 
-// Deck Bodybuilder (SPEC.md §6 bis, §10) : Jeune Gomuscu, Jean Bon, Arnold, Ki né, Seringue.
+// Deck Bodybuilder (SPEC.md §6 bis, §10) : Rudy, Arnold, Tibo, Ki né, Seringue. Jeune Gomuscu et Jean Bon ne sont plus dans le
+// deck : leurs données restent pour les mécaniques « Quand il détruit une unité » et Dopage.
 
 const END_TURN: Action = { type: 'endTurn' };
 const attack = (unitId: UnitId, targetId: UnitId, advance = false): Action => ({ type: 'attack', unitId, targetId, advance });
@@ -20,17 +23,17 @@ const inject = (_state: GameState, unitId: UnitId): Action => ({
 });
 
 describe('deck Bodybuilder (SPEC.md §6 bis)', () => {
-  it('25 cartes : ses 4 monstres ×3 et Seringue ×2, complétés par le grimoire de test et les cartes communes', () => {
+  it('25 cartes : ses 4 monstres ×3, Seringue ×2 et la Salle de sport, complétés par le grimoire de test et les cartes communes', () => {
     const deck = DECKS.find((d) => d.id === 'bodybuilder')!;
-    const own: CardId[] = ['jeune-gomuscu', 'jean-bon', 'arnold', 'ki-ne', 'seringue'];
+    const own: CardId[] = ['rudy', 'arnold', 'tibo', 'ki-ne', 'seringue', 'salle-de-sport'];
     expect(deck.name).toBe('Bodybuilder');
     expect(deck.cards).toHaveLength(25);
-    for (const id of own) expect(deck.cards.filter((c) => c === id), id).toHaveLength(id === 'seringue' ? 2 : 3);
+    for (const id of own) expect(deck.cards.filter((c) => c === id), id).toHaveLength(id === 'seringue' ? 2 : id === 'salle-de-sport' ? 1 : 3);
     for (const id of deck.cards.filter((c) => !own.includes(c) && !COMMON_CARDS.includes(c))) expect(TEST_GRIMOIRE).toContain(id);
   });
 });
 
-describe('Jeune Gomuscu : quand il détruit une unité, +1 ATK +1 PV', () => {
+describe('Jeune Gomuscu (hors deck) : quand il détruit une unité, +1 ATK +1 PV', () => {
   it('en détruisant un monstre, définitivement (PV max compris), avant l’avancée', () => {
     const state = gameWith([
       { monster: 'jeune-gomuscu', owner: 1, at: at(8, 1), hp: 1 },
@@ -54,43 +57,134 @@ describe('Jeune Gomuscu : quand il détruit une unité, +1 ATK +1 PV', () => {
   });
 });
 
-describe('Arnold : aura · bodybuilders alliés adjacents · +2 ATK', () => {
-  it('+2 ATK aux bodybuilders alliés autour de lui (diagonales comprises), pas à lui-même ni aux autres monstres', () => {
+describe('Arnold : aura · bodybuilders alliés, rayon 2 · +1 ATK', () => {
+  it('+1 ATK aux bodybuilders alliés dans un rayon de 2 (diagonales comprises), pas à lui-même, ni plus loin, ni aux autres monstres', () => {
     const state = gameWith([
       { monster: 'arnold', owner: 1, at: at(8, 2) },
-      { monster: 'jean-bon', owner: 1, at: at(9, 3) },
+      { monster: 'tibo', owner: 1, at: at(9, 3) }, // adjacent
+      { monster: 'rudy', owner: 1, at: at(8, 4) }, // à 2 cases
+      { monster: 'ki-ne', owner: 1, at: at(10, 4) }, // diagonale à 2 cases
       { monster: 'chevalier', owner: 1, at: at(8, 1) },
-      { monster: 'ki-ne', owner: 1, at: at(1, 1) },
+      { monster: 'ki-ne', owner: 1, at: at(1, 1) }, // loin
     ]);
-    expect(getAtk(state, monster(state, 'u1'))).toBe(7);
-    expect(getAtk(state, monster(state, 'u2'))).toBe(7);
-    expect(getAtk(state, monster(state, 'u3'))).toBe(3);
-    expect(getAtk(state, monster(state, 'u4'))).toBe(2);
+    expect(getAtk(state, monster(state, 'u1'))).toBe(8);
+    expect(getAtk(state, monster(state, 'u2'))).toBe(4);
+    expect(getAtk(state, monster(state, 'u3'))).toBe(4);
+    expect(getAtk(state, monster(state, 'u4'))).toBe(4);
+    expect(getAtk(state, monster(state, 'u5'))).toBe(3);
+    expect(getAtk(state, monster(state, 'u6'))).toBe(3);
   });
 
-  it('les auras se cumulent : deux Arnold donnent +4, et se donnent +2 l’un à l’autre', () => {
+  it('une case trop loin (3 cases) n’est pas dans le rayon', () => {
+    const state = gameWith([
+      { monster: 'arnold', owner: 1, at: at(8, 1) },
+      { monster: 'tibo', owner: 1, at: at(8, 4) },
+    ]);
+    expect(getAtk(state, monster(state, 'u2'))).toBe(3);
+  });
+
+  it('les auras se cumulent : deux Arnold donnent +2, et se donnent +1 l’un à l’autre', () => {
     const state = gameWith([
       { monster: 'arnold', owner: 1, at: at(8, 1) },
       { monster: 'arnold', owner: 1, at: at(8, 3) },
-      { monster: 'jeune-gomuscu', owner: 1, at: at(8, 2) },
+      { monster: 'tibo', owner: 1, at: at(8, 2) },
       { monster: 'golem', owner: 2, at: at(7, 2) },
     ]);
-    expect(getAtk(state, monster(state, 'u3'))).toBe(6);
-    expect(getAtk(state, monster(state, 'u1'))).toBe(7);
-    expect(attackDamage(state, monster(state, 'u3'), state.units.u4!)).toBe(6);
-    expect(monster(applyAction(state, attack('u3', 'u4')), 'u4').hp).toBe(1);
+    expect(getAtk(state, monster(state, 'u3'))).toBe(5);
+    expect(getAtk(state, monster(state, 'u1'))).toBe(9);
+    expect(attackDamage(state, monster(state, 'u3'), state.units.u4!)).toBe(5);
+    expect(monster(applyAction(state, attack('u3', 'u4')), 'u4').hp).toBe(2);
   });
 
   it('pas pour l’adversaire', () => {
     const state = gameWith([
       { monster: 'arnold', owner: 2, at: at(8, 2) },
-      { monster: 'jeune-gomuscu', owner: 1, at: at(8, 1) },
+      { monster: 'tibo', owner: 1, at: at(8, 1) },
     ]);
-    expect(getAtk(state, monster(state, 'u2'))).toBe(2);
+    expect(getAtk(state, monster(state, 'u2'))).toBe(3);
   });
 });
 
-describe('Jean Bon : Dopage · lui-même · +2 ATK (pour ce tour) + burn 1 pendant 2 tours', () => {
+describe('Salle de sport : aura · bodybuilders alliés sur sa case et adjacents · +1 ATK +1 PV', () => {
+  const gym = () =>
+    gameWith([
+      { terrain: 'salle-de-sport', owner: 1, at: at(8, 3) },
+      { monster: 'tibo', owner: 1, at: at(8, 3), hp: 8 }, // sur le terrain
+      { monster: 'rudy', owner: 1, at: at(8, 4), hp: 3 }, // adjacent
+      { monster: 'ki-ne', owner: 1, at: at(8, 6), hp: 3 }, // à 3 cases
+      { monster: 'chevalier', owner: 1, at: at(8, 2) },
+      { monster: 'tibo', owner: 2, at: at(9, 3), hp: 8 },
+    ]);
+
+  it('+1 ATK tout de suite, +1 PV et +1 PV max une fois l’action jouée, sur sa case comme à côté, pour ses bodybuilders seulement', () => {
+    const state = gym();
+    expect(getAtk(state, monster(state, 'u2'))).toBe(4);
+    expect(getAtk(state, monster(state, 'u3'))).toBe(4);
+    expect(getAtk(state, monster(state, 'u4'))).toBe(3);
+    expect(getAtk(state, monster(state, 'u5'))).toBe(3);
+    expect(getAtk(state, monster(state, 'u6'))).toBe(3);
+    const after = applyAction(state, END_TURN);
+    expect(monster(after, 'u2')).toMatchObject({ hp: 9, maxHp: 9 });
+    expect(monster(after, 'u3')).toMatchObject({ hp: 4, maxHp: 4 });
+    expect(monster(after, 'u4')).toMatchObject({ hp: 3, maxHp: 3 });
+    expect(monster(after, 'u6')).toMatchObject({ hp: 8, maxHp: 8 });
+  });
+
+  it('le bonus de PV se perd en sortant de la zone, ou si le terrain est détruit, sans descendre sous 1 PV', () => {
+    const state = applyAction(gym(), END_TURN);
+    const gone = syncAuraHp(removeUnit(state, 'u1'));
+    expect(monster(gone, 'u2')).toMatchObject({ hp: 8, maxHp: 8 });
+    expect(monster(gone, 'u3')).toMatchObject({ hp: 3, maxHp: 3 });
+    const hurt = syncAuraHp(removeUnit({ ...state, units: { ...state.units, u3: { ...monster(state, 'u3'), hp: 1 } } }, 'u1'));
+    expect(monster(hurt, 'u3').hp).toBe(1);
+  });
+
+  it('se cumule avec l’aura d’Arnold', () => {
+    const state = gameWith([
+      { terrain: 'salle-de-sport', owner: 1, at: at(8, 3) },
+      { monster: 'arnold', owner: 1, at: at(8, 5) },
+      { monster: 'tibo', owner: 1, at: at(8, 4) },
+    ]);
+    expect(getAtk(state, monster(state, 'u3'))).toBe(5);
+  });
+
+  it('un terrain adverse ne donne rien', () => {
+    const state = gameWith([
+      { terrain: 'salle-de-sport', owner: 2, at: at(8, 3) },
+      { monster: 'tibo', owner: 1, at: at(8, 4) },
+    ]);
+    expect(getAtk(state, monster(state, 'u2'))).toBe(3);
+  });
+});
+
+describe('Rudy : aura · bodybuilders alliés, rayon 2 · +1 mobilité (au début de leur tour)', () => {
+  const nextTurn = (units: Parameters<typeof gameWith>[0]) => applyAction(gameWith(units, { activePlayer: 2 }), END_TURN);
+
+  it('+1 mobilité au début du tour des bodybuilders alliés à 2 cases ou moins, pas à lui-même ni aux autres', () => {
+    const after = nextTurn([
+      { monster: 'rudy', owner: 1, at: at(8, 2) },
+      { monster: 'tibo', owner: 1, at: at(8, 4) }, // à 2 cases
+      { monster: 'ki-ne', owner: 1, at: at(1, 1) }, // loin
+      { monster: 'chevalier', owner: 1, at: at(8, 1) },
+    ]);
+    expect(monster(after, 'u1').mobilityLeft).toBe(7);
+    expect(monster(after, 'u2').mobilityLeft).toBe(4);
+    expect(monster(after, 'u3').mobilityLeft).toBe(4);
+    expect(monster(after, 'u4').mobilityLeft).toBe(3);
+  });
+
+  it('deux Rudy se cumulent : +2', () => {
+    const after = nextTurn([
+      { monster: 'rudy', owner: 1, at: at(8, 1) },
+      { monster: 'rudy', owner: 1, at: at(8, 3) },
+      { monster: 'tibo', owner: 1, at: at(8, 2) },
+    ]);
+    expect(monster(after, 'u3').mobilityLeft).toBe(5);
+    expect(monster(after, 'u1').mobilityLeft).toBe(8);
+  });
+});
+
+describe('Jean Bon (hors deck) : Dopage · lui-même · +2 ATK (pour ce tour) + burn 1 pendant 2 tours', () => {
   const doped = () => {
     const state = gameWith(
       [
@@ -121,26 +215,31 @@ describe('Jean Bon : Dopage · lui-même · +2 ATK (pour ce tour) + burn 1 penda
   });
 });
 
-describe('Ki né : début de tour · bodybuilders alliés adjacents · soin 1', () => {
-  it('au début de chacun de ses tours, après les revenus ; sans dépasser les PV max ; pas lui-même ni les autres', () => {
+describe('Ki né : début de tour · bodybuilders alliés, rayon 2 · soin 1', () => {
+  it('au début de chacun de ses tours, après les revenus, dans un rayon de 2 ; sans dépasser les PV max ; pas lui-même ni les autres', () => {
     const state = gameWith(
       [
         { monster: 'ki-ne', owner: 1, at: at(8, 2), hp: 1 },
-        { monster: 'arnold', owner: 1, at: at(9, 3), hp: 3 },
-        { monster: 'jean-bon', owner: 1, at: at(8, 1), hp: 3 },
+        { monster: 'arnold', owner: 1, at: at(9, 3), hp: 3 }, // adjacent
+        { monster: 'tibo', owner: 1, at: at(8, 4), hp: 5 }, // à 2 cases
+        { monster: 'rudy', owner: 1, at: at(8, 5), hp: 2 }, // à 3 cases
         { monster: 'chevalier', owner: 1, at: at(7, 2), hp: 2 },
-        { monster: 'jeune-gomuscu', owner: 2, at: at(9, 1), hp: 1 },
+        { monster: 'tibo', owner: 2, at: at(9, 1), hp: 1 },
       ],
       { activePlayer: 2 },
     );
     const after = applyAction(state, END_TURN);
     expect(after.activePlayer).toBe(1);
     expect(monster(after, 'u2').hp).toBe(4);
-    expect(monster(after, 'u3').hp).toBe(3);
-    expect(monster(after, 'u1').hp).toBe(1);
+    expect(monster(after, 'u3').hp).toBe(6);
     expect(monster(after, 'u4').hp).toBe(2);
-    expect(monster(after, 'u5').hp).toBe(1);
-    expect(after.events.filter((e) => e.type === 'heal')).toEqual([{ type: 'heal', unitId: 'u2', pos: at(9, 3), amount: 1 }]);
+    expect(monster(after, 'u1').hp).toBe(1);
+    expect(monster(after, 'u5').hp).toBe(2);
+    expect(monster(after, 'u6').hp).toBe(1);
+    expect(after.events.filter((e) => e.type === 'heal')).toEqual([
+      { type: 'heal', unitId: 'u2', pos: at(9, 3), amount: 1 },
+      { type: 'heal', unitId: 'u3', pos: at(8, 4), amount: 1 },
+    ]);
   });
 
   it('les passifs passent avant les statuts (§4.2) : soigné puis brûlé, un bodybuilder à 1 PV survit', () => {
@@ -156,6 +255,61 @@ describe('Ki né : début de tour · bodybuilders alliés adjacents · soin 1', 
     expect(monster(after, 'u2').hp).toBe(1);
     const types = after.events.map((e) => e.type);
     expect(types.indexOf('heal')).toBeLessThan(types.lastIndexOf('damage'));
+  });
+});
+
+describe('Tibo : Tortank · lui-même · carapace jusqu’à son prochain tour', () => {
+  const tortank = (extra: Parameters<typeof gameWith>[0] = [], hp = 8) =>
+    applyAction(
+      gameWith([{ monster: 'tibo', owner: 1, at: at(8, 2), hp }, ...extra], { players: { 1: { mana: 3 } } }),
+      { type: 'activateEffect', unitId: 'u1', target: { kind: 'unit', unitId: 'u1' } },
+    );
+
+  it('1 mana, sur lui-même : carapace jusqu’à son prochain tour', () => {
+    const after = tortank();
+    expect(after.players[1].mana).toBe(2);
+    expect(monster(after, 'u1').statuses).toEqual([expect.objectContaining({ kind: 'carapace', turns: 0 })]);
+  });
+
+  it('la prochaine attaque ne lui inflige que 1 PV (même dans le dos), puis la carapace disparaît', () => {
+    const after = tortank([{ monster: 'arnold', owner: 2, at: at(8, 3) }]);
+    const hit = applyAction(applyAction(after, END_TURN), attack('u2', 'u1'));
+    expect(monster(hit, 'u1').hp).toBe(7);
+    expect(monster(hit, 'u1').statuses).toEqual([]);
+    expect(hit.events.find((e) => e.type === 'damage')).toMatchObject({ amount: 1, hp: 7 });
+  });
+
+  it('l’aperçu de l’attaque annonce 1 dégât, et « attaquer et avancer » n’est plus proposé si 1 PV suffirait à peine', () => {
+    const after = applyAction(tortank([{ monster: 'arnold', owner: 2, at: at(8, 3) }], 2), END_TURN);
+    const preview = previewAttack(after, monster(after, 'u2'), after.units.u1!);
+    expect(preview).toMatchObject({ damage: 1, hpAfter: 1, destroys: false, canAdvance: false });
+  });
+
+  it('un sort, un effet ou le burn ne sont pas touchés, et ne consomment pas la carapace', () => {
+    const after = tortank([], 8);
+    const boule = { ...after, players: { ...after.players, 1: { ...after.players[1], grimoire: [], mana: 3 } } };
+    const burned = dealDamage(boule, 'u1', 3, 2, 'spell');
+    expect(monster(burned, 'u1').hp).toBe(5);
+    expect(monster(burned, 'u1').statuses).toHaveLength(1);
+    expect(monster(dealDamage(boule, 'u1', 2, 2, 'burn'), 'u1').statuses).toHaveLength(1);
+  });
+
+  it('sans attaque, elle disparaît au début du prochain tour de Tibo', () => {
+    const after = tortank();
+    expect(monster(applyAction(after, END_TURN), 'u1').statuses).toHaveLength(1);
+    expect(monster(applyAction(applyAction(after, END_TURN), END_TURN), 'u1').statuses).toEqual([]);
+  });
+
+  it('la riposte de l’ennemi attaqué par Tibo compte comme une attaque : 1 PV, et la carapace est consommée', () => {
+    const state = gameWith([
+      { monster: 'tibo', owner: 1, at: at(8, 2), hp: 8 },
+      { monster: 'gardien', owner: 2, at: at(8, 3), atk: 5 },
+    ]);
+    const shielded = { ...state, units: { ...state.units, u1: { ...monster(state, 'u1'), statuses: [{ kind: 'carapace' as const, turns: 0, expiresAtTurn: 9 }] } } };
+    expect(previewAttack(shielded, monster(shielded, 'u1'), state.units.u2!).riposte).toBe(1);
+    const next = applyAction(shielded, attack('u1', 'u2'));
+    expect(monster(next, 'u2').hp).toBe(3);
+    expect(monster(next, 'u1')).toMatchObject({ hp: 7, statuses: [] });
   });
 });
 
@@ -183,7 +337,7 @@ describe('Seringue : un allié bodybuilder · ATK ×2 (pour ce tour) + requiem 2
     ]);
     const after = applyAction(state, inject(state, 'u1'));
     expect(monster(after, 'u1')).toMatchObject({ atk: 5, atkBonus: 5 });
-    expect(getAtk(after, monster(after, 'u1'))).toBe(12);
+    expect(getAtk(after, monster(after, 'u1'))).toBe(11);
     expect(monster(applyAction(after, END_TURN), 'u1').atkBonus).toBe(0);
   });
 

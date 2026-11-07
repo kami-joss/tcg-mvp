@@ -29,7 +29,7 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
   const deck = (id: string) => DECKS.find((d) => d.id === id)!;
   const count = (cards: readonly CardId[], id: CardId) => cards.filter((c) => c === id).length;
 
-  it('huit decks de 25 cartes : classique, archers, pièges, bodybuilder, dragons, sorciers du feu, explorateur du temps, vampire', () => {
+  it('huit decks de 25 cartes (Archers : 26) : classique, archers, pièges, bodybuilder, dragons, sorciers du feu, explorateur du temps, vampire', () => {
     expect(DECKS.map((d) => d.id)).toEqual([
       'classique',
       'archers',
@@ -40,7 +40,8 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
       'explorateur-du-temps',
       'vampire',
     ]);
-    for (const d of DECKS) expect(d.cards, d.id).toHaveLength(25);
+    // Archers : 26, avec le Monstre de test en plus (§10).
+    for (const d of DECKS) expect(d.cards, d.id).toHaveLength(d.id === 'archers' ? 26 : 25);
     expect(deck('classique').cards).toBe(TEST_GRIMOIRE);
   });
 
@@ -56,6 +57,7 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
       'archer-de-glace': 3,
       'archer-du-feu': 3,
       trebuchet: 2,
+      'monstre-de-test': 1,
       'fleche-divine': 1,
       'boule-de-feu': 1,
       charge: 1,
@@ -81,12 +83,12 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
       'zone-invocation': 2,
     });
     expect(composition('bodybuilder')).toEqual({
-      'jeune-gomuscu': 3,
-      'jean-bon': 3,
+      rudy: 3,
       arnold: 3,
+      tibo: 3,
       'ki-ne': 3,
       seringue: 2,
-      'boule-de-feu': 1,
+      'salle-de-sport': 1,
       charge: 3,
       benediction: 1,
       bastion: 1,
@@ -144,7 +146,15 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
   });
 
   it('le complément vient du grimoire de test ou des cartes communes', () => {
-    const archers: CardId[] = ['archer-leger', 'archer-lourd', 'archer-de-glace', 'archer-du-feu', 'trebuchet', 'fleche-divine'];
+    const archers: CardId[] = [
+      'archer-leger',
+      'archer-lourd',
+      'archer-de-glace',
+      'archer-du-feu',
+      'trebuchet',
+      'monstre-de-test',
+      'fleche-divine',
+    ];
     const traps: CardId[] = ['poseur-de-piege', 'farceur', 'poseur-de-bombe', 'clown-assassin', 'penombre'];
     // Le grimoire de test a chaque carte commune, sauf le Terrain de chasse (Archers et Vampire seulement).
     for (const id of COMMON_CARDS.filter((c) => c !== 'terrain-de-chasse')) expect(TEST_GRIMOIRE, id).toContain(id);
@@ -165,8 +175,10 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
     expect(CARDS['archer-de-glace']).toMatchObject({ cost: 3, atk: 2, range: 2, mobility: 3, hp: 3 });
     expect(CARDS['archer-du-feu']).toMatchObject({ cost: 3, atk: 2, range: 2, mobility: 3, hp: 3 });
     expect(CARDS.trebuchet).toMatchObject({ cost: 5, atk: 4, range: 5, mobility: 2, hp: 1 });
+    // Monstre de test (§10) : stats extrêmes, sans effet ni archétype.
+    expect(CARDS['monstre-de-test']).toMatchObject({ cost: 10, atk: 3, range: 1, mobility: 9, hp: 7, keywords: [], activated: [], archetype: null });
     expect(CARDS['poseur-de-piege']).toMatchObject({ cost: 1, atk: 1, range: 1, mobility: 7, hp: 1 });
-    expect(CARDS.farceur).toMatchObject({ cost: 2, atk: 2, range: 1, mobility: 6, hp: 1 });
+    expect(CARDS.farceur).toMatchObject({ cost: 3, atk: 2, range: 1, mobility: 6, hp: 1 });
     expect(CARDS['poseur-de-bombe']).toMatchObject({ cost: 1, atk: 2, range: 1, mobility: 7, hp: 1 });
     expect(CARDS['clown-assassin']).toMatchObject({ cost: 4, atk: 2, range: 1, mobility: 7, hp: 2 });
     const ability = (id: CardId) => {
@@ -178,7 +190,7 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
     expect(CARDS.farceur).toMatchObject({
       keywords: [
         { keyword: 'camouflage', amount: 2 },
-        { keyword: 'sournois', amount: 1 },
+        { keyword: 'assassin', multiplier: 2 },
       ],
     });
     expect(ability('poseur-de-bombe')?.manaCost).toBe(2);
@@ -321,7 +333,7 @@ describe('orientation et Clown assassin (SPEC.md §10)', () => {
     expect(applyAction(state, attack('u3', 'u4')).units.u4?.hp).toBe(7 - 2);
   });
 
-  it('Farceur (`sournois`) : +1 ATK par derrière seulement, pas contre un terrain', () => {
+  it('Farceur (`assassin` ×2) : dégâts doublés par derrière seulement, pas contre un terrain', () => {
     const state = gameWith([
       { monster: 'farceur', owner: 1, at: at(6, 3) }, // derrière
       { monster: 'golem', owner: 2, at: at(5, 3) },
@@ -331,7 +343,7 @@ describe('orientation et Clown assassin (SPEC.md §10)', () => {
       { terrain: 'bastion', owner: 2, at: at(5, 5) },
     ]);
     const behind = applyAction(state, attack('u1', 'u2'));
-    expect(behind.units.u2?.hp).toBe(7 - 3);
+    expect(behind.units.u2?.hp).toBe(7 - 4);
     expect(behind.events[0]).toMatchObject({ type: 'attack', behind: true });
     expect(applyAction(state, attack('u3', 'u4')).units.u4?.hp).toBe(7 - 2);
     expect(applyAction(state, attack('u5', 'u6')).units.u6?.hp).toBe(10 - 2);

@@ -139,9 +139,10 @@ export function Grimoire(props: GrimoireProps) {
                     focused={focusedCard === cardId}
                     shiny={view.me.shiny?.includes(cardId) ?? false}
                     animated={animated}
-                    onCardClick={onCardClick}
-                    onCardContextMenu={onCardContextMenu}
-                    onCardHover={onCardHover}
+                    fxAnchor
+                    onClick={() => onCardClick(cardId)}
+                    onContextMenu={onCardContextMenu && (() => onCardContextMenu(cardId))}
+                    onHover={(rect) => (rect ? onCardHover(cardId, rect) : onCardHover(null))}
                   />
                 ))}
               </ul>
@@ -155,19 +156,25 @@ export function Grimoire(props: GrimoireProps) {
 
 interface TileProps {
   cardId: CardId;
-  count: number;
+  /** Exemplaires de la carte (grimoire) ; absent : la tuile est un seul exemplaire (cartes jouées, cimetière). */
+  count?: number;
   /** Vue liste : une ligne, sans illustration. */
   list: boolean;
-  playable: boolean;
-  selected: boolean;
+  /** Jouable (liseré vert) ou non (ternie) ; absent : ni l'un ni l'autre, la tuile ne fait que montrer sa fiche. */
+  playable?: boolean;
+  /** Choisie pour être jouée (grimoire seulement). */
+  selected?: boolean;
   focused: boolean;
-  /** Il reste un exemplaire brillant de la carte (il sera joué en premier). */
+  /** Grimoire : il reste un exemplaire brillant de la carte (il sera joué en premier) ; ailleurs : l'exemplaire l'est. */
   shiny: boolean;
   animated: boolean;
-  onCardClick: (cardId: CardId) => void;
-  /** Clic droit sur une carte (le menu du navigateur est bloqué). */
-  onCardContextMenu?: (cardId: CardId) => void;
-  onCardHover: (cardId: CardId | null, rect?: DOMRect) => void;
+  /** La tuile du grimoire d'où s'envole la carte jouée (`data-card`, animations) : une seule par carte. */
+  fxAnchor?: boolean;
+  onClick: () => void;
+  /** Clic droit (le menu du navigateur est bloqué). */
+  onContextMenu?: () => void;
+  /** Survol : la boîte de la tuile ; `null` quand la souris la quitte. */
+  onHover: (rect: DOMRect | null) => void;
 }
 
 /** Nom de la carte, et son archétype en petit dessous (« Apprenti » / « Sorciers du feu »). */
@@ -181,9 +188,10 @@ function TileName({ name }: { name: string }) {
   );
 }
 
-function Tile(props: TileProps) {
-  const { cardId, count, list, playable, selected, focused, shiny, animated } = props;
-  const { onCardClick, onCardContextMenu, onCardHover } = props;
+/** Tuile d'une carte : grimoire, ou exemplaire des cartes jouées et du cimetière (`CardPiles`). */
+export function Tile(props: TileProps) {
+  const { cardId, count, list, playable, selected, focused, shiny, animated, fxAnchor = false } = props;
+  const { onClick, onContextMenu, onHover } = props;
   const card = getCard(cardId);
   const art = cardArtFor(cardId, shiny);
   const overframe = list ? undefined : OVERFRAMES[cardId];
@@ -197,6 +205,7 @@ function Tile(props: TileProps) {
     `tile--${card.kind}`,
     list ? 'tile--row' : 'tile--card',
     playable && 'tile--playable',
+    playable === undefined && 'tile--pile',
     selected && 'is-selected',
     focused && 'is-focused',
     shiny && 'tile--shiny',
@@ -219,7 +228,8 @@ function Tile(props: TileProps) {
           ★
         </span>
       )}
-      <Icon name={KIND_ICONS[card.kind]} />×{count}
+      <Icon name={KIND_ICONS[card.kind]} />
+      {count !== undefined && `×${count}`}
     </span>
   );
   // Survol d'une overframe : la tuile penche vers le pointeur.
@@ -236,24 +246,24 @@ function Tile(props: TileProps) {
         ref={button}
         type="button"
         className={classes}
-        aria-disabled={!playable}
+        aria-disabled={playable === undefined ? undefined : !playable}
         aria-pressed={selected}
-        data-card={cardId}
-        onClick={() => onCardClick(cardId)}
+        data-card={fxAnchor ? cardId : undefined}
+        onClick={onClick}
         onContextMenu={(event) => {
           event.preventDefault();
-          onCardContextMenu?.(cardId);
+          onContextMenu?.();
         }}
         onMouseEnter={(event: MouseEvent<HTMLElement>) => {
           const box = event.currentTarget.getBoundingClientRect();
           if (overframe && animated) setHoverScale(box.width / 280);
-          onCardHover(cardId, box);
+          onHover(box);
         }}
         onMouseMove={tilt}
         onMouseLeave={(event: MouseEvent<HTMLElement>) => {
           event.currentTarget.style.transform = '';
           setHoverScale(null);
-          onCardHover(null);
+          onHover(null);
         }}
       >
         {list ? (

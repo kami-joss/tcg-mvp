@@ -31,12 +31,12 @@ describe('textes des cartes Sorciers du feu', () => {
     expect(cardEffectLine(getCard('lutin-brasier'))).toBe(
       'Brûlure 1, 2 tours ; Actif (1 mana) · une case libre, rayon 2 · case brûlée pendant 2 tours : 1 dégât + burn 1 pendant 1 tour',
     );
-    expect(cardEffectLine(getCard('archimage'))).toBe('Brûlure 1, 2 tours ; Actif (1 mana) · adjacents · burn 2 pendant 2 tours');
-    expect(cardEffectLine(getCard('golem-de-lave'))).toBe('Passage · adjacents · burn 1 pendant 1 tour');
+    expect(cardEffectLine(getCard('archimage'))).toBe('Brûlure 1, 2 tours ; Actif (2 mana) · adjacents · burn 2 pendant 2 tours');
+    expect(cardEffectLine(getCard('golem-de-lave'))).toBe('Zone · adjacents · burn 1 pendant 1 tour');
     expect(describeCard(getCard('golem-de-lave'))).toEqual([
-      'ATK 2 · PV 8 · Mob. 2 · Portée 1',
+      'ATK 2 · PV 12 · Mob. 2 · Portée 1',
       'Archétype Sorciers du feu.',
-      'Passif · Passage · adjacents · burn 1 pendant 1 tour : chaque monstre ennemi qui entre sur une des 8 cases autour de lui le subit, à chaque case où il entre (une fois par recul).',
+      'Passif · Zone · adjacents · burn 1 pendant 1 tour : chaque monstre ennemi dans les 8 cases autour de lui le subit : quand il y entre, quand il arrive à côté de lui (une fois par déplacement), et au début de son tour s’il y est encore.',
     ]);
   });
 

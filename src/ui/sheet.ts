@@ -62,14 +62,20 @@ import {
 } from './cardText';
 import type { IconName } from './Icon';
 import { waterKind } from './iso/scenery';
+import { pileOf } from './piles';
+import type { PileKind } from './piles';
 import { STATUS_ICONS } from './zoneMarks';
 import { abilityRules, passiveRules } from './rulesText';
 
-/** Ce que montre la fiche : une case (zone, piège…), une unité du plateau, une carte du grimoire. */
+/**
+ * Ce que montre la fiche : une case (zone, piège…), une unité du plateau, une carte du grimoire, ou un exemplaire des
+ * cartes jouées ou du cimetière d'un joueur (`index` : son rang dans la liste du moteur, §10).
+ */
 export type HoverSubject =
   | { readonly kind: 'cell'; readonly pos: Position }
   | { readonly kind: 'unit'; readonly unitId: UnitId }
-  | { readonly kind: 'card'; readonly cardId: CardId };
+  | { readonly kind: 'card'; readonly cardId: CardId }
+  | { readonly kind: 'copy'; readonly player: PlayerId; readonly pile: PileKind; readonly index: number };
 
 /** Point coloré : vert (possible), orange (il manque quelque chose), gris (impossible), orangé (information). */
 export type SheetTone = 'ok' | 'warn' | 'off' | 'info';
@@ -259,6 +265,11 @@ export function getSheet(view: PlayerView, subject: HoverSubject): SheetData | n
   switch (subject.kind) {
     case 'card':
       return cardSheet(view, subject.cardId);
+    case 'copy': {
+      // La carte seule (§10) : comme dans le grimoire, sans la ligne pour la jouer ; brillante si l'exemplaire l'était.
+      const copy = pileOf(view, subject.player, subject.pile)[subject.index];
+      return copy ? { ...cardSheet(view, copy.cardId), shiny: copy.shiny === true, lines: [] } : null;
+    }
     case 'cell':
       return cellSheet(view, subject.pos);
     case 'unit': {
@@ -284,20 +295,12 @@ export function sameSubject(a: HoverSubject | null, b: HoverSubject | null): boo
       return b.kind === 'unit' && a.unitId === b.unitId;
     case 'card':
       return b.kind === 'card' && a.cardId === b.cardId;
+    case 'copy':
+      return b.kind === 'copy' && a.player === b.player && a.pile === b.pile && a.index === b.index;
     case 'cell':
       return b.kind === 'cell' && samePos(a.pos, b.pos);
   }
 }
-
-/** Bonus de mobilité du plateau (13 × 13), pour tous les monstres. */
-/** Puce du bonus du plateau (Champ de bataille) : son nom, le bonus au survol. */
-const boardChip = (view: PlayerView): SheetChip => ({
-  icon: 'walking-boot',
-  text: view.board.name,
-  detail: `Plateau : +${view.board.mobilityBonus} mobilité pour tous les monstres`,
-  kind: 'boost',
-  group: 'effect',
-});
 
 const CARD_VERBS: Readonly<Record<Card['kind'], string>> = { monster: 'Invocation', spell: 'Lancer', terrain: 'Poser' };
 
@@ -317,7 +320,6 @@ function cardSheet(view: PlayerView, cardId: CardId): SheetData {
 
   switch (card.kind) {
     case 'monster': {
-      const bonus = view.board.mobilityBonus;
       return {
         ...base,
         typeIcon: 'dragon-head',
@@ -325,15 +327,14 @@ function cardSheet(view: PlayerView, cardId: CardId): SheetData {
         stats: [
           stat('broadsword', 'ATK', card.atk),
           stat('hearts', 'PV', card.hp),
-          stat('walking-boot', 'Mobilité', card.mobility + bonus, bonus),
+          stat('walking-boot', 'Mobilité', card.mobility),
           stat('high-shot', 'Portée', card.range),
         ],
         lines,
         text: card.evolvesFrom ? [evolutionLine(card.evolvesFrom)] : [],
         passive: passiveBlock(keywordItems(card), null),
         active: activeBlocks(card),
-        // Le bonus du plateau le suivra dès qu'il sera posé.
-        status: bonus > 0 ? [boardChip(view)] : null,
+        status: null,
       };
     }
     case 'spell':
@@ -450,9 +451,9 @@ function zoneChip(view: PlayerView, monster: MonsterUnit): SheetChip | null {
   return effect(ZONE_ICONS[area.zone], name, `Tient ${name} : +${getZoneMana(view, area.pos, controller)} mana, +${VP_PER_CONTROLLED_ZONE} VP`, 'zone');
 }
 
-/** Mobilité de base d'un monstre : sa carte, le bonus du plateau et les auras. */
+/** Mobilité de base d'un monstre : sa carte et les auras. */
 const baseMobility = (view: PlayerView, monster: MonsterUnit) =>
-  getMonsterCard(monster.cardId).mobility + view.board.mobilityBonus + auraMobility(view, monster);
+  getMonsterCard(monster.cardId).mobility + auraMobility(view, monster);
 
 function monsterSheet(view: PlayerView, monster: MonsterUnit): SheetData {
   const card = getMonsterCard(monster.cardId);
@@ -513,7 +514,7 @@ function monsterSheet(view: PlayerView, monster: MonsterUnit): SheetData {
     text: mine
       ? []
       : [
-          `À son prochain tour : hachures orange, là où il pourra aller (mobilité ${getNextTurnMobility(monster, view.turn, view.activePlayer, view.board.mobilityBonus)}) ; rouges, là où il pourra frapper (portée ${card.range}).`,
+          `À son prochain tour : hachures orange, là où il pourra aller (mobilité ${getNextTurnMobility(monster, view.turn, view.activePlayer)}) ; rouges, là où il pourra frapper (portée ${card.range}).`,
         ],
     passive: passiveBlock(keywordItems(card), riposte),
     active: activeBlocks(card, effectFoot),
@@ -553,7 +554,6 @@ function monsterChips(view: PlayerView, monster: MonsterUnit, terrain: TerrainUn
     const sources = auraSources(view, monster).map((other) => getCard(other.cardId).name);
     chips.push(effect('aura', 'Aura', `${auraBonusText(aura)} (${sources.join(', ')})`, 'boost'));
   }
-  if (view.board.mobilityBonus > 0) chips.push(boardChip(view));
   // Camouflage par mot-clé (Pénombre le donne en statut, avec sa puce) : caché ou repéré, vu par son joueur.
   const mine = monster.owner === view.viewer;
   const camouflage = card.keywords.find((spec) => spec.keyword === 'camouflage');
@@ -645,6 +645,7 @@ const STATUS_CHIP_KINDS: Readonly<Record<Status['kind'], ChipKind>> = {
   burn: 'burn',
   requiem: 'warn',
   camouflage: 'info',
+  carapace: 'info',
 };
 
 /** Nom d'un statut, tel qu'au lexique (§5 bis). */
@@ -662,6 +663,8 @@ function statusName(status: Status): string {
       return 'Requiem';
     case 'camouflage':
       return 'Camouflé';
+    case 'carapace':
+      return 'Carapace';
   }
 }
 
@@ -692,6 +695,8 @@ function statusText(view: PlayerView, unit: Unit, status: Status): string {
       const when = left === 1 ? 'son prochain tour' : `son ${left}e prochain tour`;
       return `Requiem : meurt au début de ${when}, sans VP pour personne`;
     }
+    case 'carapace':
+      return `Carapace : la prochaine attaque subie n’inflige que 1 PV, puis elle disparaît ; sinon ${until}`;
     case 'camouflage': {
       const seen = unit.owner === view.viewer && !view.hiddenFromOpponent.includes(unit.id);
       return `Camouflé ${until} : invisible pour l’adversaire sans monstre ni terrain à lui dans un rayon de ${status.amount}${seen ? ' (repéré en ce moment)' : ''}`;

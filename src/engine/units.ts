@@ -1,9 +1,11 @@
 // Unités sur le plateau : création, recherche et mise à jour immuable.
-import { isAdjacent } from './board';
-import { getMonsterCard } from './cards';
+import { isInZone } from './board';
+import { getMonsterCard, getTerrainCard } from './cards';
 import { IllegalActionError } from './errors';
 import type {
   BoardState,
+  CardCopy,
+  CardId,
   Direction,
   GameState,
   Keyword,
@@ -12,6 +14,7 @@ import type {
   MonsterUnit,
   PlayerId,
   Position,
+  StatAura,
   TerrainCard,
   TerrainUnit,
   Unit,
@@ -21,14 +24,13 @@ import type {
 /** Orientation d'un monstre qui ne s'est pas encore déplacé : vers le camp adverse (J1 en haut, J2 en bas). */
 export const INITIAL_FACING: Readonly<Record<PlayerId, Direction>> = { 1: 'down', 2: 'up' };
 
-/** Nouveau monstre ; `mobilityBonus` : mobilité en plus du plateau (SPEC.md §3). */
+/** Nouveau monstre. */
 export function createMonsterUnit(
   id: UnitId,
   card: MonsterCard,
   owner: PlayerId,
   pos: Position,
   turn = 0,
-  mobilityBonus = 0,
 ): MonsterUnit {
   return {
     kind: 'monster',
@@ -42,7 +44,7 @@ export function createMonsterUnit(
     atkBonus: 0,
     rangeBonus: 0,
     auraHp: 0,
-    mobilityLeft: card.mobility + mobilityBonus,
+    mobilityLeft: card.mobility,
     froze: 0,
     boost: 0,
     turnBonuses: [],
@@ -137,30 +139,44 @@ export function addUnit(state: GameState, create: (id: UnitId) => Unit): GameSta
   return { ...setUnit(state, create(id)), nextUnitId: state.nextUnitId + 1 };
 }
 
+/** La carte d'une unité dans les listes publiques : pour une forme hors grimoire (la chauve-souris d'Emma), son origine. */
+export function cardOfOrigin(unit: Unit): CardId {
+  return unit.kind === 'monster' ? (getMonsterCard(unit.cardId).formOf ?? unit.cardId) : unit.cardId;
+}
+
 /**
- * L'unité quitte le plateau (détruite, sacrifiée, tuée par requiem) : sa carte va au cimetière de son joueur (§4.3) ;
- * pour une forme hors grimoire (la chauve-souris d'Emma), c'est la carte d'origine.
+ * L'unité quitte le plateau (détruite, sacrifiée, tuée par requiem) : sa carte d'origine va au cimetière de son joueur
+ * (§4.3), brillante si l'unité l'était.
  */
 export function removeUnit(state: GameState, unitId: UnitId): GameState {
   const { [unitId]: removed, ...units } = state.units;
   if (!removed) return state;
   const owner = state.players[removed.owner];
-  const cardId = removed.kind === 'monster' ? (getMonsterCard(removed.cardId).formOf ?? removed.cardId) : removed.cardId;
-  return { ...state, units, players: { ...state.players, [owner.id]: { ...owner, graveyard: [...owner.graveyard, cardId] } } };
+  const copy: CardCopy = removed.shiny ? { cardId: cardOfOrigin(removed), shiny: true } : { cardId: cardOfOrigin(removed) };
+  return { ...state, units, players: { ...state.players, [owner.id]: { ...owner, graveyard: [...owner.graveyard, copy] } } };
 }
 
 /** Bonus d'ATK des auras (Arnold, §5.2) : chaque monstre allié autour dont l'aura vise la famille du monstre (cumulés). */
 export function auraAtk(state: BoardState, monster: MonsterUnit): number {
-  return auraSources(state, monster).reduce((total, other) => total + (getMonsterCard(other.cardId).aura?.atk ?? 0), 0);
+  return auraSources(state, monster).reduce((total, other) => total + (auraOf(other)?.atk ?? 0), 0);
 }
 
-/** Les alliés dont l'aura couvre `monster` : même famille, sur une des 8 cases autour, pas lui-même. */
-export function auraSources(state: BoardState, monster: MonsterUnit): MonsterUnit[] {
+/** L'aura d'une unité : celle de sa carte, monstre ou terrain (Salle de sport). */
+function auraOf(unit: Unit): StatAura | null {
+  return unit.kind === 'monster' ? getMonsterCard(unit.cardId).aura : getTerrainCard(unit.cardId).aura;
+}
+
+/**
+ * Les alliés dont l'aura couvre `monster` : monstres et terrains de même camp dont l'aura vise sa famille et dont la
+ * zone le contient (8 cases autour, rayon 2, ou case du terrain et 8 autour), pas lui-même.
+ */
+export function auraSources(state: BoardState, monster: MonsterUnit): Unit[] {
   const archetype = getMonsterCard(monster.cardId).archetype;
   if (!archetype) return [];
-  return getMonsters(state, monster.owner).filter((other) => {
-    const aura = getMonsterCard(other.cardId).aura;
-    return other.id !== monster.id && aura?.archetype === archetype && isAdjacent(state.board, other.pos, monster.pos);
+  return Object.values(state.units).filter((other) => {
+    if (other.owner !== monster.owner || other.id === monster.id) return false;
+    const aura = auraOf(other);
+    return aura?.archetype === archetype && isInZone(state.board, other.pos, monster.pos, aura.zone);
   });
 }
 
@@ -171,12 +187,12 @@ export function getAtk(state: BoardState, monster: MonsterUnit): number {
 
 /** PV qu'apportent les auras à `monster` (Origine : +1 par Origine alliée adjacente). */
 export function auraHp(state: BoardState, monster: MonsterUnit): number {
-  return auraSources(state, monster).reduce((total, other) => total + (getMonsterCard(other.cardId).aura?.hp ?? 0), 0);
+  return auraSources(state, monster).reduce((total, other) => total + (auraOf(other)?.hp ?? 0), 0);
 }
 
 /** Mobilité qu'apportent les auras à `monster`, comptée au début de son tour (Origine, §10). */
 export function auraMobility(state: BoardState, monster: MonsterUnit): number {
-  return auraSources(state, monster).reduce((total, other) => total + (getMonsterCard(other.cardId).aura?.mobility ?? 0), 0);
+  return auraSources(state, monster).reduce((total, other) => total + (auraOf(other)?.mobility ?? 0), 0);
 }
 
 /** Portée actuelle d'un monstre : celle de sa carte, plus le bonus du tour (Flèche divine). C'est elle qui sert à attaquer. */

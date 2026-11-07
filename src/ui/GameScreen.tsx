@@ -7,8 +7,9 @@
 // (handoff V11, lot 12), les scores de J1 et J2 de part et d'autre de « Fin du tour », le tour, l'aide et les options.
 // Dessous, la zone de jeu (lot 13) : le plateau sur toute la largeur, et par-dessus, des panneaux flottants : à gauche
 // la fiche et le journal (le plateau reste cliquable entre eux), à droite le grimoire (3, 2 ou 1 carte par ligne, ou
-// liste : le panneau s'élargit en conséquence), repliable par son onglet ; l'aide flotte en haut du plateau. Des
-// marges de glisse de part et d'autre du plateau permettent d'en sortir chaque bord de sous un panneau.
+// liste : le panneau s'élargit en conséquence), repliable par son onglet ; l'aide flotte en haut du plateau, comme le
+// panneau des cartes jouées et du cimetière d'un joueur (ouvert par ses compteurs, dans son score ; l'un ferme l'autre).
+// Des marges de glisse de part et d'autre du plateau permettent d'en sortir chaque bord de sous un panneau.
 // Les choix passent par la bulle d'action (`ActionBubble`) : attaque d'une cible, effets (clic droit sur son monstre),
 // carte du grimoire (clic droit : l'invoquer, la lancer, la poser), choix en plusieurs temps. Échap annule.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -19,12 +20,15 @@ import type { Setup } from './session';
 import { ActionBubble } from './ActionBubble';
 import { ActionLog } from './ActionLog';
 import { Board } from './Board';
+import type { BoardCamera } from './Board';
 import { bubbleBack, getBubble } from './bubble';
 import type { BubbleRow } from './bubble';
+import { PilePanel } from './CardPiles';
 import { CutInOverlay } from './CutIn';
 import type { CutIn } from './fx/cutIn';
 import { applyEvent } from './fx/patch';
 import { playEvents } from './fx/player';
+import { cameraFocusOf } from './fx/cameraFocus';
 import { GRIMOIRE_DISPLAY, Grimoire, GrimoireTab } from './Grimoire';
 import { HoverSheet, SHEET_SCALE, SheetPreview, overframeFit, sheetOverframe, sheetPlacement } from './HoverSheet';
 import { SHEET_W } from './Overframe';
@@ -49,6 +53,8 @@ import { isoScenery } from './iso/scenery';
 import { isPixiBoard } from './Board';
 import { Legend } from './Legend';
 import { MAX_HEADROOM } from './overframes';
+import { togglePile } from './piles';
+import type { PileSelection } from './piles';
 import { ALL_TOKEN_STATS, loadSettings, prefersReducedMotion, saveSettings } from './settings';
 import type { BoardView, DisplaySettings } from './settings';
 import { eventSounds } from './sfx/events';
@@ -83,6 +89,14 @@ const GLIDE_LEFT = 16;
 const GLIDE_GAP = 12;
 const GLIDE_COLLAPSED = 20;
 const GLIDE_MIN_WIDTH = 900;
+
+/**
+ * Panneau des cartes jouées et du cimetière : entre la colonne de la fiche et le grimoire (ou son onglet, s'il est
+ * replié), à `PILES_GAP` px de chacun, pour ne cacher ni la fiche de la carte survolée ni le grimoire. Les colonnes sont
+ * à 16 px des bords (`GLIDE_LEFT`) ; l'onglet du grimoire replié fait 30 px.
+ */
+const PILES_GAP = 12;
+const GRIMOIRE_TAB_W = 30;
 
 /** La fenêtre fait moins de `width` px de large (suivi au redimensionnement). */
 function useNarrow(width: number): boolean {
@@ -131,7 +145,10 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
   const focusRef = useRef<HoverSubject | null>(null);
   focusRef.current = focus;
   const focusTimer = useRef<number | undefined>(undefined);
+  const cameraRef = useRef<BoardCamera | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  /** Cartes jouées ou cimetière d'un joueur, ouverts par un compteur de son score ; Échap ou sa croix les referment. */
+  const [pile, setPile] = useState<PileSelection | null>(null);
   /** Fiche à overframe ouverte en grand (clic sur la fiche) ; Échap ou un clic sur le fond la referme. */
   const [preview, setPreview] = useState<SheetData | null>(null);
   const previewRef = useRef(preview);
@@ -175,13 +192,13 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
   const attacks = useMemo(() => getAttackPreviews(display, activeSelection), [display, activeSelection]);
   // Bulle ouverte : ni portée adverse ni chemin sous la souris, seulement le trajet de la ligne survolée.
   const reach = useMemo(() => {
-    if (bubble) return new Map<string, 'move' | 'strike'>();
+    if (bubble || busy) return new Map<string, 'move' | 'strike'>();
     const threat = getReach(display, activeSelection, hovered);
     return new Map<string, 'move' | 'strike'>([
       ...threat.moves.map((pos) => [posKey(pos), 'move'] as const),
       ...threat.strikes.map((pos) => [posKey(pos), 'strike'] as const),
     ]);
-  }, [bubble, display, activeSelection, hovered]);
+  }, [bubble, busy, display, activeSelection, hovered]);
   const path = useMemo(
     () =>
       bubble
@@ -210,6 +227,12 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
           },
     [narrow, settings.grimoireOpen, grimoireWidth],
   );
+  const pilesBox = narrow
+    ? { left: GLIDE_LEFT, right: GLIDE_LEFT }
+    : {
+        left: glide.left + PILES_GAP,
+        right: (settings.grimoireOpen ? GLIDE_LEFT + grimoireWidth : GRIMOIRE_TAB_W) + PILES_GAP,
+      };
   const myTurn = view.activePlayer === view.viewer && view.winner === null;
 
   const changeSettings = (patch: Partial<DisplaySettings>) =>
@@ -272,6 +295,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
         }
         setSelection(NO_SELECTION);
         setHelpOpen(false);
+        setPile(null);
         return;
       }
       if (!model || typing || event.altKey || event.ctrlKey || event.metaKey) return;
@@ -336,10 +360,13 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
     played.current = view;
     const root = rootRef.current;
     const layer = layerRef.current;
+    // Un monstre de l'adversaire agit : la caméra se centre sur lui.
+    const focusPos = before ? cameraFocusOf(view.events, before, view.viewer) : null;
     if (!animated || !before || !root || !layer || view.events.length === 0) {
       shownRef.current = null;
       setShown(null);
       // Sans animation, les sons de l'action s'enchaînent seuls.
+      if (focusPos) void cameraRef.current?.focus(focusPos);
       if (before) {
         const cardOf = (id: string) => (before.units[id] ?? view.units[id])?.cardId;
         for (const [name, delay] of eventSounds(view.events, cardOf)) sfx(name, delay);
@@ -374,6 +401,9 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
     void (async () => {
       await nextFrame();
       try {
+        // La vue se pose sur le monstre avant sa carte mise en avant, qui file vers sa case à l'écran.
+        if (focusPos) await cameraRef.current?.focus(focusPos);
+        if (stopped) return;
         await playEvents(view.events, {
           stage: { root, layer, tilted },
           shown: () => shownRef.current ?? view,
@@ -467,6 +497,14 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
     setHover(cardId && rect ? { subject: { kind: 'card', cardId }, rect } : null);
     aimAt(cardId ? { kind: 'card', cardId } : null);
   };
+  /** Un compteur ouvre sa liste (ou la referme) et ferme l'aide, qui flotte au même endroit. */
+  const openPile = (next: PileSelection) => {
+    setHelpOpen(false);
+    setPile((current) => togglePile(current, next));
+  };
+  /** Une tuile des cartes jouées ou du cimetière : sa fiche, au survol comme une tuile du grimoire, ou tout de suite au clic. */
+  const copyOf = (index: number) => (pile ? { kind: 'copy' as const, player: pile.player, pile: pile.pile, index } : null);
+  const focusedCopy = pile && focus?.kind === 'copy' && focus.player === pile.player && focus.pile === pile.pile ? focus.index : null;
   const selectedCard =
     activeSelection.kind === 'card' || activeSelection.kind === 'cardMenu' || activeSelection.kind === 'push'
       ? activeSelection.cardId
@@ -482,7 +520,12 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
         canEndTurn={myTurn && !busy}
         onEndTurn={endTurn}
         helpOpen={helpOpen}
-        onHelp={() => setHelpOpen((open) => !open)}
+        onHelp={() => {
+          setPile(null);
+          setHelpOpen((open) => !open);
+        }}
+        pile={pile}
+        onPile={openPile}
         settings={settings}
         boardView={mode}
         isoAvailable={isoAvailable}
@@ -518,12 +561,26 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
             flipped={flipped}
             stats={peek ? ALL_TOKEN_STATS : settings.tokenStats}
             margins={glide}
+            cameraRef={cameraRef}
             onCellClick={handleCellClick}
             onCellContextMenu={handleCellContextMenu}
             onCellHover={handleCellHover}
             hovered={hovered}
           />
           {helpOpen && <Legend onClose={() => setHelpOpen(false)} mode={view.mode} />}
+          {pile && (
+            <PilePanel
+              view={display}
+              selection={pile}
+              onSelect={setPile}
+              onClose={() => setPile(null)}
+              focused={focusedCopy}
+              onCopyClick={(index) => focusNow(copyOf(index))}
+              onCopyHover={(index) => aimAt(index === null ? null : copyOf(index))}
+              animated={animated}
+              style={pilesBox}
+            />
+          )}
         </main>
 
         {/* À gauche, par-dessus le plateau : la fiche (rien sans fiche), le journal en bas. */}
@@ -536,7 +593,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
               <HoverSheet sheet={sheet} animated={animated} onOpen={() => setPreview(sheet)} />
             </div>
           )}
-          <ActionLog entries={log} opponentGraveyard={display.opponent.graveyard} />
+          <ActionLog entries={log} />
         </aside>
 
         {/* À droite, par-dessus le plateau : le grimoire, repliable par son onglet. */}

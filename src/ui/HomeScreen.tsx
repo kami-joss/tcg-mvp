@@ -37,7 +37,6 @@ function boardInfo(board: Board): { title: string; details: string[] } {
   const title = board.name.replace(/\s*\(.*\)$/, '');
   const details = [`${board.rows} × ${board.cols}`];
   if (board.scenery) details.push('vue isométrique');
-  if (board.mobilityBonus > 0) details.push(`+${board.mobilityBonus} mobilité pour tous les monstres`);
   if (board.contestation) details.push('mode contestation');
   return { title, details };
 }

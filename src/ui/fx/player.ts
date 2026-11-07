@@ -76,6 +76,7 @@ const STATUS_SOUNDS: Readonly<Record<StatusKind, SoundName | null>> = {
   immobilise: null,
   requiem: null,
   camouflage: null,
+  carapace: null,
 };
 
 /** Projectile d'un tireur, selon sa carte. */
@@ -163,10 +164,11 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
           if (card.kind === 'spell' && cut.to) spellFlash(stage, cut.to);
         } else {
           if (card.kind === 'spell') sfx('spell', 0.59);
-          await flyCard(stage, `[data-card="${event.cardId}"]`, event.pos, CARD_ART[event.cardId] ?? null, card.name, card.kind === 'spell');
+          // Sans case (son unité est cachée au joueur qui regarde, §10), la carte ne vole nulle part.
+          if (event.pos) await flyCard(stage, `[data-card="${event.cardId}"]`, event.pos, CARD_ART[event.cardId] ?? null, card.name, card.kind === 'spell');
         }
         await patch(event);
-        if (card.id === 'boule-de-feu') {
+        if (card.id === 'boule-de-feu' && event.pos) {
           const from = nearestOwn(shown(), event.player, event.pos);
           sfx('fireball');
           if (from) await shoot(stage, from, event.pos, 'fireball');
@@ -197,15 +199,16 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
         if (event.cells.length > 0) {
           sfx(AREA_SOUNDS[source.cardId] ?? 'spell');
           await areaBlast(stage, source.cardId, source.pos, event.cells);
-        } else if (ability?.targeting.type === 'monster' && ability.effects.some((e) => e.type === 'damage')) {
+        } else if (event.pos && ability?.targeting.type === 'monster' && ability.effects.some((e) => e.type === 'damage')) {
           sfx('spell');
           await shoot(stage, source.pos, event.pos, 'magic');
-        } else if (ability?.targeting.type === 'monster' && ability.effects.some((e) => e.type === 'absorb')) {
+        } else if (event.pos && ability?.targeting.type === 'monster' && ability.effects.some((e) => e.type === 'absorb')) {
           // Absorbe : le sang de la cible file vers le vampire.
           sfx('spell');
           burst(stage, event.pos, BLOOD, { n: 10, spread: 26, size: 5, ring: false });
           await shoot(stage, event.pos, source.pos, 'magic');
         } else {
+          // Aussi quand le monstre visé est caché au joueur qui regarde : rien ne part vers sa case (§10).
           if (ability?.targeting.type === 'monster') sfx('spell');
           await wait(150);
         }

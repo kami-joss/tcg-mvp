@@ -123,14 +123,14 @@ describe('décor peint du 15 × 15 (rendu seulement)', () => {
     expect(2 * marge + 15 * pas - (pas - cell)).toBe(planSize(15));
   });
 
-  it('décor complet : 6 cases de décor tout autour (plan de 1968 px), 241 sprites ; le plateau seul : 26 sprites, 6 pièces d’eau', () => {
+  it('décor complet : 6 cases de décor tout autour (plan de 1968 px), 244 sprites ; le plateau seul : 29 sprites, 6 pièces d’eau', () => {
     expect(full.plan.bordure).toBe(6);
     expect(worldPlan(full, 15)).toBe(1968);
-    // Le carré de pierres (9, 9)–(10, 10) porte un seul amas de 2 × 2, au lieu de quatre rochers.
-    expect(full.sprites).toHaveLength(241);
+    // Le carré de cases bloquées (9, 9)–(10, 10) porte un jeune sapin par case, à la place des quatre rochers.
+    expect(full.sprites).toHaveLength(244);
     expect(board.plan.bordure).toBe(0);
     expect(worldPlan(board, 15)).toBe(planSize(15));
-    expect(board.sprites).toHaveLength(26);
+    expect(board.sprites).toHaveLength(29);
     expect(board.decals).toHaveLength(6);
     // Sols, socles et sprites restent dans le monde : 6 cases tout autour du plateau.
     const inWorld = ([row, col]: readonly number[]) => row! >= -6 && col! >= -6 && row! < 21 && col! < 21;
@@ -285,10 +285,12 @@ describe('sprites peints du 15 × 15 (rendu seulement)', () => {
     expect(paintedStandDepth('montagne_pic')).toBe(Math.max(24, Math.ceil(20.5 * Math.SQRT2) + 2));
   });
 
-  it('lisibilité : l’amas du centre, réduit, au milieu de son carré ; aucun sprite du décor extérieur ne cache un jeton', () => {
+  it('lisibilité : au centre, de jeunes sapins d’un losange de haut au plus ; aucun sprite du décor extérieur ne cache un jeton', () => {
     const placed = placePaintedSprites(full, 15, 15, false);
-    const middle = (center(9) + center(10)) / 2;
-    expect(placed.find((s) => s.id === 'hd_amas_blocs')).toMatchObject({ x: middle, y: middle, scale: HD_SPRITE_SCALE * 0.7, inBoard: true });
+    const inSquare = (v: number) => v === center(9) || v === center(10);
+    const square = placed.filter((s) => s.inBoard && inSquare(s.x) && inSquare(s.y));
+    expect(square.map((s) => s.id)).toEqual(['hd_jeune_sapin_vert', 'hd_jeune_sapin_b_vert', 'hd_jeune_sapin_b_vert', 'hd_jeune_sapin_vert']);
+    for (const s of square) expect(SPRITES[s.id]![1] * s.scale, s.id).toBeLessThanOrEqual(HD_SPRITE_SCALE * 256);
     // Le décor extérieur posé comme dans `IsoDecor` (iso, sol du monde : avancée par défaut hors du plateau).
     const hiding = spritesHiding(placed, full.plan, 15, 15, false, 'iso', (s) => (s.inBoard ? s.dz : STAND_DEPTH));
     const ring = new Set(placed.filter((s) => !s.inBoard).map((s) => s.key));

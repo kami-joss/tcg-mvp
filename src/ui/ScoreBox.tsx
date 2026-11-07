@@ -1,11 +1,14 @@
 // Score d'un joueur dans la barre du haut (handoff V11, lot 12 §1 et §3) : l'orbe de mana (`ManaOrb`), puis le nom, le
-// deck et les VP. J1 toujours à gauche de « Fin du tour », J2 à droite en miroir ; le joueur qui ne joue pas est un peu
-// terni. Le mana porte `data-mana` et les VP `data-vp` : les animations y font voler les gains. Mana dépensé : des
-// éclats cyan et de la brume s'échappent de l'orbe ; points gagnés : des étincelles dorées jaillissent des VP.
+// deck et les VP, et à côté des VP les compteurs de ses cartes jouées et de son cimetière, qui ouvrent ces listes
+// (SPEC.md §10, `CardPiles`). J1 toujours à gauche de « Fin du tour », J2 à droite en miroir ; le joueur qui ne joue pas
+// est un peu terni. Le mana porte `data-mana` et les VP `data-vp` : les animations y font voler les gains. Mana dépensé :
+// des éclats cyan et de la brume s'échappent de l'orbe ; points gagnés : des étincelles dorées jaillissent des VP.
 import { useEffect, useRef, useState } from 'react';
 import { VICTORY_VP } from '../engine';
 import type { PlayerId, PlayerView } from '../engine';
+import { PileCounters } from './CardPiles';
 import { ManaOrb, orbBurst } from './ManaOrb';
+import type { PileKind } from './piles';
 
 /** Valeur affichée qui rattrape la valeur réelle en 650 ms (ease-out), pour les compteurs de mana et de VP. */
 export function useTween(value: number): number {
@@ -39,9 +42,13 @@ interface ScoreBoxProps {
   ai?: boolean;
   /** Animations permises (réglage, et pas de « mouvements réduits » demandés par le système). */
   animated?: boolean;
+  /** Sa liste ouverte dans le panneau des cartes jouées et du cimetière, s'il y en a une. */
+  pile: PileKind | null;
+  /** Clic sur un de ses compteurs. */
+  onPile: (pile: PileKind) => void;
 }
 
-export function ScoreBox({ view, player, deckName, ai = false, animated = true }: ScoreBoxProps) {
+export function ScoreBox({ view, player, deckName, ai = false, animated = true, pile, onPile }: ScoreBoxProps) {
   const mine = player === view.viewer;
   const real = mine ? view.me : view.opponent;
   const mana = useTween(real.mana);
@@ -86,10 +93,13 @@ export function ScoreBox({ view, player, deckName, ai = false, animated = true }
           </strong>
           <span className="score__deck">{deckName}</span>
         </div>
-        <div className="score__vp">
-          <span data-vp={player}>{vp}</span>
-          <small>/{VICTORY_VP} VP</small>
-          <span className="score__spark" data-spark={player} />
+        <div className="score__line">
+          <div className="score__vp">
+            <span data-vp={player}>{vp}</span>
+            <small>/{VICTORY_VP} VP</small>
+            <span className="score__spark" data-spark={player} />
+          </div>
+          <PileCounters view={view} player={player} open={pile} onOpen={onPile} />
         </div>
       </div>
     </section>

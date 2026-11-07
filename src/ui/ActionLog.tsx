@@ -1,10 +1,8 @@
-// Journal des actions (SPEC.md §7), toujours défilé jusqu'à la dernière entrée, et cartes utilisées par
-// l'adversaire (information publique). Une entrée par action : l'icône de l'action à la couleur du camp, sa phrase, puis
-// ses conséquences, chacune avec son icône. Chaque nouveau tour est un séparateur : numéro, joueur, mana et VP reçus.
+// Journal des actions (SPEC.md §7), toujours défilé jusqu'à la dernière entrée. Une entrée par action : l'icône de
+// l'action à la couleur du camp, sa phrase, puis ses conséquences, chacune avec son icône. Chaque nouveau tour est un
+// séparateur : numéro, joueur, mana et VP reçus. Les cartes jouées et le cimetière de chaque joueur sont dans le
+// panneau qu'ouvrent leurs compteurs (`CardPiles`).
 import { useEffect, useRef } from 'react';
-import { getCard } from '../engine';
-import type { CardId } from '../engine';
-import { groupCards } from './cardText';
 import { Icon } from './Icon';
 import type { LogEntry, LogItem } from './log';
 
@@ -54,12 +52,11 @@ function Entry({ entry }: { entry: LogEntry }) {
   );
 }
 
-export function ActionLog({ entries, opponentGraveyard }: { entries: readonly LogEntry[]; opponentGraveyard: readonly CardId[] }) {
+export function ActionLog({ entries }: { entries: readonly LogEntry[] }) {
   const list = useRef<HTMLOListElement>(null);
   useEffect(() => {
     if (list.current) list.current.scrollTop = list.current.scrollHeight;
   }, [entries]);
-  const graveyard = groupCards(opponentGraveyard).map(({ cardId, count }) => `${getCard(cardId).name}${count > 1 ? ` ×${count}` : ''}`);
 
   return (
     <section className="panel">
@@ -69,7 +66,6 @@ export function ActionLog({ entries, opponentGraveyard }: { entries: readonly Lo
           <Entry key={i} entry={entry} />
         ))}
       </ol>
-      <p className="log__used">Cimetière adverse : {graveyard.length > 0 ? graveyard.join(', ') : '—'}</p>
     </section>
   );
 }

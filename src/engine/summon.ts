@@ -33,7 +33,7 @@ export function placeSummonedMonster(
   shiny = false,
 ): GameState {
   const id = `u${state.nextUnitId}`;
-  const unit = shine(createMonsterUnit(id, card, player, pos, state.turn, state.board.mobilityBonus), shiny);
+  const unit = shine(createMonsterUnit(id, card, player, pos, state.turn), shiny);
   return enterCell(addUnit(emit(state, { type: 'summon', unit }), () => unit), id, NEW_MOVEMENT).state;
 }
 

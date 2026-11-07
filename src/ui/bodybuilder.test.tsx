@@ -47,10 +47,11 @@ const cellSheet = (state: GameState, row: number, col: number) => getSheet(activ
 describe('textes des cartes Bodybuilder', () => {
   it('famille, passifs expliqués, effet sur lui-même, requiem', () => {
     expect(describeCard(getCard('arnold'))).toEqual([
-      'ATK 7 · PV 5 · Mob. 3 · Portée 1',
+      'ATK 8 · PV 4 · Mob. 4 · Portée 1',
       'Archétype Bodybuilder.',
-      'Passif · Aura · bodybuilders alliés adjacents · +2 ATK : sur les 8 cases autour de lui, pas lui-même ; plusieurs auras se cumulent.',
+      'Passif · Aura · bodybuilders alliés adjacents, rayon 2 · +1 ATK : dans un rayon de 2 autour de lui (falaises et cases X coupent la zone), pas lui-même ; plusieurs auras se cumulent.',
     ]);
+    expect(describeCard(getCard('tibo'))[2]).toBe('Actif (1 mana) · Tortank · lui-même · carapace jusqu’à son prochain tour');
     expect(describeCard(getCard('jeune-gomuscu'))[2]).toBe(
       'Passif · Quand il détruit une unité · +1 ATK +1 PV (définitivement) : chaque fois que son attaque détruit un monstre ou un terrain.',
     );
@@ -69,13 +70,13 @@ describe('textes des cartes Bodybuilder', () => {
     expect(sheet.passive?.items).toEqual([
       {
         name: 'Début de tour',
-        text: 'Au début de ton tour, rend 1 PV à tes bodybuilders {{adjacent|adjacents}}.',
+        text: 'Au début de ton tour, rend 1 PV à tes bodybuilders dans un {{rayon|rayon}} de 2.',
       },
     ]);
   });
 
-  it('les cinq cartes ont leur illustration', () => {
-    for (const id of ['jeune-gomuscu', 'jean-bon', 'arnold', 'ki-ne', 'seringue'] as const) expect(CARD_ART[id], id).toBeTruthy();
+  it('Arnold, Ki né et Seringue ont leur illustration (Rudy et Tibo : à venir)', () => {
+    for (const id of ['arnold', 'ki-ne', 'seringue'] as const) expect(CARD_ART[id], id).toBeTruthy();
   });
 });
 
@@ -117,18 +118,18 @@ describe('Dopage (Jean Bon) : un clic sur lui-même', () => {
 describe('Arnold : l’aura se voit sur le jeton et dans la fiche', () => {
   const state = gameWith([
     { monster: 'arnold', owner: 1, at: at(8, 2) },
-    { monster: 'jeune-gomuscu', owner: 1, at: at(8, 1) },
+    { monster: 'tibo', owner: 1, at: at(8, 1) },
     { monster: 'golem', owner: 2, at: at(7, 1) },
   ]);
 
-  it('Jeune Gomuscu frappe à 4 ; Arnold, lui, garde son ATK', () => {
+  it('Tibo frappe à 4 ; Arnold, lui, garde son ATK', () => {
     const view = activeView(state);
     const html = renderBoard(view);
     expect(html.match(/stat--atk is-boosted/g)).toHaveLength(1);
     const sheet = cellSheet(state, 8, 1);
     expect(sheet.type).toBe('Monstre · Bodybuilder · Joueur 1');
-    expect(sheet.stats[0]).toMatchObject({ value: '4', delta: 2 });
-    expect(sheet.status).toContainEqual({ icon: 'aura', text: 'Aura', detail: '+2 ATK (Arnold - Bodybuilder)', kind: 'boost', group: 'effect' });
+    expect(sheet.stats[0]).toMatchObject({ value: '4', delta: 1 });
+    expect(sheet.status).toContainEqual({ icon: 'aura', text: 'Aura', detail: '+1 ATK (Arnold - Bodybuilder)', kind: 'boost', group: 'effect' });
     expect(getAttackPreviews(view, { kind: 'unit', unitId: 'u2', mode: 'act' }).get(posKey(at(7, 1)))?.damage).toBe(4);
   });
 });

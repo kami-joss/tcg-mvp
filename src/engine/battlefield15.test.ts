@@ -49,7 +49,7 @@ const targets = (state: ReturnType<typeof on15>) => getAttackTargets(state, stat
 
 describe('carte « Champ de bataille » 15 × 15 (SPEC.md §3)', () => {
   it('15 × 15, proposée avec les autres, +1 mobilité ; 5 mana zones, 3 cases d’invocation par joueur', () => {
-    expect(BATTLEFIELD_15).toMatchObject({ name: 'Champ de bataille (15 × 15)', rows: 15, cols: 15, mobilityBonus: 1 });
+    expect(BATTLEFIELD_15).toMatchObject({ name: 'Champ de bataille (15 × 15)', rows: 15, cols: 15 });
     expect(BOARDS).toContain(BATTLEFIELD_15);
     expect(Object.fromEntries(getManaZones(BATTLEFIELD_15).map(({ zone, pos }) => [zone, pos]))).toEqual({
       ecurie: at(2, 2),

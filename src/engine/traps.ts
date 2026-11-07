@@ -10,18 +10,19 @@ import { dealDamage } from './damage';
 import { emit } from './events';
 import { addStatus } from './statuses';
 import { getUnitsAt, setUnit } from './units';
-import type { GameState, PlayerId, TerrainPassage, TrapEffect, Unit, UnitId } from './types';
+import type { GameState, PlayerId, Position, TerrainPassage, TrapEffect, Unit, UnitId } from './types';
 
 /**
- * Un mouvement : un déplacement, un recul, une avancée ou une invocation (une téléportation n'entre pas sur sa case :
- * rien ne s'y déclenche, §10). `passages` : les unités « Passage » qui se sont déjà déclenchées sur le monstre pendant
- * ce mouvement (une fois chacune).
+ * Un mouvement : un déplacement, un recul, une avancée, une invocation ou une téléportation (§10). `passages` : les
+ * unités « Passage » qui se sont déjà déclenchées sur le monstre pendant ce mouvement (une fois chacune) ; `swept` : les ennemis déjà touchés par la zone du monstre lui-même (« Zone »), une
+ * fois chacun.
  */
 export interface Movement {
   readonly passages: readonly UnitId[];
+  readonly swept: readonly UnitId[];
 }
 
-export const NEW_MOVEMENT: Movement = { passages: [] };
+export const NEW_MOVEMENT: Movement = { passages: [], swept: [] };
 
 export interface EnterResult {
   readonly state: GameState;
@@ -64,12 +65,46 @@ export function getPassageSources(state: Pick<GameState, 'board' | 'units'>, mon
   });
 }
 
+/** Les monstres ennemis de la source dans sa zone (les 8 cases autour, falaises comprises, §10). */
+function getZoneEnemies(state: GameState, source: Unit): Unit[] {
+  return Object.values(state.units).filter(
+    (unit) => unit.kind === 'monster' && unit.owner !== source.owner && isAdjacent(state.board, source.pos, unit.pos),
+  );
+}
+
+/** La zone de `sourceId` (« Zone », §10) frappe ces ennemis : les effets de son Passage, comme s'ils y entraient. */
+function sweepZone(state: GameState, sourceId: UnitId, targetIds: readonly UnitId[]): GameState {
+  let next = state;
+  for (const id of targetIds) {
+    const source = next.units[sourceId];
+    const target = next.units[id];
+    const passage = source && getPassage(source);
+    if (!source || !passage || target?.kind !== 'monster') continue;
+    next = emit(next, { type: 'passage', sourceId, unitId: id, pos: target.pos });
+    next = applyEnterEffects(next, id, passage.effects, source.owner, false);
+  }
+  return next;
+}
+
+/** Début du tour de `player` : sa « Zone » frappe de nouveau chaque ennemi qui y est resté (§4.2, §10). */
+export function sweepZonesAtTurnStart(state: GameState, player: PlayerId): GameState {
+  let next = state;
+  for (const source of Object.values(state.units)) {
+    const current = next.units[source.id];
+    if (!current || current.owner !== player || current.kind !== 'monster' || !getPassage(current)?.lingering) continue;
+    next = sweepZone(next, current.id, getZoneEnemies(next, current).map((enemy) => enemy.id));
+  }
+  return next;
+}
+
 /**
  * Le monstre `unitId` vient d'entrer sur sa case actuelle (déplacement, recul, avancée ou invocation) :
  * les pièges ennemis de cette case se déclenchent, puis disparaissent ; ensuite les terrains ennemis « Passage » dont
- * il entre dans la zone, s'ils ne se sont pas déjà déclenchés pendant ce mouvement.
+ * il entre dans la zone, s'ils ne se sont pas déjà déclenchés pendant ce mouvement ; enfin, si le monstre a lui-même
+ * une « Zone » (Golem de lave), elle frappe les ennemis qui y sont désormais et n'y étaient pas depuis `from` (sa case
+ * d'avant ; absent : tous, à l'invocation).
  */
-export function enterCell(state: GameState, unitId: UnitId, movement: Movement = NEW_MOVEMENT): EnterResult {
+export function enterCell(state: GameState, unitId: UnitId, movement: Movement = NEW_MOVEMENT, from?: Position): EnterResult {
   const unit = state.units[unitId];
   if (unit?.kind !== 'monster') return { state, stopped: false, movement };
   let next = state;
@@ -107,14 +142,25 @@ export function enterCell(state: GameState, unitId: UnitId, movement: Movement =
     stopped ||= cell.effects.some(stops);
   }
 
-  return { state: next, stopped: stopped || next.units[unitId] === undefined, movement: { passages } };
+  // Sa propre zone, sur les ennemis qu'il vient d'approcher : une fois chacun par mouvement.
+  let swept = movement.swept;
+  const self = next.units[unitId];
+  if (self?.kind === 'monster' && getPassage(self)?.lingering) {
+    const approached = getZoneEnemies(next, self).filter(
+      (enemy) => !swept.includes(enemy.id) && !(from && isAdjacent(next.board, from, enemy.pos)),
+    );
+    swept = [...swept, ...approached.map((enemy) => enemy.id)];
+    next = sweepZone(next, unitId, approached.map((enemy) => enemy.id));
+  }
+
+  return { state: next, stopped: stopped || next.units[unitId] === undefined, movement: { passages, swept } };
 }
 
 /**
  * Remonte N cases (piège de la Chronomancienne) : le monstre revient de `steps` cases en arrière sur son chemin (les cases
  * où il a été depuis le début du tour de son camp), ou à son début s'il est plus court ; une case occupée entre-temps
- * est sautée, vers la case d'où il revient. C'est une téléportation : il garde son orientation, rien ne se déclenche
- * sur la case d'arrivée (ni piège, ni Passage, ni case brûlée, §10) et il n'a plus de mobilité ce tour. Son chemin
+ * est sautée, vers la case d'où il revient. C'est une téléportation : il garde son orientation et entre sur la case
+ * d'arrivée (piège, Passage, case brûlée et Zone s'y déclenchent, §10) ; il n'a plus de mobilité ce tour. Son chemin
  * s'arrête à cette case.
  */
 export function rewindMonster(state: GameState, unitId: UnitId, steps: number): EnterResult {
@@ -131,7 +177,7 @@ export function rewindMonster(state: GameState, unitId: UnitId, steps: number): 
   const kept = trail.slice(0, index + 1);
   if (samePos(to, pos)) return { state: setUnit(state, { ...monster, mobilityLeft: 0, halted: true }), stopped: true, movement: NEW_MOVEMENT };
   const moved = setUnit(emit(state, { type: 'rewind', unitId, from: pos, to }), { ...monster, pos: to, trail: kept, mobilityLeft: 0, halted: true });
-  return { state: moved, stopped: true, movement: NEW_MOVEMENT };
+  return { state: enterCell(moved, unitId, NEW_MOVEMENT, pos).state, stopped: true, movement: NEW_MOVEMENT };
 }
 
 /** Au début du tour `turn`, les cases brûlées arrivées à échéance s'éteignent. */

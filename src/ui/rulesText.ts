@@ -23,8 +23,8 @@ import { ARCHETYPE_NAMES, cardTitle } from './cardText';
 /** Mots du lexique qu'un texte de carte met en gras, et leur définition (survol). */
 export const GLOSSARY = {
   piege: 'Piège : caché à l’adversaire, il se déclenche quand un monstre ennemi entre sur sa case, puis disparaît. Il disparaît aussi au début de ton prochain tour.',
-  entrer: 'Entrer sur une case : y arriver en se déplaçant (à chaque case du chemin), en étant repoussé, en avançant après une attaque ou en étant invoqué. Jamais par téléportation.',
-  teleporter: 'Téléportation : le monstre est posé directement sur la case, sans y entrer : rien ne s’y déclenche (ni piège, ni Passage, ni case brûlée). Ce n’est pas un déplacement : il garde sa mobilité, son attaque et son orientation.',
+  entrer: 'Entrer sur une case : y arriver en se déplaçant (à chaque case du chemin), en étant repoussé, en avançant après une attaque, en étant invoqué ou en étant téléporté (sur la case d’arrivée seulement).',
+  teleporter: 'Téléportation : le monstre est posé directement sur la case, sans traverser les cases entre les deux, mais il entre sur la case d’arrivée : piège, Passage, case brûlée et Zone s’y déclenchent. Ce n’est pas un déplacement : il garde sa mobilité, son attaque et son orientation.',
   repousser: 'Repousser : le monstre recule case par case et entre sur chaque case. Il s’arrête avant le premier obstacle (case bloquée, case occupée, falaise).',
   chemin: 'Chemin du tour : les cases où le monstre a été depuis le début du tour de son camp, sa case de départ comprise.',
   adjacent: 'Adjacent : une des 8 cases autour, diagonales comprises.',
@@ -36,12 +36,14 @@ export const GLOSSARY = {
   invoquer: 'Invoquer : poser un monstre de ton grimoire sur une case. Il entre sur la case.',
   sacrifier: 'Sacrifier : le monstre quitte le plateau sans être détruit. Personne ne gagne de VP ; il va au cimetière.',
   caseBrulee: 'Case brûlée : visible des deux joueurs. Chaque monstre ennemi qui y entre en subit les effets ; elle reste jusqu’à la fin de sa durée.',
-  passage: 'Passage : se déclenche à chaque case où l’ennemi entre en se déplaçant, une fois par recul. Pas sur une téléportation.',
+  passage: 'Passage : se déclenche à chaque case où l’ennemi entre en se déplaçant, une fois par recul, et à l’arrivée d’une téléportation.',
+  zone: 'Zone : comme Passage (l’ennemi qui entre sur une des 8 cases autour), mais elle agit aussi quand c’est le monstre qui arrive à côté d’un ennemi (une fois par déplacement), et de nouveau au début de ton tour sur chaque ennemi qui y est encore.',
   stun: 'Stun : plus aucune action (ni déplacement, ni attaque, ni effet actif, ni riposte).',
   slow: 'Slow N : −N mobilité. Les slow se cumulent.',
   burn: 'Burn N : perd N PV au début de chacun de ses tours touchés. Les burn se cumulent.',
   immobilise: 'Immobilisé : ne peut plus bouger (ni avancer après une attaque), mais peut attaquer et activer ses effets.',
   requiem: 'Requiem N : meurt au début de son N-ième prochain tour. Personne ne gagne de VP.',
+  carapace: 'Carapace : la prochaine attaque (ou riposte) subie n’inflige que 1 PV au monstre, puis la carapace disparaît. Les autres dégâts (sorts, effets, pièges, burn) ne sont pas touchés.',
   camouflage: 'Camouflage N : caché à l’adversaire tant qu’aucun de ses monstres ni terrains n’est dans un rayon de N.',
   absorber: 'Absorber : retirer des PV au monstre visé ; ce monstre-ci récupère les PV retirés, sans dépasser ses PV max. Ce n’est pas une attaque.',
   deplacement: 'Déplacement : le monstre marche de case en case, 1 mobilité par case ; il peut en faire plusieurs par tour avec sa mobilité restante. Un recul, une avancée ou une téléportation n’en est pas un.',
@@ -167,6 +169,8 @@ function statusWord(spec: StatusSpec): string {
       return t('stun', 'stun');
     case 'immobilise':
       return t('immobilise', 'immobilisé');
+    case 'carapace':
+      return t('carapace', 'carapace');
   }
 }
 
@@ -190,7 +194,7 @@ function clause(effect: Effect, next: Effect | undefined, target: Target, first:
     case 'heal':
       return [first ? `rend ${effect.amount} PV ${to}` : `${target.them} rend ${effect.amount} PV`, 1];
     case 'status': {
-      if (effect.kind === 'camouflage') {
+      if (effect.kind === 'camouflage' || effect.kind === 'carapace') {
         const what = `${statusWord(effect)}${duration(effect, target.its)}`;
         return [first ? `donne ${what} ${target.to}` : `${target.them} donne ${what}`, 1];
       }
@@ -374,16 +378,35 @@ export function keywordRules(spec: KeywordSpec): string {
   }
 }
 
-const alliesAround = ({ archetype }: AllyZoneEffect | StatAura) => `tes ${ARCHETYPE_NAMES[archetype].many} ${t('adjacent', 'adjacents')}`;
+const alliesAround = ({ archetype, zone }: AllyZoneEffect | StatAura) => {
+  const where =
+    zone === 'adjacent2'
+      ? `dans un ${t('rayon', 'rayon')} de 2`
+      : zone === 'cellAndAdjacent'
+        ? `sur ce terrain ou ${t('adjacent', 'adjacents')}`
+        : t('adjacent', 'adjacents');
+  return `tes ${ARCHETYPE_NAMES[archetype].many} ${where}`;
+};
 
 const statBonus = ({ atk, hp, mobility }: Pick<StatAura, 'atk' | 'hp' | 'mobility'>) => {
   const parts = [atk ? `+${atk} ATK` : null, hp ? `+${hp} PV` : null, mobility ? `+${mobility} mobilité` : null].filter(Boolean);
   return parts.length <= 1 ? parts.join('') : `${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}`;
 };
 
-/** Passage (terrain ou monstre) : « L’ennemi qui entre sur une case adjacente subit burn 1 pendant 1 tour. » */
-const passageRules = (card: TerrainCard | MonsterCard) =>
-  card.passage ? `L’ennemi qui ${t('entrer', 'entre')} sur une case ${t('adjacent', 'adjacente')} ${suffers(card.passage.effects)}.` : null;
+/**
+ * Passage (terrain ou monstre) : « L’ennemi qui entre sur une case adjacente subit burn 1 pendant 1 tour. » ; Zone
+ * (Golem de lave) : aussi quand le monstre arrive à côté de lui, et de nouveau au début de ton tour s'il y est encore.
+ */
+const passageRules = (card: TerrainCard | MonsterCard) => {
+  const passage = card.passage;
+  if (!passage) return null;
+  if (passage.lingering) {
+    return `Les cases ${t('adjacent', 'adjacentes')} forment une ${t('zone', 'zone')} : l’ennemi qui y ${t('entrer', 'entre')}, ou près duquel ce monstre arrive, ${suffers(passage.effects)}, de nouveau au début de ton tour s’il y est encore.`;
+  }
+  return `L’ennemi qui ${t('entrer', 'entre')} sur une case ${t('adjacent', 'adjacente')} ${suffers(passage.effects)}.`;
+};
+
+const passageTerm = (card: TerrainCard | MonsterCard) => (card.passage?.lingering ? t('zone', 'Zone') : t('passage', 'Passage'));
 
 /** Au déplacement (Terrain de chasse) : « Quand un de tes monstres commence un déplacement sur sa case… ». */
 const onMoveRules = (card: TerrainCard) =>
@@ -404,7 +427,8 @@ export function passiveRules(card: Card): RulesItem[] {
   if (card.kind === 'terrain') {
     return [
       card.zoneManaBonus > 0 ? { name: '', text: `La mana zone rapporte +${card.zoneManaBonus} mana.` } : null,
-      card.passage ? { name: t('passage', 'Passage'), text: passageRules(card)! } : null,
+      card.aura ? { name: 'Aura', text: `${capitalize(alliesAround(card.aura))} ont ${statBonus(card.aura)}.` } : null,
+      card.passage ? { name: passageTerm(card), text: passageRules(card)! } : null,
       card.summonPoint ? { name: 'Point d’invocation', text: 'Sa case est une case d’invocation pour toi, tant qu’aucun monstre ne s’y trouve.' } : null,
       card.onMove ? { name: 'Au déplacement', text: onMoveRules(card)! } : null,
     ].filter((item): item is RulesItem => item !== null);
@@ -418,7 +442,7 @@ export function passiveRules(card: Card): RulesItem[] {
     items.push({ name: 'Quand il détruit une unité', text: gains });
   }
   if (card.aura) items.push({ name: 'Aura', text: `${capitalize(alliesAround(card.aura))} ont ${statBonus(card.aura)}.` });
-  if (card.passage) items.push({ name: t('passage', 'Passage'), text: passageRules(card)! });
+  if (card.passage) items.push({ name: passageTerm(card), text: passageRules(card)! });
   if (card.turnStart) {
     const target = many(alliesAround(card.turnStart));
     items.push({ name: 'Début de tour', text: `Au début de ton tour, ${clauses(card.turnStart.effects, target, { type: 'self' })}.` });

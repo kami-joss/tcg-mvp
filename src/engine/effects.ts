@@ -477,21 +477,23 @@ function applyEffect(state: GameState, effect: Effect, monster: MonsterUnit, con
       return push(state, monster, direction, chosen);
     }
     case 'teleport': {
-      // Pas un déplacement : il garde sa mobilité, son attaque et son orientation. Il apparaît sur sa nouvelle case sans
-      // y entrer : ni piège, ni Passage, ni case brûlée (§10).
+      // Pas un déplacement : il garde sa mobilité, son attaque et son orientation. Mais il entre sur sa nouvelle case :
+      // piège, Passage, case brûlée et Zone s'y déclenchent (§10).
       const to = context.destination;
       if (!to) throw new Error('Une téléportation demande une case');
-      return setUnit(emit(state, { type: 'teleport', unitId, from: pos, to }), { ...monster, pos: to });
+      const moved = setUnit(emit(state, { type: 'teleport', unitId, from: pos, to }), { ...monster, pos: to });
+      return enterCell(moved, unitId, NEW_MOVEMENT, pos).state;
     }
     case 'returnOnTrail': {
-      // Retour : une téléportation sur une case de son chemin du tour (sans piège, Passage ni case brûlée) ; il garde son
-      // attaque et son orientation, mais ne se déplace plus ce tour. Son chemin s'arrête à cette case (ce qui suivait est
-      // effacé).
+      // Retour : une téléportation sur une case de son chemin du tour (ce qui est sur cette case se déclenche) ; il garde
+      // son attaque et son orientation, mais ne se déplace plus ce tour. Son chemin s'arrête à cette case (ce qui suivait
+      // est effacé).
       const to = context.destination;
       if (!to) throw new Error('Un retour demande une case');
       const index = monster.trail.findIndex((cell) => samePos(cell, to));
       const trail = index >= 0 ? monster.trail.slice(0, index + 1) : [...monster.trail, to];
-      return setUnit(emit(state, { type: 'rewind', unitId, from: pos, to }), { ...monster, pos: to, trail, mobilityLeft: 0, halted: true });
+      const moved = setUnit(emit(state, { type: 'rewind', unitId, from: pos, to }), { ...monster, pos: to, trail, mobilityLeft: 0, halted: true });
+      return enterCell(moved, unitId, NEW_MOVEMENT, pos).state;
     }
     case 'rewind':
       return rewindMonster(state, unitId, effect.steps).state;
@@ -573,7 +575,7 @@ function resolveSummon(state: GameState, target: Extract<EffectTarget, { kind: '
   if (card.kind !== 'monster') throw new Error(`« ${target.cardId} » n'est pas un monstre`);
   const pos = { row: target.pos.row, col: target.pos.col };
   const shiny = isShinyCopy(state, by, card.id);
-  const paid = payCard(emit(state, { type: 'cardPlayed', player: by, cardId: card.id, pos }), by, card);
+  const paid = payCard(emit(state, { type: 'cardPlayed', player: by, cardId: card.id, pos, unitId: `u${state.nextUnitId}` }), by, card);
   return placeSummonedMonster(paid, by, card, pos, shiny);
 }
 
@@ -593,7 +595,7 @@ function push(state: GameState, monster: MonsterUnit, direction: Direction, push
     if (current?.kind !== 'monster') break;
     const pos = { row: monster.pos.row + step.row * i, col: monster.pos.col + step.col * i };
     const moved = emit(next, { type: 'step', unitId: monster.id, from: current.pos, to: pos, kind: 'push' });
-    const entered = enterCell(setUnit(moved, { ...current, pos }), monster.id, movement);
+    const entered = enterCell(setUnit(moved, { ...current, pos }), monster.id, movement, current.pos);
     next = entered.state;
     movement = entered.movement;
     if (entered.stopped) break;
@@ -626,8 +628,8 @@ function resolveEvolve(state: GameState, target: EffectTarget, source: MonsterUn
   const { pos, owner, facing } = source;
   const shiny = isShinyCopy(state, owner, card.id);
   let next = removeUnit(emit(state, { type: 'sacrifice', unitId: source.id, pos }), source.id);
-  next = takeFromGrimoire(emit(next, { type: 'cardPlayed', player: owner, cardId: card.id, pos }), card.id);
   const id = `u${next.nextUnitId}`;
+  next = takeFromGrimoire(emit(next, { type: 'cardPlayed', player: owner, cardId: card.id, pos, unitId: id }), card.id);
   const unit = {
     ...shine(createMonsterUnit(id, card, owner, pos, state.turn), shiny),
     facing,

@@ -66,8 +66,9 @@ describe('Jeune dragon : évolution (effet actif, 2 mana)', () => {
     });
     expect(after.players[1]).toMatchObject({ mana: 0, vp: 0, grimoire: ['jeune-dragon', 'dragon-feu', 'dragon-eau', 'dragon-vent'] });
     expect(after.players[1].grimoire).not.toContain('dragon-terre');
-    // Le Jeune dragon sacrifié va au cimetière, pas le dragon qui le remplace (§4.3).
-    expect(after.players[1].graveyard).toEqual(['jeune-dragon']);
+    // Le Jeune dragon sacrifié va au cimetière, pas le dragon qui le remplace (§4.3) ; le dragon est une carte jouée (§10).
+    expect(after.players[1].graveyard).toEqual([{ cardId: 'jeune-dragon' }]);
+    expect(after.players[1].played).toEqual([{ cardId: 'dragon-terre' }]);
     expect(after.players[2].vp).toBe(0);
     expect(after.events.map((e) => e.type)).toEqual(['effect', 'mana', 'sacrifice', 'cardPlayed', 'summon']);
     expect(getLegalActions(after).filter((a) => 'unitId' in a && a.unitId === 'u2')).toEqual([]);

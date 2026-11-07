@@ -16,11 +16,15 @@ export function dealDamage(
   by: PlayerId,
   cause: DamageCause,
 ): GameState {
-  const target = state.units[targetId];
+  let target = state.units[targetId];
   if (!target) throw new Error(`Unité inconnue : ${targetId}`);
 
-  const hp = target.hp - amount;
-  const hit = emit(state, { type: 'damage', unitId: targetId, pos: target.pos, amount, hp: Math.max(0, hp), cause });
+  // Carapace (Tibo) : la prochaine attaque ou riposte subie n'inflige que 1 PV, puis le statut est consommé (§10).
+  const shielded = (cause === 'attack' || cause === 'riposte') && target.statuses.some((s) => s.kind === 'carapace');
+  const dealt = shielded ? Math.min(amount, 1) : amount;
+  const hp = target.hp - dealt;
+  const hit = emit(state, { type: 'damage', unitId: targetId, pos: target.pos, amount: dealt, hp: Math.max(0, hp), cause });
+  if (shielded) target = { ...target, statuses: target.statuses.filter((s) => s.kind !== 'carapace') };
   if (hp > 0) return setUnit(hit, { ...target, hp });
 
   const destroyed = removeUnit(emit(hit, { type: 'destroyed', unitId: targetId, pos: target.pos }), targetId);

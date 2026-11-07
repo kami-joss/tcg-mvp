@@ -15,7 +15,7 @@ const canAttack = (state: GameState, unitId: UnitId, targetId: UnitId) =>
   getLegalActions(state).some((a) => a.type === 'attack' && a.unitId === unitId && a.targetId === targetId);
 
 describe('Flèche divine', () => {
-  it('vise un de ses archers (famille Archer) : ni le Trébuchet, ni l’Archer de base, ni un archer adverse', () => {
+  it('vise un de ses archers (famille Archer) : ni le Trébuchet, ni l’Archer de base, ni un archer adverse, ni le Monstre de test', () => {
     const state = gameWith(
       [
         { monster: 'archer-leger', owner: 1, at: at(9, 0) },
@@ -25,6 +25,7 @@ describe('Flèche divine', () => {
         { monster: 'trebuchet', owner: 1, at: at(9, 6) },
         { monster: 'archer', owner: 1, at: at(9, 7) },
         { monster: 'archer-leger', owner: 2, at: at(1, 0) },
+        { monster: 'monstre-de-test', owner: 1, at: at(9, 8) },
       ],
       ARROWS,
     );
@@ -32,7 +33,7 @@ describe('Flèche divine', () => {
       a.type === 'playCard' && a.cardId === 'fleche-divine' && a.target.kind === 'unit' ? [a.target.unitId] : [],
     );
     expect(targets.sort()).toEqual(['u1', 'u2', 'u3', 'u4']);
-    for (const id of ['u5', 'u6', 'u7']) expect(() => applyAction(state, arrow(id)), id).toThrow(IllegalActionError);
+    for (const id of ['u5', 'u6', 'u7', 'u8']) expect(() => applyAction(state, arrow(id)), id).toThrow(IllegalActionError);
   });
 
   it('+1 ATK et +1 portée pour ce tour : l’archer tire à 3 cases', () => {

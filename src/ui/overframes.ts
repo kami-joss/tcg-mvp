@@ -98,7 +98,7 @@ export interface OverframeDef {
 const DEFS = data as unknown as Readonly<Record<string, OverframeDef>>;
 
 /**
- * Overframes des cartes du jeu. L'entrée `archer_feu` du kit est l'Apprenti - Sorciers du feu (l'illustration est la
+ * Overframes des cartes du jeu. L'entrée `archer_feu` du kit est l'Feria - Sorciers du feu (l'illustration est la
  * sienne) ; `maitre_des_heures`, le Maître des heures - Explorateur du temps. Emma, sa forme chauve-souris et Zoldik
  * (deck Vampire) : pop détouré dans leur illustration.
  */
@@ -250,7 +250,7 @@ function motes(seed: number, amethyst: boolean, rotate: number) {
 }
 
 /**
- * Neige (Archer de glace), braises (Apprenti - Sorciers du feu), étincelles arc-en-ciel (tout exemplaire brillant),
+ * Neige (Archer de glace), braises (Feria - Sorciers du feu), étincelles arc-en-ciel (tout exemplaire brillant),
  * poussière d'or (Maître des heures, étoiles qui tournent) et d'or et d'améthyste (Chronomancienne), gouttes de sang qui
  * montent (Emma, Zoldik), chauves-souris qui s'envolent (Emma chauve-souris).
  */

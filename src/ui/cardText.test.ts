@@ -101,7 +101,7 @@ describe('SPEC.md et les données des cartes disent la même chose (§6, §6 bis
   it('colonne « Effet » identique au texte généré depuis les données (monstres, sorts, terrains à Passage ou Point d’invocation)', () => {
     for (const row of rows) {
       const card = byName.get(row.Carte ?? '');
-      if (!card || (card.kind === 'terrain' && !card.passage && !card.summonPoint)) continue;
+      if (!card || (card.kind === 'terrain' && !card.passage && !card.summonPoint && !card.aura)) continue;
       expect(normalize(cardEffectLine(card)), card.name).toBe(row.Effet);
     }
   });

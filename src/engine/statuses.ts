@@ -104,7 +104,7 @@ export function expireStatuses(state: GameState, turn: number): GameState {
 
 /**
  * Mobilité d'un tour, avec les statuts actifs à ce tour-là : 0 si stun ou immobilisé, sinon celle de la carte plus
- * `bonus` (aura d'Origine, bonus du plateau), moins les slow.
+ * `bonus` (aura d'Origine), moins les slow.
  */
 function mobilityWith(monster: MonsterUnit, statuses: readonly Status[], bonus: number): number {
   if (statuses.some((s) => s.kind === 'stun' || s.kind === 'immobilise')) return 0;
@@ -112,14 +112,14 @@ function mobilityWith(monster: MonsterUnit, statuses: readonly Status[], bonus: 
   return Math.max(0, getMonsterCard(monster.cardId).mobility + bonus - slow);
 }
 
-/** Mobilité retrouvée au début du tour en cours (les statuts échus ont déjà disparu) ; `bonus` : aura et plateau. */
+/** Mobilité retrouvée au début du tour en cours (les statuts échus ont déjà disparu) ; `bonus` : aura. */
 export function turnMobility(monster: MonsterUnit, bonus = 0): number {
   return mobilityWith(monster, monster.statuses, bonus);
 }
 
 /**
- * Mobilité qu'aura le monstre à son prochain tour, vu depuis le tour `turn` où `active` joue ; `bonus` : bonus du
- * plateau, et d'aura s'il reste où il est.
+ * Mobilité qu'aura le monstre à son prochain tour, vu depuis le tour `turn` où `active` joue ; `bonus` : aura
+ * s'il reste où il est.
  */
 export function getNextTurnMobility(monster: MonsterUnit, turn: number, active: PlayerId, bonus = 0): number {
   const next = ownerNextTurn(turn, active, monster.owner);

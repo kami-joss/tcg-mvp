@@ -60,7 +60,7 @@ describe('accueil', () => {
 
   it('les cartes, avec leurs particularités ; celle par défaut cochée', () => {
     expect(html.match(/name="carte"/g)).toHaveLength(BOARDS.length);
-    expect(html).toContain('13 × 13 · vue isométrique · +1 mobilité pour tous les monstres');
+    expect(html).toContain('13 × 13 · vue isométrique');
     expect(html).toContain('11 × 9');
     expect(html).toContain('checked="" value="Champ de bataille (13 × 13)"');
   });
@@ -75,7 +75,7 @@ describe('accueil', () => {
   it('le mode : Normal par défaut, Contestation sur le 13 × 13 et le 15 × 15 seulement (SPEC.md §4.4 bis)', () => {
     expect(html).toContain('aria-pressed="true">Normal');
     expect(html).toMatch(/aria-pressed="false">Contestation/);
-    expect(html).toContain('13 × 13 · vue isométrique · +1 mobilité pour tous les monstres · mode contestation');
+    expect(html).toContain('13 × 13 · vue isométrique · mode contestation');
     const contest = renderToStaticMarkup(<HomeScreen initial={{ ...DEFAULT_SETUP, mode: 'contestation' }} onStart={() => {}} />);
     expect(contest).toContain('aria-pressed="true">Contestation');
     expect(contest).toContain('zone de 9 cases');

@@ -3,11 +3,24 @@
 import { directionBetween, getCard, getMonsterCard, samePos } from '../../engine';
 import type { GameEvent, PlayerId, PlayerView, Position, Unit } from '../../engine';
 
-function setPlayer(view: PlayerView, player: PlayerId, patch: { mana?: number; vp?: number }): PlayerView {
+/** Ce que tout le monde sait d'un joueur, et que les événements changent. */
+type PublicPatch = Partial<Pick<PlayerView['opponent'], 'mana' | 'vp' | 'played' | 'graveyard'>>;
+
+function setPlayer(view: PlayerView, player: PlayerId, patch: PublicPatch): PlayerView {
   return player === view.viewer ? { ...view, me: { ...view.me, ...patch } } : { ...view, opponent: { ...view.opponent, ...patch } };
 }
 
 const publicOf = (view: PlayerView, player: PlayerId) => (player === view.viewer ? view.me : view.opponent);
+
+/**
+ * Une carte de plus dans les cartes jouées ou le cimetière de `player` : la suivante de la vue finale. Ces listes ne
+ * font que s'allonger, dans l'ordre des événements ; l'exemplaire reste tel que le moteur l'a noté (brillant ou non).
+ */
+function grow(view: PlayerView, final: PlayerView, player: PlayerId, pile: 'played' | 'graveyard'): PlayerView {
+  const current = publicOf(view, player)[pile];
+  const next = publicOf(final, player)[pile].slice(0, current.length + 1);
+  return next.length > current.length ? setPlayer(view, player, { [pile]: next }) : view;
+}
 
 function updateUnit(view: PlayerView, unitId: string, update: (unit: Unit) => Unit): PlayerView {
   const unit = view.units[unitId];
@@ -36,13 +49,14 @@ export function applyEvent(view: PlayerView, event: GameEvent, final: PlayerView
     case 'vp':
       return setPlayer(view, event.player, { vp: publicOf(view, event.player).vp + event.amount });
     case 'cardPlayed': {
-      if (event.player !== view.viewer) return view;
-      const index = view.me.grimoire.indexOf(event.cardId);
-      if (index < 0) return view;
-      const grimoire = [...view.me.grimoire.slice(0, index), ...view.me.grimoire.slice(index + 1)];
-      // Un sort va au cimetière ; un monstre ou un terrain n'y ira qu'en quittant le plateau (§4.3).
-      const graveyard = getCard(event.cardId).kind === 'spell' ? [...view.me.graveyard, event.cardId] : view.me.graveyard;
-      return { ...view, me: { ...view.me, grimoire, graveyard } };
+      // Une carte jouée de plus ; un sort va au cimetière, un monstre ou un terrain n'y ira qu'en quittant le plateau
+      // (§4.3). Le joueur qui regarde voit aussi l'exemplaire quitter son grimoire.
+      const played = grow(view, final, event.player, 'played');
+      const shown = getCard(event.cardId).kind === 'spell' ? grow(played, final, event.player, 'graveyard') : played;
+      const index = event.player === view.viewer ? shown.me.grimoire.indexOf(event.cardId) : -1;
+      if (index < 0) return shown;
+      const grimoire = [...shown.me.grimoire.slice(0, index), ...shown.me.grimoire.slice(index + 1)];
+      return { ...shown, me: { ...shown.me, grimoire } };
     }
     case 'summon':
       return { ...view, units: { ...view.units, [event.unit.id]: event.unit } };
@@ -108,8 +122,10 @@ export function applyEvent(view: PlayerView, event: GameEvent, final: PlayerView
     case 'sacrifice':
     case 'requiem':
     case 'destroyed': {
-      const { [event.unitId]: _gone, ...units } = view.units;
-      return { ...view, units };
+      // L'unité quitte le plateau : sa carte va au cimetière de son joueur (§4.3).
+      const { [event.unitId]: gone, ...units } = view.units;
+      const shown = gone ? grow(view, final, gone.owner, 'graveyard') : view;
+      return { ...shown, units };
     }
     case 'trapPlaced':
       return { ...view, traps: [...view.traps, event.trap] };

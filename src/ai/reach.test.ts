@@ -6,7 +6,7 @@ import { getStrikers } from './reach';
 
 // Calcul rapide de l'IA : ce qu'un monstre pourra frapper à son prochain tour, comme le moteur le permettrait.
 
-const mobility = (state: GameState) => (m: MonsterUnit) => getNextTurnMobility(m, state.turn, state.activePlayer, state.board.mobilityBonus);
+const mobility = (state: GameState) => (m: MonsterUnit) => getNextTurnMobility(m, state.turn, state.activePlayer);
 const strikes = (state: GameState, attacker: PlayerId) =>
   getStrikers(state, attacker, mobility(state), (m) => getAtk(state, m), () => true).map(({ monster, hits }) => ({
     id: monster.id,

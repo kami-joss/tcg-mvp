@@ -107,6 +107,21 @@ describe('cut-in : la carte qui agit, mise en avant', () => {
     });
   });
 
+  it('une carte jouée vers une unité cachée au joueur qui regarde s’efface sur place, sans être brillante (§10)', () => {
+    // J2 invoque un Farceur brillant loin de J1, puis lance Charge sur lui : J1 ne voit pas sa case.
+    const state = gameWith([{ monster: 'chevalier', owner: 1, at: at(0, 4) }], {
+      activePlayer: 2,
+      players: { 2: { mana: 5, grimoire: ['farceur', 'charge'], shiny: ['farceur'] } },
+    });
+    const summon: Action = { type: 'playCard', cardId: 'farceur', target: { kind: 'cell', pos: at(10, 4) } };
+    expect(cutInFor(state, summon, 1)).toMatchObject({ kind: 'summon', cardId: 'farceur', owner: 2, action: 'Invocation', shiny: false, to: null });
+    expect(cutInFor(state, summon, 2)).toMatchObject({ kind: 'summon', shiny: true, to: at(10, 4) });
+    const hidden = applyAction(state, summon);
+    const charge: Action = { type: 'playCard', cardId: 'charge', target: { kind: 'unit', unitId: 'u2' } };
+    expect(cutInFor(hidden, charge, 1)).toMatchObject({ kind: 'spell', cardId: 'charge', action: 'Sort', to: null });
+    expect(cutInFor(hidden, charge, 2)).toMatchObject({ kind: 'spell', cardId: 'charge', to: at(10, 4) });
+  });
+
   it('ni déplacement ni fin du tour ; rien si l’unité qui agit n’est pas dans la vue', () => {
     const state = gameWith([{ monster: 'milicien', owner: 1, at: at(9, 5) }]);
     expect(cutInFor(state, { type: 'move', unitId: 'u1', to: at(8, 5) })).toBeNull();

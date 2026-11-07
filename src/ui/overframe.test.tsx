@@ -13,7 +13,7 @@ import { getSheet } from './sheet';
 // Overframes et exemplaires brillants (handoff overframe v1 et v2, handoff V11 lot 12 §4).
 
 const glace = OVERFRAMES['archer-de-glace']!;
-/** L'entrée `archer_feu` du kit : c'est l'Apprenti - Sorciers du feu. */
+/** L'entrée `archer_feu` du kit : c'est l'Feria - Sorciers du feu. */
 const feu = OVERFRAMES.apprenti!;
 const chrono = OVERFRAMES.chronomancienne!;
 const maitre = OVERFRAMES['maitre-des-heures']!;
@@ -24,7 +24,7 @@ const cardSheet = (cardId: CardId, shiny: CardId[] = []) =>
   getSheet(getPlayerView(withGrimoire([cardId, 'chevalier'], shiny), 1), { kind: 'card', cardId })!;
 
 describe('données des overframes', () => {
-  it('Archer de glace, Apprenti - Sorciers du feu, Chronomancienne, Maître des heures ; l’Archer du feu n’en a pas', () => {
+  it('Archer de glace, Feria - Sorciers du feu, Chronomancienne, Maître des heures ; l’Archer du feu n’en a pas', () => {
     expect([glace, feu, chrono, maitre].map((def) => def.headroom)).toEqual([118, 152, 186, 162]);
     expect(OVERFRAMES['archer-du-feu']).toBeUndefined();
     expect(feu.parts.map((part) => part.anim)).toEqual(['swayL', 'swayR', 'blink']);
@@ -37,7 +37,7 @@ describe('données des overframes', () => {
     expect(maitre.dial).toMatchObject({ x: 161.4, y: 32.7, size: 80, outer: { anim: 'tick' }, inner: { anim: 'spinBack', inset: 7 } });
   });
 
-  it('couleurs : brillante propre (Apprenti) ou générique (lot 2 : couleurs normales)', () => {
+  it('couleurs : brillante propre (Feria) ou générique (lot 2 : couleurs normales)', () => {
     expect(overframeLook(feu, true)).toBe(feu.looks.shiny);
     expect(overframeLook(chrono, true)).toBe(chrono.looks.normal);
     expect(overframeLook(maitre, false).glowStop).toBe('55%');
@@ -83,7 +83,7 @@ describe('données des overframes', () => {
     for (const particle of gold) expect(parseFloat(String(particle.style['--dy' as keyof typeof particle.style]))).toBeLessThan(0);
   });
 
-  it('illustrations : l’Archer du feu retrouve la sienne ; l’Apprenti - Sorciers du feu a sa version brillante', () => {
+  it('illustrations : l’Archer du feu retrouve la sienne ; l’Feria - Sorciers du feu a sa version brillante', () => {
     expect(CARD_ART['archer-du-feu']).toMatchObject({ w: 572, h: 1024, eye: [50, 14.1], face: 25 });
     expect(cardArtFor('apprenti', true)!.src).toBe(CARD_ART_SHINY.apprenti);
     expect(CARD_ART_SHINY['archer-du-feu']).toBeUndefined();

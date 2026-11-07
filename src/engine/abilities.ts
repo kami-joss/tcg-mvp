@@ -59,12 +59,22 @@ export function applyActivateEffect(state: GameState, action: ActivateEffectActi
   const source = { ...monster, usedEffects, ...(facing ? { facing } : {}) };
   const used = setUnit(state, source);
   // Pour un piège, l'événement ne donne pas la case : seule la pose (visible de son poseur) la révèle. Pour une
-  // invocation ou une téléportation non plus : la case d'arrivée suit, avec le monstre, s'il est visible.
+  // invocation ou une téléportation non plus : la case d'arrivée suit, avec le monstre, s'il est visible. Celle du
+  // monstre visé n'est montrée qu'aux joueurs qui le voient (`getPlayerView`).
   const { target } = action;
-  const pos = target.kind === 'unit' || target.kind === 'unitAndDirection' ? (state.units[target.unitId]?.pos ?? monster.pos) : monster.pos;
+  const targetId = target.kind === 'unit' || target.kind === 'unitAndDirection' ? target.unitId : null;
+  const pos = targetId ? (state.units[targetId]?.pos ?? monster.pos) : monster.pos;
   const { targeting } = ability;
   const cells = targeting.type === 'zone' ? getAreaCells(state, source, targeting.zone) : [];
-  const event: GameEvent = { type: 'effect', unitId: monster.id, pos, cells, ...(facing ? { facing } : {}), ...(effect > 0 ? { effect } : {}) };
+  const event: GameEvent = {
+    type: 'effect',
+    unitId: monster.id,
+    pos,
+    ...(targetId ? { targetId } : {}),
+    cells,
+    ...(facing ? { facing } : {}),
+    ...(effect > 0 ? { effect } : {}),
+  };
   const paid = addMana(emit(used, event), monster.owner, -ability.manaCost);
   const resolved = resolveAbility(paid, ability, action.target, monster.owner, source, { cardId: monster.cardId, ...(ability.name ? { effect: ability.name } : {}) });
   // « Puis plus d'attaque ce tour » (Zoldik) : il a pu attaquer avant, plus après.

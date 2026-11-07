@@ -84,15 +84,12 @@ export function applyPlayCard(state: GameState, action: PlayCardAction): GameSta
     throw new IllegalActionError(`Cible invalide pour « ${card.name} »`);
   }
 
-  const pos =
-    target.kind === 'cell'
-      ? cellOf(target)
-      : target.kind === 'unit' || target.kind === 'unitAndDirection'
-        ? (state.units[target.unitId]?.pos ?? { row: 0, col: 0 })
-        : { row: 0, col: 0 };
+  // L'unité vers laquelle va la carte : celle qu'elle pose, ou le monstre visé par le sort ; un sort sans cible n'en a pas.
+  const id = `u${state.nextUnitId}`;
+  const unitId = target.kind === 'cell' ? id : target.kind === 'unit' || target.kind === 'unitAndDirection' ? target.unitId : null;
+  const pos = target.kind === 'cell' ? cellOf(target) : unitId ? (state.units[unitId]?.pos ?? null) : null;
   const shiny = isShinyCopy(state, player.id, card.id);
-  const paid = payCard(emit(state, { type: 'cardPlayed', player: player.id, cardId: card.id, pos }), player.id, card);
-  const id = `u${paid.nextUnitId}`;
+  const paid = payCard(emit(state, { type: 'cardPlayed', player: player.id, cardId: card.id, pos, ...(unitId ? { unitId } : {}) }), player.id, card);
   switch (card.kind) {
     case 'monster':
       // Un ennemi invoqué sur une case piégée déclenche le piège, comme s'il y entrait (§10).

@@ -27,12 +27,13 @@ const returnCells = (state: GameState, unitId: string) =>
 
 describe('cartes du deck Explorateur du temps', () => {
   it('stats, famille, effets actifs ; le deck fait 25 cartes', () => {
-    expect(getMonsterCard('apprenti-temps')).toMatchObject({ name: 'Apprenti - Explorateur du temps', cost: 1, atk: 2, hp: 2, mobility: 4, range: 1, archetype: 'temps' });
-    expect(getMonsterCard('chronomancienne')).toMatchObject({ cost: 4, atk: 3, hp: 4, mobility: 4, range: 1, archetype: 'temps' });
-    expect(getMonsterCard('dragonnet-temps')).toMatchObject({ cost: 3, atk: 3, hp: 3, mobility: 5, range: 1, archetype: 'temps' });
-    expect(getMonsterCard('maitre-des-heures')).toMatchObject({ cost: 7, atk: 5, hp: 6, mobility: 4, range: 1, archetype: 'temps' });
+    expect(getMonsterCard('apprenti-temps')).toMatchObject({ name: 'Apprenti - Explorateur du temps', cost: 1, atk: 2, hp: 2, mobility: 5, range: 1, archetype: 'temps' });
+    expect(getMonsterCard('chronomancienne')).toMatchObject({ cost: 4, atk: 3, hp: 4, mobility: 6, range: 1, archetype: 'temps' });
+    expect(getMonsterCard('dragonnet-temps')).toMatchObject({ cost: 3, atk: 3, hp: 3, mobility: 6, range: 1, archetype: 'temps' });
+    expect(getMonsterCard('maitre-des-heures')).toMatchObject({ cost: 6, atk: 5, hp: 5, mobility: 7, range: 1, archetype: 'temps' });
     expect(getMonsterCard('apprenti-temps').activated).toHaveLength(1);
-    for (const id of ['chronomancienne', 'dragonnet-temps', 'maitre-des-heures'] as const) {
+    expect(getMonsterCard('chronomancienne').activated.map((a) => a.manaCost)).toEqual([1, 1]);
+    for (const id of ['dragonnet-temps', 'maitre-des-heures'] as const) {
       expect(getMonsterCard(id).activated.map((a) => a.manaCost), id).toEqual([1, 2]);
     }
     const deck = DECKS.find((d) => d.id === 'explorateur-du-temps')!;
@@ -81,14 +82,17 @@ describe('retour : revenir sur une case du chemin du tour', () => {
     expect(monster(back, 'u1')).toMatchObject({ pos: at(1, 0), hasAttacked: true });
   });
 
-  it('une téléportation : rien ne se déclenche sur la case d’arrivée (piège ennemi, case brûlée)', () => {
+  it('une téléportation : il entre sur la case d’arrivée, piège ennemi et case brûlée se déclenchent (§10)', () => {
     const trap: Trap = { owner: 2, pos: at(1, 1), effects: [{ type: 'damage', amount: 1 }], cardId: 'poseur-de-bombe' };
     const state = walked();
     const burning = { owner: 2 as const, pos: at(1, 1), effects: [{ type: 'damage' as const, amount: 1 }], cardId: 'lutin-brasier' as const, expiresAtTurn: 9 };
     const back = applyAction({ ...state, traps: [trap], burningCells: [burning] }, effect('u1', 0, { kind: 'cell', pos: at(1, 1) }));
-    expect(monster(back, 'u1')).toMatchObject({ pos: at(1, 1), hp: monster(state, 'u1').hp });
-    expect(back.traps).toEqual([trap]);
-    expect(back.events.map((e) => e.type)).not.toContain('trapTriggered');
+    // 1 dégât du piège, 1 de la case brûlée : l'Apprenti (2 PV) est détruit sur la case.
+    expect(back.units.u1).toBeUndefined();
+    expect(back.traps).toEqual([]);
+    expect(back.burningCells).toEqual([burning]);
+    expect(back.events.map((e) => e.type)).toContain('trapTriggered');
+    expect(back.events.map((e) => e.type)).toContain('burningCell');
   });
 
   it('le chemin repart de sa case au début de son tour', () => {
@@ -148,11 +152,11 @@ describe('piège de la Chronomancienne : l’ennemi remonte 3 cases de son chemi
   });
   const path = [at(1, 7), at(1, 6), at(1, 5), at(1, 4), at(1, 3)];
 
-  it('la Chronomancienne le pose sur une case adjacente libre (2 mana)', () => {
+  it('la Chronomancienne le pose sur une case adjacente libre (1 mana)', () => {
     const state = gameWith([{ monster: 'chronomancienne', owner: 1, at: at(1, 4) }], MANA);
     const placed = applyAction(state, effect('u1', 1, { kind: 'cell', pos: at(1, 5) }));
     expect(placed.traps).toEqual([trap(at(1, 5))]);
-    expect(placed.players[1].mana).toBe(8);
+    expect(placed.players[1].mana).toBe(9);
   });
 
   it('il revient de 3 cases, son déplacement s’arrête, plus de mobilité ce tour', () => {
@@ -162,7 +166,7 @@ describe('piège de la Chronomancienne : l’ennemi remonte 3 cases de son chemi
     expect(after.events.filter((e) => e.type === 'rewind')).toEqual([{ type: 'rewind', unitId: 'u1', from: at(1, 4), to: at(1, 7) }]);
   });
 
-  it('arrivée en téléportation : rien ne s’y déclenche (piège ennemi sur la case retrouvée)', () => {
+  it('arrivée en téléportation : le piège ennemi de la case retrouvée se déclenche (§10)', () => {
     const state = gameWith([{ monster: 'apprenti-temps', owner: 2, at: at(1, 4) }], { activePlayer: 2 });
     const walked: GameState = {
       ...state,
@@ -170,8 +174,8 @@ describe('piège de la Chronomancienne : l’ennemi remonte 3 cases de son chemi
       traps: [{ owner: 1, pos: at(1, 7), effects: [{ type: 'damage', amount: 1 }], cardId: 'poseur-de-bombe' }],
     };
     const { state: after } = rewindMonster(walked, 'u1', 3);
-    expect(monster(after, 'u1')).toMatchObject({ pos: at(1, 7), hp: monster(walked, 'u1').hp, mobilityLeft: 0 });
-    expect(after.traps).toHaveLength(1);
+    expect(monster(after, 'u1')).toMatchObject({ pos: at(1, 7), hp: monster(walked, 'u1').hp - 1, mobilityLeft: 0 });
+    expect(after.traps).toHaveLength(0);
   });
 
   it('chemin plus court : il revient à son départ ; une case occupée entre-temps est sautée', () => {

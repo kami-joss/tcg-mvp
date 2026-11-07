@@ -63,9 +63,9 @@ function terrain(
   id: CardId,
   name: string,
   stats: { cost: number; hp: number },
-  passives: Partial<Pick<TerrainCard, 'zoneManaBonus' | 'passage' | 'summonPoint' | 'onMove'>> = {},
+  passives: Partial<Pick<TerrainCard, 'zoneManaBonus' | 'passage' | 'summonPoint' | 'onMove' | 'aura'>> = {},
 ): TerrainCard {
-  return { kind: 'terrain', id, name, ...stats, zoneManaBonus: 0, passage: null, summonPoint: false, onMove: null, ...passives };
+  return { kind: 'terrain', id, name, ...stats, zoneManaBonus: 0, passage: null, summonPoint: false, onMove: null, aura: null, ...passives };
 }
 
 const VOL: KeywordSpec = { keyword: 'vol' };
@@ -154,6 +154,8 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   trebuchet: monster('trebuchet', 'Trébuchet', { cost: 5, atk: 4, hp: 1, mobility: 2, range: 5 }, [
     { keyword: 'siege', multiplier: 2 },
   ]),
+  // Carte de test (§10) : des stats extrêmes, sans effet, pour éprouver les abus de stats ; générique.
+  'monstre-de-test': monster('monstre-de-test', 'Monstre de test', { cost: 10, atk: 3, hp: 7, mobility: 9, range: 1 }),
   'fleche-divine': spell('fleche-divine', 'Flèche divine - Archers', 2, {
     targeting: { type: 'monster', side: 'ally', reach: { type: 'anywhere' }, archetype: 'archer' },
     effects: [
@@ -173,9 +175,9 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   ),
   farceur: inArchetype(
     'piege',
-    monster('farceur', 'Farceur - Pièges', { cost: 2, atk: 2, hp: 1, mobility: 6, range: 1 }, [
+    monster('farceur', 'Farceur - Pièges', { cost: 3, atk: 2, hp: 1, mobility: 6, range: 1 }, [
       { keyword: 'camouflage', amount: 2 },
-      { keyword: 'sournois', amount: 1 },
+      { keyword: 'assassin', multiplier: 2 },
     ]),
   ),
   'poseur-de-bombe': inArchetype(
@@ -239,11 +241,11 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   // Deck Sorciers du feu : famille Sorcier du feu (§10). Brûlure 1, 2 tours : à l'attaque, burn 1 pendant 2 tours.
   apprenti: inArchetype(
     'sorcier',
-    monster('apprenti', 'Apprenti - Sorciers du feu', { cost: 2, atk: 1, hp: 3, mobility: 4, range: 2 }, [BRULURE_2]),
+    monster('apprenti', 'Feria - Sorciers du feu', { cost: 2, atk: 1, hp: 3, mobility: 6, range: 2 }, [BRULURE_2]),
   ),
   'lutin-brasier': inArchetype(
     'sorcier',
-    monster('lutin-brasier', 'Lutin brasier - Sorciers du feu', { cost: 4, atk: 2, hp: 4, mobility: 4, range: 2 }, [BRULURE_2], {
+    monster('lutin-brasier', 'Lutin brasier - Sorciers du feu', { cost: 1, atk: 1, hp: 4, mobility: 5, range: 1 }, [BRULURE_2], {
       manaCost: 1,
       targeting: { type: 'emptyCell', zone: 'adjacent2' },
       effects: [
@@ -260,32 +262,32 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   ),
   archimage: inArchetype(
     'sorcier',
-    monster('archimage', 'Archimage - Sorciers du feu', { cost: 6, atk: 3, hp: 5, mobility: 4, range: 2 }, [BRULURE_2], {
-      manaCost: 1,
+    monster('archimage', 'Archimage - Sorciers du feu', { cost: 6, atk: 3, hp: 8, mobility: 4, range: 2 }, [BRULURE_2], {
+      manaCost: 2,
       targeting: { type: 'zone', zone: 'adjacent' },
       effects: [{ type: 'status', kind: 'burn', amount: 2, turns: 2 }],
     }),
   ),
   'golem-de-lave': {
-    ...inArchetype('sorcier', monster('golem-de-lave', 'Golem de lave - Sorciers du feu', { cost: 5, atk: 2, hp: 8, mobility: 2, range: 1 })),
-    passage: { zone: 'adjacent', effects: [{ type: 'status', kind: 'burn', amount: 1, turns: 1 }] },
+    ...inArchetype('sorcier', monster('golem-de-lave', 'Golem de lave - Sorciers du feu', { cost: 5, atk: 2, hp: 12, mobility: 2, range: 1 })),
+    passage: { zone: 'adjacent', effects: [{ type: 'status', kind: 'burn', amount: 1, turns: 1 }], lingering: true },
   },
 
   // Deck Explorateur du temps : famille Explorateur du temps (§10). Retour : il revient sur une case où il a été ce tour.
   'apprenti-temps': inArchetype(
     'temps',
-    monster('apprenti-temps', 'Apprenti - Explorateur du temps', { cost: 1, atk: 2, hp: 2, mobility: 4, range: 1 }, [], RETURN),
+    monster('apprenti-temps', 'Apprenti - Explorateur du temps', { cost: 1, atk: 2, hp: 2, mobility: 5, range: 1 }, [], RETURN),
   ),
   chronomancienne: inArchetype(
     'temps',
-    monster('chronomancienne', 'Chronomancienne - Explorateur du temps', { cost: 4, atk: 3, hp: 4, mobility: 4, range: 1 }, [], [
+    monster('chronomancienne', 'Chronomancienne - Explorateur du temps', { cost: 4, atk: 3, hp: 4, mobility: 6, range: 1 }, [], [
       RETURN,
-      { manaCost: 2, targeting: EMPTY_ADJACENT_CELL, effects: [{ type: 'placeTrap', effects: [{ type: 'rewind', steps: 3 }] }] },
+      { manaCost: 1, targeting: EMPTY_ADJACENT_CELL, effects: [{ type: 'placeTrap', effects: [{ type: 'rewind', steps: 3 }] }] },
     ]),
   ),
   'dragonnet-temps': inArchetype(
     'temps',
-    monster('dragonnet-temps', 'Dragonnet - Explorateur du temps', { cost: 3, atk: 3, hp: 3, mobility: 5, range: 1 }, [], [
+    monster('dragonnet-temps', 'Dragonnet - Explorateur du temps', { cost: 3, atk: 3, hp: 3, mobility: 6, range: 1 }, [], [
       RETURN,
       { manaCost: 2, targeting: ADJACENT_ENEMY, effects: [{ type: 'status', kind: 'stun', turns: 1 }] },
     ]),
@@ -293,7 +295,7 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   'maitre-des-heures': {
     ...inArchetype(
       'temps',
-      monster('maitre-des-heures', 'Maître des heures - Explorateur du temps', { cost: 7, atk: 5, hp: 6, mobility: 4, range: 1 }, [], [
+      monster('maitre-des-heures', 'Maître des heures - Explorateur du temps', { cost: 6, atk: 5, hp: 5, mobility: 7, range: 1 }, [], [
         RETURN,
         { manaCost: 2, targeting: ADJACENT_ENEMY, effects: [{ type: 'status', kind: 'requiem', turns: 2 }] },
       ]),
@@ -368,11 +370,22 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
       },
     ],
   }),
-  arnold: bodybuilder('arnold', 'Arnold - Bodybuilder', { cost: 7, atk: 7, hp: 5, mobility: 3, range: 1 }, {
-    aura: { zone: 'adjacent', archetype: 'bodybuilder', atk: 2, hp: 0, mobility: 0 },
+  rudy: bodybuilder('rudy', 'Rudy - Bodybuilder', { cost: 4, atk: 3, hp: 3, mobility: 7, range: 1 }, {
+    aura: { zone: 'adjacent2', archetype: 'bodybuilder', atk: 0, hp: 0, mobility: 1 },
   }),
-  'ki-ne': bodybuilder('ki-ne', 'Ki né - Bodybuilder', { cost: 3, atk: 2, hp: 3, mobility: 4, range: 1 }, {
-    turnStart: { zone: 'adjacent', archetype: 'bodybuilder', effects: [{ type: 'heal', amount: 1 }] },
+  arnold: bodybuilder('arnold', 'Arnold - Bodybuilder', { cost: 8, atk: 8, hp: 4, mobility: 4, range: 1 }, {
+    aura: { zone: 'adjacent2', archetype: 'bodybuilder', atk: 1, hp: 0, mobility: 0 },
+  }),
+  tibo: bodybuilder('tibo', 'Tibo - Bodybuilder', { cost: 4, atk: 3, hp: 8, mobility: 3, range: 1 }, {
+    activated: [
+      { name: 'Tortank', manaCost: 1, targeting: { type: 'self' }, effects: [{ type: 'status', kind: 'carapace', turns: 0 }] },
+    ],
+  }),
+  'ki-ne': bodybuilder('ki-ne', 'Ki né - Bodybuilder', { cost: 2, atk: 3, hp: 3, mobility: 4, range: 1 }, {
+    turnStart: { zone: 'adjacent2', archetype: 'bodybuilder', effects: [{ type: 'heal', amount: 1 }] },
+  }),
+  'salle-de-sport': terrain('salle-de-sport', 'Salle de sport - Bodybuilder', { cost: 2, hp: 4 }, {
+    aura: { zone: 'cellAndAdjacent', archetype: 'bodybuilder', atk: 1, hp: 1, mobility: 0 },
   }),
   seringue: spell('seringue', 'Seringue - Bodybuilder', 2, {
     targeting: { type: 'monster', side: 'ally', reach: { type: 'anywhere' }, archetype: 'bodybuilder' },
@@ -478,9 +491,9 @@ const expand = (composition: Composition): CardId[] =>
 export const TEST_GRIMOIRE: readonly CardId[] = expand([...TEST_GRIMOIRE_QUANTITIES, ...COMMONS_ONCE]);
 
 /**
- * Decks pré-construits (SPEC.md §6 bis), choisis avant la partie : 25 cartes chacun, avec les quantités du doc
- * « Cartes du TCG » (tableau « Composition » de chaque deck) : ses cartes, un complément de cartes de base, des cartes
- * communes.
+ * Decks pré-construits (SPEC.md §6 bis), choisis avant la partie : 25 cartes chacun (Archers : 26, avec le Monstre de
+ * test, §10), avec les quantités du doc « Cartes du TCG » (tableau « Composition » de chaque deck) : ses cartes, un
+ * complément de cartes de base, des cartes communes.
  */
 export const DECKS: readonly Deck[] = [
   { id: 'classique', name: 'Classique', cards: TEST_GRIMOIRE },
@@ -496,6 +509,8 @@ export const DECKS: readonly Deck[] = [
       ['archer-de-glace', 3],
       ['archer-du-feu', 3],
       ['trebuchet', 2],
+      // En plus des 25 cartes (§10) : le deck en a 26.
+      ['monstre-de-test', 1],
       ['fleche-divine', 1],
       ['boule-de-feu', 1],
       ['charge', 1],
@@ -529,12 +544,12 @@ export const DECKS: readonly Deck[] = [
     id: 'bodybuilder',
     name: 'Bodybuilder',
     cards: expand([
-      ['jeune-gomuscu', 3],
-      ['jean-bon', 3],
+      ['rudy', 3],
       ['arnold', 3],
+      ['tibo', 3],
       ['ki-ne', 3],
       ['seringue', 2],
-      ['boule-de-feu', 1],
+      ['salle-de-sport', 1],
       ['charge', 3],
       ['benediction', 1],
       ['bastion', 1],

@@ -3,12 +3,12 @@ import { BASE_MANA_PER_TURN, PLAYER2_FIRST_TURN_BONUS_MANA, VP_PER_CONTROLLED_ZO
 import { dealDamage } from './damage';
 import { emit } from './events';
 import { addMana, addVp, opponent } from './players';
-import { expireBurningCells, expireTraps } from './traps';
+import { expireBurningCells, expireTraps, sweepZonesAtTurnStart } from './traps';
 import { getMonsterCard } from './cards';
 import { applyTriggeredEffects } from './effects';
 import { expireStatuses, statusTotal, turnMobility } from './statuses';
 import { auraMobility, getMonsters, removeUnit, setUnit } from './units';
-import { adjacentCells, samePos } from './board';
+import { isInZone } from './board';
 import { getControlledZones, getZoneMana } from './zones';
 import type { GameState } from './types';
 
@@ -43,12 +43,14 @@ export function startTurn(state: GameState): GameState {
   for (const source of getMonsters(next, player)) {
     const trigger = getMonsterCard(source.cardId).turnStart;
     if (!trigger || !next.units[source.id]) continue;
-    const cells = adjacentCells(next.board, source.pos);
     const allies = getMonsters(next, player).filter(
-      (m) => m.id !== source.id && getMonsterCard(m.cardId).archetype === trigger.archetype && cells.some((c) => samePos(c, m.pos)),
+      (m) => m.id !== source.id && getMonsterCard(m.cardId).archetype === trigger.archetype && isInZone(next.board, source.pos, m.pos, trigger.zone),
     );
     for (const ally of allies) next = applyTriggeredEffects(next, trigger.effects, ally.id, source);
   }
+
+  // 2 bis. Zones (Golem de lave) : chaque ennemi resté dans la zone est de nouveau touché (§10).
+  next = sweepZonesAtTurnStart(next, player);
 
   // 3. Statuts : requiem (il meurt, sans VP pour personne), puis burn (une destruction profite à l'adversaire).
   for (const id of doomed) {
@@ -70,7 +72,7 @@ export function startTurn(state: GameState): GameState {
     const refreshed =
       monster.owner === player
         ? {
-            mobilityLeft: turnMobility(monster, auraMobility(next, monster) + next.board.mobilityBonus),
+            mobilityLeft: turnMobility(monster, auraMobility(next, monster)),
             froze: statusTotal(monster, 'slow'),
             boost: 0,
             turnBonuses: [],

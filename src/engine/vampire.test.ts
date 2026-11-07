@@ -290,7 +290,7 @@ describe('Emma : se transforme en chauve-souris, et inversement', () => {
     );
     const after = applyAction(state, attack('u2', 'u1'));
     expect(after.units.u1).toBeUndefined();
-    expect(after.players[1].graveyard).toEqual(['emma']);
+    expect(after.players[1].graveyard).toEqual([{ cardId: 'emma' }]);
     expect(after.players[2].vp).toBe(1);
   });
 });

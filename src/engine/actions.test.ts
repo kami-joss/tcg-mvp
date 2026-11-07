@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getLegalActions } from './actions';
 import { BOARDS, isPlayable } from './board';
-import { DECKS, TEST_GRIMOIRE } from './cards';
+import { DECKS } from './cards';
 import { VICTORY_VP } from './config';
 import { createGame } from './game';
 import { at, gameWith } from './test-utils';
-import type { Action, GameState, Unit } from './types';
+import type { Action, GameState, PlayerId, Unit } from './types';
 
 /** Générateur pseudo-aléatoire reproductible (mulberry32). */
 function seededRandom(seed: number): () => number {
@@ -18,8 +18,8 @@ function seededRandom(seed: number): () => number {
   };
 }
 
-/** Invariants qui doivent tenir dans toute position atteignable. */
-function expectInvariants(state: GameState): void {
+/** Invariants qui doivent tenir dans toute position atteignable ; `deckSize` : le nombre de cartes du deck de chaque joueur. */
+function expectInvariants(state: GameState, deckSize: Readonly<Record<PlayerId, number>>): void {
   const byCell = new Map<string, Unit[]>();
   for (const unit of Object.values(state.units)) {
     expect(isPlayable(state.board, unit.pos)).toBe(true);
@@ -39,7 +39,7 @@ function expectInvariants(state: GameState): void {
     expect(player.mana).toBeGreaterThanOrEqual(0);
     // Chaque carte est dans le grimoire, au cimetière ou sur le plateau (§4.3).
     const onBoard = Object.values(state.units).filter((u) => u.owner === player.id).length;
-    expect(player.grimoire.length + player.graveyard.length + onBoard).toBe(TEST_GRIMOIRE.length);
+    expect(player.grimoire.length + player.graveyard.length + onBoard).toBe(deckSize[player.id]);
   }
   if (state.winner !== null) expect(state.players[state.winner].vp).toBeGreaterThanOrEqual(VICTORY_VP);
   // Pièges : sur des cases jouables, au plus un par joueur et par case, jamais sous un monstre ennemi.
@@ -97,7 +97,7 @@ describe('cohérence du moteur', () => {
           const action = actions[Math.floor(random() * actions.length)]!;
           played.add(action.type);
           state = applyAction(state, action);
-          expectInvariants(state);
+          expectInvariants(state, { 1: deck1.length, 2: deck2.length });
         }
         if (state.winner !== null) finished++;
       }

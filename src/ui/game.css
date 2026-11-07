@@ -475,11 +475,63 @@ select {
   white-space: nowrap;
 }
 
+/* VP, puis les compteurs des cartes jouées et du cimetière (§10) : côté « Fin du tour », J2 en miroir. */
+.score__line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.score--p2 .score__line,
+.score--p2 .score__piles {
+  flex-direction: row-reverse;
+}
+
 .score__vp {
   position: relative;
   display: flex;
   align-items: baseline;
   gap: 3px;
+}
+
+.score__piles {
+  display: flex;
+  gap: 4px;
+}
+
+/* Un compteur : icône et nombre ; liseré doré quand sa liste est ouverte, comme les icônes de la barre. */
+.score__pile {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  padding: 0 6px 0 5px;
+  border: none;
+  border-radius: 7px;
+  background: oklch(0.2 0.014 60);
+  box-shadow: inset 0 0 0 1px oklch(0.36 0.014 60);
+  color: oklch(0.86 0.015 80);
+  font: 800 12px/1 var(--font);
+  cursor: pointer;
+}
+
+.score__pile:hover {
+  background: oklch(0.26 0.014 60);
+}
+
+.score__pile .icon {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.score__pile[aria-pressed='true'] {
+  background: oklch(0.3 0.016 60);
+  box-shadow: inset 0 0 0 1.5px oklch(0.82 0.13 85 / 0.85);
+}
+
+.score__pile:focus-visible {
+  outline: 2px solid var(--select);
+  outline-offset: 2px;
 }
 
 /* Point de départ des étincelles des points gagnés, au milieu du nombre de VP. */
@@ -1984,6 +2036,11 @@ select {
   color: oklch(0.92 0.03 270);
 }
 
+.status--carapace {
+  background: oklch(0.62 0.1 150);
+  color: oklch(0.2 0.06 150);
+}
+
 /* --- Nom de mana zone et falaises --- */
 
 .zone-label {
@@ -3022,6 +3079,83 @@ select {
   scrollbar-color: oklch(0.45 0.014 60) transparent;
 }
 
+/* Cartes jouées et cimetière d'un joueur (§10) : flotte en haut du plateau comme l'aide, entre la fiche et le grimoire
+   (marges `left` et `right` posées par l'écran de jeu), centré dans cet espace. */
+.game__play > .piles {
+  position: absolute;
+  z-index: 30;
+  top: 14px;
+  box-sizing: border-box;
+  max-width: 816px;
+  max-height: calc(100% - 28px);
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px 14px;
+  border-radius: 12px;
+  background: oklch(0.22 0.014 60 / 0.94);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 0 1.5px oklch(0.4 0.02 70), 0 14px 32px oklch(0 0 0 / 0.55);
+}
+
+.piles__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 38px;
+}
+
+.piles__title {
+  font: 800 12px/1 var(--font-sc);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.piles--p1 .piles__title {
+  color: oklch(0.78 0.1 255);
+}
+
+.piles--p2 .piles__title {
+  color: oklch(0.76 0.12 25);
+}
+
+.piles__tabs button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.piles__tabs .icon {
+  font-size: 14px;
+}
+
+.piles__tabs .panel__count {
+  margin-left: 0;
+  color: inherit;
+  opacity: 0.7;
+}
+
+/* Les tuiles défilent ; autant par ligne que la largeur en laisse, comme le grimoire à 3 par ligne. */
+.piles .piles__cards {
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  min-height: 0;
+  margin: -3px;
+  padding: 3px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.45 0.014 60) transparent;
+}
+
+.piles__empty {
+  font-size: 14px;
+  color: var(--muted);
+}
+
 .legend__close {
   position: absolute;
   top: 8px;
@@ -3399,6 +3533,14 @@ select {
   opacity: 1;
 }
 
+/* Exemplaire des cartes jouées ou du cimetière (§10) : sa pierre vive, sans liseré ; un clic montre sa fiche. */
+.tile--pile {
+  cursor: pointer;
+  background: oklch(var(--jewel-l) var(--jewel-c) var(--jewel-h) / 0.82);
+  color: oklch(0.97 0.01 85);
+  opacity: 1;
+}
+
 .tile.is-selected {
   box-shadow: 0 0 0 3px var(--select);
 }
@@ -3425,7 +3567,8 @@ select {
   box-shadow: 0 0 0 2px white;
 }
 
-.tile--playable .tile__cost {
+.tile--playable .tile__cost,
+.tile--pile .tile__cost {
   background: var(--mana-pill);
   box-shadow: 0 0 0 2px white, var(--mana-shine);
 }
@@ -3529,6 +3672,10 @@ select {
 
 .tile--card.tile--playable {
   --tile-line: inset 0 -3px 0 oklch(0.65 0.14 150);
+  filter: none;
+}
+
+.tile--card.tile--pile {
   filter: none;
 }
 
@@ -3733,14 +3880,6 @@ select {
 .log__turn-label {
   font: 800 12px/1.2 var(--font-sc);
   letter-spacing: 0.06em;
-}
-
-.log__used {
-  padding-top: 6px;
-  border-top: 1px solid var(--line);
-  font-size: 13px;
-  line-height: 1.4;
-  color: oklch(0.68 0.015 80);
 }
 
 /* --- Fiche (handoff V8, lot 9) ---

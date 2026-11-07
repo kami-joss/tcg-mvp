@@ -75,8 +75,6 @@ export interface Board {
   /** `cells[row][col]` */
   readonly cells: readonly (readonly Cell[])[];
   readonly cliffs: readonly Cliff[];
-  /** Mobilité en plus pour chaque monstre sur ce plateau (SPEC.md §3) ; 0 en général. */
-  readonly mobilityBonus: number;
   /** Décor de la vue isométrique ; `null` : pas de vue isométrique pour ce plateau. */
   readonly scenery: BoardScenery | null;
   /** Le mode contestation se joue sur ce plateau (§4.4 bis : 13 × 13 et 15 × 15). */
@@ -114,6 +112,7 @@ export type CardId =
   | 'archer-de-glace'
   | 'archer-du-feu'
   | 'trebuchet'
+  | 'monstre-de-test'
   | 'fleche-divine'
   // Deck piège
   | 'poseur-de-piege'
@@ -138,9 +137,12 @@ export type CardId =
   // Deck Bodybuilder
   | 'jeune-gomuscu'
   | 'jean-bon'
+  | 'rudy'
+  | 'tibo'
   | 'arnold'
   | 'ki-ne'
   | 'seringue'
+  | 'salle-de-sport'
   // Deck Sorciers du feu
   | 'apprenti'
   | 'lutin-brasier'
@@ -223,14 +225,16 @@ export type StatusKind =
   /** Meurt au début du `turns`-ième prochain tour de son camp, sans VP pour personne. */
   | 'requiem'
   /** Invisible pour l'adversaire comme avec le mot-clé `invisible` de valeur `amount` (Pénombre). */
-  | 'camouflage';
+  | 'camouflage'
+  /** La prochaine attaque (ou riposte) subie n'inflige que 1 PV (Tibo, TORTANK) ; elle consomme le statut. */
+  | 'carapace';
 
 /**
  * Statut posé par un effet (SPEC.md §5 bis, §5.5). `turns` : sa durée, en tours du camp de l'unité touchée (le tour en
  * cours ne compte pas) ; 0 = jusqu'à son prochain tour (il dure le reste du tour en cours).
  */
 export type StatusSpec =
-  | { readonly kind: 'stun' | 'immobilise' | 'requiem'; readonly turns: number }
+  | { readonly kind: 'stun' | 'immobilise' | 'requiem' | 'carapace'; readonly turns: number }
   | { readonly kind: 'slow' | 'burn' | 'camouflage'; readonly amount: number; readonly turns: number };
 
 /** Statut en cours sur une unité. */
@@ -347,12 +351,12 @@ export type Effect =
   | { readonly type: 'summon' }
   /**
    * Téléportation (Téléporteur) : le monstre visé est posé sur une case adjacente libre de la source, choisie par le
-   * joueur. Ce n'est pas un déplacement : il garde sa mobilité, son attaque et son orientation ; rien ne se déclenche sur la case.
+   * joueur. Ce n'est pas un déplacement : il garde sa mobilité, son attaque et son orientation ; il entre sur la case : ce qui s'y trouve se déclenche (§5.4).
    */
   | { readonly type: 'teleport' }
   /**
-   * Retour (Explorateur du temps) : la source se téléporte sur la case visée, une case où elle a été ce tour (rien ne s'y
-   * déclenche) ; elle garde son attaque, mais ne se déplace plus ce tour.
+   * Retour (Explorateur du temps) : la source se téléporte sur la case visée, une case où elle a été ce tour (ce qui s'y
+   * trouve se déclenche) ; elle garde son attaque, mais ne se déplace plus ce tour.
    */
   | { readonly type: 'returnOnTrail' }
   /**
@@ -384,6 +388,11 @@ export type TrapEffect = Extract<Effect, { readonly type: 'damage' | 'status' | 
 export interface TerrainPassage {
   readonly zone: 'adjacent';
   readonly effects: readonly TrapEffect[];
+  /**
+   * « Zone » (Golem de lave, §10) : la zone agit sur tout ennemi qui s'y trouve, pas seulement sur celui qui y entre :
+   * aussi quand c'est la source qui entre à côté de lui, et au début de chaque tour de son camp sur ceux qui y sont encore.
+   */
+  readonly lingering?: boolean;
 }
 
 /**
@@ -415,16 +424,22 @@ export interface ActivatedAbility extends Ability {
 
 interface CardBase {
   readonly id: CardId;
-  /** Nom affiché ; une carte de deck s'écrit « Nom - Archétype » (« Apprenti - Sorciers du feu »). */
+  /** Nom affiché ; une carte de deck s'écrit « Nom - Archétype » (« Feria - Sorciers du feu »). */
   readonly name: string;
   readonly cost: number;
   /** Texte d'ambiance, sans effet de règle (Maître des heures). */
   readonly flavor?: string;
 }
 
+/**
+ * Zone d'une aura ou d'un effet de début de tour : les 8 cases autour, le rayon 2 (`adjacent2`, §5.3), ou la case de la
+ * source et les 8 autour (`cellAndAdjacent`, terrain : Salle de sport).
+ */
+export type AllyZone = 'adjacent' | 'adjacent2' | 'cellAndAdjacent';
+
 /** Effet sur ses monstres d'une famille, dans une zone autour de la source (pas la source elle-même). */
 export interface AllyZoneEffect {
-  readonly zone: 'adjacent';
+  readonly zone: AllyZone;
   readonly archetype: Archetype;
   readonly effects: readonly Effect[];
 }
@@ -434,7 +449,7 @@ export interface AllyZoneEffect {
  * tant qu'ils y sont (§10 pour les PV et la mobilité).
  */
 export interface StatAura {
-  readonly zone: 'adjacent';
+  readonly zone: AllyZone;
   readonly archetype: Archetype;
   readonly atk: number;
   readonly hp: number;
@@ -485,6 +500,8 @@ export interface TerrainCard extends CardBase {
   readonly summonPoint: boolean;
   /** Effet « Au déplacement » sur ses monstres qui partent de sa zone (Terrain de chasse). */
   readonly onMove: TerrainOnMove | null;
+  /** Aura sur ses monstres d'une famille dans sa zone, comme celle d'un monstre (Salle de sport). */
+  readonly aura: StatAura | null;
 }
 
 export type Card = MonsterCard | SpellCard | TerrainCard;
@@ -574,6 +591,15 @@ export type Unit = MonsterUnit | TerrainUnit;
 // État de la partie
 // ---------------------------------------------------------------------------
 
+/**
+ * Exemplaire d'une carte dans une liste publique : cartes jouées, cimetière. `shiny` : brillant, comme son unité sur le
+ * plateau (purement visuel, §10) ; jamais un sort.
+ */
+export interface CardCopy {
+  readonly cardId: CardId;
+  readonly shiny?: true;
+}
+
 export interface PlayerState {
   readonly id: PlayerId;
   readonly mana: number;
@@ -583,9 +609,14 @@ export interface PlayerState {
   readonly grimoire: readonly CardId[];
   /**
    * Cimetière, public (§4.3) : sorts lancés, monstres et terrains qui ont quitté le plateau (détruits, sacrifiés, tués
-   * par requiem). Un monstre ou un terrain posé quitte le grimoire sans y aller.
+   * par requiem), dans l'ordre d'arrivée. Un monstre ou un terrain posé quitte le grimoire sans y aller.
    */
-  readonly graveyard: readonly CardId[];
+  readonly graveyard: readonly CardCopy[];
+  /**
+   * Cartes jouées, publiques (§4.3, §10) : chaque carte sortie du grimoire (invocation, y compris par l'Invocateur, sort,
+   * terrain, dragon d'une évolution), dans l'ordre. Une transformation n'en fait sortir aucune.
+   */
+  readonly played: readonly CardCopy[];
   /**
    * Exemplaires brillants encore dans son grimoire (purement visuel) : une carte jouée l'est d'abord dans un exemplaire
    * brillant, s'il en reste. Absent : aucun.
@@ -617,7 +648,8 @@ export type DamageCause = 'attack' | 'riposte' | 'trap' | 'passage' | 'effect' |
 
 /**
  * Ce qui s'est passé pendant une action, dans l'ordre. `pos` est toujours la case concernée au moment de l'événement.
- * L'interface les rejoue en animation ; `getPlayerView` retire ceux que le joueur n'a pas le droit de voir.
+ * L'interface les rejoue en animation ; `getPlayerView` retire ceux que le joueur n'a pas le droit de voir, et la case
+ * d'une unité qui lui est cachée (§10).
  */
 export type GameEvent =
   | { readonly type: 'turnStart'; readonly player: PlayerId; readonly turn: number }
@@ -625,18 +657,30 @@ export type GameEvent =
   | { readonly type: 'mana'; readonly player: PlayerId; readonly amount: number; readonly pos: Position | null }
   /** Gain de VP ; `pos` : la mana zone tenue ou la case du monstre détruit, s'il y en a une. */
   | { readonly type: 'vp'; readonly player: PlayerId; readonly amount: number; readonly pos: Position | null }
-  /** Carte jouée depuis le grimoire, vers une case (invocation, terrain) ou un monstre (sort). */
-  | { readonly type: 'cardPlayed'; readonly player: PlayerId; readonly cardId: CardId; readonly pos: Position }
+  /**
+   * Carte jouée depuis le grimoire, vers une case (invocation, terrain) ou un monstre (sort) ; `unitId` : l'unité qu'elle
+   * pose ou le monstre qu'elle vise. `pos` vaut `null` pour un sort sans cible, et dans la vue d'un joueur à qui cette
+   * unité est cachée : la carte est publique, pas sa case (§10).
+   */
+  | {
+      readonly type: 'cardPlayed';
+      readonly player: PlayerId;
+      readonly cardId: CardId;
+      readonly pos: Position | null;
+      readonly unitId?: UnitId;
+    }
   /** Unité posée (monstre invoqué ou terrain). */
   | { readonly type: 'summon'; readonly unit: Unit }
   /**
-   * Effet activé d'un monstre, vers un monstre (`pos` : sa case) ; pour un piège, `pos` est la case du poseur.
-   * `cells` : la zone touchée par un effet de zone (vide sinon).
+   * Effet activé d'un monstre, vers un monstre (`targetId`, `pos` : sa case) ; pour un piège, `pos` est la case du
+   * poseur. `pos` vaut `null` dans la vue d'un joueur à qui le monstre visé est caché (§10). `cells` : la zone touchée
+   * par un effet de zone (vide sinon).
    */
   | {
       readonly type: 'effect';
       readonly unitId: UnitId;
-      readonly pos: Position;
+      readonly pos: Position | null;
+      readonly targetId?: UnitId;
       readonly cells: readonly Position[];
       /** Direction choisie pour une zone en ligne : la source se tourne vers elle. */
       readonly facing?: Direction;
@@ -764,7 +808,9 @@ export interface OpponentView {
   readonly id: PlayerId;
   readonly mana: number;
   readonly vp: number;
-  readonly graveyard: readonly CardId[];
+  readonly graveyard: readonly CardCopy[];
+  /** Ses cartes jouées ; un exemplaire dont l'unité est cachée au joueur n'y est pas brillant (§10). */
+  readonly played: readonly CardCopy[];
   readonly grimoireCount: number;
 }
 

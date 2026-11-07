@@ -19,7 +19,7 @@ const walk: Action = { type: 'move', unitId: 'u1', to: at(1, 3), path: [at(1, 2)
 
 describe('noms « Nom - Archétype »', () => {
   it('nom et archétype séparés ; une carte de base n’a pas d’archétype', () => {
-    expect(splitCardName(getCard('apprenti').name)).toEqual({ title: 'Apprenti', archetype: 'Sorciers du feu' });
+    expect(splitCardName(getCard('apprenti').name)).toEqual({ title: 'Feria', archetype: 'Sorciers du feu' });
     expect(splitCardName(getCard('apprenti-temps').name)).toEqual({ title: 'Apprenti', archetype: 'Explorateur du temps' });
     expect(splitCardName(getCard('dragon-origine').name)).toEqual({ title: 'Origine', archetype: 'Dragons' });
     expect(splitCardName(getCard('golem').name)).toEqual({ title: 'Golem', archetype: '' });

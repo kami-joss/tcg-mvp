@@ -41,7 +41,7 @@ describe('Terrain de chasse : la carte', () => {
       const hunts = deck.id === 'archers' || deck.id === 'vampire';
       expect(count('terrain-de-chasse'), deck.id).toBe(hunts ? 1 : 0);
       if (hunts) expect(count('terrain-drainant'), deck.id).toBe(0);
-      expect(deck.cards, deck.id).toHaveLength(25);
+      expect(deck.cards, deck.id).toHaveLength(deck.id === 'archers' ? 26 : 25);
     }
   });
 });

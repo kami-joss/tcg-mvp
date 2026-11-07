@@ -222,11 +222,13 @@ describe('journal : affichage', () => {
         items: [{ icon: 'death-skull', text: 'Éclaireur de J2 est détruit.', tone: 'hurt' }],
       },
     ];
-    const html = renderToStaticMarkup(<ActionLog entries={entries} opponentGraveyard={[]} />);
+    const html = renderToStaticMarkup(<ActionLog entries={entries} />);
     expect(html.match(/<li/g)).toHaveLength(2);
     expect(html).toContain('class="log__turn log__turn--p1"');
     expect(html).toContain('Tour 1 · J1');
     expect(html).toContain('class="log__entry log__entry--action log__entry--p1"');
     expect(html).toMatch(/class="log__item log__item--hurt">.*?<\/svg>Éclaireur de J2 est détruit<\/span>/);
+    // Les cartes jouées et le cimetière sont dans leur panneau (§10) : plus de ligne « Cimetière adverse ».
+    expect(html).not.toContain('Cimetière');
   });
 });

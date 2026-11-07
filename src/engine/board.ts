@@ -78,7 +78,6 @@ export const BOARD_CLIFFS: readonly Cliff[] = [
 
 /** Ce qu'un plateau peut avoir en plus de ses cases et de ses falaises. */
 export interface BoardOptions {
-  readonly mobilityBonus?: number;
   readonly scenery?: BoardScenery | null;
   readonly contestation?: boolean;
 }
@@ -106,7 +105,6 @@ export function parseBoard(name: string, layout: readonly string[], cliffs: read
     cols,
     cells,
     cliffs,
-    mobilityBonus: options.mobilityBonus ?? 0,
     scenery: options.scenery ?? null,
     contestation: options.contestation ?? false,
   };
@@ -236,14 +234,14 @@ export const BATTLEFIELD: Board = parseBoard('Champ de bataille (11 × 11)', BAT
  * Grande carte 13 × 13 (SPEC.md §3, handoff V7) : symétrique par rotation de 180° sauf les falaises (Mine fermée,
  * Scierie ouverte), deux étangs, +1 mobilité pour tous les monstres. Elle propose le mode contestation (§4.4 bis).
  */
-export const BATTLEFIELD_13: Board = parseMap('Champ de bataille (13 × 13)', MAP_13, { mobilityBonus: 1, contestation: true });
+export const BATTLEFIELD_13: Board = parseMap('Champ de bataille (13 × 13)', MAP_13, { contestation: true });
 
 /**
  * Grande carte 15 × 15 (SPEC.md §3, handoff plateau 15) : symétrique par rotation de 180°, Mine fermée par des cases X
  * hautes, Scierie bordée d'un canal et de billots en cases X basses (étangs aussi), +1 mobilité et mode contestation
  * comme le 13 × 13.
  */
-export const BATTLEFIELD_15: Board = parseMap('Champ de bataille (15 × 15)', MAP_15, { mobilityBonus: 1, contestation: true });
+export const BATTLEFIELD_15: Board = parseMap('Champ de bataille (15 × 15)', MAP_15, { contestation: true });
 
 /** Cartes proposées au lancement d'une partie. */
 export const BOARDS: readonly Board[] = [BOARD, BATTLEFIELD, BATTLEFIELD_13, BATTLEFIELD_15];
@@ -404,4 +402,14 @@ export function adjacentCells(board: Board, from: Position): Position[] {
 
 export function isAdjacent(board: Board, a: Position, b: Position): boolean {
   return adjacentCells(board, a).some((pos) => samePos(pos, b));
+}
+
+/**
+ * `b` est dans la zone de `a` : les 8 cases autour (`adjacent`), celles-ci et la case de `a` (`cellAndAdjacent`), ou
+ * celles-ci et les cases adjacentes à celles-ci (`adjacent2`, rayon 2), avec les mêmes falaises et cases X qui coupent la zone (§5.3).
+ */
+export function isInZone(board: Board, a: Position, b: Position, zone: 'adjacent' | 'adjacent2' | 'cellAndAdjacent'): boolean {
+  if (isAdjacent(board, a, b)) return true;
+  if (zone === 'cellAndAdjacent') return samePos(a, b);
+  return zone === 'adjacent2' && !samePos(a, b) && adjacentCells(board, a).some((pos) => isAdjacent(board, pos, b));
 }

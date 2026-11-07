@@ -32,9 +32,12 @@ describe('textes des cartes, façon Hearthstone', () => {
 
   it('Passage et passifs : l’ennemi qui entre, l’aura, quand il détruit', () => {
     expect(passiveRules(monster('golem-de-lave')).map((i) => [plain(i.name), plain(i.text)])).toEqual([
-      ['Passage', 'L’ennemi qui entre sur une case adjacente subit burn 1 pendant 1 tour.'],
+      ['Zone', 'Les cases adjacentes forment une zone : l’ennemi qui y entre, ou près duquel ce monstre arrive, subit burn 1 pendant 1 tour, de nouveau au début de ton tour s’il y est encore.'],
     ]);
-    expect(plain(passiveRules(monster('arnold'))[0]!.text)).toBe('Tes bodybuilders adjacents ont +2 ATK.');
+    expect(plain(passiveRules(monster('arnold'))[0]!.text)).toBe('Tes bodybuilders dans un rayon de 2 ont +1 ATK.');
+    expect(plain(passiveRules(getCard('salle-de-sport'))[0]!.text)).toBe('Tes bodybuilders sur ce terrain ou adjacents ont +1 ATK et +1 PV.');
+    expect(plain(passiveRules(monster('rudy'))[0]!.text)).toBe('Tes bodybuilders dans un rayon de 2 ont +1 mobilité.');
+    expect(plain(abilityRules(monster('tibo').activated[0]!))).toBe('Donne carapace jusqu’à son prochain tour à ce monstre.');
     expect(plain(passiveRules(monster('jeune-gomuscu'))[0]!.text)).toBe('Il gagne définitivement +1 ATK et +1 PV.');
   });
 

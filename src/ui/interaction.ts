@@ -16,7 +16,7 @@ import {
   hitsFromBehind,
   samePos,
 } from '../engine';
-import type { Action, CardId, Direction, PlayerView, Position, UnitId } from '../engine';
+import type { Action, CardId, Direction, MonsterUnit, PlayerView, Position, UnitId } from '../engine';
 
 export type Selection =
   | { readonly kind: 'none' }
@@ -398,11 +398,29 @@ export const NO_THREAT: Threat = { moves: [], strikes: [] };
 export function getEnemyReach(view: PlayerView, unitId: UnitId): Threat {
   const unit = view.units[unitId];
   if (unit?.kind !== 'monster' || unit.owner === view.viewer) return NO_THREAT;
+  return nextTurnReach(view, unit);
+}
+
+/**
+ * Cases où l'un de tes monstres peut aller (hachures au survol) : à ton tour, ses déplacements légaux maintenant (rien
+ * s'il a fini) ; sinon sa menace à son prochain tour, comme pour un monstre adverse. Rien pour une autre unité.
+ */
+export function getOwnReach(view: PlayerView, unitId: UnitId): Threat {
+  const unit = view.units[unitId];
+  if (unit?.kind !== 'monster' || unit.owner !== view.viewer) return NO_THREAT;
+  if (view.activePlayer !== view.viewer) return nextTurnReach(view, unit);
+  const moves = new Map<string, Position>();
+  for (const a of actionsOf(view, 'move')) if (a.unitId === unitId) moves.set(posKey(a.to), a.to);
+  return { moves: [...moves.values()], strikes: [] };
+}
+
+function nextTurnReach(view: PlayerView, unit: MonsterUnit): Threat {
+  const unitId = unit.id;
   const next = ownerNextTurn(view.turn, view.activePlayer, unit.owner);
   if (unit.statuses.some((s) => s.kind === 'stun' && s.expiresAtTurn > next)) return NO_THREAT;
   // Avec le +1 d'un Terrain de chasse s'il part de sa zone (déjà compté : pas une deuxième fois).
   const nextMobility =
-    getNextTurnMobility(unit, view.turn, view.activePlayer, view.board.mobilityBonus) +
+    getNextTurnMobility(unit, view.turn, view.activePlayer) +
     getNextTurnOnMoveBonus(view, unit, view.turn, view.activePlayer);
   const moves = getMoveDestinations(view, { ...unit, mobilityLeft: nextMobility, onMoveTaken: true }).map((d) => d.pos);
   // Il ne se gêne pas lui-même : son tir part de chaque case possible comme si la sienne était libre.
@@ -418,12 +436,14 @@ export function getEnemyReach(view: PlayerView, unitId: UnitId): Threat {
 }
 
 /**
- * Menace adverse à montrer, sur des calques à part des surbrillances : celle du monstre adverse survolé, quelle que
- * soit la sélection (on peut la consulter en préparant un déplacement), sinon celle du monstre adverse consulté.
+ * Portée à montrer, sur des calques à part des surbrillances : celle du monstre survolé, quelle que soit la sélection (on
+ * peut la consulter en préparant un déplacement) — la menace d'un monstre adverse, les déplacements d'un des tiens (sauf
+ * celui qu'on a sélectionné, déjà en surbrillance) —, sinon celle du monstre adverse consulté.
  */
 export function getReach(view: PlayerView, selection: Selection, hovered: Position | null): Threat {
   const hoveredMonster = hovered ? getUnitsAt(view, hovered).find((u) => u.kind === 'monster') : undefined;
-  const hoverReach = hoveredMonster ? getEnemyReach(view, hoveredMonster.id) : NO_THREAT;
+  const selectedHere = hoveredMonster !== undefined && selection.kind === 'unit' && selection.unitId === hoveredMonster.id;
+  const hoverReach = !hoveredMonster || selectedHere ? NO_THREAT : hoveredMonster.owner === view.viewer ? getOwnReach(view, hoveredMonster.id) : getEnemyReach(view, hoveredMonster.id);
   if (hoverReach.moves.length + hoverReach.strikes.length > 0) return hoverReach;
   return selection.kind === 'inspect' ? getEnemyReach(view, selection.unitId) : NO_THREAT;
 }

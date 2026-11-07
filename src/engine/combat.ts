@@ -98,11 +98,20 @@ export function hitsFromBehind(attacker: MonsterUnit, target: Unit): boolean {
  * d'`assassin` (Clown assassin, §10).
  */
 export function attackDamage(state: BoardState, attacker: MonsterUnit, target: Unit): number {
+  return withCarapace(target, rawAttackDamage(state, attacker, target));
+}
+
+function rawAttackDamage(state: BoardState, attacker: MonsterUnit, target: Unit): number {
   const base = getAtk(state, attacker);
   if (target.kind === 'terrain') return base * (getKeyword(attacker, 'siege')?.multiplier ?? 1);
   if (!hitsFromBehind(attacker, target)) return base;
   const atk = base + (getKeyword(attacker, 'sournois')?.amount ?? 0);
   return atk * (getKeyword(attacker, 'assassin')?.multiplier ?? 1);
+}
+
+/** Carapace (Tibo) : une attaque ou une riposte contre un monstre qui l'a n'inflige que 1 PV (§10). */
+function withCarapace(target: Unit, damage: number): number {
+  return target.kind === 'monster' && target.statuses.some((s) => s.kind === 'carapace') ? Math.min(damage, 1) : damage;
 }
 
 /** L'attaquant est derrière la cible : il frappe dans le sens où elle regarde. */
@@ -169,7 +178,7 @@ export function previewAttack(state: BoardState, attacker: MonsterUnit, target: 
     !target.hasRiposted &&
     !isStunned(target) &&
     distance(attacker.pos, target.pos) === 1;
-  const riposte = ripostes ? getAtk(state, target) : 0;
+  const riposte = ripostes ? withCarapace(attacker, getAtk(state, target)) : 0;
   const heal = soifHeal(attacker);
   return {
     damage,
@@ -245,7 +254,7 @@ export function applyAttack(state: GameState, action: AttackAction): GameState {
       const current = next.units[attacker.id];
       const mover = current?.kind === 'monster' ? current : attacked;
       next = setUnit(next, { ...mover, pos: target.pos, facing: directionBetween(attacker.pos, target.pos) });
-      next = enterCell(next, attacker.id).state;
+      next = enterCell(next, attacker.id, undefined, attacker.pos).state;
     }
     return next;
   }

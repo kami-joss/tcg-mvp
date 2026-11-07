@@ -307,10 +307,11 @@ export function applyMove(state: GameState, action: MoveAction): GameState {
       mobilityLeft: current.mobilityLeft - 1,
     });
     if (i > 0) walked.push(path[i - 1]!);
+    const previous = from;
     from = pos;
     // Chaque case entrée peut déclencher un piège ou un terrain « Passage », même pour un monstre `vol` ; en marchant,
     // un « Passage » agit à chaque case de sa zone (§10).
-    const entered = enterCell(next, monster.id, NEW_MOVEMENT);
+    const entered = enterCell(next, monster.id, NEW_MOVEMENT, previous);
     next = entered.state;
     if (entered.stopped) break;
   }

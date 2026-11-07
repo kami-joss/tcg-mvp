@@ -3,12 +3,14 @@ import { getLegalActions } from './actions';
 import { getManaZones } from './board';
 import { opponent } from './players';
 import { getHiddenUnitIds, perceivedBy } from './stealth';
+import { cardOfOrigin } from './units';
 import { getZoneStatus } from './zones';
-import type { GameEvent, GameState, PlayerId, PlayerView, Position, Unit, UnitId, ZoneStatus } from './types';
+import type { CardCopy, GameEvent, GameState, PlayerId, PlayerView, Position, Unit, UnitId, ZoneStatus } from './types';
 
 /**
  * Tout est public sauf le contenu du grimoire adverse, dont seul le nombre de cartes est donné, ses pièges et ses
- * monstres invisibles (§10) ; le contrôle des mana zones reste public, même tenu par un monstre invisible.
+ * monstres invisibles (§10) ; le contrôle des mana zones reste public, même tenu par un monstre invisible. Son
+ * cimetière et ses cartes jouées aussi : un monstre camouflé y figure par sa carte, sans sa case.
  * Les actions légales ne sont fournies qu'au joueur actif : elles révèlent son grimoire.
  */
 export function getPlayerView(state: GameState, player: PlayerId): PlayerView {
@@ -27,6 +29,7 @@ export function getPlayerView(state: GameState, player: PlayerId): PlayerView {
       mana: other.mana,
       vp: other.vp,
       graveyard: other.graveyard,
+      played: playedSeenBy(state, player),
       grimoireCount: other.grimoire.length,
     },
     traps: state.traps.filter((trap) => trap.owner === player),
@@ -37,6 +40,30 @@ export function getPlayerView(state: GameState, player: PlayerId): PlayerView {
     legalActions: state.activePlayer === player ? getLegalActions(state) : [],
     events: getVisibleEvents(state, player),
   };
+}
+
+/**
+ * Cartes jouées de l'adversaire, telles que `player` les voit : publiques (§10), mais un exemplaire brillant dont l'unité
+ * lui est cachée (camouflée) n'y est pas brillant, comme cette unité. Pour chaque unité cachée brillante, l'exemplaire
+ * brillant le plus récent de sa carte est montré normal : le joueur voit autant d'exemplaires brillants qu'il en a vu.
+ */
+function playedSeenBy(state: GameState, player: PlayerId): readonly CardCopy[] {
+  const { played } = state.players[opponent(player)];
+  const hidden = getHiddenUnitIds(state, player).flatMap((id) => {
+    const unit = state.units[id];
+    return unit?.shiny ? [cardOfOrigin(unit)] : [];
+  });
+  if (hidden.length === 0) return played;
+  const seen = [...played];
+  for (const cardId of hidden) {
+    for (let i = seen.length - 1; i >= 0; i--) {
+      if (seen[i]!.cardId === cardId && seen[i]!.shiny) {
+        seen[i] = { cardId };
+        break;
+      }
+    }
+  }
+  return seen;
 }
 
 /**
@@ -95,14 +122,22 @@ function eventUnits(event: GameEvent): UnitId[] {
 
 /**
  * Événements que `player` a le droit de voir : jamais la pose d'un piège adverse, ni ce qui concerne un monstre
- * qui lui est invisible à la fin de l'action (§10).
+ * qui lui est invisible à la fin de l'action (§10). Une carte jouée vers ce monstre (son invocation, un sort sur lui) ou
+ * l'effet d'un monstre visible sur lui restent, sans sa case.
  */
 function getVisibleEvents(state: GameState, player: PlayerId): GameEvent[] {
   const hidden = getHiddenUnitIds(state, player);
-  return state.events.filter((event) => {
-    if (event.type === 'trapPlaced') return event.trap.owner === player;
-    return eventUnits(event).every((id) => !hidden.includes(id));
-  });
+  const isHidden = (id: UnitId | undefined) => id !== undefined && hidden.includes(id);
+  return state.events
+    .filter((event) => {
+      if (event.type === 'trapPlaced') return event.trap.owner === player;
+      return eventUnits(event).every((id) => !hidden.includes(id));
+    })
+    .map((event) => {
+      if (event.type === 'cardPlayed' && isHidden(event.unitId)) return { ...event, pos: null };
+      if (event.type === 'effect' && isHidden(event.targetId)) return { ...event, pos: null };
+      return event;
+    });
 }
 
 /** Qui tient la mana zone en `pos`, d'après la vue : l'information est publique (§10). */

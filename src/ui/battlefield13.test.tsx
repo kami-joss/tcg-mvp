@@ -9,7 +9,7 @@ import { ALL_TOKEN_STATS } from './settings';
 import type { BoardView } from './settings';
 import { getSheet } from './sheet';
 
-// Grande carte 13 × 13 (handoff V7, lot 7) : rendu des étangs, vue iso, +1 mobilité affichée.
+// Grande carte 13 × 13 (handoff V7, lot 7) : rendu des étangs, vue iso, mobilité de la carte affichée.
 
 const render = (view: PlayerView, mode: BoardView) =>
   renderToStaticMarkup(
@@ -93,17 +93,16 @@ describe('plateau 13 × 13', () => {
     expect(html).toContain('iso-decor');
   });
 
-  it('+1 mobilité : pastille de l’adversaire, fiche et puce « sur ce plateau »', () => {
+  it('mobilité : celle de la carte, sans bonus ni puce du plateau', () => {
     const html = render(view, 'top');
-    expect(html).toMatch(/class="stat stat--mob is-mine" title="Pas restants">.*?<\/svg>3<\/span>/); // Milicien : 2 + 1
-    expect(html).toMatch(/class="stat stat--mob" title="Mobilité">.*?<\/svg>3<\/span>/); // Golem : 2 + 1
+    expect(html).toMatch(/class="stat stat--mob is-mine" title="Pas restants">.*?<\/svg>2<\/span>/); // Milicien : 2
+    expect(html).toMatch(/class="stat stat--mob" title="Mobilité">.*?<\/svg>2<\/span>/); // Golem : 2
     const sheet = getSheet(view, { kind: 'cell', pos: at(12, 12) })!;
-    expect(sheet.stats).toContainEqual({ icon: 'walking-boot', label: 'Mobilité', value: '3', delta: 1, hurt: false });
-    const chip = { icon: 'walking-boot', text: 'Champ de bataille (13 × 13)', detail: 'Plateau : +1 mobilité pour tous les monstres', kind: 'boost', group: 'effect' };
-    expect(sheet.status).toContainEqual(chip);
-    expect(sheet.text[0]).toContain('(mobilité 3)');
+    expect(sheet.stats).toContainEqual({ icon: 'walking-boot', label: 'Mobilité', value: '2', delta: 0, hurt: false });
+    expect(sheet.status ?? []).toEqual([]);
+    expect(sheet.text[0]).toContain('(mobilité 2)');
     const card = getSheet(view, { kind: 'card', cardId: 'golem' })!;
-    expect(card.stats).toContainEqual({ icon: 'walking-boot', label: 'Mobilité', value: '3', delta: 1, hurt: false });
-    expect(card.status).toEqual([chip]);
+    expect(card.stats).toContainEqual({ icon: 'walking-boot', label: 'Mobilité', value: '2', delta: 0, hurt: false });
+    expect(card.status).toBeNull();
   });
 });

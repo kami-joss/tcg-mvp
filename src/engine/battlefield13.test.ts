@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction } from './actions';
-import { BATTLEFIELD_13, BOARD, BOARDS, allPositions, getCell, getCliff, getManaZones, getSummonZone, parseMap } from './board';
+import { BATTLEFIELD_13, BOARDS, allPositions, getCell, getCliff, getManaZones, getSummonZone, parseMap } from './board';
 import type { MapData } from './board';
 import { getAttackTargets } from './combat';
 import { getMoveDestinations } from './movement';
@@ -43,7 +43,7 @@ function walkingDistances(board: Board, player: PlayerId): Map<string, number> {
 
 describe('carte « Champ de bataille » 13 × 13 (SPEC.md §3)', () => {
   it('13 × 13, proposée avec les autres ; 5 mana zones, 3 cases d’invocation par joueur', () => {
-    expect(BATTLEFIELD_13).toMatchObject({ name: 'Champ de bataille (13 × 13)', rows: 13, cols: 13, mobilityBonus: 1 });
+    expect(BATTLEFIELD_13).toMatchObject({ name: 'Champ de bataille (13 × 13)', rows: 13, cols: 13 });
     expect(BOARDS).toContain(BATTLEFIELD_13);
     expect(getManaZones(BATTLEFIELD_13).map((z) => z.zone).sort()).toEqual(['ecurie', 'ferme', 'forge', 'mine', 'scierie']);
     expect(getSummonZone(BATTLEFIELD_13, 1)).toEqual([at(0, 0), at(0, 1), at(1, 0)]);
@@ -92,7 +92,7 @@ describe('carte « Champ de bataille » 13 × 13 (SPEC.md §3)', () => {
     expect(getCliff(BATTLEFIELD_13, at(10, 2), at(10, 3))).toBeUndefined();
     expect(getCliff(BATTLEFIELD_13, at(2, 11), at(3, 11))).toMatchObject({ rangedShotsPass: true, flyingPasses: true });
     // On ne marche pas à travers une falaise.
-    const walker = gameWith([{ monster: 'milicien', owner: 1, at: at(3, 11) }], { board: BATTLEFIELD_13 });
+    const walker = gameWith([{ monster: 'milicien', owner: 1, at: at(3, 11), mobilityLeft: 3 }], { board: BATTLEFIELD_13 });
     // (3, 11) → (2, 11) : 3 pas en contournant par la colonne 12, pas 1.
     expect(getMoveDestinations(walker, walker.units.u1 as never).find((d) => d.pos.row === 2 && d.pos.col === 11)?.cost).toBe(3);
     // Tir de portée 2 par-dessus une falaise basse, pas par-dessus une haute.
@@ -123,14 +123,13 @@ describe('carte « Champ de bataille » 13 × 13 (SPEC.md §3)', () => {
     expect(getCell(BATTLEFIELD_13, at(11, 1))).toMatchObject({ manaZone: 'mine' });
   });
 
-  it('+1 mobilité pour tous les monstres : à l’invocation et à chaque début de tour, pas sur les autres plateaux', () => {
+  it('pas de bonus de mobilité du plateau : celle de la carte, à l’invocation et à chaque début de tour (SPEC.md §3)', () => {
     const state = gameWith([], { board: BATTLEFIELD_13, players: { 1: { mana: 10, grimoire: ['milicien'] } } });
     const summoned = applyAction(state, { type: 'playCard', cardId: 'milicien', target: { kind: 'cell', pos: at(0, 0) } });
-    expect(summoned.units.u1).toMatchObject({ mobilityLeft: 3 }); // Milicien : mobilité 2
+    expect(summoned.units.u1).toMatchObject({ mobilityLeft: 2 }); // Milicien : mobilité 2
     const again = applyAction(applyAction(summoned, { type: 'endTurn' }), { type: 'endTurn' });
-    expect(again.units.u1).toMatchObject({ mobilityLeft: 3 });
-    expect(gameWith([{ monster: 'milicien', owner: 1, at: at(0, 0) }], { board: BATTLEFIELD_13 }).units.u1).toMatchObject({ mobilityLeft: 3 });
-    expect(gameWith([{ monster: 'milicien', owner: 1, at: at(1, 4) }], { board: BOARD }).units.u1).toMatchObject({ mobilityLeft: 2 });
+    expect(again.units.u1).toMatchObject({ mobilityLeft: 2 });
+    expect(gameWith([{ monster: 'milicien', owner: 1, at: at(0, 0) }], { board: BATTLEFIELD_13 }).units.u1).toMatchObject({ mobilityLeft: 2 });
   });
 
   it('lecteur de carte : refuse une eau hors d’un X et un type de falaise inconnu', () => {

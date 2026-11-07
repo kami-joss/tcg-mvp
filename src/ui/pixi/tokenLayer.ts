@@ -38,6 +38,7 @@ const STATUS_COLORS: Readonly<Record<StatusPill['kind'], readonly [string, strin
   burn: ['oklch(0.8 0.14 60)', 'oklch(0.35 0.12 40)'],
   requiem: ['oklch(0.32 0.03 300)', 'oklch(0.93 0.02 300)'],
   camouflage: ['oklch(0.45 0.06 270)', 'oklch(0.92 0.03 270)'],
+  carapace: ['oklch(0.62 0.1 150)', 'oklch(0.2 0.06 150)'],
 };
 const player = (owner: 1 | 2) => (owner === 1 ? CELL_COLORS.j1 : CELL_COLORS.j2);
 

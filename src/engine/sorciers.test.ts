@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { applyAction, getLegalActions } from './actions';
 import { CARDS } from './cards';
 import { IllegalActionError } from './errors';
+import { placeSummonedMonster } from './summon';
 import { at, gameWith } from './test-utils';
 import { getPlayerView } from './view';
-import type { Action, GameState, Position, UnitId } from './types';
+import type { Action, GameState, MonsterCard, Position, UnitId } from './types';
 
 // Deck Sorciers du feu (SPEC.md §6 bis, §10) : Brûlure 1, 2 tours ; Lutin brasier et ses cases brûlées ; Archimage ;
-// Golem de lave (Passage).
+// Golem de lave (Zone).
 
 const END_TURN: Action = { type: 'endTurn' };
 const MANA = { players: { 1: { mana: 10 } } };
@@ -19,10 +20,10 @@ const burnTargets = (state: GameState) =>
 
 describe('cartes du deck Sorciers du feu', () => {
   it('caractéristiques, famille, Brûlure 1, 2 tours', () => {
-    expect(CARDS.apprenti).toMatchObject({ cost: 2, atk: 1, hp: 3, mobility: 4, range: 2, archetype: 'sorcier' });
-    expect(CARDS['lutin-brasier']).toMatchObject({ cost: 4, atk: 2, hp: 4, mobility: 4, range: 2, archetype: 'sorcier' });
-    expect(CARDS.archimage).toMatchObject({ cost: 6, atk: 3, hp: 5, mobility: 4, range: 2, archetype: 'sorcier' });
-    expect(CARDS['golem-de-lave']).toMatchObject({ cost: 5, atk: 2, hp: 8, mobility: 2, range: 1, archetype: 'sorcier' });
+    expect(CARDS.apprenti).toMatchObject({ cost: 2, atk: 1, hp: 3, mobility: 6, range: 2, archetype: 'sorcier' });
+    expect(CARDS['lutin-brasier']).toMatchObject({ cost: 1, atk: 1, hp: 4, mobility: 5, range: 1, archetype: 'sorcier' });
+    expect(CARDS.archimage).toMatchObject({ cost: 6, atk: 3, hp: 8, mobility: 4, range: 2, archetype: 'sorcier' });
+    expect(CARDS['golem-de-lave']).toMatchObject({ cost: 5, atk: 2, hp: 12, mobility: 2, range: 1, archetype: 'sorcier' });
     for (const id of ['apprenti', 'lutin-brasier', 'archimage'] as const) {
       expect(CARDS[id], id).toMatchObject({ keywords: [{ keyword: 'brulure', amount: 1, turns: 2 }] });
     }
@@ -93,7 +94,7 @@ describe('Lutin brasier : case brûlée', () => {
 });
 
 describe('Archimage', () => {
-  it('Actif (1 mana) : tous les ennemis adjacents sont burn 2 pendant 2 tours', () => {
+  it('Actif (2 mana) : tous les ennemis adjacents sont burn 2 pendant 2 tours', () => {
     const state = gameWith(
       [
         { monster: 'archimage', owner: 1, at: at(1, 4) },
@@ -104,13 +105,13 @@ describe('Archimage', () => {
       MANA,
     );
     const after = applyAction(state, { type: 'activateEffect', unitId: 'u1', target: { kind: 'area' } });
-    expect(after.players[1].mana).toBe(9);
+    expect(after.players[1].mana).toBe(8);
     for (const id of ['u2', 'u3']) expect(after.units[id]?.statuses, id).toMatchObject([{ kind: 'burn', amount: 2, turns: 2 }]);
     expect(after.units.u4?.statuses).toEqual([]);
   });
 });
 
-describe('Golem de lave : Passage · adjacents · burn 1 pendant 1 tour', () => {
+describe('Golem de lave : Zone · adjacents · burn 1 pendant 1 tour', () => {
   it('un ennemi qui entre à côté de lui est burn, à chaque case de la zone (les burn se cumulent)', () => {
     const state = gameWith(
       [
@@ -129,12 +130,83 @@ describe('Golem de lave : Passage · adjacents · burn 1 pendant 1 tour', () => 
     expect(after.events).toContainEqual({ type: 'passage', sourceId: 'u1', unitId: 'u2', pos: at(2, 2) });
   });
 
-  it('rien quand c’est le Golem qui s’approche', () => {
+  it('quand c’est le Golem qui arrive à côté d’un ennemi, celui-ci est burn aussi', () => {
     const state = gameWith([
       { monster: 'golem-de-lave', owner: 1, at: at(1, 1) },
       { monster: 'eclaireur', owner: 2, at: at(4, 1) },
     ]);
     const after = applyAction(state, move('u1', at(3, 1)));
+    expect(after.units.u2?.statuses).toMatchObject([{ kind: 'burn', amount: 1, turns: 1 }]);
+    expect(after.events).toContainEqual({ type: 'passage', sourceId: 'u1', unitId: 'u2', pos: at(4, 1) });
+  });
+
+  it('un ennemi déjà dans la zone n’est pas touché de nouveau par le déplacement du Golem', () => {
+    const state = gameWith([
+      { monster: 'golem-de-lave', owner: 1, at: at(3, 1) },
+      { monster: 'eclaireur', owner: 2, at: at(4, 2) },
+    ]);
+    const after = applyAction(state, move('u1', at(3, 2)));
     expect(after.units.u2?.statuses).toEqual([]);
+  });
+
+  it('invoqué à côté d’un ennemi, le Golem le brûle', () => {
+    const state = gameWith([{ monster: 'eclaireur', owner: 2, at: at(2, 2) }]);
+    const after = placeSummonedMonster(state, 1, CARDS['golem-de-lave'] as MonsterCard, at(1, 1));
+    expect(after.units.u1?.statuses).toMatchObject([{ kind: 'burn', amount: 1, turns: 1 }]);
+  });
+
+  it('au début du tour de son possesseur, l’ennemi encore dans la zone est burn de nouveau', () => {
+    const state = gameWith([
+      { monster: 'golem-de-lave', owner: 1, at: at(1, 1) },
+      { monster: 'eclaireur', owner: 2, at: at(2, 2) },
+      { monster: 'eclaireur', owner: 2, at: at(5, 5) },
+    ]);
+    const mine = applyAction(state, END_TURN);
+    // Le début du tour de l’adversaire ne déclenche rien : la zone est à son possesseur.
+    expect(mine.units.u2?.statuses).toEqual([]);
+    const back = applyAction(mine, END_TURN);
+    expect(back.units.u2?.statuses).toMatchObject([{ kind: 'burn', amount: 1, turns: 1 }]);
+    expect(back.units.u3?.statuses).toEqual([]);
+    expect(back.events).toContainEqual({ type: 'passage', sourceId: 'u1', unitId: 'u2', pos: at(2, 2) });
+  });
+
+  it('téléportation (§10) : l’ennemi posé dans la zone est burn, comme le Golem posé à côté d’un ennemi', () => {
+    const teleportTo = (unitId: UnitId, pos: Position): Action => ({
+      type: 'activateEffect',
+      unitId: 'u1',
+      target: { kind: 'unitAndCell', unitId, pos },
+    });
+    // J2 téléporte son Éclaireur (u3) à côté de son Téléporteur (u1), lui-même dans la zone du Golem (u2).
+    const enemy = gameWith(
+      [
+        { monster: 'teleporteur', owner: 2, at: at(2, 3) },
+        { monster: 'golem-de-lave', owner: 1, at: at(1, 1) },
+        { monster: 'eclaireur', owner: 2, at: at(8, 7) },
+      ],
+      { activePlayer: 2, players: { 2: { mana: 5 } } },
+    );
+    const arrived = applyAction(enemy, teleportTo('u3', at(2, 2)));
+    expect(arrived.units.u3?.statuses).toMatchObject([{ kind: 'burn', amount: 1, turns: 1 }]);
+    // Le Golem de J1, téléporté par son propre Téléporteur à côté d'un Éclaireur ennemi.
+    const mine = gameWith(
+      [
+        { monster: 'teleporteur', owner: 1, at: at(3, 3) },
+        { monster: 'golem-de-lave', owner: 1, at: at(9, 0) },
+        { monster: 'eclaireur', owner: 2, at: at(5, 3) },
+      ],
+      { players: { 1: { mana: 5 } } },
+    );
+    const beside = applyAction(mine, teleportTo('u2', at(4, 3)));
+    expect(beside.units.u3?.statuses).toMatchObject([{ kind: 'burn', amount: 1, turns: 1 }]);
+  });
+
+  it('l’ennemi qui est parti de la zone entre-temps n’est pas touché au début du tour', () => {
+    const state = gameWith([
+      { monster: 'golem-de-lave', owner: 1, at: at(1, 1) },
+      { monster: 'eclaireur', owner: 2, at: at(2, 2) },
+    ]);
+    const away = applyAction(applyAction(state, END_TURN), move('u2', at(3, 3)));
+    const back = applyAction(away, END_TURN);
+    expect(back.units.u2?.statuses).toEqual([]);
   });
 });

@@ -61,11 +61,10 @@ export function cutInOf(event: GameEvent, view: PlayerView, after: readonly Game
       return cutIn('effect', unit.cardId, unit.owner, unit.shiny === true, ability?.name ?? null, unit.pos);
     }
     case 'cardPlayed': {
+      // Elle file vers sa case : l'unité posée, ou le monstre visé par le sort. Un sort sans cible (Pénombre, Piège
+      // temporel) s'efface sur place, comme une carte dont l'unité est cachée au joueur qui regarde (sans case, §10).
       const card = getCard(event.cardId);
-      if (card.kind === 'spell') {
-        // Un sort qui vise un monstre file vers lui ; un sort sans cible (Pénombre, Piège temporel) s'efface sur place.
-        return cutIn('spell', card.id, event.player, false, null, card.ability.targeting.type === 'monster' ? event.pos : null);
-      }
+      if (card.kind === 'spell') return cutIn('spell', card.id, event.player, false, null, event.pos);
       const placed = after.find((next) => next.type === 'summon' && next.unit.cardId === card.id);
       const shiny = placed?.type === 'summon' && placed.unit.shiny === true;
       return cutIn(card.kind === 'terrain' ? 'terrain' : 'summon', card.id, event.player, shiny, null, event.pos);

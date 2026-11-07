@@ -25,7 +25,7 @@ export const TOKEN_FOOT = 34 + 19;
 export const TOKEN_DZ = 10;
 export const CREST_DZ = 12;
 
-const STATUS_ORDER: readonly StatusKind[] = ['requiem', 'stun', 'immobilise', 'slow', 'burn', 'camouflage'];
+const STATUS_ORDER: readonly StatusKind[] = ['requiem', 'stun', 'immobilise', 'slow', 'burn', 'camouflage', 'carapace'];
 
 export interface StatPill {
   readonly kind: 'mob' | 'hp' | 'atk';
@@ -49,7 +49,7 @@ export interface StatusPill {
 export function statusPills(statuses: readonly Status[], requiem: number | null = null): StatusPill[] {
   return STATUS_ORDER.filter((kind) => statuses.some((s) => s.kind === kind)).map((kind) => {
     const amount = kind === 'requiem' ? (requiem ?? 1) : statuses.filter((s) => s.kind === kind).reduce((total, s) => total + statusAmount(s), 0);
-    return { kind, text: (amount > 1 || kind === 'requiem') && kind !== 'camouflage' ? String(amount) : null };
+    return { kind, text: (amount > 1 || kind === 'requiem') && kind !== 'camouflage' && kind !== 'carapace' ? String(amount) : null };
   });
 }
 
@@ -152,7 +152,7 @@ export function unitVisuals(inputs: TokenInputs): { tokens: TokenVisual[]; terra
     const angle = ISO_ANGLES[facing];
     const above = statsAbove(angle);
     const showMobility = active ? stats.mobility : stats.enemyMobility;
-    const mobility = active ? unit.mobilityLeft + getOnMoveBonus(view, unit) : card.mobility + view.board.mobilityBonus;
+    const mobility = active ? unit.mobilityLeft + getOnMoveBonus(view, unit) : card.mobility;
     const atk = getAtk(view, unit);
     const pills: StatPill[] = [];
     if (showMobility) pills.push({ kind: 'mob', value: mobility, mine: active, empty: active && mobility === 0 });

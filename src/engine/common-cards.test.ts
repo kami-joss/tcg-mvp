@@ -188,7 +188,7 @@ describe('Téléporteur (SPEC.md §5.4, Téléportation)', () => {
     expect(after.events.find((e) => e.type === 'teleport')).toEqual({ type: 'teleport', unitId: 'u2', from: at(9, 0), to: at(1, 1) });
   });
 
-  it('même un allié immobilisé ; rien ne se déclenche sur la case d’arrivée (ni piège, ni Passage, §10)', () => {
+  it('même un allié immobilisé ; il entre sur la case d’arrivée : piège et Passage s’y déclenchent (§10)', () => {
     const state = gameWith(
       [
         { monster: 'teleporteur', owner: 1, at: at(3, 3) },
@@ -203,10 +203,10 @@ describe('Téléporteur (SPEC.md §5.4, Téléportation)', () => {
       units: { ...state.units, u2: { ...monster(state, 'u2'), statuses: [{ kind: 'immobilise', turns: 1, expiresAtTurn: 4 }] } },
     };
     const after = applyAction(netted, teleport('u2', at(4, 3)));
-    // Ni la bombe ni le Terrain drainant (sa case d'arrivée est dans la zone) ne se déclenchent.
-    expect(monster(after, 'u2')).toMatchObject({ pos: at(4, 3), hp: monster(netted, 'u2').hp });
-    expect(after.traps).toHaveLength(1);
-    expect(after.events.map((e) => e.type)).toEqual(['effect', 'mana', 'teleport']);
+    // La bombe (3 dégâts) et le Terrain drainant (sa case d'arrivée est dans la zone : 1 dégât) se déclenchent.
+    expect(monster(after, 'u2')).toMatchObject({ pos: at(4, 3), hp: monster(netted, 'u2').hp - 4 });
+    expect(after.traps).toHaveLength(0);
+    expect(after.events.map((e) => e.type)).toEqual(['effect', 'mana', 'teleport', 'trapTriggered', 'damage', 'passage', 'damage']);
   });
 });
 

@@ -72,6 +72,8 @@ interface BoardProps {
    * pour sortir chaque bord du plateau de sous un panneau flottant (fiche à gauche, grimoire à droite).
    */
   margins?: { readonly left: number; readonly right: number };
+  /** Reçoit la commande de la caméra (centrer la vue sur une case), tant que le plateau est monté. */
+  cameraRef?: RefObject<BoardCamera | null>;
   onCellClick: (pos: Position) => void;
   /** Clic droit sur une case (le menu du navigateur est bloqué). */
   onCellContextMenu?: (pos: Position) => void;
@@ -134,6 +136,27 @@ function useElementSize(ref: RefObject<HTMLElement | null>): { width: number; he
   return size;
 }
 
+/** Défilement aux bords : largeur de la bande, vitesse maximale (px/s) et délai avant le départ. */
+const EDGE_ZONE = 220;
+const EDGE_STRIP = 48;
+const EDGE_SPEED = 900;
+const EDGE_DWELL_MS = 150;
+/** Durée maximale d'un recentrage animé de la vue. */
+const FOCUS_MAX_MS = 900;
+
+interface EdgeScroll {
+  /** Espace des panneaux flottants à gauche et à droite : la bande de défilement commence après eux. */
+  readonly left: number;
+  readonly right: number;
+  /** Faux : pas de défilement aux bords (bulle d'action ouverte). */
+  readonly enabled: boolean;
+}
+
+/** Commande de la caméra du plateau, pour le jeu : centrer la vue sur une case, résolu quand elle y est. */
+export interface BoardCamera {
+  focus: (pos: Position) => Promise<void>;
+}
+
 /**
  * Cadre du plateau (lot 11) : il défile, sur chaque axe où la scène et ses marges de glisse le dépassent (zoom, vue
  * isométrique calée sur la largeur, lot 13), à la molette ou en la faisant glisser ; sinon la scène y est centrée entre
@@ -146,6 +169,7 @@ function useZoomViewport(
   mode: BoardView,
   scroll: { readonly x: boolean; readonly y: boolean },
   ref: RefObject<HTMLDivElement | null>,
+  edge: EdgeScroll,
 ) {
   /** Point de la scène au centre de la vue, en fractions de sa largeur et de sa hauteur. */
   const center = useRef<{ x: number; y: number } | null>(null);
@@ -160,6 +184,8 @@ function useZoomViewport(
   const focusY = useRef(0.5);
   const axes = useRef(scroll);
   axes.current = scroll;
+  const edgeRef = useRef(edge);
+  edgeRef.current = edge;
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -270,7 +296,119 @@ function useZoomViewport(
     };
   }, [ref]);
 
-  return { focusY, scroll };
+  // Défilement aux bords (souris seulement) : la souris dans la bande de `EDGE_ZONE` px au bord de l'espace libre du cadre
+  // (hors panneaux flottants) le fait défiler dans cette direction, de plus en plus vite vers le bord, après `EDGE_DWELL_MS`
+  // pour qu'un simple passage vers un panneau ne bouge rien. Rien pendant un glisser, ni bulle ouverte (`edge.enabled`).
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let pointer: { x: number; y: number } | null = null;
+    let since: number | null = null;
+    let frame = 0;
+    let last = 0;
+    const ramp = (distance: number) => Math.min(1, Math.max(0, 1 - distance / EDGE_ZONE));
+    const velocity = () => {
+      if (!pointer || !edgeRef.current.enabled || el.classList.contains('is-dragging')) return { x: 0, y: 0 };
+      const v = el.getBoundingClientRect();
+      const x = pointer.x - v.left;
+      const y = pointer.y - v.top;
+      const { left, right } = edgeRef.current;
+      // La bande de `EDGE_ZONE` px longe l'espace libre, jamais sous la colonne de la fiche ni le grimoire ; seule exception,
+      // la fine bande `EDGE_STRIP` au bord de la fenêtre (souris poussée au bord, même par-dessus un panneau).
+      // Le cadre peut avoir une marge à gauche de la fenêtre : la bande du bord déborde donc du cadre.
+      if (y < 0 || y > v.height) return { x: 0, y: 0 };
+      const free = x >= left && x <= v.width - right;
+      const toLeft = free ? ramp(x - left) : x < EDGE_STRIP ? 1 : 0;
+      const toRight = free ? ramp(v.width - right - x) : x > v.width - EDGE_STRIP ? 1 : 0;
+      // Vertical : seulement dans l'espace libre, pas en survolant le journal ou le grimoire.
+      const toTop = free ? ramp(y) : 0;
+      const toBottom = free ? ramp(v.height - y) : 0;
+      return {
+        x: axes.current.x ? toRight - toLeft : 0,
+        y: axes.current.y ? toBottom - toTop : 0,
+      };
+    };
+    const tick = (now: number) => {
+      frame = 0;
+      const { x, y } = velocity();
+      if (x === 0 && y === 0) {
+        since = null;
+        return;
+      }
+      since ??= now;
+      if (now - since >= EDGE_DWELL_MS) {
+        const dt = Math.min(now - last, 50) / 1000;
+        userMoved.current = true;
+        el.scrollLeft += x * EDGE_SPEED * dt;
+        el.scrollTop += y * EDGE_SPEED * dt;
+      }
+      last = now;
+      frame = requestAnimationFrame(tick);
+    };
+    const move = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse') return;
+      pointer = { x: event.clientX, y: event.clientY };
+      if (!frame) {
+        last = performance.now();
+        frame = requestAnimationFrame(tick);
+      }
+    };
+    const leave = () => {
+      pointer = null;
+      since = null;
+    };
+    // Sur la fenêtre, pas sur le cadre : entrer dans un panneau flottant sortirait la souris du cadre (`pointerleave`).
+    const out = (event: globalThis.MouseEvent) => {
+      if (!event.relatedTarget) leave();
+    };
+    window.addEventListener('pointermove', move);
+    document.addEventListener('mouseout', out);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('pointermove', move);
+      document.removeEventListener('mouseout', out);
+    };
+  }, [ref]);
+
+  /**
+   * Centre la vue sur une case (sélection d'une unité, action de l'adversaire) : défilement doux, sur les axes où le cadre
+   * défile, vers le milieu de l'espace libre (les panneaux flottants recouvrent les bords du cadre). Le point atteint est
+   * retenu comme celui d'un défilement du joueur (changement de zoom, recentrage de la scène). Résolu quand la vue s'est
+   * posée (ou après `FOCUS_MAX_MS`).
+   */
+  const focusCell = (pos: Position): Promise<void> => {
+    const el = ref.current;
+    const cell = el?.querySelector<HTMLElement>(`[data-cell="${pos.row},${pos.col}"]`);
+    if (!el || !cell) return Promise.resolve();
+    const v = el.getBoundingClientRect();
+    const c = cell.getBoundingClientRect();
+    const { left, right } = edgeRef.current;
+    const freeCenterX = (left + el.clientWidth - right) / 2;
+    userMoved.current = true;
+    const target = {
+      left: axes.current.x ? el.scrollLeft + (c.left + c.width / 2 - v.left) - freeCenterX : el.scrollLeft,
+      top: axes.current.y ? el.scrollTop + (c.top + c.height / 2 - v.top) - el.clientHeight / 2 : el.scrollTop,
+    };
+    el.scrollTo({ ...target, behavior: 'smooth' });
+    return new Promise((resolve) => {
+      const started = performance.now();
+      let lastLeft = NaN;
+      let lastTop = NaN;
+      let still = 0;
+      const poll = () => {
+        // Immobile pendant quelques images : arrivée (le navigateur a pu borner la cible aux bords).
+        still = el.scrollLeft === lastLeft && el.scrollTop === lastTop ? still + 1 : 0;
+        lastLeft = el.scrollLeft;
+        lastTop = el.scrollTop;
+        if (still >= 4 || performance.now() - started > FOCUS_MAX_MS) return resolve();
+        requestAnimationFrame(poll);
+      };
+      requestAnimationFrame(poll);
+      window.setTimeout(resolve, FOCUS_MAX_MS + 100);
+    });
+  };
+
+  return { focusY, scroll, focusCell };
 }
 
 /**
@@ -324,6 +462,7 @@ export function Board(props: BoardProps) {
     mode,
     { x: shownWidth + margins.left + margins.right > area.width + 1, y: shownHeight > area.height + 1 },
     viewportRef,
+    { left: margins.left, right: margins.right, enabled: !props.anchor },
   );
   zoomView.focusY.current = iso ? camera.centerY / camera.height : tilted ? geometry.originY / geometry.sceneHeight : 0.5;
   const sceneStyle: CSSProperties = iso
@@ -371,6 +510,25 @@ export function Board(props: BoardProps) {
   // Mode contestation : les zones de 9 cases, dessinées au sol (§4.4 bis).
   const zoneTiles = getZoneTiles(view);
   const scrollable = zoomView.scroll.x || zoomView.scroll.y;
+  // Sélectionner une unité centre la vue sur elle (utile en zoom). Seul un changement d'unité déclenche le centrage : pas
+  // les rendus suivants, ni un déplacement de l'unité sélectionnée (le joueur garde la main sur la vue).
+  const selectedPos = props.selectedUnitId ? (view.units[props.selectedUnitId]?.pos ?? null) : null;
+  const focusCell = zoomView.focusCell;
+  const focusRef = useRef(focusCell);
+  focusRef.current = focusCell;
+  useEffect(() => {
+    if (selectedPos) void focusRef.current(selectedPos);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.selectedUnitId]);
+  // La caméra offerte au jeu (actions de l'adversaire).
+  const { cameraRef } = props;
+  useEffect(() => {
+    if (!cameraRef) return;
+    cameraRef.current = { focus: (pos) => focusRef.current(pos) };
+    return () => {
+      cameraRef.current = null;
+    };
+  }, [cameraRef]);
   const reveal = revealCells(view, props.hovered ?? null);
 
   return (
@@ -630,7 +788,6 @@ function BoardCell({
               onZone={zone !== null}
               angle={(iso ? ISO_ANGLES : FLAT_ANGLES)[facing!]}
               stats={stats}
-              mobilityBonus={view.board.mobilityBonus}
               onMoveBonus={monster.owner === view.activePlayer ? getOnMoveBonus(view, monster) : 0}
               standScale={standScale}
               bobDelay={bobDelay}
@@ -736,8 +893,6 @@ interface MonsterTokenProps {
   angle: number;
   /** Stats à afficher sous (ou sur) la goutte. */
   stats: TokenStats;
-  /** Mobilité en plus sur ce plateau (13 × 13), comptée dans celle affichée pour l'adversaire. */
-  mobilityBonus: number;
   /** +1 d'un Terrain de chasse qu'il aurait en partant maintenant : compté dans sa mobilité restante affichée. */
   onMoveBonus: number;
   /** Grossissement du jeton debout en vue inclinée. */
@@ -756,14 +911,14 @@ interface MonsterTokenProps {
  * jeton : le support et le corps sont plus grands que lui, pour que rien de ce qui dépasse ne soit rogné en 3D.
  */
 function MonsterToken(props: MonsterTokenProps) {
-  const { monster, atk, requiem, active, selected, exhausted, hidden, onZone, angle, stats, mobilityBonus, onMoveBonus, standScale } = props;
+  const { monster, atk, requiem, active, selected, exhausted, hidden, onZone, angle, stats, onMoveBonus, standScale } = props;
   const { bobDelay, target, damage } = props;
   const card = getCard(monster.cardId);
   const art = CARD_ART[monster.cardId];
   const above = statsAbove(angle);
   const path = dropPath(angle);
   const showMobility = active ? stats.mobility : stats.enemyMobility;
-  const mobility = active ? monster.mobilityLeft + onMoveBonus : getMonsterCard(monster.cardId).mobility + mobilityBonus;
+  const mobility = active ? monster.mobilityLeft + onMoveBonus : getMonsterCard(monster.cardId).mobility;
   const classes = [
     'token',
     `token--p${monster.owner}`,
@@ -903,7 +1058,7 @@ function TerrainCrest(props: { terrain: TerrainUnit; small: boolean; standScale:
   );
 }
 
-const STATUS_ORDER: readonly StatusKind[] = ['requiem', 'stun', 'immobilise', 'slow', 'burn', 'camouflage'];
+const STATUS_ORDER: readonly StatusKind[] = ['requiem', 'stun', 'immobilise', 'slow', 'burn', 'camouflage', 'carapace'];
 
 /**
  * Statuts en pastilles : requiem N (tours avant sa mort), stun, immobilisé, slow X, burn X (les statuts du même type
@@ -921,7 +1076,7 @@ function Statuses({ statuses, requiem = null }: { statuses: readonly Status[]; r
         return (
           <span key={kind} className={`status status--${kind}`} title={statusTitle(kind, amount)}>
             <Icon name={STATUS_ICONS[kind]} />
-            {(amount > 1 || kind === 'requiem') && kind !== 'camouflage' && amount}
+            {(amount > 1 || kind === 'requiem') && kind !== 'camouflage' && kind !== 'carapace' && amount}
           </span>
         );
       })}
@@ -945,6 +1100,8 @@ function statusTitle(kind: StatusKind, amount: number): string {
       return `Burn ${amount} : −${amount} PV par tour`;
     case 'camouflage':
       return 'Invisible (Pénombre) : caché à l’adversaire tant qu’il ne s’approche pas';
+    case 'carapace':
+      return 'Carapace : la prochaine attaque subie n’inflige que 1 PV';
   }
 }
 

@@ -18,6 +18,7 @@ import type {
   StatusSpec,
   Targeting,
   TerrainCard,
+  TerrainPassage,
   Trap,
 } from '../engine';
 
@@ -120,7 +121,7 @@ export const ARCHETYPE_NAMES: Readonly<Record<Archetype, { readonly title: strin
 };
 
 /**
- * Nom d'une carte de deck, « Nom - Archétype » (« Apprenti - Sorciers du feu ») : le nom seul, et l'archétype (vide
+ * Nom d'une carte de deck, « Nom - Archétype » (« Feria - Sorciers du feu ») : le nom seul, et l'archétype (vide
  * pour une carte de base ou commune). L'interface les affiche sur deux lignes.
  */
 export function splitCardName(name: string): { readonly title: string; readonly archetype: string } {
@@ -170,13 +171,15 @@ export function targetText(targeting: Targeting): string {
 
 /** Les alliés d'une famille autour de la source, pour une aura ou un effet de début de tour : « bodybuilders alliés adjacents ». */
 function allyZoneText({ zone, archetype }: AllyZoneEffect | StatAura): string {
-  return `${ARCHETYPE_NAMES[archetype].many} alliés ${ZONE_TEXT[zone]}`;
+  const where = zone === 'cellAndAdjacent' ? 'sur sa case et adjacents' : ZONE_TEXT[zone];
+  return `${ARCHETYPE_NAMES[archetype].many} alliés ${where}`;
 }
 
 /** Statut avec sa durée : « burn 1 pendant 1 tour », « immobilisé jusqu’à son prochain tour », « requiem 2 ». */
 export function statusText(spec: StatusSpec): string {
   if (spec.kind === 'requiem') return `requiem ${spec.turns}`;
   if (spec.kind === 'camouflage') return `camouflage ${spec.amount} ${durationText(spec.turns)}`;
+  if (spec.kind === 'carapace') return `carapace ${durationText(spec.turns)}`;
   const name =
     spec.kind === 'slow' || spec.kind === 'burn' ? `${spec.kind} ${spec.amount}` : spec.kind === 'stun' ? 'stun' : 'immobilisé';
   return `${name} ${durationText(spec.turns)}`;
@@ -322,7 +325,7 @@ export function auraBonusText({ atk, hp, mobility }: Pick<StatAura, 'atk' | 'hp'
 }
 
 /** Aura (§5.2) : « Aura · bodybuilders alliés adjacents · +2 ATK ». */
-export function auraText(card: MonsterCard): string | null {
+export function auraText(card: MonsterCard | TerrainCard): string | null {
   return card.aura ? `Aura · ${allyZoneText(card.aura)} · ${auraBonusText(card.aura)}` : null;
 }
 
@@ -357,7 +360,7 @@ export function passiveLines(card: MonsterCard): PassiveLine[] {
       name: 'Aura',
       rule: `${allyZoneText(card.aura)} · ${auraBonusText(card.aura)}`,
       explain: [
-        'sur les 8 cases autour de lui, pas lui-même ; plusieurs auras se cumulent.',
+        `${card.aura.zone === 'adjacent2' ? 'dans un rayon de 2 autour de lui (falaises et cases X coupent la zone)' : 'sur les 8 cases autour de lui'}, pas lui-même ; plusieurs auras se cumulent.`,
         card.aura.hp ? 'Les PV (et PV max) se gagnent en entrant dans l’aura et se perdent en la quittant, sans descendre sous 1 PV.' : null,
         card.aura.mobility ? 'La mobilité compte au début de leur tour.' : null,
       ]
@@ -367,9 +370,11 @@ export function passiveLines(card: MonsterCard): PassiveLine[] {
   }
   if (card.passage) {
     lines.push({
-      name: 'Passage',
+      name: passageName(card.passage),
       rule: `${ZONE_TEXT[card.passage.zone]} · ${card.passage.effects.map(effectText).join(' + ')}`,
-      explain: 'chaque monstre ennemi qui entre sur une des 8 cases autour de lui le subit, à chaque case où il entre (une fois par recul).',
+      explain: card.passage.lingering
+        ? 'chaque monstre ennemi dans les 8 cases autour de lui le subit : quand il y entre, quand il arrive à côté de lui (une fois par déplacement), et au début de son tour s’il y est encore.'
+        : 'chaque monstre ennemi qui entre sur une des 8 cases autour de lui le subit, à chaque case où il entre (une fois par recul).',
     });
   }
   if (card.turnStart) {
@@ -405,6 +410,7 @@ export function cardEffectLine(card: Card): string {
     case 'terrain': {
       const parts = [
         card.zoneManaBonus > 0 ? `La zone rapporte +${card.zoneManaBonus} mana` : null,
+        auraText(card),
         passageText(card),
         card.summonPoint ? SUMMON_POINT : null,
         onMoveText(card),
@@ -417,10 +423,13 @@ export function cardEffectLine(card: Card): string {
 /** Mot-clé des terrains « Point d'invocation » (§5.6). */
 const SUMMON_POINT = 'Point d’invocation';
 
+/** Nom de l'effet : « Passage », ou « Zone » quand elle agit aussi sur celui qui reste et quand sa source approche (§10). */
+export const passageName = (passage: TerrainPassage) => (passage.lingering ? 'Zone' : 'Passage');
+
 /** Effet « Passage » d'un terrain ou d'un monstre, au format du lexique : « Passage · adjacents · 1 dégât ». */
 export function passageText(card: TerrainCard | MonsterCard): string | null {
   if (!card.passage) return null;
-  return `Passage · ${ZONE_TEXT[card.passage.zone]} · ${card.passage.effects.map(effectText).join(' + ')}`;
+  return `${passageName(card.passage)} · ${ZONE_TEXT[card.passage.zone]} · ${card.passage.effects.map(effectText).join(' + ')}`;
 }
 
 /** Effet « Au déplacement » d'un terrain : « Au déplacement · sa case et adjacents · +1 mobilité (pour ce tour) ». */
@@ -469,6 +478,9 @@ export function describeCard(card: Card): string[] {
         ...(card.zoneManaBonus > 0 ? [`La zone rapporte +${card.zoneManaBonus} mana.`] : []),
         ...(passage
           ? [`Passif · ${passage} : chaque monstre ennemi qui entre sur une des 8 cases autour le subit, à chaque case où il entre (une fois par recul).`]
+          : []),
+        ...(card.aura
+          ? [`Passif · ${auraText(card)} : sur la case du terrain et les 8 cases autour ; plusieurs auras se cumulent. Les PV (et PV max) se gagnent en entrant dans l’aura et se perdent en la quittant, sans descendre sous 1 PV.`]
           : []),
         ...(card.summonPoint
           ? [`Passif · ${SUMMON_POINT} : sa case est une case d’invocation pour vous, tant qu’aucun monstre ne s’y trouve.`]

@@ -49,6 +49,45 @@ describe('état intermédiaire des animations', () => {
   });
 });
 
+describe('cartes jouées et cimetière pendant l’animation (§10)', () => {
+  const state = gameWith(
+    [
+      { monster: 'golem', owner: 1, at: at(2, 1) },
+      { monster: 'milicien', owner: 2, at: at(2, 2), hp: 1 },
+    ],
+    { players: { 1: { mana: 10, grimoire: ['milicien', 'charge'] } } },
+  );
+  const cases: Action[] = [
+    { type: 'playCard', cardId: 'milicien', target: { kind: 'cell', pos: at(0, 4) } },
+    { type: 'playCard', cardId: 'charge', target: { kind: 'unit', unitId: 'u1' } },
+    { type: 'attack', unitId: 'u1', targetId: 'u2', advance: false },
+  ];
+
+  it('après tous les événements, les deux listes des deux joueurs sont celles de la vraie vue, qui que soit celui qui regarde', () => {
+    for (const viewer of [1, 2] as const) {
+      for (const action of cases) {
+        const { replayed, after } = replay(state, action, viewer);
+        expect(replayed.me.played, `${action.type} J${viewer}`).toEqual(after.me.played);
+        expect(replayed.me.graveyard).toEqual(after.me.graveyard);
+        expect(replayed.opponent.played).toEqual(after.opponent.played);
+        expect(replayed.opponent.graveyard).toEqual(after.opponent.graveyard);
+      }
+    }
+  });
+
+  it('la carte jouée s’ajoute avec son événement, la carte d’une unité détruite avec sa destruction', () => {
+    const after = applyAction(state, cases[1]!);
+    const played = after.events.find((event) => event.type === 'cardPlayed')!;
+    const opponentView = applyEvent(getPlayerView(state, 2), played, getPlayerView(after, 2));
+    expect(opponentView.opponent.played).toEqual([{ cardId: 'charge' }]);
+    expect(opponentView.opponent.graveyard).toEqual([{ cardId: 'charge' }]);
+
+    const killed = applyAction(state, cases[2]!);
+    const destroyed = killed.events.find((event) => event.type === 'destroyed')!;
+    expect(applyEvent(getPlayerView(state, 1), destroyed, getPlayerView(killed, 1)).opponent.graveyard).toEqual([{ cardId: 'milicien' }]);
+  });
+});
+
 describe('zone en ligne : le dragon se tourne', () => {
   it('pendant l’animation, il regarde dans la direction choisie, puis les ennemis reculent', () => {
     const state = gameWith(

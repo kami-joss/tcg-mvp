@@ -2,7 +2,7 @@
 import { getCard } from './cards';
 import { VICTORY_VP } from './config';
 import { emit } from './events';
-import type { CardId, GameState, PlayerId, PlayerState, Position, Unit } from './types';
+import type { CardCopy, CardId, GameState, PlayerId, PlayerState, Position, Unit } from './types';
 
 export function opponent(player: PlayerId): PlayerId {
   return player === 1 ? 2 : 1;
@@ -39,14 +39,19 @@ export function isShinyCopy(state: GameState, id: PlayerId, cardId: CardId): boo
 
 /**
  * Retire un exemplaire de la carte du grimoire du joueur actif, sans rien payer ; un exemplaire brillant d'abord, s'il en
- * a un. Un sort va au cimetière ; un monstre ou un terrain n'y ira qu'en quittant le plateau (§4.3).
+ * a un. La carte s'ajoute à ses cartes jouées ; un sort va au cimetière ; un monstre ou un terrain n'y ira qu'en quittant
+ * le plateau (§4.3). Un sort n'y est jamais brillant : il ne l'est pas à l'écran (§10).
  */
 export function takeFromGrimoire(state: GameState, cardId: CardId): GameState {
   const player = state.players[state.activePlayer];
+  const spell = getCard(cardId).kind === 'spell';
+  const shiny = player.shiny?.includes(cardId) ?? false;
+  const copy: CardCopy = shiny && !spell ? { cardId, shiny: true } : { cardId };
   return updatePlayer(state, player.id, {
     grimoire: withoutOne(player.grimoire, cardId),
-    ...(getCard(cardId).kind === 'spell' ? { graveyard: [...player.graveyard, cardId] } : {}),
-    ...(player.shiny?.includes(cardId) ? { shiny: withoutOne(player.shiny, cardId) } : {}),
+    played: [...player.played, copy],
+    ...(spell ? { graveyard: [...player.graveyard, copy] } : {}),
+    ...(shiny && player.shiny ? { shiny: withoutOne(player.shiny, cardId) } : {}),
   });
 }
 

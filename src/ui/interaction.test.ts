@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getPlayerView } from '../engine';
-import type { GameState } from '../engine';
+import type { GameState, Position } from '../engine';
 import { at, gameWith } from '../engine/test-utils';
 import {
   NO_SELECTION,
@@ -12,6 +12,7 @@ import {
   getAttackPreviews,
   getEffectActions,
   getEnemyReach,
+  getOwnReach,
   getHighlights,
   getReach,
   getPathPreview,
@@ -177,6 +178,35 @@ describe('interaction : pièges et chemin (SPEC.md §6 bis)', () => {
   });
 });
 
+describe('interaction : portée de mes monstres au survol', () => {
+  it('à mon tour : ses déplacements légaux, sans les cases d’attaque ; rien s’il a fini', () => {
+    const view = activeView(
+      gameWith([
+        { monster: 'chevalier', owner: 1, at: at(8, 4) },
+        { monster: 'milicien', owner: 1, at: at(8, 8), mobilityLeft: 0 },
+      ]),
+    );
+    const legal = view.legalActions.filter((a) => a.type === 'move' && a.unitId === 'u1').map((a) => (a as { to: Position }).to);
+    const reach = getOwnReach(view, 'u1');
+    expect(reach.moves).toHaveLength(new Set(legal.map((p) => `${p.row},${p.col}`)).size);
+    expect(reach.moves).toContainEqual(at(8, 7));
+    expect(reach.strikes).toEqual([]);
+    expect(getOwnReach(view, 'u2')).toEqual({ moves: [], strikes: [] });
+    expect(getReach(view, NO_SELECTION, at(8, 4))).toEqual(reach);
+  });
+
+  it('un monstre adverse n’a pas cette portée, et le monstre sélectionné est déjà en surbrillance', () => {
+    const view = activeView(
+      gameWith([
+        { monster: 'chevalier', owner: 1, at: at(8, 4) },
+        { monster: 'milicien', owner: 2, at: at(1, 1) },
+      ]),
+    );
+    expect(getOwnReach(view, 'u2')).toEqual({ moves: [], strikes: [] });
+    expect(getReach(view, { kind: 'unit', unitId: 'u1', mode: 'act' }, at(8, 4))).toEqual({ moves: [], strikes: [] });
+  });
+});
+
 describe('interaction : portée des monstres adverses', () => {
   it('consulter un monstre adverse montre où il pourra aller (orange) et frapper (rouge) à son prochain tour', () => {
     // Le Chevalier de J2 a déjà bougé (mobilité 0) : on montre sa mobilité complète (3) du prochain tour.
@@ -246,7 +276,7 @@ describe('interaction : portée des monstres adverses', () => {
     expect(getReach(view, moving, at(8, 1))).toEqual(reach);
     expect(getHighlights(view, moving).size).toBeGreaterThan(0);
     expect(getReach(view, { kind: 'card', cardId: 'milicien' }, at(8, 1))).toEqual(reach);
-    expect(getReach(view, NO_SELECTION, at(1, 1))).toEqual({ moves: [], strikes: [] }); // son propre monstre
+    expect(getReach(view, NO_SELECTION, at(1, 1))).toEqual(getOwnReach(view, 'u2')); // son propre monstre : ses déplacements
     expect(getReach(view, moving, at(5, 5))).toEqual({ moves: [], strikes: [] }); // case vide
   });
 });

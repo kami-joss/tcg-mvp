@@ -3374,6 +3374,16 @@
    "echelle": 0.8
   },
   {
+   "id": "hd_jeune_sapin_vert",
+   "case": [
+    9,
+    9
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.9
+  },
+  {
    "id": "hd_pont",
    "case": [
     13,
@@ -3406,38 +3416,34 @@
    "ombre": "basse"
   },
   {
-   "id": "hd_amas_blocs",
-   "entre": [
-    [
-     9,
-     9
-    ],
-    [
-     10,
-     10
-    ]
+   "id": "hd_jeune_sapin_b_vert",
+   "case": [
+    9,
+    10
    ],
-   "empreinte": [
-    [
-     9,
-     9
-    ],
-    [
-     9,
-     10
-    ],
-    [
-     10,
-     9
-    ],
-    [
-     10,
-     10
-    ]
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.9
+  },
+  {
+   "id": "hd_jeune_sapin_b_vert",
+   "case": [
+    10,
+    9
    ],
-   "ombre": "haute",
-   "echelle": 0.7,
-   "miroir": false
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.85
+  },
+  {
+   "id": "hd_jeune_sapin_vert",
+   "case": [
+    10,
+    10
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.75
   },
   {
    "id": "hd_sapin_large",

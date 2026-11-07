@@ -470,7 +470,7 @@ function nextMobility(state: GameState, monster: MonsterUnit): number {
   const next = ownerNextTurn(state.turn, state.activePlayer, monster.owner);
   if (monster.statuses.some((s) => s.kind === 'stun' && s.expiresAtTurn > next)) return -1;
   return (
-    getNextTurnMobility(monster, state.turn, state.activePlayer, state.board.mobilityBonus) +
+    getNextTurnMobility(monster, state.turn, state.activePlayer) +
     getNextTurnOnMoveBonus(state, monster, state.turn, state.activePlayer)
   );
 }
