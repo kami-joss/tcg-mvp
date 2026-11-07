@@ -75,7 +75,7 @@ describe('journal des actions (SPEC.md §7)', () => {
 
   it('fin du tour : revenus du joueur suivant', () => {
     const state = gameWith([{ monster: 'golem', owner: 2, at: at(5, 4) }], { players: { 2: { mana: 0 } } });
-    expect(logOf(state, { type: 'endTurn' })).toEqual(['J1 termine son tour.', 'Tour 2 : J2 reçoit 5 mana et 1 VP.']);
+    expect(logOf(state, { type: 'endTurn' })).toEqual(['J1 termine son tour.', 'Tour 2 : J2 reçoit 4 mana et 1 VP.']);
   });
 
   it('pièges : la pose ne révèle pas la case ; le déclenchement est annoncé', () => {
@@ -204,7 +204,7 @@ describe('journal : une entrée par action, avec ses icônes', () => {
       kind: 'turn',
       player: 2,
       text: 'J1 termine son tour.',
-      turn: { number: 2, player: 2, mana: 5, vp: 1 },
+      turn: { number: 2, player: 2, mana: 4, vp: 1 },
       items: [],
     });
   });

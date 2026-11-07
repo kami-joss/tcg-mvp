@@ -6,9 +6,6 @@ export const VICTORY_VP = 30;
 /** Mana gagné par le joueur actif à chaque début de tour, avant les mana zones. */
 export const BASE_MANA_PER_TURN = 3;
 
-/** Mana supplémentaire au tout premier tour de J2 uniquement. */
-export const PLAYER2_FIRST_TURN_BONUS_MANA = 1;
-
 /** Mana et VP rapportés au début du tour par chaque mana zone contrôlée (SPEC.md §4.2). */
 export const MANA_PER_CONTROLLED_ZONE = 1;
 export const VP_PER_CONTROLLED_ZONE = 1;

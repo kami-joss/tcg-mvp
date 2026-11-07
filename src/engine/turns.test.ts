@@ -3,7 +3,6 @@ import { applyAction, getLegalActions } from './actions';
 import {
   BASE_MANA_PER_TURN,
   MANA_PER_CONTROLLED_ZONE,
-  PLAYER2_FIRST_TURN_BONUS_MANA,
   VICTORY_VP,
   VP_PER_CONTROLLED_ZONE,
 } from './config';
@@ -58,24 +57,35 @@ describe('fin du tour (SPEC.md §4.2)', () => {
 });
 
 describe('début de tour : mana (SPEC.md §4.2)', () => {
-  it('J1 commence avec le mana de base ; le premier tour de J2 lui rapporte +1 mana', () => {
+  it('J1 commence avec le mana de base ; le premier tour de J2 n’a plus de bonus', () => {
     const game = createGame();
     expect(game.players[1].mana).toBe(BASE_MANA_PER_TURN);
-    expect(endTurns(game, 1).players[2].mana).toBe(BASE_MANA_PER_TURN + PLAYER2_FIRST_TURN_BONUS_MANA);
+    expect(endTurns(game, 1).players[2].mana).toBe(BASE_MANA_PER_TURN);
   });
 
-  it('le bonus de J2 ne s’applique qu’à son tout premier tour, et jamais à J1', () => {
+  it('le joueur désigné par le lancer de dés commence (J2 : tour 1, mana de base) ; l’autre joue ensuite avec le même mana', () => {
+    const game = createGame(undefined, undefined, undefined, 'normal', 2);
+    expect(game).toMatchObject({ activePlayer: 2, turn: 1 });
+    expect(game.players[2].mana).toBe(BASE_MANA_PER_TURN);
+    expect(game.players[1].mana).toBe(0);
+    const next = endTurns(game, 1);
+    expect(next).toMatchObject({ activePlayer: 1, turn: 2 });
+    expect(next.players[1].mana).toBe(BASE_MANA_PER_TURN);
+    const turn3 = endTurns(game, 2);
+    expect(turn3.players[2].mana).toBe(2 * BASE_MANA_PER_TURN);
+  });
+
+  it('chacun gagne le mana de base à chacun de ses tours', () => {
     const turn3 = endTurns(createGame(), 2);
     expect(turn3.players[1].mana).toBe(2 * BASE_MANA_PER_TURN);
-    const turn4 = endTurns(turn3, 1);
-    expect(turn4.players[2].mana).toBe(2 * BASE_MANA_PER_TURN + PLAYER2_FIRST_TURN_BONUS_MANA);
+    expect(endTurns(turn3, 1).players[2].mana).toBe(2 * BASE_MANA_PER_TURN);
   });
 
   it('le mana non dépensé est conservé d’un tour à l’autre, sans plafond', () => {
     const state = gameWith([], { players: { 1: { mana: 50 }, 2: { mana: 40 } } });
     const next = endTurns(state, 2); // début du tour de J2 (son premier), puis de J1
     expect(next.players[1].mana).toBe(50 + BASE_MANA_PER_TURN);
-    expect(next.players[2].mana).toBe(40 + BASE_MANA_PER_TURN + PLAYER2_FIRST_TURN_BONUS_MANA);
+    expect(next.players[2].mana).toBe(40 + BASE_MANA_PER_TURN);
   });
 
   it('seul le joueur actif reçoit du mana au début de son tour', () => {

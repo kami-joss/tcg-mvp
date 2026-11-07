@@ -1,5 +1,5 @@
 // Déroulé des tours (SPEC.md §4.2) : fin de tour, puis début de tour du joueur suivant.
-import { BASE_MANA_PER_TURN, PLAYER2_FIRST_TURN_BONUS_MANA, VP_PER_CONTROLLED_ZONE } from './config';
+import { BASE_MANA_PER_TURN, VP_PER_CONTROLLED_ZONE } from './config';
 import { dealDamage } from './damage';
 import { emit } from './events';
 import { addMana, addVp, opponent } from './players';
@@ -20,8 +20,6 @@ import type { GameState } from './types';
  */
 export function startTurn(state: GameState): GameState {
   const player = state.activePlayer;
-  // J1 commence toujours (§4.1) : le tour 2 est le tout premier tour de J2.
-  const firstTurnBonus = player === 2 && state.turn === 2 ? PLAYER2_FIRST_TURN_BONUS_MANA : 0;
 
   // Ses pièges du tour précédent ont fait leur temps (§10).
   let next = expireTraps(emit(state, { type: 'turnStart', player, turn: state.turn }), player);
@@ -35,7 +33,7 @@ export function startTurn(state: GameState): GameState {
 
   // 1. Revenus : mana et VP (§4.2).
   const zones = getControlledZones(next, player);
-  next = addMana(next, player, BASE_MANA_PER_TURN + firstTurnBonus);
+  next = addMana(next, player, BASE_MANA_PER_TURN);
   for (const { pos } of zones) next = addMana(next, player, getZoneMana(next, pos), pos);
   for (const { pos } of zones) next = addVp(next, player, VP_PER_CONTROLLED_ZONE, pos);
 

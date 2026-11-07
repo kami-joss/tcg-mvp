@@ -5380,3 +5380,77 @@ select {
     opacity: 0;
   }
 }
+
+/* --- Lancer de dés d'ouverture (SPEC.md §4.1) --- */
+
+.dice__rolls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  list-style: none;
+}
+
+.dice__roll {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  opacity: 0.6;
+}
+
+.dice__roll.is-final {
+  opacity: 1;
+}
+
+.dice__side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font: 800 14px/1 var(--font-sc);
+  letter-spacing: 0.1em;
+}
+
+.die {
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  width: 76px;
+  height: 76px;
+  padding: 10px;
+  border-radius: 14px;
+  background: white;
+  box-shadow: 0 6px 16px oklch(0 0 0 / 0.3);
+  animation: popIn 0.5s both cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.die.is-lost {
+  opacity: 0.55;
+}
+
+.die__pip {
+  place-self: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.die--p1 .die__pip {
+  background: var(--j1);
+}
+
+.die--p2 .die__pip {
+  background: var(--j2);
+}
+
+.dice__tie {
+  font: 700 13px/1.2 var(--font);
+  opacity: 0.85;
+}
+
+.dice__choices {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}

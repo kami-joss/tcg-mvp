@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BATTLEFIELD, BATTLEFIELD_13, DECKS } from '../engine';
 import { at, gameWith } from '../engine/test-utils';
 import type { Action } from '../engine';
-import { DEFAULT_SETUP, newSession, updateSession, viewerOf } from './session';
+import { DEFAULT_SETUP, newSession, rollOpening, updateSession, viewerOf } from './session';
 import type { Session } from './session';
 
 const END_TURN: Action = { type: 'endTurn' };
@@ -55,6 +55,7 @@ describe('session hotseat (SPEC.md §4.3)', () => {
       }),
       previous: null,
       setup: DEFAULT_SETUP,
+      opening: null,
       log: [],
       handoffTo: null,
     };
@@ -107,5 +108,85 @@ describe('contre l’IA (SPEC.md §7 bis)', () => {
   it('en hotseat, la vue suit le joueur actif', () => {
     const session = play(newSession(1), END_TURN);
     expect(viewerOf(session)).toBe(2);
+  });
+});
+
+describe('lancer de dés d’ouverture (SPEC.md §4.1)', () => {
+  /** Un `random` qui rend les faces données dans l'ordre (la face f est tirée avec (f − 1) / 6). */
+  const faces = (...values: number[]) => {
+    const queue = [...values];
+    return () => (queue.shift()! - 1) / 6 + 0.01;
+  };
+
+  it('un dé à 6 faces par joueur ; le plus haut gagne', () => {
+    expect(rollOpening(faces(2, 5))).toEqual({ rolls: [{ 1: 2, 2: 5 }], winner: 2, chosen: null });
+    expect(rollOpening(faces(6, 1))).toMatchObject({ winner: 1 });
+  });
+
+  it('en cas d’égalité, on relance : les égalités restent visibles, le dernier lancer désigne le gagnant', () => {
+    const opening = rollOpening(faces(3, 3, 4, 4, 6, 2));
+    expect(opening.rolls).toEqual([{ 1: 3, 2: 3 }, { 1: 4, 2: 4 }, { 1: 6, 2: 2 }]);
+    expect(opening.winner).toBe(1);
+  });
+
+  it('jamais hors de 1 à 6', () => {
+    for (const values of [[0, 0.5], [0.999999, 0]]) {
+      const queue = [...values];
+      const [first] = rollOpening(() => queue.shift()!).rolls;
+      expect([first![1], first![2]].every((v) => v >= 1 && v <= 6)).toBe(true);
+    }
+  });
+
+  it('avant le choix du gagnant, personne ne joue', () => {
+    const session = newSession(1, DEFAULT_SETUP, rollOpening(faces(2, 5)));
+    expect(session.opening).toMatchObject({ winner: 2, chosen: null });
+    expect(play(session, END_TURN)).toBe(session);
+  });
+
+  it('le gagnant choisit : J2 peut commencer (tour 1, mana de base, journal à jour)', () => {
+    const session = updateSession(newSession(1, DEFAULT_SETUP, rollOpening(faces(2, 5))), { type: 'chooseFirst', first: 2 });
+    expect(session.opening).toBeNull();
+    expect(session.game).toMatchObject({ activePlayer: 2, turn: 1 });
+    expect(session.game.players[2].mana).toBe(3);
+    expect(viewerOf(session)).toBe(2);
+    expect(session.log.map((e) => e.text)).toContain('Lancer de dés : J1 2 · J2 5. J2 a le plus gros chiffre et choisit de commencer.');
+    expect(session.log.at(-1)).toMatchObject({ kind: 'turn', player: 2, text: 'J2 commence avec 3 mana.' });
+  });
+
+  it('le gagnant peut aussi laisser l’autre commencer', () => {
+    const session = updateSession(newSession(1, DEFAULT_SETUP, rollOpening(faces(2, 5))), { type: 'chooseFirst', first: 1 });
+    expect(session.game.activePlayer).toBe(1);
+    expect(session.log.map((e) => e.text)).toContain('Lancer de dés : J1 2 · J2 5. J2 a le plus gros chiffre et laisse J1 commencer.');
+    // Une fois la partie lancée, un nouveau choix n'a plus d'effet.
+    expect(updateSession(session, { type: 'chooseFirst', first: 2 })).toBe(session);
+  });
+
+  it('les égalités figurent dans le journal', () => {
+    const session = updateSession(newSession(1, DEFAULT_SETUP, rollOpening(faces(3, 3, 6, 1))), { type: 'chooseFirst', first: 1 });
+    expect(session.log.map((e) => e.text)).toContain('Lancer de dés : J1 3 · J2 3 (égalité, on relance), J1 6 · J2 1. J1 a le plus gros chiffre et choisit de commencer.');
+  });
+
+  it('contre l’IA : si elle gagne, elle commence, après le clic de l’humain', () => {
+    const setup = { ...DEFAULT_SETUP, ai: 2 as const };
+    const session = newSession(1, setup, rollOpening(faces(1, 6)));
+    expect(session.opening).toMatchObject({ winner: 2, chosen: 2 });
+    expect(session.game.activePlayer).toBe(2);
+    expect(play(session, END_TURN)).toBe(session);
+    const ready = updateSession(session, { type: 'ready' });
+    expect(ready.opening).toBeNull();
+    expect(ready.game.activePlayer).toBe(2);
+    expect(viewerOf(ready)).toBe(1);
+  });
+
+  it('contre l’IA : si l’humain gagne, il choisit', () => {
+    const session = newSession(1, { ...DEFAULT_SETUP, ai: 2 }, rollOpening(faces(5, 2)));
+    expect(session.opening).toMatchObject({ winner: 1, chosen: null });
+    expect(updateSession(session, { type: 'ready' }).opening).toMatchObject({ winner: 1, chosen: null });
+  });
+
+  it('nouvelle partie : le lancer repart avec la partie', () => {
+    const restarted = updateSession(newSession(1), { type: 'restart', opening: rollOpening(faces(4, 1)) });
+    expect(restarted.opening).toMatchObject({ winner: 1, chosen: null });
+    expect(updateSession(newSession(1), { type: 'restart' }).opening).toBeNull();
   });
 });

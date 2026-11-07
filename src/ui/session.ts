@@ -32,6 +32,30 @@ export function viewerOf(session: Pick<Session, 'setup' | 'game'>): PlayerId {
 /** Partie proposée d'emblée : la grande carte 13 × 13 (handoff V7), en mode Normal, deck Classique des deux côtés. */
 export const DEFAULT_SETUP: Setup = { board: BATTLEFIELD_13, mode: 'normal', decks: { 1: DECKS[0]!, 2: DECKS[0]! } };
 
+/**
+ * Lancer de dés d'ouverture (SPEC.md §4.1) : un dé à 6 faces par joueur ; en cas d'égalité, on relance. Le gagnant du
+ * dernier lancer choisit s'il commence ; contre l'IA, l'IA qui gagne commence.
+ */
+export interface Opening {
+  /** Les lancers, dans l'ordre : tous des égalités sauf le dernier. */
+  readonly rolls: readonly Readonly<Record<PlayerId, number>>[];
+  /** Le joueur au plus gros chiffre du dernier lancer. */
+  readonly winner: PlayerId;
+  /** Le joueur qui commence ; `null` tant que le gagnant n'a pas choisi. */
+  readonly chosen: PlayerId | null;
+}
+
+/** Lance les dés jusqu'à départager les joueurs (`random` : un nombre de [0, 1[, injecté pour les tests). */
+export function rollOpening(random: () => number = Math.random): Opening {
+  const die = () => Math.floor(random() * 6) + 1;
+  const rolls: Record<PlayerId, number>[] = [];
+  for (;;) {
+    const roll = { 1: die(), 2: die() };
+    rolls.push(roll);
+    if (roll[1] !== roll[2]) return { rolls, winner: roll[1] > roll[2] ? 1 : 2, chosen: null };
+  }
+}
+
 export interface Session {
   /** Change à chaque nouvelle partie, pour repartir d'un écran neuf. */
   readonly id: number;
@@ -44,48 +68,77 @@ export interface Session {
   readonly log: readonly LogEntry[];
   /** Joueur à qui passer l'écran : tant qu'il n'a pas cliqué, rien de la partie n'est affiché. */
   readonly handoffTo: PlayerId | null;
+  /** Lancer de dés d'ouverture en cours : tant qu'il l'est, personne ne joue et rien de la partie n'est affiché. */
+  readonly opening: Opening | null;
 }
 
 export type SessionEvent =
   | { readonly type: 'play'; readonly action: Action }
-  /** Le joueur suivant a pris l'écran. */
+  /** Le joueur suivant a pris l'écran, ou l'écran des dés est validé (l'IA qui gagne commence). */
   | { readonly type: 'ready' }
-  /** Nouvelle partie, avec la carte et les decks choisis (les mêmes par défaut). */
-  | { readonly type: 'restart'; readonly setup?: Setup };
+  /** Le gagnant du lancer de dés choisit le joueur qui commence. */
+  | { readonly type: 'chooseFirst'; readonly first: PlayerId }
+  /** Nouvelle partie, avec la carte et les decks choisis (les mêmes par défaut), et son lancer de dés s'il y en a un. */
+  | { readonly type: 'restart'; readonly setup?: Setup; readonly opening?: Opening };
 
-export function newSession(id: number, setup: Setup = DEFAULT_SETUP): Session {
+/** Phrase du lancer de dés pour le journal : « J1 3 · J2 3 (égalité, on relance), J1 5 · J2 2. J1 commence. » */
+function openingText({ rolls }: Opening, first: PlayerId, winner: PlayerId): string {
+  const shown = rolls.map((roll, i) => `J1 ${roll[1]} · J2 ${roll[2]}${i < rolls.length - 1 ? ' (égalité, on relance)' : ''}`).join(', ');
+  return `Lancer de dés : ${shown}. J${winner} a le plus gros chiffre${first === winner ? ' et choisit de commencer' : ` et laisse J${first} commencer`}.`;
+}
+
+function startLog(setup: Setup, game: GameState, opening: Opening | null, first: PlayerId): LogEntry[] {
   const { board, decks } = setup;
-  const mode = modeOf(setup);
-  const game = createGame(
+  const mode = game.mode;
+  const player = game.players[first];
+  return [
+    {
+      kind: 'start',
+      player: null,
+      icon: 'castle',
+      text: `Début de la partie sur la carte « ${board.name} »${mode === 'contestation' ? ', en mode contestation' : ''}, J1 avec le deck ${decks[1].name}, J2 avec le deck ${decks[2].name}.`,
+      items: [],
+    },
+    ...(opening ? [{ kind: 'start' as const, player: null, icon: 'laurels' as const, text: openingText(opening, first, opening.winner), items: [] }] : []),
+    {
+      kind: 'turn',
+      player: first,
+      icon: 'water-drop',
+      text: `J${first} commence avec ${player.mana} mana.`,
+      items: [],
+      turn: { number: game.turn, player: first, mana: player.mana, vp: 0 },
+    },
+  ];
+}
+
+function startGame(setup: Setup, first: PlayerId): GameState {
+  const { board, decks } = setup;
+  return createGame(
     board,
     { 1: decks[1].cards, 2: decks[2].cards },
     { 1: decks[1].shiny ?? [], 2: decks[2].shiny ?? [] },
-    mode,
+    modeOf(setup),
+    first,
   );
-  const first = game.players[game.activePlayer];
+}
+
+/**
+ * Nouvelle partie. Avec un lancer de dés (`opening`), la partie n'est jouable qu'après le choix du gagnant (`chooseFirst`),
+ * ou, si c'est l'IA qui gagne, après le clic pour commencer : elle commence. Sans lancer, J1 commence (essais, tests).
+ */
+export function newSession(id: number, setup: Setup = DEFAULT_SETUP, opening: Opening | null = null): Session {
+  const aiWins = opening !== null && setup.ai === opening.winner;
+  const decided = opening === null || aiWins;
+  const first: PlayerId = aiWins ? opening.winner : 1;
+  const game = startGame(setup, first);
   return {
     id,
     setup,
     game,
     previous: null,
-    log: [
-      {
-        kind: 'start',
-        player: null,
-        icon: 'castle',
-        text: `Début de la partie sur la carte « ${board.name} »${mode === 'contestation' ? ', en mode contestation' : ''}, J1 avec le deck ${decks[1].name}, J2 avec le deck ${decks[2].name}.`,
-        items: [],
-      },
-      {
-        kind: 'turn',
-        player: first.id,
-        icon: 'water-drop',
-        text: `J${first.id} commence avec ${first.mana} mana.`,
-        items: [],
-        turn: { number: game.turn, player: first.id, mana: first.mana, vp: 0 },
-      },
-    ],
+    log: startLog(setup, game, decided ? opening : null, first),
     handoffTo: null,
+    opening: opening === null ? null : { ...opening, chosen: aiWins ? first : null },
   };
 }
 
@@ -94,15 +147,21 @@ export function updateSession(session: Session, event: SessionEvent): Session {
     case 'play':
       return play(session, event.action);
     case 'ready':
-      return { ...session, handoffTo: null };
+      return { ...session, handoffTo: null, opening: session.opening?.chosen != null ? null : session.opening };
+    case 'chooseFirst': {
+      const { opening } = session;
+      if (!opening || opening.chosen !== null) return session;
+      const game = startGame(session.setup, event.first);
+      return { ...session, game, log: startLog(session.setup, game, opening, event.first), opening: null };
+    }
     case 'restart':
-      return newSession(session.id + 1, event.setup ?? session.setup);
+      return newSession(session.id + 1, event.setup ?? session.setup, event.opening ?? null);
   }
 }
 
 function play(session: Session, action: Action): Session {
-  // Pendant le passage d'écran, personne ne joue.
-  if (session.handoffTo !== null) return session;
+  // Pendant le passage d'écran ou le lancer de dés, personne ne joue.
+  if (session.handoffTo !== null || session.opening !== null) return session;
   const { game } = session;
   try {
     const next = applyAction(game, action);

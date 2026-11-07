@@ -5,7 +5,7 @@ import { useEffect, useReducer, useState } from 'react';
 import { HomeScreen } from './ui/HomeScreen';
 import { SessionScreen } from './ui/SessionScreen';
 import { loadLastSetup, pageOf, pageUrl, saveLastSetup, setupFromQuery } from './ui/routes';
-import { newSession, updateSession } from './ui/session';
+import { newSession, rollOpening, updateSession } from './ui/session';
 import type { Setup } from './ui/session';
 
 const BASE = import.meta.env.BASE_URL;
@@ -43,7 +43,7 @@ export function App() {
 }
 
 function GamePage({ setup, onHome }: { setup: Setup; onHome: () => void }) {
-  const [session, dispatch] = useReducer(updateSession, setup, (initial) => newSession(1, initial));
+  const [session, dispatch] = useReducer(updateSession, setup, (initial) => newSession(1, initial, rollOpening()));
   // En développement, la partie est jouable depuis la console (essais en navigateur : `__game.dispatch(…)`).
   useEffect(() => {
     if (import.meta.env.DEV) Object.assign(window, { __game: { session, dispatch } });

@@ -35,7 +35,7 @@ describe('getPlayerView (SPEC.md §2, §4.3)', () => {
     state = applyAction(state, { type: 'endTurn' });
     const view = getPlayerView(state, 2);
     expect(view.opponent).toMatchObject({ id: 1, mana: 1, vp: 0, graveyard: [], played: [{ cardId: 'milicien' }], grimoireCount: 24 });
-    expect(view.me).toMatchObject({ id: 2, mana: 4, vp: 0, graveyard: [], played: [] });
+    expect(view.me).toMatchObject({ id: 2, mana: 3, vp: 0, graveyard: [], played: [] });
   });
 
   it('le plateau, les unités, le tour, le joueur actif et le vainqueur sont publics', () => {

@@ -5,8 +5,9 @@ import { chooseAction } from '../ai/bot';
 import { applyAction, getPlayerView } from '../engine';
 import type { Action } from '../engine';
 import { GameScreen } from './GameScreen';
+import { DiceScreen } from './DiceScreen';
 import { HandoffScreen } from './HandoffScreen';
-import { viewerOf } from './session';
+import { rollOpening, viewerOf } from './session';
 import type { Session, SessionEvent } from './session';
 
 interface SessionScreenProps {
@@ -34,6 +35,18 @@ export function SessionScreen({ session, dispatch, onHome }: SessionScreenProps)
     dispatch({ type: 'play', action });
   };
 
+  // Pendant le lancer de dés, rien de la partie n'est rendu non plus.
+  if (session.opening !== null) {
+    return (
+      <DiceScreen
+        opening={session.opening}
+        ai={ai}
+        onChoose={(first) => dispatch({ type: 'chooseFirst', first })}
+        onReady={() => dispatch({ type: 'ready' })}
+      />
+    );
+  }
+
   // Pendant le passage, rien de la partie n'est rendu, pas même dans la page.
   if (session.handoffTo !== null) {
     return <HandoffScreen player={session.handoffTo} onReady={() => dispatch({ type: 'ready' })} />;
@@ -47,7 +60,7 @@ export function SessionScreen({ session, dispatch, onHome }: SessionScreenProps)
       log={session.log}
       onAction={(action) => dispatch({ type: 'play', action })}
       setup={session.setup}
-      onRestart={() => dispatch({ type: 'restart' })}
+      onRestart={() => dispatch({ type: 'restart', opening: rollOpening() })}
       onHome={onHome}
       autoPlay={aiTurn ? aiStep : null}
     />

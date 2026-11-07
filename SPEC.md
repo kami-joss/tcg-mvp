@@ -149,13 +149,13 @@ r14   P  P  P  P  P  B  P  P  P  P  P  P  P  2  2
 ## 4. Règles
 
 ### 4.1 Mise en place
-- J1 commence.
+- **Lancer de dés** : chaque joueur lance un dé à 6 faces ; en cas d'égalité, on relance les deux dés. Le joueur au plus gros chiffre choisit s'il commence ou non. Contre l'IA, si l'IA gagne le lancer, elle commence. J1 et J2 gardent leur place (J1 en haut, J2 en bas) : seul le tout premier tour change de main.
 - Chaque joueur : 0 mana, 0 point de victoire (PV de victoire, noté **VP** dans le code pour éviter la confusion avec les points de vie), grimoire complet disponible.
 
 ### 4.2 Déroulé d'un tour
 1. **Début de tour** du joueur actif, dans cet ordre (§10) :
    - Les statuts, pièges et cases brûlées arrivés à échéance disparaissent.
-   - **Revenus** : 3 mana + 1 mana par mana zone qu'il contrôle (+ bonus éventuels : Autel de mana, Porte-étendard) ; 1 VP par mana zone qu'il contrôle (mode contestation : une zone contestée ne rapporte rien, §4.4 bis) ; au tout premier tour de J2 uniquement, +1 mana.
+   - **Revenus** : 3 mana + 1 mana par mana zone qu'il contrôle (+ bonus éventuels : Autel de mana, Porte-étendard) ; 1 VP par mana zone qu'il contrôle (mode contestation : une zone contestée ne rapporte rien, §4.4 bis) ; aucun bonus pour le second joueur.
    - **Effets passifs** de début de tour (Ki né).
    - **Statuts** : requiem (le monstre meurt, sans VP), puis burn.
    - Ses monstres récupèrent toute leur mobilité, leur attaque et leurs effets actifs.
@@ -233,7 +233,7 @@ Un second mode de jeu, choisi à l'accueil à côté de la carte : « Normal » 
 
 ### 4.10 Victoire
 - Le premier joueur à atteindre **30 VP** gagne immédiatement.
-- Les valeurs (30 VP, 3 mana, +1 mana pour J2) sont des constantes dans `src/engine/config.ts`, pour pouvoir les ajuster facilement.
+- Les valeurs (30 VP, 3 mana) sont des constantes dans `src/engine/config.ts`, pour pouvoir les ajuster facilement.
 
 ## 5. Lexique
 
@@ -657,7 +657,8 @@ Réponses aux questions posées pendant le développement. Elles font autorité 
 
 - **Doc des règles (validé)** : ordre du début de tour = revenus (mana, VP), puis effets passifs, puis statuts (requiem, burn) ; les slow se cumulent ; Camouflage = rayon 2 (monstres et terrains adverses, pas la zone d'invocation) ; « Passage » à chaque case en marchant (une fois par recul) ; archétype et famille sont un seul mot, « archétype », le Trébuchet est une carte générique ; le cimetière remplace la pile « utilisées » ; tous les effets de monstres sont « une fois par tour/carte » ; les sorts n'ont pas de limite par tour, seul le mana compte.
 - **§5.4 — Téléportation (validé, 2026-11-06)** : une téléportation (Téléporteur, Retour, sablier de la Chronomancienne) ne passe par aucune case entre les deux, mais le monstre **entre sur sa case d'arrivée** : tout ce qui y inflige un effet se déclenche, comme pour un déplacement (piège ennemi, « Passage » d'un terrain dont la zone contient la case, case brûlée, « Zone » du Golem de lave : un ennemi téléporté dans la zone est burn, et un Golem téléporté à côté d'un ennemi le brûle). Remplace la règle précédente (« rien ne s'y déclenche », elle-même venue remplacer une règle où l'arrivée comptait comme une entrée). Une téléportation reste sans effet sur « Au déplacement » (Terrain de chasse) et ne coûte aucune mobilité. Si l'effet de la case est lui-même un sablier, le monstre remonte de nouveau (chaque piège ne se déclenche qu'une fois, le chemin raccourcit) ; un monstre détruit par l'arrivée l'est sur sa case d'arrivée.
-- **§4.1 / §4.2 — Premier tour de J1** : le début de tour s'applique dès le tour 1 ; J1 commence donc avec 3 mana.
+- **§4.1 / §4.2 — Premier tour** : le début de tour s'applique dès le tour 1 ; le joueur qui commence a donc 3 mana.
+- **§4.1 — Lancer de dés d'ouverture (validé, 2026-11-07)** : 1 dé à 6 faces par joueur, relancé en cas d'égalité (les égalités restent visibles à l'écran et au journal) ; le gagnant choisit s'il commence. Il n'y a plus de bonus de mana pour le second joueur (+1 mana au premier tour de J2 : supprimé). J1 et J2 ne changent pas de place quand J2 commence : le tour 1 est à J2, le tour 2 à J1, etc. Contre l'IA, si elle gagne, elle commence (l'humain clique pour lancer la partie) ; si l'humain gagne, il choisit. L'écran des dés remplace tout (rien de la partie n'est rendu) jusqu'au choix, comme le passage d'écran. Le lancer est tiré dans l'interface (`rollOpening`, `Math.random`), pas dans le moteur, qui reste déterministe : `createGame(…, first)` reçoit le joueur qui commence. Une nouvelle partie relance les dés.
 - **§4.6 — Unités alliées** : on peut traverser les cases occupées par ses propres monstres **et** terrains, sauf un monstre allié stun ou immobilisé (validé). On ne peut pas s'arrêter sur une case qui contient un monstre. On peut s'arrêter sur une case qui ne contient qu'un terrain allié.
 - **§4.6 — Arrêt forcé sur un allié (validé)** : un monstre arrêté en route sur la case d'un allié (immobilisé ou stun en y entrant, par un Passage ou un piège) revient sur la dernière case libre de son chemin, sans plus de mobilité ce tour, comme devant un monstre camouflé ; les effets déjà subis restent. Le slow d'un Terrain piégé ne pose pas ce problème : il est compté avant le déplacement, dans le coût du chemin.
 - **§4.9 — Terrains** : on ne peut pas poser deux terrains sur la même mana zone.
