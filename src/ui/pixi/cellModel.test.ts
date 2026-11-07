@@ -121,7 +121,7 @@ describe('cases du plateau PixiJS : sélection et surbrillances', () => {
 
   it('piège : visible sur sa case vide, avec son nom court', () => {
     const state = gameWith([], { board: BATTLEFIELD_15 });
-    const trapped = { ...state, traps: [{ owner: 1 as const, pos: at(6, 6), effects: [{ type: 'damage' as const, amount: 3 }], cardId: 'poseur-de-bombe' as const }] };
+    const trapped = { ...state, traps: [{ owner: 1 as const, pos: at(6, 6), effects: [{ type: 'damage' as const, amount: 3 }], cardId: 'poseur-de-bombe' as const, sourceId: 'u0', expiresAtTurn: 99 }] };
     expect(cellAt(visuals({ view: getPlayerView(trapped, 1) }), at(6, 6)).trap).toBe('Bombe');
   });
 });

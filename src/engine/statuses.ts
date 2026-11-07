@@ -23,6 +23,9 @@ export function statusTotal(unit: Unit, kind: StatusKind): number {
 /** Stun : plus aucune action (ni déplacement, ni attaque, ni effet, ni riposte). */
 export const isStunned = (unit: Unit) => hasStatus(unit, 'stun');
 
+/** Silence : plus d'effet actif (l'attaque, le déplacement, les mots-clés et les passifs ne changent pas). */
+export const isSilenced = (unit: Unit) => hasStatus(unit, 'silence');
+
 /** Le monstre peut se déplacer : ni stun, ni immobilisé. */
 export const canMove = (monster: MonsterUnit) => !isStunned(monster) && !hasStatus(monster, 'immobilise');
 

@@ -152,7 +152,7 @@ export type CardId =
   | 'apprenti-temps'
   | 'chronomancienne'
   | 'dragonnet-temps'
-  | 'maitre-des-heures'
+  | 'maitre-du-temps'
   | 'piege-temporel'
   | 'brulure-en-chaine'
   | 'fissure-temporelle'
@@ -199,7 +199,7 @@ interface KeywordParams {
   readonly sournois: { readonly amount: number };
   /** Par derrière, contre un monstre : dégâts ×`multiplier` (Clown assassin). */
   readonly assassin: { readonly multiplier: number };
-  /** Camouflage : caché à l'adversaire tant qu'aucun monstre ni terrain adverse n'est dans un rayon de `amount` (§10). */
+  /** Camouflage : caché à l'adversaire tant qu'aucun monstre ni terrain adverse n'est dans un carré de `amount` (§10). */
   readonly camouflage: { readonly amount: number };
   /** À l'attaque : il récupère `amount` PV, après les dégâts et avant la riposte (Vampire, §10). */
   readonly soif: { readonly amount: number };
@@ -228,14 +228,16 @@ export type StatusKind =
   /** Invisible pour l'adversaire comme avec le mot-clé `invisible` de valeur `amount` (Pénombre). */
   | 'camouflage'
   /** La prochaine attaque (ou riposte) subie n'inflige que 1 PV (Tibo, TORTANK) ; elle consomme le statut. */
-  | 'carapace';
+  | 'carapace'
+  /** Ne peut plus activer ses effets actifs ; attaque, déplacement, mots-clés et passifs restent possibles (Dragonnet). */
+  | 'silence';
 
 /**
  * Statut posé par un effet (SPEC.md §5 bis, §5.5). `turns` : sa durée, en tours du camp de l'unité touchée (le tour en
  * cours ne compte pas) ; 0 = jusqu'à son prochain tour (il dure le reste du tour en cours).
  */
 export type StatusSpec =
-  | { readonly kind: 'stun' | 'immobilise' | 'requiem' | 'carapace'; readonly turns: number }
+  | { readonly kind: 'stun' | 'immobilise' | 'requiem' | 'carapace' | 'silence'; readonly turns: number }
   | { readonly kind: 'slow' | 'burn' | 'camouflage'; readonly amount: number; readonly turns: number };
 
 /** Statut en cours sur une unité. */
@@ -262,8 +264,8 @@ export interface TurnBonus {
 
 /** Où peut se trouver le monstre visé par un effet (SPEC.md §5.3). */
 export type TargetReach =
-  /** Adjacent au monstre source : une des 8 cases autour (§10). */
-  | { readonly type: 'adjacent' }
+  /** Dans le carré de 1 du monstre source : une des 8 cases autour (§10). */
+  | { readonly type: 'square1' }
   /** En ligne droite orthogonale depuis le monstre source, avec la même ligne de vue qu'une attaque. */
   | { readonly type: 'line'; readonly range: number }
   /** À `steps` pas au plus d'un des monstres du joueur : chemin en L possible, sans ligne de vue (§10). */
@@ -273,11 +275,10 @@ export type TargetReach =
 
 /**
  * Zone autour du monstre source (SPEC.md §5.3) : la rangée des 3 cases devant lui (la case devant et ses deux voisines
- * de côté, « devant » = le sens où il regarde), ses 8 cases adjacentes (diagonales comprises), les 3 cases en ligne
- * dans une direction choisie par le joueur (`line3`, la source se tourne vers elle), ou les cases adjacentes et les
- * cases adjacentes à celles-ci (`adjacent2`, rayon 2).
+ * de côté, « devant » = le sens où il regarde), son carré de 1 (les 8 cases autour), les 3 cases en ligne
+ * dans une direction choisie par le joueur (`line3`, la source se tourne vers elle), ou son carré de 2 (`square2`).
  */
-export type AreaZone = 'front3' | 'adjacent' | 'line3' | 'adjacent2';
+export type AreaZone = 'front3' | 'square1' | 'line3' | 'square2';
 
 /** Ce que vise un effet (SPEC.md §5.3). */
 export type Targeting =
@@ -285,21 +286,21 @@ export type Targeting =
   | { readonly type: 'monster'; readonly side: 'ally' | 'enemy'; readonly reach: TargetReach; readonly archetype?: Archetype }
   /** Tous les monstres ennemis de la zone (jamais un monstre invisible pour le lanceur) ; jouable si au moins un. */
   | { readonly type: 'zone'; readonly zone: AreaZone }
-  /** Une case adjacente jouable, sans unité (pose de piège). */
-  | { readonly type: 'emptyAdjacentCell' }
+  /** Une case jouable du carré de 1, sans unité (pose de piège). */
+  | { readonly type: 'emptySquareCell' }
   /** Le monstre source lui-même (évolution, Dopage). */
   | { readonly type: 'self' }
-  /** Une case jouable sans unité ni case brûlée, dans une zone autour de la source (Lutin brasier : rayon 2). */
-  | { readonly type: 'emptyCell'; readonly zone: 'adjacent2' }
+  /** Une case jouable sans unité ni case brûlée, dans une zone autour de la source (Lutin brasier : carré de 2). */
+  | { readonly type: 'emptyCell'; readonly zone: 'square2' }
   /** Tous ses monstres d'une famille, sans choix (Pénombre) ; jouable s'il en a au moins un. */
   | { readonly type: 'allies'; readonly archetype: Archetype }
   /** Tous les monstres ennemis qu'il voit, sans choix (Piège temporel) ; jouable s'il y en a au moins un. */
   | { readonly type: 'enemies' }
   /**
-   * Les monstres ennemis adjacents à une unité alliée, monstre ou terrain (Brûlure en chaîne) : les effets s'appliquent
+   * Les monstres ennemis du carré de 1 d'une unité alliée, monstre ou terrain (Brûlure en chaîne) : les effets s'appliquent
    * une fois par unité alliée à côté de laquelle l'ennemi se trouve ; jouable s'il y en a au moins un.
    */
-  | { readonly type: 'enemiesNearAllies'; readonly zone: 'adjacent' }
+  | { readonly type: 'enemiesNearAllies'; readonly zone: 'square1' }
   /** Une case libre où la source a été pendant ce tour, sa case de départ comprise (retour, Explorateur du temps). */
   | { readonly type: 'trail' };
 
@@ -338,7 +339,14 @@ export type Effect =
    * Piège la case visée, cachée pour l'adversaire, jusqu'au prochain tour du poseur : `effects` s'appliquent au monstre
    * ennemi qui y entre (§10).
    */
-  | { readonly type: 'placeTrap'; readonly effects: readonly TrapEffect[] }
+  | {
+      readonly type: 'placeTrap';
+      readonly effects: readonly TrapEffect[];
+      /** Durée en tours adverses (1 par défaut : jusqu'au prochain tour du poseur) ; le piège disparaît avant s'il sert. */
+      readonly turns?: number;
+      /** Un seul à la fois par monstre : en poser un nouveau fait disparaître l'ancien (Sablier du temps). */
+      readonly single?: true;
+    }
   /**
    * Brûle la case visée, visible des deux joueurs, pendant `turns` tours du camp du lanceur (§5.5) : chaque monstre
    * ennemi qui y entre subit `effects` ; la case reste (Lutin brasier).
@@ -356,7 +364,7 @@ export type Effect =
    */
   | { readonly type: 'summon' }
   /**
-   * Téléportation (Téléporteur) : le monstre visé est posé sur une case adjacente libre de la source, choisie par le
+   * Téléportation (Téléporteur) : le monstre visé est posé sur une case libre du carré de 1 de la source, choisie par le
    * joueur. Ce n'est pas un déplacement : il garde sa mobilité, son attaque et son orientation ; il entre sur la case : ce qui s'y trouve se déclenche (§5.4).
    */
   | { readonly type: 'teleport' }
@@ -388,11 +396,11 @@ export type Effect =
 export type TrapEffect = Extract<Effect, { readonly type: 'damage' | 'status' | 'rewind' }>;
 
 /**
- * « Passage » (SPEC.md §5.2) : quand un monstre ennemi entre sur une case de la zone du terrain (ses 8 cases
- * adjacentes), il subit `effects` : à chaque case en marchant, une fois par recul.
+ * « Passage » (SPEC.md §5.2) : quand un monstre ennemi entre sur une case de la zone du terrain (son carré
+ * de 1), il subit `effects` : à chaque case en marchant, une fois par recul.
  */
 export interface TerrainPassage {
-  readonly zone: 'adjacent';
+  readonly zone: 'square1';
   readonly effects: readonly TrapEffect[];
   /**
    * « Zone » (Golem de lave, §10) : la zone agit sur tout ennemi qui s'y trouve, pas seulement sur celui qui y entre :
@@ -403,11 +411,11 @@ export interface TerrainPassage {
 
 /**
  * « Au déplacement » (Terrain de chasse, SPEC.md §5.2, §10) : un de ses monstres qui commence un déplacement sur une case
- * de sa zone (sa case et les adjacentes) a +`mobility` mobilité ce tour ; une fois par tour et par monstre, tous ces
+ * de sa zone (sa case et son carré de 1) a +`mobility` mobilité ce tour ; une fois par tour et par monstre, tous ces
  * terrains confondus.
  */
 export interface TerrainOnMove {
-  readonly zone: 'cellAndAdjacent';
+  readonly zone: 'cellAndSquare';
   readonly mobility: number;
 }
 
@@ -426,6 +434,11 @@ export interface ActivatedAbility extends Ability {
   readonly unlimited?: true;
   /** « Puis plus d'attaque ce tour » : après l'activation, il ne peut plus attaquer ce tour (Zoldik). */
   readonly endsAttack?: true;
+  /**
+   * Contre-coup (SPEC §5.2) : ce que le monstre source subit en retour, sur lui-même, après l'effet (même si la cible
+   * est détruite). Seuls des statuts pour l'instant (Dragonnet : silence).
+   */
+  readonly backlash?: readonly Effect[];
 }
 
 interface CardBase {
@@ -433,15 +446,15 @@ interface CardBase {
   /** Nom affiché ; une carte de deck s'écrit « Nom - Archétype » (« Feria - Sorciers du feu »). */
   readonly name: string;
   readonly cost: number;
-  /** Texte d'ambiance, sans effet de règle (Maître des heures). */
+  /** Texte d'ambiance, sans effet de règle (Maître du temps). */
   readonly flavor?: string;
 }
 
 /**
- * Zone d'une aura ou d'un effet de début de tour : les 8 cases autour, le rayon 2 (`adjacent2`, §5.3), ou la case de la
- * source et les 8 autour (`cellAndAdjacent`, terrain : Salle de sport).
+ * Zone d'une aura ou d'un effet de début de tour : le carré de 1, le carré de 2 (`square2`, §5.3), ou la case de la
+ * source et les 8 autour (`cellAndSquare`, terrain : Salle de sport).
  */
-export type AllyZone = 'adjacent' | 'adjacent2' | 'cellAndAdjacent';
+export type AllyZone = 'square1' | 'square2' | 'cellAndSquare';
 
 /** Effet sur ses monstres d'une famille, dans une zone autour de la source (pas la source elle-même). */
 export interface AllyZoneEffect {
@@ -781,6 +794,10 @@ export interface Trap {
   readonly effects: readonly TrapEffect[];
   /** Carte du monstre qui l'a posé (pour l'affichage). */
   readonly cardId: CardId;
+  /** Le monstre qui l'a posé (un sablier à la fois par monstre, §10). */
+  readonly sourceId: UnitId;
+  /** Numéro du tour au début duquel il disparaît : le prochain tour de son poseur, ou plus tard (`turns` de `placeTrap`). */
+  readonly expiresAtTurn: number;
 }
 
 /** Deck pré-construit, choisi avant la partie (pas de deckbuilding). */

@@ -57,7 +57,7 @@ describe('statuts (SPEC.md §5 bis, §5.5)', () => {
   });
 
   it('le filet du Poseur de piège immobilise jusqu’au début du prochain tour du monstre', () => {
-    const trap: Trap = { owner: 1, pos: at(8, 2), effects: [{ type: 'status', kind: 'immobilise', turns: 0 }], cardId: 'poseur-de-piege' };
+    const trap: Trap = { owner: 1, pos: at(8, 2), effects: [{ type: 'status', kind: 'immobilise', turns: 0 }], cardId: 'poseur-de-piege', sourceId: 'u0', expiresAtTurn: 99 };
     let state: GameState = { ...gameWith([{ monster: 'chevalier', owner: 2, at: at(8, 1) }], { activePlayer: 2 }), traps: [trap] };
     state = applyAction(state, { type: 'move', unitId: 'u1', to: at(8, 4), path: [at(8, 2), at(8, 3), at(8, 4)] });
     expect(state.units.u1).toMatchObject({ pos: at(8, 2), mobilityLeft: 0 });

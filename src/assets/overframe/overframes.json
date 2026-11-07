@@ -665,7 +665,7 @@
       },
       "passive": [
         "Contretemps",
-        "Au début de ton tour, un monstre allié adjacent récupère 1 pas."
+        "Au début de ton tour, un monstre allié dans son carré de 1 récupère 1 pas."
       ]
     }
   },

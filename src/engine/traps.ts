@@ -1,10 +1,10 @@
 // Entrer sur une case : pièges (SPEC.md §6 bis, §10), unités « Passage » (§5.2, §10) et cases brûlées (§10).
 // Les pièges sont cachés pour l'adversaire, actifs jusqu'au prochain tour de leur poseur, déclenchés par le premier
 // monstre ennemi qui entre sur leur case. Une unité « Passage » (terrain, ou Golem de lave) agit sur chaque monstre
-// ennemi qui entre sur une case de sa zone (ses 8 cases adjacentes) : à chaque case en marchant, une fois par recul
+// ennemi qui entre sur une case de sa zone (son carré de 1) : à chaque case en marchant, une fois par recul
 // (§10). Une case brûlée, publique, agit sur
 // chaque monstre ennemi qui y entre, et reste.
-import { isAdjacent, isPlayable, samePos } from './board';
+import { isInSquare, isPlayable, samePos } from './board';
 import { getCard } from './cards';
 import { dealDamage } from './damage';
 import { emit } from './events';
@@ -56,19 +56,19 @@ export function getPassage(unit: Unit): TerrainPassage | null {
   return card.kind === 'spell' ? null : card.passage;
 }
 
-/** Unités ennemies « Passage » dont la zone (les 8 cases autour, falaises comprises, §10) contient la case du monstre. */
+/** Unités ennemies « Passage » dont la zone (le carré de 1, falaises comprises, §10) contient la case du monstre. */
 export function getPassageSources(state: Pick<GameState, 'board' | 'units'>, monster: Unit): (Unit & { passage: TerrainPassage })[] {
   return Object.values(state.units).flatMap((unit) => {
     if (unit.owner === monster.owner || unit.id === monster.id) return [];
     const passage = getPassage(unit);
-    return passage && isAdjacent(state.board, unit.pos, monster.pos) ? [{ ...unit, passage }] : [];
+    return passage && isInSquare(state.board, unit.pos, monster.pos) ? [{ ...unit, passage }] : [];
   });
 }
 
-/** Les monstres ennemis de la source dans sa zone (les 8 cases autour, falaises comprises, §10). */
+/** Les monstres ennemis de la source dans sa zone (le carré de 1, falaises comprises, §10). */
 function getZoneEnemies(state: GameState, source: Unit): Unit[] {
   return Object.values(state.units).filter(
-    (unit) => unit.kind === 'monster' && unit.owner !== source.owner && isAdjacent(state.board, source.pos, unit.pos),
+    (unit) => unit.kind === 'monster' && unit.owner !== source.owner && isInSquare(state.board, source.pos, unit.pos),
   );
 }
 
@@ -147,7 +147,7 @@ export function enterCell(state: GameState, unitId: UnitId, movement: Movement =
   const self = next.units[unitId];
   if (self?.kind === 'monster' && getPassage(self)?.lingering) {
     const approached = getZoneEnemies(next, self).filter(
-      (enemy) => !swept.includes(enemy.id) && !(from && isAdjacent(next.board, from, enemy.pos)),
+      (enemy) => !swept.includes(enemy.id) && !(from && isInSquare(next.board, from, enemy.pos)),
     );
     swept = [...swept, ...approached.map((enemy) => enemy.id)];
     next = sweepZone(next, unitId, approached.map((enemy) => enemy.id));
@@ -186,7 +186,7 @@ export function expireBurningCells(state: GameState, turn: number): GameState {
   return burningCells.length === state.burningCells.length ? state : { ...state, burningCells };
 }
 
-/** Au début de son tour, les pièges d'un joueur disparaissent : ils n'ont duré qu'un tour adverse. */
+/** Au début de son tour, ses pièges arrivés à échéance disparaissent : un tour adverse, ou plus (Sablier du temps : 3). */
 export function expireTraps(state: GameState, player: PlayerId): GameState {
-  return { ...state, traps: state.traps.filter((trap) => trap.owner !== player) };
+  return { ...state, traps: state.traps.filter((trap) => trap.owner !== player || trap.expiresAtTurn > state.turn) };
 }

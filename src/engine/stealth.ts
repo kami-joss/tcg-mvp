@@ -1,8 +1,8 @@
 // Camouflage (Farceur, Pénombre, SPEC.md §5.6, §10) : un monstre caché à l'adversaire tant qu'aucun monstre ni terrain
-// adverse n'est dans un rayon de N autour de lui.
+// adverse n'est dans un carré de N autour de lui.
 // Le joueur actif agit sur ce qu'il voit : ses actions légales se calculent sans les monstres qu'il ne voit pas,
 // puis se résolvent sur l'état réel, où ces monstres occupent leur case et peuvent l'interrompre.
-import { radiusCells, samePos } from './board';
+import { squareCells, samePos } from './board';
 import { emit } from './events';
 import { getKeyword, setUnit } from './units';
 import { statusAmount } from './statuses';
@@ -10,7 +10,7 @@ import type { BoardState, GameState, PlayerId, Unit, UnitId } from './types';
 
 /**
  * `unit` est invisible pour `viewer` : monstre adverse camouflé (mot-clé, ou statut posé par Pénombre), non révélé, sans
- * aucune unité de `viewer` (monstre ou terrain) dans un rayon de N autour de lui (la plus grande valeur de camouflage).
+ * aucune unité de `viewer` (monstre ou terrain) dans un carré de N autour de lui (la plus grande valeur de camouflage).
  */
 export function isHiddenFrom(state: BoardState, unit: Unit, viewer: PlayerId): boolean {
   if (unit.kind !== 'monster' || unit.owner === viewer || unit.revealed) return false;
@@ -19,7 +19,7 @@ export function isHiddenFrom(state: BoardState, unit: Unit, viewer: PlayerId): b
     ...unit.statuses.filter((s) => s.kind === 'camouflage').map(statusAmount),
   ].filter((n): n is number => n !== undefined);
   if (radii.length === 0) return false;
-  const around = radiusCells(state.board, unit.pos, Math.max(...radii));
+  const around = squareCells(state.board, unit.pos, Math.max(...radii));
   return Object.values(state.units).every((other) => other.owner !== viewer || !around.some((cell) => samePos(cell, other.pos)));
 }
 

@@ -1,10 +1,10 @@
 // Effets actifs des monstres (SPEC.md §4.8, §5.2) : un monstre peut en avoir plusieurs, chacun une fois par tour.
 import { getMonsterCard } from './cards';
-import { getAreaCells, getEffectTargets, resolveAbility, sameEffectTarget } from './effects';
+import { applyBacklash, getAreaCells, getEffectTargets, resolveAbility, sameEffectTarget } from './effects';
 import { IllegalActionError } from './errors';
 import { emit } from './events';
 import { addMana } from './players';
-import { isStunned } from './statuses';
+import { isSilenced, isStunned } from './statuses';
 import { perceived } from './stealth';
 import { getActiveMonster, getMonsters, setUnit } from './units';
 import type { Action, ActivatedAbility, GameEvent, GameState, MonsterUnit } from './types';
@@ -26,7 +26,7 @@ export const effectSpent = (monster: MonsterUnit, ability: ActivatedAbility, eff
 export function getActivateEffectActions(state: GameState): Action[] {
   const { mana } = state.players[state.activePlayer];
   return getMonsters(state, state.activePlayer).flatMap((monster) => {
-    if (isStunned(monster)) return [];
+    if (isStunned(monster) || isSilenced(monster)) return [];
     return getMonsterCard(monster.cardId).activated.flatMap((ability, effect) => {
       if (effectSpent(monster, ability, effect) || ability.manaCost > mana) return [];
       return getEffectTargets(state, ability, monster.owner, monster).map(
@@ -43,6 +43,7 @@ export function applyActivateEffect(state: GameState, action: ActivateEffectActi
   if (!ability) throw new IllegalActionError(`${monster.id} n'a pas d'effet activé n°${effect + 1}`);
   if (effectSpent(monster, ability, effect)) throw new IllegalActionError(`${monster.id} a déjà utilisé cet effet ce tour`);
   if (isStunned(monster)) throw new IllegalActionError(`${monster.id} est stun : aucune action possible`);
+  if (isSilenced(monster)) throw new IllegalActionError(`${monster.id} est silence : aucun effet actif possible`);
   const { mana } = state.players[monster.owner];
   if (mana < ability.manaCost) {
     throw new IllegalActionError(`Mana insuffisant pour l'effet de ${monster.id} : ${mana} < ${ability.manaCost}`);
@@ -78,6 +79,8 @@ export function applyActivateEffect(state: GameState, action: ActivateEffectActi
   const paid = addMana(emit(used, event), monster.owner, -ability.manaCost);
   const resolved = resolveAbility(paid, ability, action.target, monster.owner, source, { cardId: monster.cardId, ...(ability.name ? { effect: ability.name } : {}) });
   // « Puis plus d'attaque ce tour » (Zoldik) : il a pu attaquer avant, plus après.
-  const after = resolved.units[monster.id];
-  return ability.endsAttack && after?.kind === 'monster' ? setUnit(resolved, { ...after, hasAttacked: true }) : resolved;
+  // Contre-coup : sur lui-même, après l'effet.
+  const countered = ability.backlash ? applyBacklash(resolved, monster.id, ability.backlash, monster.owner) : resolved;
+  const after = countered.units[monster.id];
+  return ability.endsAttack && after?.kind === 'monster' ? setUnit(countered, { ...after, hasAttacked: true }) : countered;
 }

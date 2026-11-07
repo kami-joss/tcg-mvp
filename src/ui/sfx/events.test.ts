@@ -29,7 +29,7 @@ describe('sons sans animation (handoff, lot 4)', () => {
   it('une bombe déclenchée : explosion, impact fort, mort', () => {
     const state: GameState = {
       ...gameWith([{ monster: 'eclaireur', owner: 2, at: at(8, 1) }], { activePlayer: 2 }),
-      traps: [{ owner: 1, pos: at(8, 2), effects: [{ type: 'damage', amount: 3 }], cardId: 'poseur-de-bombe' }],
+      traps: [{ owner: 1, pos: at(8, 2), effects: [{ type: 'damage', amount: 3 }], cardId: 'poseur-de-bombe', sourceId: 'u0', expiresAtTurn: 99 }],
     };
     const after = applyAction(state, { type: 'move', unitId: 'u1', to: at(8, 2) });
     expect(eventSounds(after.events).map(([name]) => name)).toEqual(['step', 'bomb', 'hitHard', 'death', 'vp']);

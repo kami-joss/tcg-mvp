@@ -26,26 +26,26 @@ describe('noms « Nom - Archétype »', () => {
   });
 
   it('tuile du grimoire et fiche : le nom, l’archétype en petit dessous', () => {
-    const state = gameWith([], { players: { 1: { grimoire: ['maitre-des-heures'] } } });
+    const state = gameWith([], { players: { 1: { grimoire: ['maitre-du-temps'] } } });
     const html = renderToStaticMarkup(
       <Grimoire view={view(state)} selectedCard={null} layout="grid2" onLayout={() => {}} onCardClick={() => {}} onCardHover={() => {}} />,
     );
-    expect(html).toContain('<span class="tile__name">Maître des heures<small class="tile__archetype">Explorateur du temps</small></span>');
-    const sheet = getSheet(view(state), { kind: 'card', cardId: 'maitre-des-heures' })!;
-    expect(sheet).toMatchObject({ title: 'Maître des heures', archetype: 'Explorateur du temps' });
+    expect(html).toContain('<span class="tile__name">Maître du temps<small class="tile__archetype">Explorateur du temps</small></span>');
+    const sheet = getSheet(view(state), { kind: 'card', cardId: 'maitre-du-temps' })!;
+    expect(sheet).toMatchObject({ title: 'Maître du temps', archetype: 'Explorateur du temps' });
     expect(sheet.flavor).toMatch(/^Un ancien explorateur/);
   });
 
   it('illustrations du deck (tuile, fiche, jeton), cadrées sur les yeux ou le point d’intérêt', () => {
     expect(CARD_ART['apprenti-temps']).toMatchObject({ w: 576, h: 1024, eye: [50.6, 11.2] });
     expect(CARD_ART.chronomancienne).toMatchObject({ w: 576, h: 1024, eye: [48.2, 20.2], face: 22 });
-    expect(CARD_ART['maitre-des-heures']).toMatchObject({ w: 576, h: 1024, eye: [55.6, 20.8], face: 22 });
+    expect(CARD_ART['maitre-du-temps']).toMatchObject({ w: 576, h: 1024, eye: [55.6, 20.8], face: 22 });
     expect(CARD_ART['dragonnet-temps']).toMatchObject({ w: 576, h: 1024, eye: [64.6, 40.3], face: 24 });
     expect(CARD_ART['piege-temporel']).toMatchObject({ w: 576, h: 1024, eye: [49.6, 13] });
     expect(CARD_ART['fissure-temporelle']).toMatchObject({ w: 576, h: 1024, eye: [51, 13] });
     // Sorts et terrains en 9:16 : l'image couvre toute la fiche, sans bande floue en bas.
     for (const id of ['piege-temporel', 'fissure-temporelle'] as const) expect(artFit(CARD_ART[id]!, SHEET_FRAME).edge).toBeGreaterThanOrEqual(99.5);
-    const ids = ['apprenti-temps', 'chronomancienne', 'dragonnet-temps', 'maitre-des-heures', 'piege-temporel', 'fissure-temporelle'] as const;
+    const ids = ['apprenti-temps', 'chronomancienne', 'dragonnet-temps', 'maitre-du-temps', 'piege-temporel', 'fissure-temporelle'] as const;
     const state = gameWith([], { players: { 1: { grimoire: [...ids] } } });
     const html = renderToStaticMarkup(
       <Grimoire view={view(state)} selectedCard={null} layout="grid2" onLayout={() => {}} onCardClick={() => {}} onCardHover={() => {}} />,
@@ -66,15 +66,23 @@ describe('effets actifs multiples et retour', () => {
 
   it('texte de la carte : un effet actif par partie', () => {
     expect(cardEffectLine(getCard('dragonnet-temps'))).toBe(
-      'Actif (1 mana) · retour ; Actif (2 mana) · un ennemi adjacent · stun pendant 1 tour',
+      'Actif (1 mana) · Retour vers le futur · retour ; Actif (1 mana) · Miroir de souvenirs · un ennemi dans un carré de 1 · stun pendant 1 tour · contre-coup : silence pendant 1 tour',
     );
+  });
+
+  it('après le Miroir : puce Silence sur la fiche, ses effets actifs indisponibles (« Silence »), l’attaque reste ouverte', () => {
+    const mirrored = applyAction(moved, { type: 'activateEffect', unitId: 'u1', effect: 1, target: { kind: 'unit', unitId: 'u2' } });
+    const sheet = getSheet(view(mirrored), { kind: 'unit', unitId: 'u1' })!;
+    expect(sheet.status?.map((c) => c.text)).toContain('Silence');
+    const bubble = getBubble(view(mirrored), { kind: 'effects', unitId: 'u1', page: 'effects' })!;
+    expect(bubble.rows.map((r) => r.enabled)).toEqual([false, false]);
   });
 
   it('bulle de ses effets : une ligne par effet, chacune avec sa disponibilité', () => {
     const fresh = getBubble(view(state), { kind: 'effects', unitId: 'u1', page: 'effects' })!;
     expect(fresh.rows.map((r) => [r.title, r.cost, r.enabled])).toEqual([
-      ['Retour', 1, false],
-      ['Stun', 2, false],
+      ['Retour vers le futur', 1, false],
+      ['Miroir de souvenirs', 1, false],
     ]);
     expect(fresh.rows[0]!.subtitle).toBe('Aucune case où revenir : il n’a pas bougé ce tour');
     const after = getBubble(view(moved), { kind: 'effects', unitId: 'u1', page: 'effects' })!;
@@ -104,15 +112,15 @@ describe('effets actifs multiples et retour', () => {
     );
     const sheet = getSheet(view(moved), { kind: 'cell', pos: at(1, 3) })!;
     expect(sheet.active.map((a) => [a.name, a.cost, a.foot?.text])).toEqual([
-      ['Retour', 1, 'Disponible'],
-      ['Stun', 2, 'Disponible'],
+      ['Retour vers le futur', 1, 'Disponible'],
+      ['Miroir de souvenirs', 1, 'Disponible'],
     ]);
   });
 });
 
 describe('sablier de la Chronomancienne', () => {
   it('nom du piège, journal de l’ennemi qui remonte le temps', () => {
-    const trap: Trap = { owner: 1, pos: at(1, 4), effects: [{ type: 'rewind', steps: 3 }], cardId: 'chronomancienne' };
+    const trap: Trap = { owner: 1, pos: at(1, 4), effects: [{ type: 'rewind', steps: 3 }], cardId: 'chronomancienne', sourceId: 'u0', expiresAtTurn: 99 };
     expect(trapLabel(trap)).toBe('Sablier');
     const state = { ...gameWith([{ monster: 'apprenti-temps', owner: 2, at: at(1, 8), mobilityLeft: 5 }], { activePlayer: 2 }), traps: [trap] };
     const hit: Action = { type: 'move', unitId: 'u1', to: at(1, 3), path: [at(1, 7), at(1, 6), at(1, 5), at(1, 4), at(1, 3)] };

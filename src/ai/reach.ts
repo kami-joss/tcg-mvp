@@ -2,7 +2,7 @@
 // de là. Mêmes règles que le moteur (déplacement §4.6 avec les zones qui ralentissent, ligne de vue §4.7, X et
 // falaises §10), sans les pièges (cachés) : appelé des milliers de fois par décision, là où le moteur prendrait des
 // secondes.
-import { adjacentCells, getCell, getCliff, getKeyword, getMonsterCard, getTerrainCard } from '../engine';
+import { squareCells, getCell, getCliff, getKeyword, getMonsterCard, getTerrainCard } from '../engine';
 import type { Board, Direction, GameState, MonsterUnit, PlayerId, Position, Unit } from '../engine';
 
 /** Ordre des directions dans les tableaux : haut, bas, gauche, droite. */
@@ -29,7 +29,7 @@ interface Grid {
   readonly noFly: Uint8Array;
   /** Une falaise qui arrête aussi les tirs de portée 2 ou plus (Mine). */
   readonly noShot: Uint8Array;
-  /** Les cases en diagonale que `adjacentCells` donne (§10), -1 sinon : `index * 4 + (haut-gauche, haut-droite, bas-gauche, bas-droite)`. */
+  /** Les cases en diagonale que `squareCells` donne (§10), -1 sinon : `index * 4 + (haut-gauche, haut-droite, bas-gauche, bas-droite)`. */
   readonly diagonal: Int16Array;
 }
 
@@ -59,7 +59,7 @@ function gridOf(board: Board): Grid {
       const cell = getCell(board, { row, col });
       kind[i] = cell.kind === 'plain' ? PLAIN : cell.kind === 'offBoard' ? HIGH_X : cell.height === 'low' ? LOW_X : cell.height === 'high' ? HIGH_X : X;
       if (kind[i] === PLAIN) {
-        for (const pos of adjacentCells(board, { row, col })) {
+        for (const pos of squareCells(board, { row, col })) {
           const k = DIAGONALS.findIndex(([dr, dc]) => pos.row === row + dr && pos.col === col + dc);
           if (k >= 0) diagonal[i * 4 + k] = pos.row * board.cols + pos.col;
         }
@@ -189,7 +189,7 @@ export function getStrikers(
     if (unit.kind === 'terrain' && unit.owner !== attacker) {
       let slow = 0;
       for (const effect of getTerrainCard(unit.cardId).passage?.effects ?? []) if (effect.type === 'status' && effect.kind === 'slow') slow += effect.amount;
-      if (slow > 0) for (const pos of adjacentCells(state.board, unit.pos)) extra[pos.row * grid.cols + pos.col]! += slow;
+      if (slow > 0) for (const pos of squareCells(state.board, unit.pos)) extra[pos.row * grid.cols + pos.col]! += slow;
     }
   }
   const strikers: Striker[] = [];

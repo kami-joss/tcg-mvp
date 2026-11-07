@@ -2,7 +2,7 @@
 // « Passage » (Terrain drainant, Terrain piégé, Golem de lave), avec ce qu'elle inflige aux ennemis qui y entrent
 // (SPEC.md §6 ter) : un cercle comme celui d'un piège, à l'icône du statut ; plusieurs marques se rangent comme les
 // points d'un dé. Les cases brûlées (Lutin brasier) ont aussi leur marque, pleine.
-import { adjacentCells, getCard, getPassage } from '../engine';
+import { squareCells, getCard, getPassage } from '../engine';
 import type { PlayerId, PlayerView, StatusKind, UnitId } from '../engine';
 import { effectText } from './cardText';
 import type { IconName } from './Icon';
@@ -15,6 +15,7 @@ export const STATUS_ICONS: Readonly<Record<StatusKind, IconName>> = {
   requiem: 'death-skull',
   camouflage: 'eye-slash',
   carapace: 'shield',
+  silence: 'speaker-off',
 };
 
 /** Marque au sol : un effet d'une unité « Passage » sur une case de sa zone, ou une case brûlée. */
@@ -49,7 +50,7 @@ export function getZoneMarks(view: Pick<PlayerView, 'board' | 'units'> & Partial
       const amount = 'amount' in effect ? effect.amount : 0;
       return { icon: STATUS_ICONS[effect.kind], label: amount > 1 ? String(amount) : null, title };
     });
-    for (const pos of adjacentCells(view.board, unit.pos)) {
+    for (const pos of squareCells(view.board, unit.pos)) {
       for (const effect of effects) add(`${pos.row},${pos.col}`, { ...effect, sourceId: unit.id, owner: unit.owner });
     }
   }

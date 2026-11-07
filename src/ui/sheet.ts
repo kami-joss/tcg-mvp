@@ -236,6 +236,8 @@ export function reasonStatus(reason: UnavailableReason, used: string): SheetStat
       return { text: used, tone: 'off' };
     case 'stunned':
       return { text: 'Stun : aucune action ce tour', tone: 'off' };
+    case 'silenced':
+      return { text: 'Silence : plus d’effet actif', tone: 'off' };
     case 'justSummoned':
       return { text: 'Arrivé ce tour : au prochain tour', tone: 'off' };
     case 'noTarget':
@@ -564,8 +566,8 @@ function monsterChips(view: PlayerView, monster: MonsterUnit, terrain: TerrainUn
     const radius = 'amount' in camouflage ? camouflage.amount : 2;
     chips.push(
       view.hiddenFromOpponent.includes(monster.id)
-        ? effect('eye-slash', 'Camouflé', `Invisible pour l’adversaire : aucun de ses monstres ni terrains dans un rayon de ${radius}`, 'info')
-        : effect('eye', 'Repéré', `Visible : un monstre ou un terrain adverse est dans un rayon de ${radius}`, 'warn'),
+        ? effect('eye-slash', 'Camouflé', `Invisible pour l’adversaire : aucun de ses monstres ni terrains dans un carré de ${radius}`, 'info')
+        : effect('eye', 'Repéré', `Visible : un monstre ou un terrain adverse est dans un carré de ${radius}`, 'warn'),
     );
   }
   const zone = zoneChip(view, monster);
@@ -649,6 +651,7 @@ const STATUS_CHIP_KINDS: Readonly<Record<Status['kind'], ChipKind>> = {
   requiem: 'warn',
   camouflage: 'info',
   carapace: 'info',
+  silence: 'warn',
 };
 
 /** Nom d'un statut, tel qu'au lexique (§5 bis). */
@@ -668,6 +671,8 @@ function statusName(status: Status): string {
       return 'Camouflé';
     case 'carapace':
       return 'Carapace';
+    case 'silence':
+      return 'Silence';
   }
 }
 
@@ -700,9 +705,11 @@ function statusText(view: PlayerView, unit: Unit, status: Status): string {
     }
     case 'carapace':
       return `Carapace : la prochaine attaque subie n’inflige que 1 PV, puis elle disparaît ; sinon ${until}`;
+    case 'silence':
+      return `Silence : ne peut plus activer ses effets actifs ${until}`;
     case 'camouflage': {
       const seen = unit.owner === view.viewer && !view.hiddenFromOpponent.includes(unit.id);
-      return `Camouflé ${until} : invisible pour l’adversaire sans monstre ni terrain à lui dans un rayon de ${status.amount}${seen ? ' (repéré en ce moment)' : ''}`;
+      return `Camouflé ${until} : invisible pour l’adversaire sans monstre ni terrain à lui dans un carré de ${status.amount}${seen ? ' (repéré en ce moment)' : ''}`;
     }
   }
 }

@@ -99,14 +99,14 @@ const DEFS = data as unknown as Readonly<Record<string, OverframeDef>>;
 
 /**
  * Overframes des cartes du jeu. L'entrée `archer_feu` du kit est l'Feria - Sorciers du feu (l'illustration est la
- * sienne) ; `maitre_des_heures`, le Maître des heures - Explorateur du temps. Emma, sa forme chauve-souris et Zoldik
+ * sienne) ; `maitre_des_heures`, le Maître du temps - Explorateur du temps. Emma, sa forme chauve-souris et Zoldik
  * (deck Vampire) : pop détouré dans leur illustration.
  */
 export const OVERFRAMES: Partial<Record<CardId, OverframeDef>> = {
   'archer-de-glace': DEFS.archer_glace,
   apprenti: DEFS.archer_feu,
   chronomancienne: DEFS.chronomancienne,
-  'maitre-des-heures': DEFS.maitre_des_heures,
+  'maitre-du-temps': DEFS.maitre_des_heures,
   emma: DEFS.emma,
   'emma-chauve-souris': DEFS.emma_chauve_souris,
   zoldik: DEFS.zoldik,
@@ -251,7 +251,7 @@ function motes(seed: number, amethyst: boolean, rotate: number) {
 
 /**
  * Neige (Archer de glace), braises (Feria - Sorciers du feu), étincelles arc-en-ciel (tout exemplaire brillant),
- * poussière d'or (Maître des heures, étoiles qui tournent) et d'or et d'améthyste (Chronomancienne), gouttes de sang qui
+ * poussière d'or (Maître du temps, étoiles qui tournent) et d'or et d'améthyste (Chronomancienne), gouttes de sang qui
  * montent (Emma, Zoldik), chauves-souris qui s'envolent (Emma chauve-souris).
  */
 export const PARTICLES: Readonly<Record<ParticleSetName, { readonly back: readonly Particle[]; readonly front: readonly Particle[] }>> = {

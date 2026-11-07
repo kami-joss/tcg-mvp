@@ -108,7 +108,7 @@ describe('fiche (lot 9)', () => {
   it('un piège n’a de fiche que pour son poseur', () => {
     const trapped: GameState = {
       ...gameWith([]),
-      traps: [{ owner: 1, pos: at(8, 2), effects: [{ type: 'damage', amount: 3 }], cardId: 'poseur-de-bombe' }],
+      traps: [{ owner: 1, pos: at(8, 2), effects: [{ type: 'damage', amount: 3 }], cardId: 'poseur-de-bombe', sourceId: 'u0', expiresAtTurn: 99 }],
     };
     expect(cellSheet(trapped, 1, 8, 2)?.title).toBe('Ton piège · Bombe');
     expect(cellSheet(trapped, 2, 8, 2)).toBeNull();

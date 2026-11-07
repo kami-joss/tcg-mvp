@@ -77,6 +77,7 @@ const STATUS_SOUNDS: Readonly<Record<StatusKind, SoundName | null>> = {
   requiem: null,
   camouflage: null,
   carapace: null,
+  silence: null,
 };
 
 /** Projectile d'un tireur, selon sa carte. */

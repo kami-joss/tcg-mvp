@@ -42,7 +42,7 @@ describe('textes des cartes', () => {
   });
 
   it('monstre : caractéristiques, mots-clés expliqués, puis effet actif et son coût', () => {
-    expect(describeCard(getCard('chaman'))).toEqual(['ATK 1 · PV 3 · Mob. 2 · Portée 1', 'Actif (1 mana) · un allié adjacent · soin 2']);
+    expect(describeCard(getCard('chaman'))).toEqual(['ATK 1 · PV 3 · Mob. 2 · Portée 1', 'Actif (1 mana) · un allié dans un carré de 1 · soin 2']);
     expect(describeCard(getCard('gardien'))[1]).toMatch(/^Passif · Riposte : .*\(une fois par tour\/carte\)\.$/);
     expect(describeCard(getCard('archer-de-glace'))[1]).toBe('Archétype Archers.');
     expect(describeCard(getCard('archer-de-glace'))[2]).toBe(
@@ -63,12 +63,12 @@ describe('textes des cartes', () => {
   });
 
   it('cartes communes (§6 ter) : Passage, Point d’invocation, invocation, téléportation', () => {
-    expect(cardEffectLine(getCard('terrain-drainant'))).toBe('Passage · adjacents · 1 dégât');
-    expect(cardEffectLine(getCard('terrain-piege'))).toBe('Passage · adjacents · slow 1 jusqu’à son prochain tour');
+    expect(cardEffectLine(getCard('terrain-drainant'))).toBe('Passage · carré de 1 · 1 dégât');
+    expect(cardEffectLine(getCard('terrain-piege'))).toBe('Passage · carré de 1 · slow 1 jusqu’à son prochain tour');
     expect(cardEffectLine(getCard('zone-invocation'))).toBe('Point d’invocation');
-    expect(cardEffectLine(getCard('invocateur'))).toBe('Actif (1 mana) · une case adjacente libre · invocation');
-    expect(cardEffectLine(getCard('teleporteur'))).toBe('Actif (1 mana) · un allié · téléportation sur une case adjacente libre');
-    expect(describeCard(getCard('terrain-drainant'))[1]).toMatch(/^Passif · Passage · adjacents · 1 dégât : .*à chaque case où il entre \(une fois par recul\)\.$/);
+    expect(cardEffectLine(getCard('invocateur'))).toBe('Actif (1 mana) · une case libre, carré de 1 · invocation');
+    expect(cardEffectLine(getCard('teleporteur'))).toBe('Actif (1 mana) · un allié · téléportation sur une case libre, carré de 1');
+    expect(describeCard(getCard('terrain-drainant'))[1]).toMatch(/^Passif · Passage · carré de 1 · 1 dégât : .*à chaque case où il entre \(une fois par recul\)\.$/);
   });
 });
 

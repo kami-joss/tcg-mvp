@@ -21,9 +21,9 @@ const transform: Action = { type: 'activateEffect', unitId: 'u1', target: { kind
 describe('textes des cartes du deck Vampire', () => {
   it('les mots retenus : Soif, absorbe, se transforme ; jamais « vole » ni « sacrifie »', () => {
     expect(passiveRules(monster('delta')).map((item) => [item.name, plainRules(item.text)])).toEqual([['Soif 1', 'À l’attaque, il récupère 1 PV.']]);
-    expect(plainRules(abilityRules(monster('vladimir').activated[0]!))).toBe('Absorbe 1 PV à chaque ennemi adjacent.');
+    expect(plainRules(abilityRules(monster('vladimir').activated[0]!))).toBe('Absorbe 1 PV à chaque ennemi dans un carré de 1.');
     expect(plainRules(abilityRules(monster('zoldik').activated[0]!))).toBe(
-      'Absorbe tous les PV d’un ennemi adjacent, sauf 1. Il ne peut plus attaquer ce tour.',
+      'Absorbe tous les PV d’un ennemi dans un carré de 1, sauf 1. Il ne peut plus attaquer ce tour.',
     );
     expect(plainRules(abilityRules(monster('emma').activated[0]!))).toBe(
       'Se transforme en chauve-souris (ATK 1, PV 1, mobilité 8, portée 1). Sans limite par tour.',
@@ -35,13 +35,13 @@ describe('textes des cartes du deck Vampire', () => {
     expect(sacrifice).not.toMatch(/sacrifi/);
     // « absorbe » et « se transforme » sont des mots du lexique, en gras avec leur définition au survol.
     const terms = (text: string) => rulesSegments(text).flatMap((s) => (s.term ? [s.term] : []));
-    expect(terms(abilityRules(monster('vladimir').activated[0]!))).toEqual(['absorber', 'adjacent']);
+    expect(terms(abilityRules(monster('vladimir').activated[0]!))).toEqual(['absorber', 'carre']);
     expect(terms(abilityRules(monster('emma').activated[0]!))).toEqual(['transformer']);
   });
 
   it('notation du lexique (tableaux de SPEC.md) et noms « Nom - Vampire »', () => {
     expect(cardEffectLine(getCard('zoldik'))).toBe(
-      'Soif 1 ; Actif (2 mana, puis plus d’attaque ce tour) · un ennemi adjacent · absorbe tous ses PV sauf 1',
+      'Soif 1 ; Actif (2 mana, puis plus d’attaque ce tour) · un ennemi dans un carré de 1 · absorbe tous ses PV sauf 1',
     );
     expect(cardEffectLine(getCard('emma'))).toBe('Soif 1 ; Actif (1 mana, sans limite par tour) · se transforme en Emma chauve-souris');
     expect(splitCardName(getCard('emma-chauve-souris').name)).toEqual({ title: 'Emma chauve-souris', archetype: 'Vampire' });

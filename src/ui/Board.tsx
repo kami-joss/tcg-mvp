@@ -1060,7 +1060,7 @@ function TerrainCrest(props: { terrain: TerrainUnit; small: boolean; standScale:
   );
 }
 
-const STATUS_ORDER: readonly StatusKind[] = ['requiem', 'stun', 'immobilise', 'slow', 'burn', 'camouflage', 'carapace'];
+const STATUS_ORDER: readonly StatusKind[] = ['requiem', 'stun', 'silence', 'immobilise', 'slow', 'burn', 'camouflage', 'carapace'];
 
 /**
  * Statuts en pastilles : requiem N (tours avant sa mort), stun, immobilisé, slow X, burn X (les statuts du même type
@@ -1104,6 +1104,8 @@ function statusTitle(kind: StatusKind, amount: number): string {
       return 'Invisible (Pénombre) : caché à l’adversaire tant qu’il ne s’approche pas';
     case 'carapace':
       return 'Carapace : la prochaine attaque subie n’inflige que 1 PV';
+    case 'silence':
+      return 'Silence : ne peut plus activer ses effets actifs';
   }
 }
 

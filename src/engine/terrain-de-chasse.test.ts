@@ -30,7 +30,7 @@ describe('Terrain de chasse : la carte', () => {
       zoneManaBonus: 0,
       passage: null,
       summonPoint: false,
-      onMove: { zone: 'cellAndAdjacent', mobility: 1 },
+      onMove: { zone: 'cellAndSquare', mobility: 1 },
     });
     expect(COMMON_CARDS).toContain('terrain-de-chasse');
   });

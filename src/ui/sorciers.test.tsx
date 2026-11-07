@@ -29,15 +29,15 @@ describe('textes des cartes Sorciers du feu', () => {
   it('colonne « Effet » et fiche', () => {
     expect(cardEffectLine(getCard('apprenti'))).toBe('Brûlure 1, 2 tours');
     expect(cardEffectLine(getCard('lutin-brasier'))).toBe(
-      'Actif (1 mana) · une case libre, rayon 2 · case brûlée pendant 3 tours : 1 dégât + burn 1 pendant 1 tour',
+      'Actif (1 mana) · une case libre, carré de 2 · case brûlée pendant 3 tours : 1 dégât + burn 1 pendant 1 tour',
     );
-    expect(cardEffectLine(getCard('archimage'))).toBe('Brûlure 1, 2 tours ; Actif (1 mana) · adjacents, rayon 2 · burn 2 pendant 2 tours');
-    expect(cardEffectLine(getCard('brulure-en-chaine'))).toBe('Tous les ennemis adjacents à une de tes unités · burn 1 pendant 2 tours');
-    expect(cardEffectLine(getCard('golem-de-lave'))).toBe('Zone · adjacents · burn 1 pendant 1 tour');
+    expect(cardEffectLine(getCard('archimage'))).toBe('Brûlure 1, 2 tours ; Actif (1 mana) · carré de 2 · burn 2 pendant 2 tours');
+    expect(cardEffectLine(getCard('brulure-en-chaine'))).toBe('Tous les ennemis dans un carré de 1 d’une de tes unités · burn 1 pendant 2 tours');
+    expect(cardEffectLine(getCard('golem-de-lave'))).toBe('Zone · carré de 1 · burn 1 pendant 1 tour');
     expect(describeCard(getCard('golem-de-lave'))).toEqual([
       'ATK 2 · PV 10 · Mob. 2 · Portée 1',
       'Archétype Sorciers du feu.',
-      'Passif · Zone · adjacents · burn 1 pendant 1 tour : chaque monstre ennemi dans les 8 cases autour de lui le subit : quand il y entre, quand il arrive à côté de lui (une fois par déplacement), et au début de son tour s’il y est encore.',
+      'Passif · Zone · carré de 1 · burn 1 pendant 1 tour : chaque monstre ennemi dans un carré de 1 autour de lui le subit : quand il y entre, quand il arrive à côté de lui (une fois par déplacement), et au début de son tour s’il y est encore.',
     ]);
   });
 

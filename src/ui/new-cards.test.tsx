@@ -37,7 +37,7 @@ const renderBoard = (state: GameState) =>
 
 describe('Dragon élémentaire - Origine', () => {
   it('texte : Vol ; aura sur les dragons élémentaires alliés adjacents', () => {
-    expect(cardEffectLine(getCard('dragon-origine'))).toBe('Vol ; Aura · dragons élémentaires alliés adjacents · +1 ATK +1 PV +1 mobilité');
+    expect(cardEffectLine(getCard('dragon-origine'))).toBe('Vol ; Aura · dragons élémentaires alliés, carré de 1 · +1 ATK +1 PV +1 mobilité');
     expect(describeCard(getCard('dragon-origine'))[1]).toBe('Archétype Dragons.');
   });
 
@@ -90,7 +90,7 @@ describe('Pénombre', () => {
       {
         icon: 'eye-slash',
         text: 'Camouflé',
-        detail: 'Camouflé jusqu’à la fin de ce tour et de son prochain : invisible pour l’adversaire sans monstre ni terrain à lui dans un rayon de 2',
+        detail: 'Camouflé jusqu’à la fin de ce tour et de son prochain : invisible pour l’adversaire sans monstre ni terrain à lui dans un carré de 2',
         kind: 'info',
         group: 'status',
       },

@@ -41,7 +41,7 @@ import jeuneDragon from '../assets/art/jeune-dragon.jpg';
 import jeuneGomuscu from '../assets/art/jeune-gomuscu.jpg';
 import kiNe from '../assets/art/ki-ne.jpg';
 import lutinBrasier from '../assets/art/lutin-brasier.jpg';
-import maitreDesHeures from '../assets/art/maitre-des-heures.jpg';
+import maitreDuTemps from '../assets/art/maitre-du-temps.jpg';
 import penombre from '../assets/art/penombre.jpg';
 import piegeTemporel from '../assets/art/piege-temporel.jpg';
 import poseurDeBombe from '../assets/art/poseur-de-bombe.jpg';
@@ -106,7 +106,7 @@ export const CARD_ART: Partial<Record<CardId, CardArt>> = {
   'apprenti-temps': art(apprentiTemps, 576, 1024, [50.6, 11.2], 23),
   chronomancienne: art(chronomancienne, 576, 1024, [48.2, 20.2], 22),
   'dragonnet-temps': art(dragonnetTemps, 576, 1024, [64.6, 40.3], 24),
-  'maitre-des-heures': art(maitreDesHeures, 576, 1024, [55.6, 20.8], 22),
+  'maitre-du-temps': art(maitreDuTemps, 576, 1024, [55.6, 20.8], 22),
   // Scènes en 9:16 : le point d'intérêt au niveau du bandeau, l'image couvre toute la fiche (pas de bande floue).
   'piege-temporel': art(piegeTemporel, 576, 1024, [49.6, 13], 60),
   'fissure-temporelle': art(fissureTemporelle, 576, 1024, [51, 13], 55),

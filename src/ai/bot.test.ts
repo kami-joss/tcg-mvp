@@ -37,7 +37,7 @@ describe('IA d’entraînement', () => {
 
   it('ne triche pas : elle ignore les pièges adverses et les monstres qu’elle ne voit pas', () => {
     const base = gameWith([{ monster: 'chevalier', owner: 2, at: at(8, 3) }], { activePlayer: 2, players: { 2: { mana: 0 } } });
-    const trapped: GameState = { ...base, traps: [{ owner: 1, pos: at(8, 4), effects: [{ type: 'damage', amount: 3 }], cardId: 'poseur-de-bombe' }] };
+    const trapped: GameState = { ...base, traps: [{ owner: 1, pos: at(8, 4), effects: [{ type: 'damage', amount: 3 }], cardId: 'poseur-de-bombe', sourceId: 'u0', expiresAtTurn: 99 }] };
     expect(chooseAction(trapped, 2)).toEqual(chooseAction(base, 2));
     expect(knownState(trapped, 2).traps).toEqual([]);
     // Un Farceur invisible, loin de tout : absent de ce qu'elle sait.
@@ -234,7 +234,7 @@ describe('IA : valeur des pièges', () => {
       ],
       { activePlayer: 2 },
     ),
-    traps: [{ owner: 2, pos: at(row, col), effects: [{ type: 'damage', amount: 3 }], cardId: 'poseur-de-bombe' }],
+    traps: [{ owner: 2, pos: at(row, col), effects: [{ type: 'damage', amount: 3 }], cardId: 'poseur-de-bombe', sourceId: 'u0', expiresAtTurn: 99 }],
   });
 
   it('préfère un piège sur une mana zone à un piège dans son coin', () => {
@@ -253,7 +253,7 @@ describe('IA : valeur des pièges', () => {
   it('un piège ne vaut que si un ennemi peut marcher dessus à son prochain tour', () => {
     const withEnemy = (row: number, trap = true): GameState => ({
       ...gameWith([{ monster: 'chevalier', owner: 1, at: at(row, 1) }], { activePlayer: 2 }),
-      traps: trap ? [{ owner: 2, pos: at(8, 4), effects: [{ type: 'damage', amount: 3 }], cardId: 'poseur-de-bombe' }] : [],
+      traps: trap ? [{ owner: 2, pos: at(8, 4), effects: [{ type: 'damage', amount: 3 }], cardId: 'poseur-de-bombe', sourceId: 'u0', expiresAtTurn: 99 }] : [],
     });
     // Chevalier : 3 de mobilité ; à 3 cases (sur la rangée du piège) il l'atteint, à 11 non : le piège ne vaut rien.
     expect(evaluate(withEnemy(8), 2)).toBeGreaterThan(evaluate(withEnemy(8, false), 2) + 0.5);

@@ -15,7 +15,7 @@ const FORGE = at(5, 4);
 const END_TURN: Action = { type: 'endTurn' };
 const move = (unitId: UnitId, to: Position, path?: Position[]): Action => ({ type: 'move', unitId, to, ...(path ? { path } : {}) });
 const monster = (state: GameState, id: UnitId) => state.units[id] as MonsterUnit;
-const bomb = (owner: 1 | 2, pos: Position): Trap => ({ owner, pos, effects: [{ type: 'damage', amount: 3 }], cardId: 'poseur-de-bombe' });
+const bomb = (owner: 1 | 2, pos: Position): Trap => ({ owner, pos, effects: [{ type: 'damage', amount: 3 }], cardId: 'poseur-de-bombe', sourceId: 'u0', expiresAtTurn: 99 });
 
 describe('Passage (SPEC.md §5.2, §10) : Terrain drainant', () => {
   const drained = (units: Parameters<typeof gameWith>[0] = []) =>

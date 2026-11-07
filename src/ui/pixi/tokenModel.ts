@@ -25,7 +25,7 @@ export const TOKEN_FOOT = 34 + 19;
 export const TOKEN_DZ = 10;
 export const CREST_DZ = 12;
 
-const STATUS_ORDER: readonly StatusKind[] = ['requiem', 'stun', 'immobilise', 'slow', 'burn', 'camouflage', 'carapace'];
+const STATUS_ORDER: readonly StatusKind[] = ['requiem', 'stun', 'silence', 'immobilise', 'slow', 'burn', 'camouflage', 'carapace'];
 
 export interface StatPill {
   readonly kind: 'mob' | 'hp' | 'atk';

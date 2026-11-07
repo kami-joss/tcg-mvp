@@ -27,15 +27,21 @@ const returnCells = (state: GameState, unitId: string) =>
 
 describe('cartes du deck Explorateur du temps', () => {
   it('stats, famille, effets actifs ; le deck fait 25 cartes', () => {
-    expect(getMonsterCard('apprenti-temps')).toMatchObject({ name: 'Apprenti - Explorateur du temps', cost: 1, atk: 2, hp: 2, mobility: 5, range: 1, archetype: 'temps' });
-    expect(getMonsterCard('chronomancienne')).toMatchObject({ cost: 4, atk: 3, hp: 4, mobility: 6, range: 1, archetype: 'temps' });
+    expect(getMonsterCard('apprenti-temps')).toMatchObject({ name: 'Apprenti - Explorateur du temps', cost: 1, atk: 1, hp: 2, mobility: 5, range: 1, archetype: 'temps' });
+    expect(getMonsterCard('chronomancienne')).toMatchObject({ cost: 4, atk: 3, hp: 3, mobility: 7, range: 1, archetype: 'temps' });
     expect(getMonsterCard('dragonnet-temps')).toMatchObject({ cost: 3, atk: 3, hp: 3, mobility: 6, range: 1, archetype: 'temps' });
-    expect(getMonsterCard('maitre-des-heures')).toMatchObject({ cost: 6, atk: 5, hp: 5, mobility: 7, range: 1, archetype: 'temps' });
+    expect(getMonsterCard('maitre-du-temps')).toMatchObject({ cost: 6, atk: 5, hp: 5, mobility: 7, range: 1, archetype: 'temps' });
     expect(getMonsterCard('apprenti-temps').activated).toHaveLength(1);
     expect(getMonsterCard('chronomancienne').activated.map((a) => a.manaCost)).toEqual([1, 1]);
-    for (const id of ['dragonnet-temps', 'maitre-des-heures'] as const) {
-      expect(getMonsterCard(id).activated.map((a) => a.manaCost), id).toEqual([1, 2]);
+    expect(getMonsterCard('dragonnet-temps').activated.map((a) => a.manaCost)).toEqual([1, 1]);
+    expect(getMonsterCard('maitre-du-temps').activated.map((a) => a.manaCost)).toEqual([1, 2]);
+    // Chaque effet a son nom (SPEC §5.2) ; Retour vers le futur est le premier des quatre monstres.
+    for (const id of ['apprenti-temps', 'chronomancienne', 'dragonnet-temps', 'maitre-du-temps'] as const) {
+      expect(getMonsterCard(id).activated[0]!.name, id).toBe('Retour vers le futur');
     }
+    expect(getMonsterCard('chronomancienne').activated[1]!.name).toBe('Sablier du temps');
+    expect(getMonsterCard('dragonnet-temps').activated[1]!.name).toBe('Miroir de souvenirs');
+    expect(getMonsterCard('maitre-du-temps').activated[1]!.name).toBe('Requiem');
     const deck = DECKS.find((d) => d.id === 'explorateur-du-temps')!;
     expect(deck.cards).toHaveLength(25);
   });
@@ -83,7 +89,7 @@ describe('retour : revenir sur une case du chemin du tour', () => {
   });
 
   it('une téléportation : il entre sur la case d’arrivée, piège ennemi et case brûlée se déclenchent (§10)', () => {
-    const trap: Trap = { owner: 2, pos: at(1, 1), effects: [{ type: 'damage', amount: 1 }], cardId: 'poseur-de-bombe' };
+    const trap: Trap = { owner: 2, pos: at(1, 1), effects: [{ type: 'damage', amount: 1 }], cardId: 'poseur-de-bombe', sourceId: 'u0', expiresAtTurn: 99 };
     const state = walked();
     const burning = { owner: 2 as const, pos: at(1, 1), effects: [{ type: 'damage' as const, amount: 1 }], cardId: 'lutin-brasier' as const, expiresAtTurn: 9 };
     const back = applyAction({ ...state, traps: [trap], burningCells: [burning] }, effect('u1', 0, { kind: 'cell', pos: at(1, 1) }));
@@ -107,7 +113,7 @@ describe('retour : revenir sur une case du chemin du tour', () => {
 });
 
 describe('deux effets actifs : chacun une fois par tour', () => {
-  it('Dragonnet : stun d’un ennemi adjacent (pendant 1 tour), puis retour, dans le même tour', () => {
+  it('Dragonnet, Miroir de souvenirs (1 mana) : stun pendant 1 tour sur un ennemi du carré de 1 ; contre-coup : silence pour lui', () => {
     const state = gameWith(
       [
         { monster: 'dragonnet-temps', owner: 1, at: at(1, 2) },
@@ -116,21 +122,60 @@ describe('deux effets actifs : chacun une fois par tour', () => {
       MANA,
     );
     const moved = applyAction(state, move('u1', [at(1, 3)]));
-    const stunned = applyAction(moved, effect('u1', 1, { kind: 'unit', unitId: 'u2' }));
-    expect(monster(stunned, 'u2').statuses.map((s) => s.kind)).toEqual(['stun']);
-    expect(getLegalActions(stunned).some((a) => a.type === 'activateEffect' && a.effect === 1)).toBe(false);
-    const back = applyAction(stunned, effect('u1', 0, { kind: 'cell', pos: at(1, 2) }));
-    expect(monster(back, 'u1')).toMatchObject({ pos: at(1, 2), usedEffects: [1, 0] });
-    expect(back.players[1].mana).toBe(7);
+    const mirrored = applyAction(moved, effect('u1', 1, { kind: 'unit', unitId: 'u2' }));
+    expect(monster(mirrored, 'u2').statuses.map((s) => s.kind)).toEqual(['stun']);
+    expect(monster(mirrored, 'u1').statuses.map((s) => s.kind)).toEqual(['silence']);
+    expect(mirrored.players[1].mana).toBe(9);
+    // Silence : plus aucun effet actif, Retour compris, mais l'attaque et le déplacement restent possibles.
+    expect(getLegalActions(mirrored).some((a) => a.type === 'activateEffect')).toBe(false);
+    expect(() => applyAction(mirrored, effect('u1', 0, { kind: 'cell', pos: at(1, 2) }))).toThrow(/silence/);
+    expect(getLegalActions(mirrored).some((a) => a.type === 'attack' && a.unitId === 'u1')).toBe(true);
     // Son tour suivant, le golem ne fait rien.
-    const theirTurn = applyAction(back, endTurn);
+    const theirTurn = applyAction(mirrored, endTurn);
     expect(getLegalActions(theirTurn).filter((a) => 'unitId' in a && a.unitId === 'u2')).toEqual([]);
   });
 
-  it('Maître des heures : requiem 2 sur un ennemi adjacent, qui meurt au début de son 2e prochain tour, sans VP', () => {
+  it('le silence dure jusqu’à la fin du prochain tour du Dragonnet, puis disparaît ; Retour avant le Miroir reste possible', () => {
     const state = gameWith(
       [
-        { monster: 'maitre-des-heures', owner: 1, at: at(1, 3) },
+        { monster: 'dragonnet-temps', owner: 1, at: at(1, 2) },
+        { monster: 'golem', owner: 2, at: at(1, 1) },
+      ],
+      MANA,
+    );
+    const moved = applyAction(state, move('u1', [at(1, 3)]));
+    const back = applyAction(moved, effect('u1', 0, { kind: 'cell', pos: at(1, 2) }));
+    expect(monster(back, 'u1').pos).toEqual(at(1, 2));
+    const mirrored = applyAction(back, effect('u1', 1, { kind: 'unit', unitId: 'u2' }));
+    const opponent = applyAction(mirrored, endTurn);
+    const mine = applyAction(opponent, endTurn); // son prochain tour : encore silencieux
+    expect(monster(mine, 'u1').statuses.map((s) => s.kind)).toEqual(['silence']);
+    expect(getLegalActions(mine).some((a) => a.type === 'activateEffect' && a.unitId === 'u1')).toBe(false);
+    const later = applyAction(applyAction(mine, endTurn), endTurn); // fin de ce tour : il disparaît
+    expect(monster(later, 'u1').statuses).toEqual([]);
+    expect(getLegalActions(later).some((a) => a.type === 'activateEffect' && a.unitId === 'u1')).toBe(true);
+  });
+
+  it('le contre-coup s’applique dès l’activation, y compris sur une cible déjà stun', () => {
+    const state = gameWith(
+      [
+        { monster: 'dragonnet-temps', owner: 1, at: at(1, 3) },
+        { monster: 'golem', owner: 2, at: at(1, 4) },
+      ],
+      MANA,
+    );
+    // Une cible déjà stun (le même effet une 2e fois dans le tour par un autre Dragonnet) : le contre-coup est le même.
+    const stunned = applyAction(state, effect('u1', 1, { kind: 'unit', unitId: 'u2' }));
+    const first = { ...stunned, units: { ...stunned.units, u1: { ...monster(stunned, 'u1'), statuses: [], usedEffects: [] } } };
+    const again = applyAction(first, effect('u1', 1, { kind: 'unit', unitId: 'u2' }));
+    expect(monster(again, 'u1').statuses.map((s) => s.kind)).toEqual(['silence']);
+    expect(monster(applyAction(state, effect('u1', 1, { kind: 'unit', unitId: 'u2' })), 'u1').statuses.map((s) => s.kind)).toEqual(['silence']);
+  });
+
+  it('Maître du temps : requiem 2 sur un ennemi adjacent, qui meurt au début de son 2e prochain tour, sans VP', () => {
+    const state = gameWith(
+      [
+        { monster: 'maitre-du-temps', owner: 1, at: at(1, 3) },
         { monster: 'golem', owner: 2, at: at(1, 4) },
       ],
       MANA,
@@ -145,7 +190,7 @@ describe('deux effets actifs : chacun une fois par tour', () => {
 });
 
 describe('piège de la Chronomancienne : l’ennemi remonte 3 cases de son chemin', () => {
-  const trap = (pos: Position): Trap => ({ owner: 1, pos, effects: [{ type: 'rewind', steps: 3 }], cardId: 'chronomancienne' });
+  const trap = (pos: Position): Trap => ({ owner: 1, pos, effects: [{ type: 'rewind', steps: 3 }], cardId: 'chronomancienne', sourceId: 'u0', expiresAtTurn: 99 });
   const walker = (traps: readonly Trap[], extra: Parameters<typeof gameWith>[0] = []) => ({
     ...gameWith([{ monster: 'apprenti-temps', owner: 2, at: at(1, 8), mobilityLeft: 5 }, ...extra], { activePlayer: 2, ...MANA }),
     traps,
@@ -155,8 +200,41 @@ describe('piège de la Chronomancienne : l’ennemi remonte 3 cases de son chemi
   it('la Chronomancienne le pose sur une case adjacente libre (1 mana)', () => {
     const state = gameWith([{ monster: 'chronomancienne', owner: 1, at: at(1, 4) }], MANA);
     const placed = applyAction(state, effect('u1', 1, { kind: 'cell', pos: at(1, 5) }));
-    expect(placed.traps).toEqual([trap(at(1, 5))]);
+    expect(placed.traps).toEqual([{ ...trap(at(1, 5)), sourceId: 'u1', expiresAtTurn: 7 }]);
     expect(placed.players[1].mana).toBe(9);
+  });
+
+  it('Sablier du temps dure 3 tours adverses : il est encore là au 3e, il disparaît au début du 3e prochain tour de son poseur', () => {
+    const state = gameWith([{ monster: 'chronomancienne', owner: 1, at: at(1, 4) }], MANA);
+    let game = applyAction(state, effect('u1', 1, { kind: 'cell', pos: at(1, 5) })); // tour 1
+    game = applyAction(game, endTurn); // tour 2 (J2) : 1er tour adverse
+    game = applyAction(game, endTurn); // tour 3 (J1) : il reste
+    expect(game.traps).toHaveLength(1);
+    game = applyAction(applyAction(game, endTurn), endTurn); // tours 4 (J2), 5 (J1) : il reste
+    expect(game.turn).toBe(5);
+    expect(game.traps).toHaveLength(1);
+    game = applyAction(applyAction(game, endTurn), endTurn); // tour 6 (J2, 3e tour adverse) puis tour 7 (J1) : disparu
+    expect(game.turn).toBe(7);
+    expect(game.traps).toEqual([]);
+  });
+
+  it('un seul sablier à la fois par monstre : le nouveau fait disparaître l’ancien, sans VP', () => {
+    const state = gameWith([{ monster: 'chronomancienne', owner: 1, at: at(1, 4) }], MANA);
+    const first = applyAction(state, effect('u1', 1, { kind: 'cell', pos: at(1, 5) }));
+    const turn3 = applyAction(applyAction(first, endTurn), endTurn);
+    const second = applyAction(turn3, effect('u1', 1, { kind: 'cell', pos: at(1, 3) }));
+    expect(second.traps.map((t) => t.pos)).toEqual([at(1, 3)]);
+    expect(second.players[2].vp).toBe(first.players[2].vp);
+    // Deux Chronomanciennes : chacune garde le sien.
+    const two = gameWith(
+      [
+        { monster: 'chronomancienne', owner: 1, at: at(1, 4) },
+        { monster: 'chronomancienne', owner: 1, at: at(3, 4) },
+      ],
+      MANA,
+    );
+    const both = applyAction(applyAction(two, effect('u1', 1, { kind: 'cell', pos: at(1, 5) })), effect('u2', 1, { kind: 'cell', pos: at(3, 5) }));
+    expect(both.traps).toHaveLength(2);
   });
 
   it('il revient de 3 cases, son déplacement s’arrête, plus de mobilité ce tour', () => {
@@ -171,7 +249,7 @@ describe('piège de la Chronomancienne : l’ennemi remonte 3 cases de son chemi
     const walked: GameState = {
       ...state,
       units: { u1: { ...monster(state, 'u1'), trail: [at(1, 7), at(1, 6), at(1, 5), at(1, 4)] } },
-      traps: [{ owner: 1, pos: at(1, 7), effects: [{ type: 'damage', amount: 1 }], cardId: 'poseur-de-bombe' }],
+      traps: [{ owner: 1, pos: at(1, 7), effects: [{ type: 'damage', amount: 1 }], cardId: 'poseur-de-bombe', sourceId: 'u0', expiresAtTurn: 99 }],
     };
     const { state: after } = rewindMonster(walked, 'u1', 3);
     expect(monster(after, 'u1')).toMatchObject({ pos: at(1, 7), hp: monster(walked, 'u1').hp - 1, mobilityLeft: 0 });

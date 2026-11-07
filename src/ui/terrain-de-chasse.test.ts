@@ -25,16 +25,16 @@ describe('Terrain de chasse : texte de la carte', () => {
     const [item] = passiveRules(card);
     expect(item!.name).toBe('Au déplacement');
     expect(plainRules(item!.text)).toBe(
-      'Quand un de tes monstres commence un déplacement sur sa case ou une case adjacente, il a +1 mobilité ce tour. Une fois par tour par monstre.',
+      'Quand un de tes monstres commence un déplacement sur sa case ou dans un carré de 1, il a +1 mobilité ce tour. Une fois par tour par monstre.',
     );
-    expect(rulesSegments(item!.text).flatMap((s) => (s.term ? [s.term] : []))).toEqual(['deplacement', 'adjacent']);
+    expect(rulesSegments(item!.text).flatMap((s) => (s.term ? [s.term] : []))).toEqual(['deplacement', 'carre']);
   });
 
   it('notation du lexique (tableau §6 ter de SPEC.md)', () => {
-    expect(cardEffectLine(card)).toBe('Au déplacement · sa case et adjacents · +1 mobilité (pour ce tour)');
+    expect(cardEffectLine(card)).toBe('Au déplacement · sa case et carré de 1 · +1 mobilité (pour ce tour)');
     expect(describeCard(card)).toEqual([
       'PV 3 · se pose sur une mana zone occupée par un de vos monstres.',
-      'Passif · Au déplacement · sa case et adjacents · +1 mobilité (pour ce tour) : un de vos monstres qui commence un déplacement sur sa case ou une des 8 cases autour a +1 mobilité ce tour, une fois par tour.',
+      'Passif · Au déplacement · sa case et carré de 1 · +1 mobilité (pour ce tour) : un de vos monstres qui commence un déplacement sur sa case ou dans un carré de 1 a +1 mobilité ce tour, une fois par tour.',
     ]);
   });
 });

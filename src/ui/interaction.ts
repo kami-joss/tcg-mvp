@@ -14,7 +14,7 @@ import {
   getPushDestination,
   getUnitsAt,
   hitsFromBehind,
-  isAdjacent,
+  isInSquare,
   samePos,
 } from '../engine';
 import type { Action, CardId, Direction, MonsterUnit, PlayerView, Position, UnitId } from '../engine';
@@ -110,7 +110,7 @@ export function getSpellAllies(view: PlayerView, cardId: CardId): Position[] {
   if (targeting.type === 'enemiesNearAllies') {
     const mine = Object.values(view.units).filter((u) => u.owner === view.viewer);
     return Object.values(view.units)
-      .filter((u) => u.kind === 'monster' && u.owner !== view.viewer && mine.some((m) => isAdjacent(view.board, m.pos, u.pos)))
+      .filter((u) => u.kind === 'monster' && u.owner !== view.viewer && mine.some((m) => isInSquare(view.board, m.pos, u.pos)))
       .map((u) => u.pos);
   }
   if (targeting.type !== 'allies') return [];

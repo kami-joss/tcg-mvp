@@ -2,7 +2,7 @@
 // pas possible (mana, déjà utilisé, aucune cible…), pour que l'interface n'ait pas à la deviner. Calculée sur la vue du
 // joueur (ses actions légales y sont déjà) : elle ne révèle rien de caché.
 import { getCard, getMonsterCard } from './cards';
-import { isStunned } from './statuses';
+import { isSilenced, isStunned } from './statuses';
 import type { CardId, PlayerView, UnitId } from './types';
 
 /**
@@ -22,6 +22,8 @@ export type UnavailableReason =
   | { readonly kind: 'alreadyUsed' }
   /** Stun : aucune action. */
   | { readonly kind: 'stunned' }
+  /** Silence : plus d'effet actif. */
+  | { readonly kind: 'silenced' }
   /** Arrivé ce tour-ci : l'évolution attend le tour suivant. */
   | { readonly kind: 'justSummoned' }
   | { readonly kind: 'noTarget'; readonly target: MissingTarget };
@@ -64,6 +66,7 @@ export function effectAvailability(view: PlayerView, unitId: UnitId, effect = 0)
   if (!ability) return null;
   if (!myTurn(view) || unit.owner !== view.viewer) return no({ kind: 'notYourTurn' });
   if (isStunned(unit)) return no({ kind: 'stunned' });
+  if (isSilenced(unit)) return no({ kind: 'silenced' });
   if (!ability.unlimited && unit.usedEffects.includes(effect)) return no({ kind: 'alreadyUsed' });
   if (view.me.mana < ability.manaCost) return no({ kind: 'mana', missing: ability.manaCost - view.me.mana });
   if (view.legalActions.some((a) => a.type === 'activateEffect' && a.unitId === unitId && (a.effect ?? 0) === effect)) return OK;
@@ -80,6 +83,6 @@ export function effectAvailability(view: PlayerView, unitId: UnitId, effect = 0)
     return no({ kind: 'noTarget', target: affordable ? 'cell' : 'summonCard' });
   }
   if (targeting.type === 'trail') return no({ kind: 'noTarget', target: 'trail' });
-  const cell = targeting.type === 'emptyAdjacentCell' || targeting.type === 'emptyCell';
+  const cell = targeting.type === 'emptySquareCell' || targeting.type === 'emptyCell';
   return no({ kind: 'noTarget', target: cell ? 'cell' : 'monster' });
 }

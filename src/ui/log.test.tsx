@@ -85,7 +85,7 @@ describe('journal des actions (SPEC.md §7)', () => {
 
     const state = {
       ...gameWith([{ monster: 'golem', owner: 2, at: at(8, 1) }], { activePlayer: 2 }),
-      traps: [{ owner: 1 as const, pos: at(8, 2), effects: [{ type: 'status' as const, kind: 'immobilise' as const, turns: 0 }], cardId: 'poseur-de-piege' as const }],
+      traps: [{ owner: 1 as const, pos: at(8, 2), effects: [{ type: 'status' as const, kind: 'immobilise' as const, turns: 0 }], cardId: 'poseur-de-piege' as const, sourceId: 'u0', expiresAtTurn: 99 }],
     };
     expect(logOf(state, { type: 'move', unitId: 'u1', to: at(8, 3), path: [at(8, 2), at(8, 3)] })).toEqual([
       'J2 déplace Golem en (8, 3).',

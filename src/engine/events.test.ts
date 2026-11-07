@@ -10,7 +10,7 @@ const END_TURN: Action = { type: 'endTurn' };
 describe('événements des actions (handoff, lot 2)', () => {
   it('un déplacement : un pas par case, puis le piège qui l’arrête', () => {
     const base = gameWith([{ monster: 'chevalier', owner: 1, at: at(8, 1) }]);
-    const state: GameState = { ...base, traps: [{ owner: 2, pos: at(8, 2), effects: [{ type: 'status', kind: 'immobilise', turns: 0 }], cardId: 'poseur-de-piege' }] };
+    const state: GameState = { ...base, traps: [{ owner: 2, pos: at(8, 2), effects: [{ type: 'status', kind: 'immobilise', turns: 0 }], cardId: 'poseur-de-piege', sourceId: 'u0', expiresAtTurn: 99 }] };
     const after = applyAction(state, { type: 'move', unitId: 'u1', to: at(8, 4), path: [at(8, 2), at(8, 3), at(8, 4)] });
     expect(after.events).toEqual([
       { type: 'step', unitId: 'u1', from: at(8, 1), to: at(8, 2), kind: 'walk' },

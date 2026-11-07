@@ -1,7 +1,7 @@
 // Effets des cartes (SPEC.md §5.2 à §5.4) : ciblage et résolution, communs aux sorts et aux effets actifs.
 // Un effet complet (`Ability`) vise un monstre, une zone, une case ou sa source, puis applique ses effets dans l'ordre.
 // Invocation et téléportation demandent un second choix : le monstre à invoquer, la case où poser le monstre.
-import { DIRECTION_OFFSETS, DIRECTIONS, adjacentCells, distance, hasCliff, isAdjacent, isPlayable, samePos } from './board';
+import { DIRECTION_OFFSETS, DIRECTIONS, squareCells, distance, hasCliff, isInSquare, isPlayable, samePos } from './board';
 import { getLineOfSightCells } from './combat';
 import { dealDamage } from './damage';
 import { emit } from './events';
@@ -30,6 +30,7 @@ import type {
   Position,
   Targeting,
   Trap,
+  UnitId,
 } from './types';
 
 type PushEffect = Extract<Effect, { type: 'push' }>;
@@ -63,10 +64,10 @@ function getTargetableMonsters(
       const own = getMonsters(state, player);
       return candidates.filter((m) => own.some((o) => distance(o.pos, m.pos) <= reach.steps));
     }
-    case 'adjacent': {
+    case 'square1': {
       // Les 8 cases autour ; aucune falaise ne se franchit, même celle de la Scierie (§10).
       const from = requireSource(source).pos;
-      return candidates.filter((m) => isAdjacent(state.board, from, m.pos));
+      return candidates.filter((m) => isInSquare(state.board, from, m.pos));
     }
     case 'line': {
       const cells = getLineOfSightCells(state, requireSource(source).pos, reach.range);
@@ -103,18 +104,18 @@ export function getPushDestination(
 const LINE_LENGTH = 3;
 
 /**
- * Cases d'une zone autour de la source (§5.3, §10), à partir des cases adjacentes (les 8 autour, voir `adjacentCells`
+ * Cases d'une zone autour de la source (§5.3, §10), à partir du carré de 1 (les 8 autour, voir `squareCells`
  * pour les falaises et les cases X). `front3` : la case devant elle (dans le sens où elle regarde) et ses deux voisines
- * de côté ; `adjacent` : les 8 ; `adjacent2` : les adjacentes et les cases adjacentes à celles-ci (rayon 2) ; `line3` :
+ * de côté ; `square1` : le carré de 1 (les 8) ; `square2` : le carré de 2 ; `line3` :
  * les 3 cases en ligne dans le sens où elle regarde, jusqu'à la première falaise ou case X.
  */
 export function getAreaCells(state: BoardState, source: MonsterUnit, zone: AreaZone): Position[] {
-  const around = adjacentCells(state.board, source.pos);
-  if (zone === 'adjacent') return around;
-  if (zone === 'adjacent2') {
+  const around = squareCells(state.board, source.pos);
+  if (zone === 'square1') return around;
+  if (zone === 'square2') {
     const cells = [...around];
     for (const pos of around) {
-      for (const next of adjacentCells(state.board, pos)) {
+      for (const next of squareCells(state.board, pos)) {
         if (!samePos(next, source.pos) && !cells.some((cell) => samePos(cell, next))) cells.push(next);
       }
     }
@@ -126,8 +127,8 @@ export function getAreaCells(state: BoardState, source: MonsterUnit, zone: AreaZ
     let pos = source.pos;
     for (let i = 0; i < LINE_LENGTH; i++) {
       const next = { row: pos.row + step.row, col: pos.col + step.col };
-      // Une case en ligne droite est adjacente si elle est jouable et sans falaise entre les deux.
-      if (!adjacentCells(state.board, pos).some((cell) => samePos(cell, next))) break;
+      // Une case en ligne droite est dans le carré de 1 si elle est jouable et sans falaise entre les deux.
+      if (!squareCells(state.board, pos).some((cell) => samePos(cell, next))) break;
       line.push(next);
       pos = next;
     }
@@ -146,14 +147,14 @@ export function getAreaTargets(state: BoardState, zone: AreaZone, player: Player
   });
 }
 
-/** Cases adjacentes libres de la source (§5.3) : les 8 autour (voir `adjacentCells`), sans aucune unité. */
-export function getEmptyAdjacentCells(state: BoardState, source: MonsterUnit): Position[] {
-  return adjacentCells(state.board, source.pos).filter((pos) => getUnitsAt(state, pos).length === 0);
+/** Cases libres du carré de 1 de la source (§5.3) : les 8 autour (voir `squareCells`), sans aucune unité. */
+export function getEmptySquareCells(state: BoardState, source: MonsterUnit): Position[] {
+  return squareCells(state.board, source.pos).filter((pos) => getUnitsAt(state, pos).length === 0);
 }
 
-/** Cases où `source` peut poser un piège : adjacentes libres, sans piège à lui. */
+/** Cases où `source` peut poser un piège : libres du carré de 1, sans piège à lui. */
 export function getTrapCells(state: GameState, source: MonsterUnit): Position[] {
-  return getEmptyAdjacentCells(state, source).filter(
+  return getEmptySquareCells(state, source).filter(
     // Seuls ses propres pièges comptent : ceux de l'adversaire sont cachés, rien ne doit les trahir.
     (pos) => !state.traps.some((trap) => trap.owner === source.owner && samePos(trap.pos, pos)),
   );
@@ -167,7 +168,7 @@ export function getBurnableCells(state: GameState, source: MonsterUnit, zone: Ar
 }
 
 /**
- * Invocation (Invocateur) : une cible par case adjacente libre et par monstre de son grimoire qu'il peut payer, en plus
+ * Invocation (Invocateur) : une cible par case libre du carré de 1 et par monstre de son grimoire qu'il peut payer, en plus
  * du coût de l'effet (§5.4).
  */
 function getSummonTargets(state: GameState, ability: Ability, player: PlayerId, source: MonsterUnit): EffectTarget[] {
@@ -177,7 +178,7 @@ function getSummonTargets(state: GameState, ability: Ability, player: PlayerId, 
     const card = getCard(id);
     return card.kind === 'monster' && card.cost <= budget;
   });
-  return getEmptyAdjacentCells(state, source).flatMap((pos) =>
+  return getEmptySquareCells(state, source).flatMap((pos) =>
     cards.map((cardId): EffectTarget => ({ kind: 'cellAndCard', pos, cardId })),
   );
 }
@@ -198,14 +199,14 @@ export function getTrailCells(state: BoardState, source: MonsterUnit): Position[
 
 /**
  * Brûlure en chaîne : pour chaque unité alliée de `player` (monstre ou terrain), les monstres ennemis qu'il voit sur ses
- * 8 cases adjacentes (§10). Un ennemi à côté de plusieurs unités alliées y est autant de fois.
+ * 8 cases de son carré de 1 (§10). Un ennemi à côté de plusieurs unités alliées y est autant de fois.
  */
 export function getEnemiesNearAllies(state: GameState, player: PlayerId): MonsterUnit[] {
   const seen = perceivedBy(state, player);
   const enemies = getMonsters(seen, opponent(player));
   return Object.values(state.units)
     .filter((ally) => ally.owner === player)
-    .flatMap((ally) => adjacentCells(state.board, ally.pos).flatMap((pos) => enemies.filter((enemy) => samePos(enemy.pos, pos))));
+    .flatMap((ally) => squareCells(state.board, ally.pos).flatMap((pos) => enemies.filter((enemy) => samePos(enemy.pos, pos))));
 }
 
 /** Le recul de l'effet, s'il en a un. */
@@ -233,7 +234,7 @@ export function getEffectTargets(
 ): EffectTarget[] {
   const { targeting, effects } = ability;
   switch (targeting.type) {
-    case 'emptyAdjacentCell':
+    case 'emptySquareCell':
       if (effects.some((effect) => effect.type === 'summon')) return getSummonTargets(state, ability, player, requireSource(source));
       return getTrapCells(state, requireSource(source)).map((pos): EffectTarget => ({ kind: 'cell', pos }));
     case 'emptyCell':
@@ -274,10 +275,10 @@ export function getEffectTargets(
         // On ne soigne pas un monstre qui a déjà tous ses PV (§10) ; « tous ses PV sauf N » vise un monstre qui en a plus.
         (m) => (!effects.every((effect) => effect.type === 'heal') || m.hp < m.maxHp) && (floor === null || m.hp > floor),
       );
-      // Téléportation : un allié autre que la source, puis une case adjacente libre de la source (§5.4).
+      // Téléportation : un allié autre que la source, puis une case libre du carré de 1 de la source (§5.4).
       if (effects.some((effect) => effect.type === 'teleport')) {
         const from = requireSource(source);
-        const cells = getEmptyAdjacentCells(state, from);
+        const cells = getEmptySquareCells(state, from);
         return monsters
           .filter((m) => m.id !== from.id)
           .flatMap((m) => cells.map((pos): EffectTarget => ({ kind: 'unitAndCell', unitId: m.id, pos })));
@@ -331,6 +332,16 @@ interface EffectContext {
   readonly hpLost?: number;
 }
 
+/**
+ * Contre-coup (SPEC §5.2) : `effects` appliqués au monstre source lui-même, après l'effet, que sa cible ait subi quelque
+ * chose ou non. Sans effet s'il a quitté le plateau.
+ */
+export function applyBacklash(state: GameState, unitId: UnitId, effects: readonly Effect[], by: PlayerId): GameState {
+  const source = state.units[unitId];
+  if (source?.kind !== 'monster') return state;
+  return applyEffects(state, effects, unitId, { by, source, origin: { cardId: source.cardId } });
+}
+
 /** Applique un effet complet à une cible déjà validée. */
 export function resolveAbility(
   state: GameState,
@@ -342,14 +353,25 @@ export function resolveAbility(
 ): GameState {
   const { targeting, effects } = ability;
   switch (targeting.type) {
-    case 'emptyAdjacentCell': {
+    case 'emptySquareCell': {
       if (target.kind === 'cellAndCard') return resolveSummon(state, target, by);
       if (target.kind !== 'cell') throw new Error('Cet effet vise une case');
       let next = state;
       for (const effect of effects) {
         if (effect.type !== 'placeTrap') throw new Error('Sur une case, seul un piège se pose');
-        const trap: Trap = { owner: by, pos: target.pos, effects: effect.effects, cardId: requireSource(source).cardId };
-        next = { ...emit(next, { type: 'trapPlaced', trap }), traps: [...next.traps, trap] };
+        const poster = requireSource(source);
+        const trap: Trap = {
+          owner: by,
+          pos: target.pos,
+          effects: effect.effects,
+          cardId: poster.cardId,
+          sourceId: poster.id,
+          // Jusqu'au prochain tour de son poseur, ou au N-ième prochain (tours adverses, §10).
+          expiresAtTurn: state.turn + 2 * (effect.turns ?? 1),
+        };
+        // « Un seul à la fois par monstre » : le précédent disparaît (sans VP, il n'a pas servi).
+        const kept = effect.single ? next.traps.filter((old) => old.sourceId !== poster.id) : next.traps;
+        next = { ...emit(next, { type: 'trapPlaced', trap }), traps: [...kept, trap] };
       }
       return next;
     }

@@ -18,17 +18,17 @@ describe('cartes (SPEC.md §6)', () => {
   it('cartes communes (§6 ter) : Invocateur, Téléporteur, Terrain drainant, Terrain piégé, Zone d’invocation, Terrain de chasse', () => {
     expect(COMMON_CARDS).toEqual(['invocateur', 'teleporteur', 'terrain-drainant', 'terrain-piege', 'zone-invocation', 'terrain-de-chasse']);
     expect(CARDS.invocateur).toMatchObject({ cost: 4, atk: 1, hp: 3, mobility: 3, range: 2 });
-    expect(CARDS.invocateur).toMatchObject({ activated: [{ manaCost: 1, targeting: { type: 'emptyAdjacentCell' }, effects: [{ type: 'summon' }] }] });
+    expect(CARDS.invocateur).toMatchObject({ activated: [{ manaCost: 1, targeting: { type: 'emptySquareCell' }, effects: [{ type: 'summon' }] }] });
     expect(CARDS.teleporteur).toMatchObject({ cost: 4, atk: 1, hp: 3, mobility: 3, range: 2 });
     expect(CARDS.teleporteur).toMatchObject({ activated: [{ manaCost: 1, targeting: { type: 'monster', side: 'ally' }, effects: [{ type: 'teleport' }] }] });
-    expect(CARDS['terrain-drainant']).toMatchObject({ cost: 1, hp: 4, passage: { zone: 'adjacent', effects: [{ type: 'damage', amount: 1 }] } });
+    expect(CARDS['terrain-drainant']).toMatchObject({ cost: 1, hp: 4, passage: { zone: 'square1', effects: [{ type: 'damage', amount: 1 }] } });
     expect(CARDS['terrain-piege']).toMatchObject({
       cost: 1,
       hp: 4,
-      passage: { zone: 'adjacent', effects: [{ type: 'status', kind: 'slow', amount: 1, turns: 0 }] },
+      passage: { zone: 'square1', effects: [{ type: 'status', kind: 'slow', amount: 1, turns: 0 }] },
     });
     expect(CARDS['zone-invocation']).toMatchObject({ cost: 1, hp: 4, summonPoint: true, passage: null });
-    expect(CARDS['terrain-de-chasse']).toMatchObject({ cost: 1, hp: 3, onMove: { zone: 'cellAndAdjacent', mobility: 1 }, passage: null });
+    expect(CARDS['terrain-de-chasse']).toMatchObject({ cost: 1, hp: 3, onMove: { zone: 'cellAndSquare', mobility: 1 }, passage: null });
   });
 
   it('Éclaireur, Milicien et Archer sont en 2 exemplaires, les autres cartes en 1', () => {
@@ -47,7 +47,7 @@ describe('cartes (SPEC.md §6)', () => {
       if (card.kind !== 'spell') continue;
       const { targeting, effects } = card.ability;
       expect(['monster', 'allies', 'enemies', 'enemiesNearAllies'], card.id).toContain(targeting.type);
-      if (targeting.type === 'monster') expect(['adjacent', 'line'], card.id).not.toContain(targeting.reach.type);
+      if (targeting.type === 'monster') expect(['square1', 'line'], card.id).not.toContain(targeting.reach.type);
       for (const effect of effects) {
         expect(['placeTrap', 'evolve'], card.id).not.toContain(effect.type);
         if (effect.type === 'push') expect(effect.direction, card.id).toBe('chosen');

@@ -24,6 +24,8 @@ const trap = (owner: 1 | 2, pos: Position, effects: Trap['effects'], cardId: Car
   pos,
   effects,
   cardId,
+  sourceId: 'u1',
+  expiresAtTurn: 3, // posé au tour 1 : jusqu'au début du prochain tour de son poseur
 });
 
 describe('decks pré-construits (SPEC.md §6 bis)', () => {

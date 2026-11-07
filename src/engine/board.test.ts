@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   BOARD,
+  adjacentCells,
   allPositions,
   getCell,
   getManaZones,
   getSummonZone,
   isOnBoard,
-  adjacentCells,
+  squareCells,
+  isAdjacent,
   isPlayable,
   parseBoard,
 } from './board';
@@ -118,16 +120,37 @@ describe('parseBoard', () => {
     expect(() => parseBoard('test', ['PPP', 'PP'])).toThrow(/colonnes/);
   });
 
-  it('adjacent = les 8 cases autour ; une falaise sépare, une diagonale passe si un des deux chemins en L est libre', () => {
+  it('carré de 1 = les 8 cases autour ; une falaise sépare, une diagonale passe si un des deux chemins en L est libre', () => {
     const keys = (cells: { row: number; col: number }[]) => cells.map((p) => `${p.row},${p.col}`).sort();
-    expect(keys(adjacentCells(BOARD, pos(8, 1)))).toEqual(['7,0', '7,1', '7,2', '8,0', '8,2', '9,0', '9,1', '9,2']);
+    expect(keys(squareCells(BOARD, pos(8, 1)))).toEqual(['7,0', '7,1', '7,2', '8,0', '8,2', '9,0', '9,1', '9,2']);
     // (5,3) touche la falaise de la Scierie à sa gauche : (5,2) et les diagonales (4,2), (6,2) sont de l'autre côté.
-    const nearCliff = keys(adjacentCells(BOARD, pos(5, 3)));
+    const nearCliff = keys(squareCells(BOARD, pos(5, 3)));
     expect(nearCliff).not.toContain('5,2');
     expect(nearCliff).not.toContain('4,2');
     expect(nearCliff).not.toContain('6,2');
-    // Les cases X ne sont jamais adjacentes : (5,4) est la Forge entre deux X, (4,4) et (6,4) n'en font pas partie.
-    expect(keys(adjacentCells(BOARD, pos(5, 3)))).not.toContain('4,4');
-    expect(keys(adjacentCells(BOARD, pos(5, 3)))).toContain('5,4');
+    // Les cases X ne sont jamais dans le carré : (5,4) est la Forge entre deux X, (4,4) et (6,4) n'en font pas partie.
+    expect(keys(squareCells(BOARD, pos(5, 3)))).not.toContain('4,4');
+    expect(keys(squareCells(BOARD, pos(5, 3)))).toContain('5,4');
+  });
+
+  it('carré de 2 = le carré de 1 et celui de ses cases : 24 cases sur terrain dégagé, les falaises coupent encore', () => {
+    const keys = (cells: { row: number; col: number }[]) => cells.map((p) => `${p.row},${p.col}`);
+    const open = parseBoard('test', Array.from({ length: 7 }, () => 'PPPPPPP'));
+    const square2 = keys(squareCells(open, pos(3, 3), 2));
+    expect(square2).toHaveLength(24);
+    expect(square2).toContain('1,1');
+    expect(square2).toContain('5,5');
+    expect(square2).not.toContain('3,3');
+    expect(square2).not.toContain('0,3');
+    // Derrière la falaise de la Scierie, (5,1) n'est pas dans le carré de 2 de (5,3).
+    expect(keys(squareCells(BOARD, pos(5, 3), 2))).not.toContain('5,1');
+  });
+
+  it('adjacent = les 4 cases orthogonales, sans diagonale ; une falaise ou une case X sépare (§5.1)', () => {
+    const keys = (cells: { row: number; col: number }[]) => cells.map((p) => `${p.row},${p.col}`).sort();
+    expect(keys(adjacentCells(BOARD, pos(8, 4)))).toEqual(['8,3', '8,5', '9,4']); // (7,4) est une case X
+    expect(keys(adjacentCells(BOARD, pos(5, 3)))).toEqual(['4,3', '5,4', '6,3']); // falaise à gauche
+    expect(isAdjacent(BOARD, pos(8, 4), pos(8, 5))).toBe(true);
+    expect(isAdjacent(BOARD, pos(8, 4), pos(7, 5))).toBe(false); // diagonale
   });
 });

@@ -4,12 +4,12 @@
 // mobilité : les chemins en tiennent compte (le terrain est public). Un monstre qui part de la zone d'un Terrain de
 // chasse allié a +1 mobilité ce tour, une fois par tour (§10) : ses destinations le comptent déjà.
 import {
-  adjacentCells,
+  squareCells,
   directionBetween,
   distance,
   getCell,
   getCliff,
-  isAdjacent,
+  isInSquare,
   isPlayable,
   orthogonalNeighbors,
   samePos,
@@ -73,7 +73,7 @@ function getSlowZones(state: BoardState, monster: MonsterUnit): SlowZone[] {
       effect.type === 'status' && effect.kind === 'slow' ? [effect.amount] : [],
     );
     if (slows.length === 0) return [];
-    return [{ cells: adjacentCells(state.board, unit.pos), extra: slows.reduce((a, b) => a + b, 0) }];
+    return [{ cells: squareCells(state.board, unit.pos), extra: slows.reduce((a, b) => a + b, 0) }];
   });
 }
 
@@ -174,13 +174,13 @@ function pathCost(state: BoardState, monster: MonsterUnit, path: readonly Positi
 }
 
 /**
- * Terrain allié « Au déplacement » (Terrain de chasse) dont la zone, sa case et ses adjacentes, contient `pos` : le
+ * Terrain allié « Au déplacement » (Terrain de chasse) dont la zone, sa case et son carré de 1, contient `pos` : le
  * premier trouvé, leurs bonus ne se cumulant pas (§10).
  */
 function onMoveSource(state: BoardState, owner: PlayerId, pos: Position): { unit: TerrainUnit; onMove: TerrainOnMove } | null {
   for (const source of onMoveTerrains(state.units)) {
     const { unit } = source;
-    if (unit.owner === owner && (samePos(unit.pos, pos) || isAdjacent(state.board, unit.pos, pos))) return source;
+    if (unit.owner === owner && (samePos(unit.pos, pos) || isInSquare(state.board, unit.pos, pos))) return source;
   }
   return null;
 }

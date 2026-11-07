@@ -49,7 +49,7 @@ describe('textes des cartes Bodybuilder', () => {
     expect(describeCard(getCard('arnold'))).toEqual([
       'ATK 8 · PV 4 · Mob. 4 · Portée 1',
       'Archétype Bodybuilder.',
-      'Passif · Aura · bodybuilders alliés adjacents, rayon 2 · +1 ATK : dans un rayon de 2 autour de lui (falaises et cases X coupent la zone), pas lui-même ; plusieurs auras se cumulent.',
+      'Passif · Aura · bodybuilders alliés, carré de 2 · +1 ATK : dans un carré de 2 autour de lui (falaises et cases X coupent la zone), pas lui-même ; plusieurs auras se cumulent.',
     ]);
     expect(describeCard(getCard('tibo'))[2]).toBe('Actif (1 mana) · Tortank · lui-même · carapace jusqu’à son prochain tour');
     expect(describeCard(getCard('jeune-gomuscu'))[2]).toBe(
@@ -70,7 +70,7 @@ describe('textes des cartes Bodybuilder', () => {
     expect(sheet.passive?.items).toEqual([
       {
         name: 'Début de tour',
-        text: 'Au début de ton tour, rend 1 PV à tes bodybuilders dans un {{rayon|rayon}} de 2.',
+        text: 'Au début de ton tour, rend 1 PV à tes bodybuilders dans un {{carre|carré}} de 2.',
       },
     ]);
   });

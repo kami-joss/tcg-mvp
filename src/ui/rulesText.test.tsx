@@ -12,10 +12,18 @@ const spell = (id: string) => getCard(id as never) as SpellCard;
 const plain = (text: string) => plainRules(text);
 
 describe('textes des cartes, façon Hearthstone', () => {
+  it('Miroir de souvenirs : le contre-coup est dit après l’effet, silence et contre-coup sont des mots du lexique', () => {
+    const miroir = abilityRules(monster('dragonnet-temps').activated[1]!);
+    expect(plain(miroir)).toBe('Inflige stun pendant 1 tour à un ennemi dans un carré de 1. Contre-coup : il s’inflige silence pendant 1 tour.');
+    expect(rulesSegments(miroir).filter((s) => s.term).map((s) => s.term)).toEqual(['stun', 'carre', 'contreCoup', 'silence']);
+    expect(GLOSSARY.silence).toMatch(/effets actifs/);
+    expect(GLOSSARY.contreCoup).toMatch(/en retour/);
+  });
+
   it('le sablier téléporte : jamais « recule » ni « remonte »', () => {
     const sablier = plain(abilityRules(monster('chronomancienne').activated[1]!));
     expect(sablier).toBe(
-      'Pose un piège sur une case adjacente libre : l’ennemi qui y entre est téléporté 3 cases en arrière sur son chemin du tour, et ne peut plus se déplacer ce tour.',
+      'Pose un piège sur une case libre dans un carré de 1 : l’ennemi qui y entre est téléporté 3 cases en arrière sur son chemin du tour, et ne peut plus se déplacer ce tour. Il dure 3 tours adverses. Ce monstre n’en a qu’un à la fois : le précédent disparaît.',
     );
     expect(sablier).not.toMatch(/recule|remonte/);
     expect(plain(abilityRules(monster('chronomancienne').activated[0]!))).toBe(
@@ -32,18 +40,18 @@ describe('textes des cartes, façon Hearthstone', () => {
 
   it('Passage et passifs : l’ennemi qui entre, l’aura, quand il détruit', () => {
     expect(passiveRules(monster('golem-de-lave')).map((i) => [plain(i.name), plain(i.text)])).toEqual([
-      ['Zone', 'Les cases adjacentes forment une zone : l’ennemi qui y entre, ou près duquel ce monstre arrive, subit burn 1 pendant 1 tour, de nouveau au début de ton tour s’il y est encore.'],
+      ['Zone', 'Le carré de 1 forme une zone : l’ennemi qui y entre, ou près duquel ce monstre arrive, subit burn 1 pendant 1 tour, de nouveau au début de ton tour s’il y est encore.'],
     ]);
-    expect(plain(passiveRules(monster('arnold'))[0]!.text)).toBe('Tes bodybuilders dans un rayon de 2 ont +1 ATK.');
-    expect(plain(passiveRules(getCard('salle-de-sport'))[0]!.text)).toBe('Tes bodybuilders sur ce terrain ou adjacents ont +1 ATK et +1 PV.');
-    expect(plain(passiveRules(monster('rudy'))[0]!.text)).toBe('Tes bodybuilders dans un rayon de 2 ont +1 mobilité.');
+    expect(plain(passiveRules(monster('arnold'))[0]!.text)).toBe('Tes bodybuilders dans un carré de 2 ont +1 ATK.');
+    expect(plain(passiveRules(getCard('salle-de-sport'))[0]!.text)).toBe('Tes bodybuilders sur ce terrain ou dans un carré de 1 ont +1 ATK et +1 PV.');
+    expect(plain(passiveRules(monster('rudy'))[0]!.text)).toBe('Tes bodybuilders dans un carré de 2 ont +1 mobilité.');
     expect(plain(abilityRules(monster('tibo').activated[0]!))).toBe('Donne carapace jusqu’à son prochain tour à ce monstre.');
     expect(plain(passiveRules(monster('jeune-gomuscu'))[0]!.text)).toBe('Il gagne définitivement +1 ATK et +1 PV.');
   });
 
   it('mots du lexique balisés : en gras, définition au survol', () => {
     const text = abilityRules(monster('chronomancienne').activated[1]!);
-    expect(rulesSegments(text).filter((s) => s.term).map((s) => s.term)).toEqual(['piege', 'adjacent', 'entrer', 'teleporter', 'chemin']);
+    expect(rulesSegments(text).filter((s) => s.term).map((s) => s.term)).toEqual(['piege', 'carre', 'entrer', 'teleporter', 'chemin']);
     const html = renderToStaticMarkup(<CardRules text={text} />);
     expect(html).toContain(`<b class="term" title="${GLOSSARY.teleporter.replace(/’/g, '’')}">téléporté</b>`);
     expect(capitalize('{{teleporter|téléporte}} ce monstre')).toBe('{{teleporter|Téléporte}} ce monstre');

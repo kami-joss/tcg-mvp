@@ -350,33 +350,11 @@ export function orthogonalNeighbors(pos: Position): Position[] {
 }
 
 /**
- * Les cases adjacentes (SPEC.md §10) : les 8 cases autour, diagonales comprises, qui existent et ne sont pas des cases X.
- * Une falaise sépare : une case orthogonale derrière une falaise n'est pas adjacente ; une case en diagonale l'est si au
- * moins un des deux chemins en L qui y mènent passe (case de coin jouable, aucune falaise sur le chemin).
+ * Les 8 cases autour (SPEC.md §10), diagonales comprises, qui existent et ne sont pas des cases X. Une falaise sépare :
+ * une case orthogonale derrière une falaise n'en fait pas partie ; une case en diagonale en fait partie si au moins un
+ * des deux chemins en L qui y mènent passe (case de coin jouable, aucune falaise sur le chemin).
  */
-/**
- * Rayon N (§5.3) : les cases adjacentes, puis leurs cases adjacentes, et ainsi de suite N fois, sans la case de départ
- * (8 cases pour un rayon de 1, 24 pour un rayon de 2 sur terrain dégagé) ; falaises et cases X coupent la zone comme
- * pour « adjacent ».
- */
-export function radiusCells(board: Board, from: Position, radius: number): Position[] {
-  const cells: Position[] = [];
-  let ring = [from];
-  for (let i = 0; i < radius; i++) {
-    const next: Position[] = [];
-    for (const pos of ring) {
-      for (const cell of adjacentCells(board, pos)) {
-        if (samePos(cell, from) || cells.some((c) => samePos(c, cell))) continue;
-        cells.push(cell);
-        next.push(cell);
-      }
-    }
-    ring = next;
-  }
-  return cells;
-}
-
-export function adjacentCells(board: Board, from: Position): Position[] {
+function aroundCells(board: Board, from: Position): Position[] {
   const cells: Position[] = [];
   for (const dr of [-1, 0, 1]) {
     for (const dc of [-1, 0, 1]) {
@@ -400,16 +378,52 @@ export function adjacentCells(board: Board, from: Position): Position[] {
   return cells;
 }
 
+/**
+ * Carré de N (§5.3) : les cases autour de `from` à N cases au plus, diagonales comprises, sans la case de départ
+ * (8 cases pour un carré de 1, 24 pour un carré de 2 sur terrain dégagé) ; chaque anneau part des cases du précédent, donc
+ * falaises et cases X coupent la zone.
+ */
+export function squareCells(board: Board, from: Position, size = 1): Position[] {
+  if (size === 1) return aroundCells(board, from);
+  const cells: Position[] = [];
+  let ring = [from];
+  for (let i = 0; i < size; i++) {
+    const next: Position[] = [];
+    for (const pos of ring) {
+      for (const cell of aroundCells(board, pos)) {
+        if (samePos(cell, from) || cells.some((c) => samePos(c, cell))) continue;
+        cells.push(cell);
+        next.push(cell);
+      }
+    }
+    ring = next;
+  }
+  return cells;
+}
+
+/** `b` est dans le carré de 1 de `a` (les 8 cases autour). */
+export function isInSquare(board: Board, a: Position, b: Position): boolean {
+  return aroundCells(board, a).some((pos) => samePos(pos, b));
+}
+
+/**
+ * Adjacent (§5.1) : une des 4 cases orthogonales, sans les diagonales, jouable et sans falaise entre les deux.
+ * Aucune carte ne l'emploie encore ; les cartes actuelles disent « carré de 1 ».
+ */
+export function adjacentCells(board: Board, from: Position): Position[] {
+  return orthogonalNeighbors(from).filter((pos) => isPlayable(board, pos) && !hasCliff(board, from, pos));
+}
+
 export function isAdjacent(board: Board, a: Position, b: Position): boolean {
   return adjacentCells(board, a).some((pos) => samePos(pos, b));
 }
 
 /**
- * `b` est dans la zone de `a` : les 8 cases autour (`adjacent`), celles-ci et la case de `a` (`cellAndAdjacent`), ou
- * celles-ci et les cases adjacentes à celles-ci (`adjacent2`, rayon 2), avec les mêmes falaises et cases X qui coupent la zone (§5.3).
+ * `b` est dans la zone de `a` : le carré de 1 (`square1`), celui-ci et la case de `a` (`cellAndSquare`), ou le carré de 2
+ * (`square2`), avec les mêmes falaises et cases X qui coupent la zone (§5.3).
  */
-export function isInZone(board: Board, a: Position, b: Position, zone: 'adjacent' | 'adjacent2' | 'cellAndAdjacent'): boolean {
-  if (isAdjacent(board, a, b)) return true;
-  if (zone === 'cellAndAdjacent') return samePos(a, b);
-  return zone === 'adjacent2' && !samePos(a, b) && adjacentCells(board, a).some((pos) => isAdjacent(board, pos, b));
+export function isInZone(board: Board, a: Position, b: Position, zone: 'square1' | 'square2' | 'cellAndSquare'): boolean {
+  if (isInSquare(board, a, b)) return true;
+  if (zone === 'cellAndSquare') return samePos(a, b);
+  return zone === 'square2' && !samePos(a, b) && aroundCells(board, a).some((pos) => isInSquare(board, pos, b));
 }

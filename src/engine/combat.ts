@@ -1,5 +1,5 @@
 // Attaque (SPEC.md §4.7), avec les mots-clés `riposte`, `prime` (§5) et ceux des decks archer et piège (§6 bis).
-import { DIRECTION_OFFSETS, adjacentCells, directionBetween, distance, getCell, getCliff } from './board';
+import { DIRECTION_OFFSETS, squareCells, directionBetween, distance, getCell, getCliff } from './board';
 import { getMonsterCard } from './cards';
 import { dealDamage } from './damage';
 import { IllegalActionError } from './errors';
@@ -52,12 +52,12 @@ export function getLineOfSightCells(state: BoardState, from: Position, range: nu
 
 /**
  * Attaque en diagonale (§10) : un monstre de portée 2 ou plus frappe aussi les 4 cases en diagonale, à 1 case, si elles
- * sont adjacentes au sens du §10 (jouables, un chemin en L sans falaise ni case X). Ni les monstres ni les terrains du
+ * sont dans le carré de 1 au sens du §10 (jouables, un chemin en L sans falaise ni case X). Ni les monstres ni les terrains du
  * coin ne gênent. Ce n'est pas un contact : ni riposte, ni avancée, ni bonus de dos.
  */
 export function getDiagonalCells(state: BoardState, from: Position, range: number): Position[] {
   if (range < 2) return [];
-  return adjacentCells(state.board, from).filter((pos) => pos.row !== from.row && pos.col !== from.col);
+  return squareCells(state.board, from).filter((pos) => pos.row !== from.row && pos.col !== from.col);
 }
 
 /**
@@ -139,7 +139,7 @@ export function isBehind(attacker: MonsterUnit, target: MonsterUnit): boolean {
 }
 
 /**
- * Avancée : l'attaquant était adjacent, l'attaque détruit la cible, et la case libérée peut être
+ * Avancée : l'attaquant était au contact, l'attaque détruit la cible, et la case libérée peut être
  * occupée (il n'y reste pas de terrain ennemi, SPEC.md §4.9).
  */
 export function canAdvance(state: BoardState, attacker: MonsterUnit, target: Unit): boolean {
@@ -241,7 +241,7 @@ export function applyAttack(state: GameState, action: AttackAction): GameState {
     return reveal(setUnit(shot, attacked), blocker.id);
   }
 
-  const adjacent = distance(attacker.pos, target.pos) === 1;
+  const inContact = distance(attacker.pos, target.pos) === 1;
   const behind = hitsFromBehind(attacker, target);
   const declared = emit(state, {
     type: 'attack',
@@ -258,7 +258,7 @@ export function applyAttack(state: GameState, action: AttackAction): GameState {
   const survivor = next.units[target.id];
 
   if (!survivor) {
-    if (target.kind === 'monster') next = onMonsterDestroyed(next, attacker, adjacent, target.pos);
+    if (target.kind === 'monster') next = onMonsterDestroyed(next, attacker, inContact, target.pos);
     // « Quand il détruit une unité » (Jeune Gomuscu) : monstre ou terrain, avant l'avancée.
     const onKill = getMonsterCard(attacker.cardId).onKill;
     if (onKill) next = applyTriggeredEffects(next, onKill, attacker.id, attacked);
@@ -286,7 +286,7 @@ export function applyAttack(state: GameState, action: AttackAction): GameState {
     hasKeyword(defender, 'riposte') &&
     !defender.hasRiposted &&
     !isStunned(defender) &&
-    adjacent
+    inContact
   ) {
     next = emit(next, { type: 'riposte', unitId: defender.id, targetId: attacker.id, from: defender.pos, to: attacker.pos });
     next = setUnit(next, { ...defender, hasRiposted: true });
@@ -313,13 +313,13 @@ function getShotBlocker(state: GameState, from: Position, to: Position): Unit | 
 }
 
 /** Bonus de l'attaquant qui détruit un monstre : `prime` toujours, `trophee` et `pillage` au contact seulement (§5.6). */
-function onMonsterDestroyed(state: GameState, attacker: MonsterUnit, adjacent: boolean, pos: Position): GameState {
+function onMonsterDestroyed(state: GameState, attacker: MonsterUnit, inContact: boolean, pos: Position): GameState {
   let next = state;
   const prime = getKeyword(attacker, 'prime');
   if (prime) next = addVp(next, attacker.owner, prime.amount, pos);
   const trophee = getKeyword(attacker, 'trophee');
-  if (adjacent && trophee) next = addVp(next, attacker.owner, trophee.amount, pos);
+  if (inContact && trophee) next = addVp(next, attacker.owner, trophee.amount, pos);
   const pillage = getKeyword(attacker, 'pillage');
-  if (adjacent && pillage) next = addMana(next, attacker.owner, pillage.amount, pos);
+  if (inContact && pillage) next = addMana(next, attacker.owner, pillage.amount, pos);
   return next;
 }

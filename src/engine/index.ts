@@ -18,11 +18,11 @@ export {
   type Destination,
 } from './movement';
 export { attackDamage, hitsFromBehind, isBehind, previewAttack, type AttackPreview } from './combat';
-export { getEmptyAdjacentCells, getTrapCells } from './effects';
+export { getEmptySquareCells, getTrapCells } from './effects';
 export { COMMON_CARDS } from './cards';
 export { getPassage, getPassageSources } from './traps';
 export { INITIAL_FACING } from './units';
-export { canMove, getNextTurnMobility, hasStatus, isStunned, ownerNextTurn, requiemCountdown, statusAmount, statusTotal, statusTurnsLeft } from './statuses';
+export { canMove, getNextTurnMobility, hasStatus, isSilenced, isStunned, ownerNextTurn, requiemCountdown, statusAmount, statusTotal, statusTurnsLeft } from './statuses';
 export { getFreeSummonCells, getTerrainCells } from './play-card';
 export { auraAtk, auraHp, auraMobility, auraSources, getAtk, getKeyword, getRange, getMonsterAt, getMonsters, getUnitsAt, hasKeyword } from './units';
 export { getControlledZones, getZoneCells, getZoneController, getZoneMana, getZoneOf, getZoneStatus } from './zones';

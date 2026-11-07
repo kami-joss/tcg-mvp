@@ -1,10 +1,10 @@
-// Auras de PV (Origine, SPEC.md §10) : tenues à jour après chaque action, d'après les monstres adjacents.
+// Auras de PV (Origine, SPEC.md §10) : tenues à jour après chaque action, d'après les monstres dans son carré de 1.
 import { emit } from './events';
 import { auraHp, getMonsters, setUnit } from './units';
 import type { GameState } from './types';
 
 /**
- * Chaque monstre a les PV d'aura que lui donnent ses alliés adjacents. En entrant dans une aura : +N PV et +N PV max ;
+ * Chaque monstre a les PV d'aura que lui donnent ses alliés dans son carré de 1. En entrant dans une aura : +N PV et +N PV max ;
  * en la quittant (lui ou la source s'éloigne, ou la source disparaît) : il perd ces PV et ces PV max, sans descendre
  * sous 1 PV.
  */

@@ -2041,6 +2041,11 @@ select {
   color: oklch(0.2 0.06 150);
 }
 
+.status--silence {
+  background: oklch(0.78 0.08 20);
+  color: oklch(0.3 0.1 20);
+}
+
 /* --- Nom de mana zone et falaises --- */
 
 .zone-label {
@@ -4063,7 +4068,7 @@ select {
   opacity: 0.8;
 }
 
-/* Texte d'ambiance (Maître des heures). */
+/* Texte d'ambiance (Maître du temps). */
 .sheet__flavor {
   margin: 0;
   font: italic 500 13px/1.35 var(--font);

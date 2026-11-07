@@ -168,7 +168,7 @@ function auraOf(unit: Unit): StatAura | null {
 
 /**
  * Les alliés dont l'aura couvre `monster` : monstres et terrains de même camp dont l'aura vise sa famille et dont la
- * zone le contient (8 cases autour, rayon 2, ou case du terrain et 8 autour), pas lui-même.
+ * zone le contient (carré de 1, carré de 2, ou case du terrain et carré de 1), pas lui-même.
  */
 export function auraSources(state: BoardState, monster: MonsterUnit): Unit[] {
   const archetype = getMonsterCard(monster.cardId).archetype;
@@ -185,7 +185,7 @@ export function getAtk(state: BoardState, monster: MonsterUnit): number {
   return monster.atk + monster.atkBonus + auraAtk(state, monster);
 }
 
-/** PV qu'apportent les auras à `monster` (Origine : +1 par Origine alliée adjacente). */
+/** PV qu'apportent les auras à `monster` (Origine : +1 par Origine alliée dans son carré de 1). */
 export function auraHp(state: BoardState, monster: MonsterUnit): number {
   return auraSources(state, monster).reduce((total, other) => total + (auraOf(other)?.hp ?? 0), 0);
 }

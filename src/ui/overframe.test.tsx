@@ -16,7 +16,7 @@ const glace = OVERFRAMES['archer-de-glace']!;
 /** L'entrée `archer_feu` du kit : c'est l'Feria - Sorciers du feu. */
 const feu = OVERFRAMES.apprenti!;
 const chrono = OVERFRAMES.chronomancienne!;
-const maitre = OVERFRAMES['maitre-des-heures']!;
+const maitre = OVERFRAMES['maitre-du-temps']!;
 
 const withGrimoire = (grimoire: CardId[], shiny: CardId[] = []): GameState =>
   gameWith([], { players: { 1: { mana: 10, grimoire, shiny } } });
@@ -24,7 +24,7 @@ const cardSheet = (cardId: CardId, shiny: CardId[] = []) =>
   getSheet(getPlayerView(withGrimoire([cardId, 'chevalier'], shiny), 1), { kind: 'card', cardId })!;
 
 describe('données des overframes', () => {
-  it('Archer de glace, Feria - Sorciers du feu, Chronomancienne, Maître des heures ; l’Archer du feu n’en a pas', () => {
+  it('Archer de glace, Feria - Sorciers du feu, Chronomancienne, Maître du temps ; l’Archer du feu n’en a pas', () => {
     expect([glace, feu, chrono, maitre].map((def) => def.headroom)).toEqual([118, 152, 186, 162]);
     expect(OVERFRAMES['archer-du-feu']).toBeUndefined();
     expect(feu.parts.map((part) => part.anim)).toEqual(['swayL', 'swayR', 'blink']);
@@ -134,8 +134,8 @@ describe('fiche à overframe', () => {
     expect(html).toContain('class="of__pop-img"');
   });
 
-  it('Maître des heures : reflet dans l’illustration, cadran à deux anneaux, mèches, poussière d’or, reflet en 4,2 s', () => {
-    const html = renderToStaticMarkup(<HoverSheet sheet={cardSheet('maitre-des-heures')} animated />);
+  it('Maître du temps : reflet dans l’illustration, cadran à deux anneaux, mèches, poussière d’or, reflet en 4,2 s', () => {
+    const html = renderToStaticMarkup(<HoverSheet sheet={cardSheet('maitre-du-temps')} animated />);
     expect(html).toContain('padding-top:calc(162px * var(--sheet-k, 1))');
     expect(html).toMatch(/<div class="of__art of__breath"[^>]*><div class="of__shine"[^>]*temporel\.jpg/);
     expect(html).toContain('mask-size:300% 100%');
@@ -209,7 +209,7 @@ describe('fiche à overframe', () => {
   it('taille de la fiche : cadre, illustration et calques de l’overframe dans le repère 280 × 498, mis à l’échelle', () => {
     // Le décalage du débordement grandit avec la fiche ; les calques (illustration, pop, bras, cadran) sont posés
     // dans des `.sheet__scale` ; le voile reste à la taille du cadre.
-    const stage = renderToStaticMarkup(<HoverSheet sheet={cardSheet('maitre-des-heures')} />);
+    const stage = renderToStaticMarkup(<HoverSheet sheet={cardSheet('maitre-du-temps')} />);
     expect(stage).toContain('padding-top:calc(162px * var(--sheet-k, 1))');
     expect(stage.match(/class="sheet__scale"/g)).toHaveLength(3);
     expect(stage).toMatch(/class="sheet__scale"[^>]*><div class="of__art of__breath"/);
