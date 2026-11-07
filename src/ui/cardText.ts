@@ -164,6 +164,8 @@ export function targetText(targeting: Targeting): string {
       return 'une case libre, rayon 2';
     case 'enemies':
       return 'tous les ennemis';
+    case 'enemiesNearAllies':
+      return 'tous les ennemis adjacents à une de tes unités';
     case 'trail':
       return 'une case de son chemin du tour';
   }

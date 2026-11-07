@@ -154,6 +154,7 @@ export type CardId =
   | 'dragonnet-temps'
   | 'maitre-des-heures'
   | 'piege-temporel'
+  | 'brulure-en-chaine'
   | 'fissure-temporelle'
   // Deck Vampire (la chauve-souris est une forme d'Emma, hors grimoire)
   | 'delta'
@@ -294,6 +295,11 @@ export type Targeting =
   | { readonly type: 'allies'; readonly archetype: Archetype }
   /** Tous les monstres ennemis qu'il voit, sans choix (Piège temporel) ; jouable s'il y en a au moins un. */
   | { readonly type: 'enemies' }
+  /**
+   * Les monstres ennemis adjacents à une unité alliée, monstre ou terrain (Brûlure en chaîne) : les effets s'appliquent
+   * une fois par unité alliée à côté de laquelle l'ennemi se trouve ; jouable s'il y en a au moins un.
+   */
+  | { readonly type: 'enemiesNearAllies'; readonly zone: 'adjacent' }
   /** Une case libre où la source a été pendant ce tour, sa case de départ comprise (retour, Explorateur du temps). */
   | { readonly type: 'trail' };
 

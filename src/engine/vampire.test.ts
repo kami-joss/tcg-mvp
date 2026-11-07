@@ -29,11 +29,11 @@ const canAttack = (state: GameState, unitId: string) => getLegalActions(state).s
 describe('cartes du deck Vampire', () => {
   it('stats, archétype Vampire, Soif 1 ; la chauve-souris est une forme d’Emma, hors grimoire ; le deck fait 25 cartes', () => {
     const soif = [{ keyword: 'soif', amount: 1 }];
-    expect(getMonsterCard('delta')).toMatchObject({ name: 'Delta - Vampire', cost: 1, atk: 2, hp: 2, mobility: 5, range: 1, archetype: 'vampire', keywords: soif });
-    expect(getMonsterCard('emma')).toMatchObject({ cost: 2, atk: 3, hp: 3, mobility: 4, range: 1, archetype: 'vampire', keywords: soif });
-    expect(getMonsterCard('emma-chauve-souris')).toMatchObject({ atk: 1, hp: 1, mobility: 8, range: 1, archetype: 'vampire', keywords: soif, formOf: 'emma' });
-    expect(getMonsterCard('vladimir')).toMatchObject({ cost: 5, atk: 3, hp: 5, mobility: 5, range: 1, archetype: 'vampire' });
-    expect(getMonsterCard('zoldik')).toMatchObject({ cost: 7, atk: 4, hp: 6, mobility: 5, range: 1, archetype: 'vampire' });
+    expect(getMonsterCard('delta')).toMatchObject({ name: 'Delta - Vampire', cost: 3, atk: 3, hp: 3, mobility: 4, range: 1, archetype: 'vampire', keywords: soif });
+    expect(getMonsterCard('emma')).toMatchObject({ cost: 1, atk: 2, hp: 3, mobility: 3, range: 1, archetype: 'vampire', keywords: soif });
+    expect(getMonsterCard('emma-chauve-souris')).toMatchObject({ cost: 1, atk: 1, hp: 1, mobility: 8, range: 1, archetype: 'vampire', keywords: soif, formOf: 'emma' });
+    expect(getMonsterCard('vladimir')).toMatchObject({ cost: 4, atk: 3, hp: 5, mobility: 5, range: 1, archetype: 'vampire' });
+    expect(getMonsterCard('zoldik')).toMatchObject({ cost: 6, atk: 3, hp: 8, mobility: 5, range: 1, archetype: 'vampire' });
     expect(DECKS.find((d) => d.id === 'vampire')!.cards).toHaveLength(25);
   });
 });
@@ -42,15 +42,15 @@ describe('Soif : à l’attaque, il récupère 1 PV', () => {
   it('après les dégâts, sans dépasser ses PV max', () => {
     const state = gameWith([
       { monster: 'delta', owner: 1, at: at(2, 1), hp: 1 },
-      { monster: 'milicien', owner: 2, at: at(2, 2) },
+      { monster: 'golem', owner: 2, at: at(2, 2) },
     ]);
     const after = applyAction(state, attack('u1', 'u2'));
-    expect(after.units.u2?.hp).toBe(1);
+    expect(after.units.u2?.hp).toBe(4);
     expect(monster(after, 'u1').hp).toBe(2);
     expect(after.events.map((e) => e.type)).toEqual(['attack', 'damage', 'heal']);
     // Tous ses PV : rien.
-    const full = applyAction(gameWith([{ monster: 'delta', owner: 1, at: at(2, 1) }, { monster: 'milicien', owner: 2, at: at(2, 2) }]), attack('u1', 'u2'));
-    expect(monster(full, 'u1').hp).toBe(2);
+    const full = applyAction(gameWith([{ monster: 'delta', owner: 1, at: at(2, 1) }, { monster: 'golem', owner: 2, at: at(2, 2) }]), attack('u1', 'u2'));
+    expect(monster(full, 'u1').hp).toBe(3);
     expect(full.events.some((e) => e.type === 'heal')).toBe(false);
   });
 
@@ -95,9 +95,9 @@ describe('Vladimir : absorbe 1 PV à chaque ennemi adjacent', () => {
     const after = applyAction(around(2), activate('u1', { kind: 'area' }));
     expect(after.units.u2?.hp).toBe(2);
     expect(after.units.u3?.hp).toBe(6);
-    expect(after.units.u4?.hp).toBe(2);
+    expect(after.units.u4?.hp).toBe(3);
     expect(monster(after, 'u1').hp).toBe(4);
-    expect(after.players[1].mana).toBe(8);
+    expect(after.players[1].mana).toBe(9);
     // Pas une attaque : son attaque reste.
     expect(monster(after, 'u1').hasAttacked).toBe(false);
   });
@@ -134,10 +134,12 @@ describe('Zoldik : absorbe tous les PV d’un ennemi adjacent, sauf 1', () => {
     );
 
   it('la cible tombe à 1 PV ; Zoldik récupère les PV retirés, sans dépasser ses PV max ; jamais de VP', () => {
-    const after = applyAction(duel(2), activate('u1', { kind: 'unit', unitId: 'u2' }));
+    const after = applyAction(duel(1), activate('u1', { kind: 'unit', unitId: 'u2' }));
     expect(after.units.u2?.hp).toBe(1);
-    expect(monster(after, 'u1').hp).toBe(6);
-    expect(after.players[1]).toMatchObject({ mana: 7, vp: 0 });
+    expect(monster(after, 'u1').hp).toBe(7); // 1 + 6 PV retirés
+    expect(after.players[1]).toMatchObject({ mana: 8, vp: 0 });
+    const capped = applyAction(duel(5), activate('u1', { kind: 'unit', unitId: 'u2' }));
+    expect(monster(capped, 'u1').hp).toBe(8); // 5 + 6 plafonné à ses PV max
   });
 
   it('impossible sur un ennemi à 1 PV ; jouable même avec tous ses PV', () => {
@@ -167,7 +169,7 @@ describe('Appel du sang : +2 mobilité à tous ses vampires ce tour', () => {
       withGrimoire('appel-du-sang'),
     );
     const after = applyAction(state, cast('appel-du-sang', { kind: 'all' }));
-    expect([1, 2, 3, 4].map((i) => monster(after, `u${i}`).mobilityLeft)).toEqual([7, 6, 2, 5]);
+    expect([1, 2, 3, 4].map((i) => monster(after, `u${i}`).mobilityLeft)).toEqual([6, 5, 2, 4]);
     expect(after.players[1].mana).toBe(7);
   });
 
@@ -198,7 +200,7 @@ describe('Sacrifice sanguinaire : tous ses PV sauf 1, +1 ATK par PV perdu ce tou
   it('il tombe à 1 PV, sans être détruit ; le bonus d’ATK ne vaut que ce tour, les PV ne reviennent pas', () => {
     const after = applyAction(board(), cast('sacrifice-sanguinaire', { kind: 'unit', unitId: 'u1' }));
     expect(monster(after, 'u1')).toMatchObject({ hp: 1, maxHp: 3, atkBonus: 2 });
-    expect(getAtk(after, monster(after, 'u1'))).toBe(5);
+    expect(getAtk(after, monster(after, 'u1'))).toBe(4);
     expect(after.players[1].vp + after.players[2].vp).toBe(0);
     const later = applyAction(applyAction(after, endTurn), endTurn);
     expect(monster(later, 'u1')).toMatchObject({ hp: 1, atkBonus: 0 });
@@ -220,7 +222,7 @@ describe('Emma : se transforme en chauve-souris, et inversement', () => {
     expect(bat.players[1].mana).toBe(9);
     expect(effectAvailability(getPlayerView(bat, 1), 'u1')).toEqual({ ok: true });
     const back = applyAction(bat, transform('u1'));
-    expect(monster(back, 'u1')).toMatchObject({ cardId: 'emma', atk: 3, hp: 3, maxHp: 3 });
+    expect(monster(back, 'u1')).toMatchObject({ cardId: 'emma', atk: 2, hp: 3, maxHp: 3 });
     const again = applyAction(back, transform('u1'));
     expect(monster(again, 'u1').cardId).toBe('emma-chauve-souris');
     expect(again.players[1].mana).toBe(7);
@@ -232,13 +234,13 @@ describe('Emma : se transforme en chauve-souris, et inversement', () => {
     expect(monster(bat, 'u1')).toMatchObject({ hp: 1, maxHp: 1 });
     expect(monster(applyAction(bat, transform('u1')), 'u1')).toMatchObject({ hp: 1, maxHp: 3 });
     // Avec Bénédiction (+1 ATK +1 PV sur les deux formes) : la chauve-souris blessée le reste.
-    const blessed = gameWith([{ monster: 'emma', owner: 1, at: at(1, 0), atk: 4, hp: 4 }], MANA);
+    const blessed = gameWith([{ monster: 'emma', owner: 1, at: at(1, 0), atk: 3, hp: 4 }], MANA);
     const strong = { ...blessed, units: { u1: { ...monster(blessed, 'u1'), maxHp: 4 } } };
     const wounded = applyAction(strong, transform('u1'));
     expect(monster(wounded, 'u1')).toMatchObject({ atk: 2, hp: 2, maxHp: 2 });
     const hurt: GameState = { ...wounded, units: { u1: { ...monster(wounded, 'u1'), hp: 1 } } };
     const emmaAgain = applyAction(hurt, transform('u1'));
-    expect(monster(emmaAgain, 'u1')).toMatchObject({ atk: 4, hp: 4, maxHp: 4 });
+    expect(monster(emmaAgain, 'u1')).toMatchObject({ atk: 3, hp: 4, maxHp: 4 });
     expect(monster(applyAction(emmaAgain, transform('u1')), 'u1')).toMatchObject({ hp: 1, maxHp: 2 });
   });
 

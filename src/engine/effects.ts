@@ -196,6 +196,18 @@ export function getTrailCells(state: BoardState, source: MonsterUnit): Position[
   return [...cells.values()];
 }
 
+/**
+ * Brûlure en chaîne : pour chaque unité alliée de `player` (monstre ou terrain), les monstres ennemis qu'il voit sur ses
+ * 8 cases adjacentes (§10). Un ennemi à côté de plusieurs unités alliées y est autant de fois.
+ */
+export function getEnemiesNearAllies(state: GameState, player: PlayerId): MonsterUnit[] {
+  const seen = perceivedBy(state, player);
+  const enemies = getMonsters(seen, opponent(player));
+  return Object.values(state.units)
+    .filter((ally) => ally.owner === player)
+    .flatMap((ally) => adjacentCells(state.board, ally.pos).flatMap((pos) => enemies.filter((enemy) => samePos(enemy.pos, pos))));
+}
+
 /** Le recul de l'effet, s'il en a un. */
 function findPush(effects: readonly Effect[]): PushEffect | undefined {
   return effects.find((effect): effect is PushEffect => effect.type === 'push');
@@ -232,6 +244,8 @@ export function getEffectTargets(
     case 'enemies':
       // Piège temporel : tous les monstres ennemis qu'il voit, s'il y en a au moins un.
       return getMonsters(state, opponent(player)).length > 0 ? [{ kind: 'all' }] : [];
+    case 'enemiesNearAllies':
+      return getEnemiesNearAllies(state, player).length > 0 ? [{ kind: 'all' }] : [];
     case 'trail':
       return getTrailCells(state, requireSource(source)).map((pos): EffectTarget => ({ kind: 'cell', pos }));
     case 'self':
@@ -362,6 +376,9 @@ export function resolveAbility(
     case 'enemies':
       // Les monstres ennemis que voit le lanceur (jamais un monstre invisible pour lui), au moment du sort.
       return getMonsters(perceivedBy(state, by), opponent(by)).reduce((next, m) => applyEffects(next, effects, m.id, { by, source, origin }), state);
+    case 'enemiesNearAllies':
+      // Au moment du sort : un ennemi à côté de deux unités alliées subit les effets deux fois (ils se cumulent, §5 bis).
+      return getEnemiesNearAllies(state, by).reduce((next, m) => applyEffects(next, effects, m.id, { by, source, origin }), state);
     case 'trail': {
       if (target.kind !== 'cell') throw new Error('Le retour vise une case');
       const from = requireSource(source);

@@ -41,7 +41,7 @@ describe('textes des cartes du deck Vampire', () => {
 
   it('notation du lexique (tableaux de SPEC.md) et noms « Nom - Vampire »', () => {
     expect(cardEffectLine(getCard('zoldik'))).toBe(
-      'Soif 1 ; Actif (3 mana, puis plus d’attaque ce tour) · un ennemi adjacent · absorbe tous ses PV sauf 1',
+      'Soif 1 ; Actif (2 mana, puis plus d’attaque ce tour) · un ennemi adjacent · absorbe tous ses PV sauf 1',
     );
     expect(cardEffectLine(getCard('emma'))).toBe('Soif 1 ; Actif (1 mana, sans limite par tour) · se transforme en Emma chauve-souris');
     expect(splitCardName(getCard('emma-chauve-souris').name)).toEqual({ title: 'Emma chauve-souris', archetype: 'Vampire' });

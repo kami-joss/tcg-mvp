@@ -241,17 +241,17 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   // Deck Sorciers du feu : famille Sorcier du feu (§10). Brûlure 1, 2 tours : à l'attaque, burn 1 pendant 2 tours.
   apprenti: inArchetype(
     'sorcier',
-    monster('apprenti', 'Feria - Sorciers du feu', { cost: 2, atk: 1, hp: 3, mobility: 6, range: 2 }, [BRULURE_2]),
+    monster('apprenti', 'Feria - Sorciers du feu', { cost: 3, atk: 1, hp: 3, mobility: 5, range: 2 }, [BRULURE_2]),
   ),
   'lutin-brasier': inArchetype(
     'sorcier',
-    monster('lutin-brasier', 'Lutin brasier - Sorciers du feu', { cost: 1, atk: 1, hp: 4, mobility: 5, range: 1 }, [BRULURE_2], {
+    monster('lutin-brasier', 'Lutin brasier - Sorciers du feu', { cost: 2, atk: 1, hp: 3, mobility: 6, range: 1 }, [], {
       manaCost: 1,
       targeting: { type: 'emptyCell', zone: 'adjacent2' },
       effects: [
         {
           type: 'burnCell',
-          turns: 2,
+          turns: 3,
           effects: [
             { type: 'damage', amount: 1 },
             { type: 'status', kind: 'burn', amount: 1, turns: 1 },
@@ -262,16 +262,21 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   ),
   archimage: inArchetype(
     'sorcier',
-    monster('archimage', 'Archimage - Sorciers du feu', { cost: 6, atk: 3, hp: 8, mobility: 4, range: 2 }, [BRULURE_2], {
-      manaCost: 2,
-      targeting: { type: 'zone', zone: 'adjacent' },
+    monster('archimage', 'Archimage - Sorciers du feu', { cost: 6, atk: 3, hp: 7, mobility: 5, range: 2 }, [BRULURE_2], {
+      manaCost: 1,
+      targeting: { type: 'zone', zone: 'adjacent2' },
       effects: [{ type: 'status', kind: 'burn', amount: 2, turns: 2 }],
     }),
   ),
   'golem-de-lave': {
-    ...inArchetype('sorcier', monster('golem-de-lave', 'Golem de lave - Sorciers du feu', { cost: 5, atk: 2, hp: 12, mobility: 2, range: 1 })),
+    ...inArchetype('sorcier', monster('golem-de-lave', 'Golem de lave - Sorciers du feu', { cost: 4, atk: 2, hp: 10, mobility: 2, range: 1 })),
     passage: { zone: 'adjacent', effects: [{ type: 'status', kind: 'burn', amount: 1, turns: 1 }], lingering: true },
   },
+
+  'brulure-en-chaine': spell('brulure-en-chaine', 'Brûlure en chaîne - Sorciers du feu', 2, {
+    targeting: { type: 'enemiesNearAllies', zone: 'adjacent' },
+    effects: [{ type: 'status', kind: 'burn', amount: 1, turns: 2 }],
+  }),
 
   // Deck Explorateur du temps : famille Explorateur du temps (§10). Retour : il revient sur une case où il a été ce tour.
   'apprenti-temps': inArchetype(
@@ -311,20 +316,20 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   }),
 
   // Deck Vampire : famille Vampire, Soif 1 (§10).
-  delta: vampire('delta', 'Delta - Vampire', { cost: 1, atk: 2, hp: 2, mobility: 5, range: 1 }),
-  emma: vampire('emma', 'Emma - Vampire', { cost: 2, atk: 3, hp: 3, mobility: 4, range: 1 }, transformInto('emma-chauve-souris')),
+  delta: vampire('delta', 'Delta - Vampire', { cost: 3, atk: 3, hp: 3, mobility: 4, range: 1 }),
+  emma: vampire('emma', 'Emma - Vampire', { cost: 1, atk: 2, hp: 3, mobility: 3, range: 1 }, transformInto('emma-chauve-souris')),
   // Forme d'Emma, hors grimoire : elle n'apparaît que par la transformation ; son coût est celui d'Emma.
   'emma-chauve-souris': {
-    ...vampire('emma-chauve-souris', 'Emma chauve-souris - Vampire', { cost: 2, atk: 1, hp: 1, mobility: 8, range: 1 }, transformInto('emma')),
+    ...vampire('emma-chauve-souris', 'Emma chauve-souris - Vampire', { cost: 1, atk: 1, hp: 1, mobility: 8, range: 1 }, transformInto('emma')),
     formOf: 'emma',
   },
-  vladimir: vampire('vladimir', 'Vladimir - Vampire', { cost: 5, atk: 3, hp: 5, mobility: 5, range: 1 }, {
-    manaCost: 2,
+  vladimir: vampire('vladimir', 'Vladimir - Vampire', { cost: 4, atk: 3, hp: 5, mobility: 5, range: 1 }, {
+    manaCost: 1,
     targeting: { type: 'zone', zone: 'adjacent' },
     effects: [{ type: 'absorb', amount: 1 }],
   }),
-  zoldik: vampire('zoldik', 'Zoldik - Vampire', { cost: 7, atk: 4, hp: 6, mobility: 5, range: 1 }, {
-    manaCost: 3,
+  zoldik: vampire('zoldik', 'Zoldik - Vampire', { cost: 6, atk: 3, hp: 8, mobility: 5, range: 1 }, {
+    manaCost: 2,
     endsAttack: true,
     targeting: ADJACENT_ENEMY,
     effects: [{ type: 'absorb', downTo: 1 }],
@@ -584,8 +589,7 @@ export const DECKS: readonly Deck[] = [
       ['lutin-brasier', 3],
       ['archimage', 2],
       ['golem-de-lave', 3],
-      ['gardien', 1],
-      ['chevalier', 1],
+      ['brulure-en-chaine', 2],
       ['boule-de-feu', 2],
       ['charge', 2],
       ['benediction', 1],

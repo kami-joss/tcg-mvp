@@ -146,6 +146,8 @@ function targetOf(targeting: Targeting): Target {
       return many(`tous tes ${ARCHETYPE_NAMES[targeting.archetype].many}`);
     case 'enemies':
       return many('tous les ennemis');
+    case 'enemiesNearAllies':
+      return many(`les ennemis ${t('adjacent', 'adjacents')} à chacune de tes unités`);
     case 'self':
     case 'trail':
       return one('ce monstre');

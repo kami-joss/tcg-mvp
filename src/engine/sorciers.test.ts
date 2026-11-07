@@ -20,13 +20,15 @@ const burnTargets = (state: GameState) =>
 
 describe('cartes du deck Sorciers du feu', () => {
   it('caractéristiques, famille, Brûlure 1, 2 tours', () => {
-    expect(CARDS.apprenti).toMatchObject({ cost: 2, atk: 1, hp: 3, mobility: 6, range: 2, archetype: 'sorcier' });
-    expect(CARDS['lutin-brasier']).toMatchObject({ cost: 1, atk: 1, hp: 4, mobility: 5, range: 1, archetype: 'sorcier' });
-    expect(CARDS.archimage).toMatchObject({ cost: 6, atk: 3, hp: 8, mobility: 4, range: 2, archetype: 'sorcier' });
-    expect(CARDS['golem-de-lave']).toMatchObject({ cost: 5, atk: 2, hp: 12, mobility: 2, range: 1, archetype: 'sorcier' });
-    for (const id of ['apprenti', 'lutin-brasier', 'archimage'] as const) {
+    expect(CARDS.apprenti).toMatchObject({ cost: 3, atk: 1, hp: 3, mobility: 5, range: 2, archetype: 'sorcier' });
+    expect(CARDS['lutin-brasier']).toMatchObject({ cost: 2, atk: 1, hp: 3, mobility: 6, range: 1, archetype: 'sorcier' });
+    expect(CARDS.archimage).toMatchObject({ cost: 6, atk: 3, hp: 7, mobility: 5, range: 2, archetype: 'sorcier' });
+    expect(CARDS['golem-de-lave']).toMatchObject({ cost: 4, atk: 2, hp: 10, mobility: 2, range: 1, archetype: 'sorcier' });
+    for (const id of ['apprenti', 'archimage'] as const) {
       expect(CARDS[id], id).toMatchObject({ keywords: [{ keyword: 'brulure', amount: 1, turns: 2 }] });
     }
+    // Le Lutin brasier n'a plus de Brûlure : seule sa case brûlée.
+    expect(CARDS['lutin-brasier']).toMatchObject({ keywords: [] });
   });
 
   it('à l’attaque, la cible est burn 1 pendant 2 tours, terrain compris', () => {
@@ -77,13 +79,13 @@ describe('Lutin brasier : case brûlée', () => {
     expect(entered.burningCells).toHaveLength(1);
     // Ses propres monstres n'ont rien.
     const own = applyAction(burned, move('u1', at(2, 4)));
-    expect(own.units.u1).toMatchObject({ hp: 4, statuses: [] });
+    expect(own.units.u1).toMatchObject({ hp: 3, statuses: [] });
   });
 
-  it('elle brûle jusqu’à la fin du 2e prochain tour de son camp', () => {
+  it('elle brûle jusqu’à la fin du 3e prochain tour de son camp', () => {
     let next = applyAction(state, burnCell(at(2, 4)));
-    for (let i = 0; i < 4; i++) next = applyAction(next, END_TURN);
-    expect(next.turn).toBe(5);
+    for (let i = 0; i < 6; i++) next = applyAction(next, END_TURN);
+    expect(next.turn).toBe(7);
     expect(next.burningCells).toHaveLength(1);
     expect(applyAction(next, END_TURN).burningCells).toEqual([]);
   });
@@ -94,20 +96,78 @@ describe('Lutin brasier : case brûlée', () => {
 });
 
 describe('Archimage', () => {
-  it('Actif (2 mana) : tous les ennemis adjacents sont burn 2 pendant 2 tours', () => {
+  it('Actif (1 mana) : tous les ennemis dans un rayon de 2 sont burn 2 pendant 2 tours', () => {
     const state = gameWith(
       [
         { monster: 'archimage', owner: 1, at: at(1, 4) },
         { monster: 'golem', owner: 2, at: at(1, 5) },
         { monster: 'golem', owner: 2, at: at(2, 3) },
+        { monster: 'golem', owner: 2, at: at(1, 6) },
         { monster: 'golem', owner: 2, at: at(1, 7) },
       ],
       MANA,
     );
     const after = applyAction(state, { type: 'activateEffect', unitId: 'u1', target: { kind: 'area' } });
+    expect(after.players[1].mana).toBe(9);
+    for (const id of ['u2', 'u3', 'u4']) expect(after.units[id]?.statuses, id).toMatchObject([{ kind: 'burn', amount: 2, turns: 2 }]);
+    expect(after.units.u5?.statuses).toEqual([]); // à 3 cases
+  });
+});
+
+describe('Brûlure en chaîne (sort, 2 mana)', () => {
+  const CHAIN: Action = { type: 'playCard', cardId: 'brulure-en-chaine', target: { kind: 'all' } };
+  const hand = { players: { 1: { mana: 10, grimoire: ['brulure-en-chaine' as const] } } };
+  const burns = (state: GameState, id: UnitId) => state.units[id]?.statuses.filter((s) => s.kind === 'burn');
+
+  it('les ennemis adjacents à un de ses monstres sont burn 1 pendant 2 tours ; les autres, rien', () => {
+    const state = gameWith(
+      [
+        { monster: 'milicien', owner: 1, at: at(8, 1) },
+        { monster: 'golem', owner: 2, at: at(7, 2) }, // en diagonale : adjacent
+        { monster: 'golem', owner: 2, at: at(8, 6) }, // loin
+      ],
+      hand,
+    );
+    const after = applyAction(state, CHAIN);
     expect(after.players[1].mana).toBe(8);
-    for (const id of ['u2', 'u3']) expect(after.units[id]?.statuses, id).toMatchObject([{ kind: 'burn', amount: 2, turns: 2 }]);
-    expect(after.units.u4?.statuses).toEqual([]);
+    expect(burns(after, 'u2')).toMatchObject([{ amount: 1, turns: 2 }]);
+    expect(burns(after, 'u3')).toEqual([]);
+  });
+
+  it('une fois par unité alliée à côté : deux monstres voisins = burn cumulé', () => {
+    const state = gameWith(
+      [
+        { monster: 'milicien', owner: 1, at: at(8, 1) },
+        { monster: 'eclaireur', owner: 1, at: at(8, 3) },
+        { monster: 'golem', owner: 2, at: at(8, 2) },
+      ],
+      hand,
+    );
+    // Deux burn 1 : ils se cumulent (§5 bis), soit 2 PV de burn par tour.
+    expect(burns(applyAction(state, CHAIN), 'u3')?.reduce((total, b) => total + (b.kind === 'burn' ? b.amount : 0), 0)).toBe(2);
+  });
+
+  it('un terrain allié est aussi un centre : ses voisins sont brûlés', () => {
+    const state = gameWith(
+      [
+        { terrain: 'bastion', owner: 1, at: at(5, 4) },
+        { monster: 'golem', owner: 2, at: at(5, 5) },
+      ],
+      hand,
+    );
+    expect(burns(applyAction(state, CHAIN), 'u2')).toHaveLength(1);
+  });
+
+  it('pas jouable sans ennemi à côté d’une de ses unités', () => {
+    const state = gameWith(
+      [
+        { monster: 'milicien', owner: 1, at: at(5, 5) },
+        { monster: 'golem', owner: 2, at: at(5, 8) },
+      ],
+      hand,
+    );
+    expect(getLegalActions(state).some((a) => a.type === 'playCard' && a.cardId === 'brulure-en-chaine')).toBe(false);
+    expect(() => applyAction(state, CHAIN)).toThrow(IllegalActionError);
   });
 });
 

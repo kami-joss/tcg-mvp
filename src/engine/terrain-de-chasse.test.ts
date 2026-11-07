@@ -153,11 +153,11 @@ describe('Terrain de chasse : +1 mobilité au départ de sa zone (§10)', () => 
   });
 
   it('Emma le garde en se transformant, sans en reprendre un sous l’autre forme', () => {
-    // Emma (mobilité 4) fait un pas dans la zone : 4 + 1 − 1 = 4 ; chauve-souris (mobilité 8) : 4 + 8 − 4 = 8.
+    // Emma (mobilité 3) fait un pas dans la zone : 3 + 1 − 1 = 3 ; chauve-souris (mobilité 8) : 8 + 1 − 1 = 8.
     const state = hunting([{ monster: 'emma', owner: 1, at: at(5, 3) }]);
     const players = { ...state.players, 1: { ...state.players[1], mana: 5 } };
     const moved = applyAction({ ...state, players }, move('u2', at(4, 3)));
-    expect(monster(moved, 'u2').mobilityLeft).toBe(4);
+    expect(monster(moved, 'u2').mobilityLeft).toBe(3);
     const bat = applyAction(moved, { type: 'activateEffect', unitId: 'u2', target: { kind: 'unit', unitId: 'u2' } });
     expect(monster(bat, 'u2')).toMatchObject({ cardId: 'emma-chauve-souris', mobilityLeft: 8, onMoveTaken: true });
     expect(farthest(bat, 'u2')).toBeLessThanOrEqual(8);

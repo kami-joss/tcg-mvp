@@ -29,12 +29,13 @@ describe('textes des cartes Sorciers du feu', () => {
   it('colonne « Effet » et fiche', () => {
     expect(cardEffectLine(getCard('apprenti'))).toBe('Brûlure 1, 2 tours');
     expect(cardEffectLine(getCard('lutin-brasier'))).toBe(
-      'Brûlure 1, 2 tours ; Actif (1 mana) · une case libre, rayon 2 · case brûlée pendant 2 tours : 1 dégât + burn 1 pendant 1 tour',
+      'Actif (1 mana) · une case libre, rayon 2 · case brûlée pendant 3 tours : 1 dégât + burn 1 pendant 1 tour',
     );
-    expect(cardEffectLine(getCard('archimage'))).toBe('Brûlure 1, 2 tours ; Actif (2 mana) · adjacents · burn 2 pendant 2 tours');
+    expect(cardEffectLine(getCard('archimage'))).toBe('Brûlure 1, 2 tours ; Actif (1 mana) · adjacents, rayon 2 · burn 2 pendant 2 tours');
+    expect(cardEffectLine(getCard('brulure-en-chaine'))).toBe('Tous les ennemis adjacents à une de tes unités · burn 1 pendant 2 tours');
     expect(cardEffectLine(getCard('golem-de-lave'))).toBe('Zone · adjacents · burn 1 pendant 1 tour');
     expect(describeCard(getCard('golem-de-lave'))).toEqual([
-      'ATK 2 · PV 12 · Mob. 2 · Portée 1',
+      'ATK 2 · PV 10 · Mob. 2 · Portée 1',
       'Archétype Sorciers du feu.',
       'Passif · Zone · adjacents · burn 1 pendant 1 tour : chaque monstre ennemi dans les 8 cases autour de lui le subit : quand il y entre, quand il arrive à côté de lui (une fois par déplacement), et au début de son tour s’il y est encore.',
     ]);
@@ -69,11 +70,11 @@ describe('Lutin brasier : brûler une case', () => {
     expect(sheet.title).toBe('Case brûlée');
     expect(sheet.text).toEqual([
       'Chaque monstre ennemi qui y entre subit : 1 dégât + burn 1 pendant 1 tour. La case reste.',
-      'Elle brûle jusqu’à la fin de ce tour et des 2 prochains tours de J1.',
+      'Elle brûle jusqu’à la fin de ce tour et des 3 prochains tours de J1.',
     ]);
     const theirTurn = applyAction(burned, { type: 'endTurn' });
     expect(getSheet(view(theirTurn, 2), { kind: 'cell', pos: at(2, 4) })!.text[1]).toBe(
-      'Elle brûle jusqu’à la fin du 2e prochain tour de J1.',
+      'Elle brûle jusqu’à la fin du 3e prochain tour de J1.',
     );
   });
 
