@@ -76,21 +76,48 @@ describe('mode contestation : contrôle (SPEC.md §4.4 bis)', () => {
     expect(status(contest([{ terrain: 'bastion', owner: 1, at: FORGE }])).controller).toBe(1);
   });
 
-  it('un terrain la tient pour son propriétaire tant qu’il n’est pas détruit, quels que soient les monstres', () => {
-    const alone = contest([
+  it('supériorité numérique : avec plus de monstres, un camp garde la zone (2 contre 1) ; à égalité, elle est contestée', () => {
+    const twoVsOne = contest([
+      { monster: 'golem', owner: 1, at: FORGE },
+      { monster: 'milicien', owner: 1, at: at(5, 5) },
+      { monster: 'eclaireur', owner: 2, at: at(7, 7) },
+    ]);
+    expect(status(twoVsOne)).toEqual({ pos: FORGE, controller: 1, contested: false });
+    expect(getControlledZones(twoVsOne, 1)).toHaveLength(1);
+    expect(getControlledZones(twoVsOne, 2)).toEqual([]);
+    const twoVsTwo = contest([
+      { monster: 'golem', owner: 1, at: FORGE },
+      { monster: 'milicien', owner: 1, at: at(5, 5) },
+      { monster: 'eclaireur', owner: 2, at: at(7, 7) },
+      { monster: 'golem', owner: 2, at: at(7, 6) },
+    ]);
+    expect(status(twoVsTwo)).toEqual({ pos: FORGE, controller: null, contested: true });
+  });
+
+  it('le terrain compte pour 1 unité : à 1 contre 1, un terrain et un monstre ennemi contestent la zone', () => {
+    const state = contest([
       { terrain: 'bastion', owner: 1, at: FORGE },
       { monster: 'golem', owner: 2, at: at(5, 6) },
     ]);
-    expect(status(alone)).toEqual({ pos: FORGE, controller: 1, contested: false });
+    expect(status(state)).toEqual({ pos: FORGE, controller: null, contested: true });
+  });
+
+  it('un terrain et un monstre (2) tiennent contre un monstre ennemi (1) ; deux monstres ennemis (2 contre 1) prennent la zone', () => {
     const withOwnMonster = contest([
       { terrain: 'bastion', owner: 1, at: FORGE },
       { monster: 'milicien', owner: 1, at: FORGE },
       { monster: 'golem', owner: 2, at: at(5, 6) },
     ]);
     expect(status(withOwnMonster)).toEqual({ pos: FORGE, controller: 1, contested: false });
+    const outnumbered = contest([
+      { terrain: 'bastion', owner: 1, at: FORGE },
+      { monster: 'golem', owner: 2, at: at(5, 6) },
+      { monster: 'eclaireur', owner: 2, at: at(7, 7) },
+    ]);
+    expect(status(outnumbered)).toEqual({ pos: FORGE, controller: 2, contested: false });
   });
 
-  it('le terrain détruit, la zone se juge sur les monstres', () => {
+  it('le terrain détruit, la zone se juge sur les unités qui restent', () => {
     const state = contest([
       { monster: 'golem', owner: 2, at: at(6, 5) },
       { terrain: 'bastion', owner: 1, at: FORGE, hp: 1 },
@@ -141,13 +168,21 @@ describe('mode contestation : revenus (SPEC.md §4.4 bis)', () => {
     expect(j1TurnStart(units).players[1].mana).toBe(getBaseMana(3) + 2);
     // Sans terrain, la zone ne rapporte pas de mana : l'étendard seul n'en donne pas.
     expect(getZoneMana(contest([{ monster: 'porte-etendard', owner: 1, at: at(5, 7) }]), FORGE)).toBe(0);
-    // La zone tenue par un terrain adverse : son étendard ne compte pas, et la zone ne lui rapporte rien.
+    // Un terrain adverse (1 contre 1) : la zone est contestée, elle ne rapporte rien à personne.
     const enemyTerrain = contest([
       { terrain: 'bastion', owner: 2, at: FORGE },
       { monster: 'porte-etendard', owner: 1, at: at(5, 7) },
     ]);
-    expect(getZoneMana(enemyTerrain, FORGE)).toBe(1);
     expect(getControlledZones(enemyTerrain, 1)).toEqual([]);
+    expect(getZoneMana(enemyTerrain, FORGE)).toBe(0);
+    // Plus nombreux (2 contre 1), il tient la zone, mais sans terrain à lui il n'en tire pas de mana.
+    const outnumber = contest([
+      { terrain: 'bastion', owner: 2, at: FORGE },
+      { monster: 'porte-etendard', owner: 1, at: at(5, 7) },
+      { monster: 'golem', owner: 1, at: at(7, 7) },
+    ]);
+    expect(getControlledZones(outnumber, 1)).toHaveLength(1);
+    expect(getZoneMana(outnumber, FORGE)).toBe(0);
   });
 });
 
@@ -167,6 +202,30 @@ describe('mode contestation : terrains (SPEC.md §4.4 bis)', () => {
     const state = contest([{ monster: 'golem', owner: 1, at: at(5, 5) }], 1, grimoire);
     expect(terrainTargets(state)).toEqual([]);
     expect(() => applyAction(state, playBastion(at(5, 5)))).toThrow();
+  });
+
+  it('seulement dans une zone qu’on tient : pas si l’adversaire est plus nombreux, oui si c’est nous', () => {
+    const outnumbered = contest(
+      [
+        { monster: 'golem', owner: 1, at: FORGE },
+        { monster: 'eclaireur', owner: 2, at: at(7, 7) },
+        { monster: 'golem', owner: 2, at: at(7, 6) },
+      ],
+      1,
+      grimoire,
+    );
+    expect(terrainTargets(outnumbered)).toEqual([]);
+    expect(() => applyAction(outnumbered, playBastion())).toThrow();
+    const ahead = contest(
+      [
+        { monster: 'golem', owner: 1, at: FORGE },
+        { monster: 'milicien', owner: 1, at: at(5, 5) },
+        { monster: 'eclaireur', owner: 2, at: at(7, 7) },
+      ],
+      1,
+      grimoire,
+    );
+    expect(terrainTargets(ahead)).toEqual([FORGE]);
   });
 
   it('jamais dans une zone contestée', () => {

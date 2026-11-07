@@ -31,6 +31,7 @@ import {
   isPlayable,
   isStunned,
   ownerNextTurn,
+  samePos,
   statusTotal,
 } from '../engine';
 import { getStrikers } from './reach';
@@ -432,8 +433,7 @@ export function evaluate(state: GameState, me: PlayerId): number {
   // en mode contestation ; sinon, vers l'ennemi. En cases de marche : murs et falaises font faire le tour. Un seul
   // monstre garde chaque zone : en mode contestation, les autres de la même zone repartent vers les suivantes.
   const open = zones.filter(({ zone }, i) => control[i] !== me && (targets[me]?.has(zone) ?? true));
-  // Une zone qu'un de ses terrains tient n'a pas besoin de gardien : ses monstres y repartent aussi.
-  const guarded = new Set<number>(zones.flatMap(({ pos }, i) => (control[i] === me && heldByTerrain(state, pos, me) ? [i] : [])));
+  const guarded = new Set<number>();
   const zoneOf = zoneAt(state.board, state.mode);
   let hunt: Int16Array | null = null;
   for (const monster of monstersOf(state, me)) {
@@ -489,14 +489,26 @@ function canReach(state: GameState, walkers: readonly Walker[], pos: Position): 
 }
 
 /**
- * En mode contestation, un des `walkers` ennemis peut entrer dans la zone de la mana zone en `pos` à son prochain tour :
- * il la contesterait, et elle ne rapporterait rien. Un terrain la tient, lui, quels que soient les monstres présents.
+ * En mode contestation, les ennemis qui peuvent entrer dans la zone de la mana zone en `pos` à leur prochain tour
+ * l'égaliseraient (elle serait contestée, sans revenu) ou la prendraient : leurs unités, celles déjà dedans et celles qui
+ * arrivent (1 chacune), rejoignent ou dépassent les nôtres, terrain compris (§4.4 bis).
  */
 function zoneThreatened(state: GameState, pos: Position, walkers: readonly Walker[]): boolean {
-  if (state.mode === 'normal' || heldByTerrain(state, pos, state.activePlayer)) return false;
-  return walkers.some(
-    ({ monster, mobility, flying }) => zoneDistances(state.board, state.mode, pos, flying)[index(state.board, monster.pos)]! <= mobility,
-  );
+  if (state.mode === 'normal') return false;
+  const me = state.activePlayer;
+  let mine = 0;
+  let theirs = 0;
+  for (const cell of getZoneCells(state.board, state.mode, pos)) {
+    for (const unit of getUnitsAt(state, cell)) {
+      if (unit.owner === me) mine++;
+      else theirs++;
+    }
+  }
+  const inZone = (monster: MonsterUnit) => getZoneCells(state.board, state.mode, pos).some((cell) => samePos(cell, monster.pos));
+  for (const { monster, mobility, flying } of walkers) {
+    if (!inZone(monster) && zoneDistances(state.board, state.mode, pos, flying)[index(state.board, monster.pos)]! <= mobility) theirs++;
+  }
+  return theirs >= mine;
 }
 
 const heldCache = new WeakMap<readonly CardId[], number>();
@@ -513,13 +525,6 @@ function heldSpells(grimoire: readonly CardId[]): number {
     heldCache.set(grimoire, total);
   }
   return total;
-}
-
-/** Un terrain de `player` est dans la zone de la mana zone en `pos` : il la tient, quels que soient les monstres présents. */
-function heldByTerrain(state: GameState, pos: Position, player: PlayerId): boolean {
-  return getZoneCells(state.board, state.mode, pos).some((cell) =>
-    getUnitsAt(state, cell).some((unit) => unit.kind === 'terrain' && unit.owner === player),
-  );
 }
 
 function monstersOf(state: GameState, player: PlayerId): MonsterUnit[] {

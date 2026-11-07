@@ -320,8 +320,8 @@ describe('IA : mode contestation, ce que rapportent les zones (15 × 15)', () =>
     expect(getZoneStatus(after, at(7, 7)).contested).toBe(true);
   });
 
-  it('une zone que tient un de ses terrains n’a pas besoin de gardien : le monstre repart vers une autre', () => {
-    // Bastion de J1 sur l'Écurie (2, 2), un Chevalier dans la zone : il part vers la Forge au lieu d'y rester.
+  it('une zone qu’un de ses terrains tient garde son gardien : le terrain ne vaut qu’1 unité contre le nombre', () => {
+    // Bastion de J1 sur l'Écurie (2, 2), un Chevalier dans la zone : il y reste (un ennemi seul égaliserait le terrain).
     const state = gameWith(
       [
         { terrain: 'bastion', owner: 1, at: at(2, 2) },
@@ -330,7 +330,7 @@ describe('IA : mode contestation, ce que rapportent les zones (15 × 15)', () =>
       { board, mode, players: { 1: { mana: 0, grimoire: [] } } },
     );
     const action = chooseAction(state, 1);
-    expect(action).toMatchObject({ type: 'move', unitId: 'u2' });
+    expect(action).not.toMatchObject({ type: 'move', unitId: 'u2' });
     expect(getZoneController(applyAction(state, action), at(2, 2))).toBe(1);
   });
 

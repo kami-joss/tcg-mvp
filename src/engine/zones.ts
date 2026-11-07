@@ -28,9 +28,9 @@ export function getZoneOf(board: Board, mode: GameMode, pos: Position): { zone: 
 
 /**
  * Qui tient la mana zone en `pos`. Mode Normal : le joueur dont un monstre l'occupe, sinon celui dont un terrain
- * l'occupe, sinon personne (§4.4). Mode contestation : un terrain de la zone la tient pour son propriétaire ; sans
- * terrain, le seul joueur qui y a des monstres ; les deux : contestée (§4.4 bis). Personne aussi si `pos` n'est pas
- * une mana zone.
+ * l'occupe, sinon personne (§4.4). Mode contestation : on compte les unités de chaque joueur dans la zone, monstres et
+ * terrain (1 chacun) ; le plus nombreux la tient (supériorité numérique), à égalité avec des unités des deux camps elle
+ * est **contestée**, sans unité elle est neutre (§4.4 bis). Personne aussi si `pos` n'est pas une mana zone.
  */
 export function getZoneStatus(state: ZoneState, pos: Position): ZoneStatus {
   const cell = getCell(state.board, pos);
@@ -39,11 +39,12 @@ export function getZoneStatus(state: ZoneState, pos: Position): ZoneStatus {
     const occupant = getMonsterAt(state, pos) ?? getUnitsAt(state, pos).find((unit) => unit.kind === 'terrain');
     return { pos, controller: occupant?.owner ?? null, contested: false };
   }
-  const units = getZoneCells(state.board, state.mode, pos).flatMap((zoneCell) => getUnitsAt(state, zoneCell));
-  const terrains = units.filter((unit) => unit.kind === 'terrain');
-  const holders = new Set((terrains.length > 0 ? terrains : units).map((unit) => unit.owner));
-  const [controller = null] = holders;
-  return holders.size > 1 ? { pos, controller: null, contested: true } : { pos, controller, contested: false };
+  const count: Record<PlayerId, number> = { 1: 0, 2: 0 };
+  for (const zoneCell of getZoneCells(state.board, state.mode, pos)) {
+    for (const unit of getUnitsAt(state, zoneCell)) count[unit.owner]++;
+  }
+  if (count[1] === count[2]) return { pos, controller: null, contested: count[1] > 0 };
+  return { pos, controller: count[1] > count[2] ? 1 : 2, contested: false };
 }
 
 /** Joueur qui tient la mana zone en `pos` ; `null` si elle est neutre ou contestée. */

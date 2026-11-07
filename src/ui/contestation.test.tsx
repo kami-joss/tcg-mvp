@@ -104,9 +104,11 @@ describe('mode contestation : fiche et aide', () => {
     ]);
     expect(chip(withTerrain, 'u1')).toMatchObject({ kind: 'zone', detail: 'Tient Forge : +1 mana, +1 VP' });
     expect(chip(contested(), 'u1')).toMatchObject({ kind: 'warn', detail: expect.stringContaining('contestée') });
+    // Un terrain adverse contre un monstre (1 contre 1) contesterait la zone : J2 est plus nombreux avec un monstre de plus.
     const enemyTerrain = view([
       { monster: 'golem', owner: 1, at: at(5, 5) },
       { terrain: 'bastion', owner: 2, at: FORGE },
+      { monster: 'eclaireur', owner: 2, at: at(7, 7) },
     ]);
     expect(chip(enemyTerrain, 'u1')).toMatchObject({ kind: 'warn', detail: expect.stringContaining('tenue par J2') });
   });

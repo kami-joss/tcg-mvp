@@ -17,7 +17,7 @@ export { getFreeSummonCells };
 
 /**
  * Mana zones où `player` peut poser un terrain : occupées par un de ses monstres, et sans terrain (§4.9, §10) ; en mode
- * contestation, pas dans une zone contestée (§4.4 bis). Tout cela est public : se calcule sur l'état réel.
+ * contestation, seulement dans une zone qu'on tient : ni contestée, ni tenue par le nombre de l'adversaire (§4.4 bis). Tout cela est public : se calcule sur l'état réel.
  */
 export function getTerrainCells(state: GameState, player: PlayerId): Position[] {
   return getManaZones(state.board)
@@ -26,7 +26,7 @@ export function getTerrainCells(state: GameState, player: PlayerId): Position[] 
       (pos) =>
         getMonsterAt(state, pos)?.owner === player &&
         !getUnitsAt(state, pos).some((unit) => unit.kind === 'terrain') &&
-        !getZoneStatus(state, pos).contested,
+        getZoneStatus(state, pos).controller === player,
     );
 }
 

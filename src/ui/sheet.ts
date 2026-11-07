@@ -430,8 +430,8 @@ function zoneSheet(view: PlayerView, zone: ManaZoneId, pos: Position): SheetData
     ],
     text: contest
       ? [
-          `Le seul joueur qui a des unités dans ses 9 cases (monstre, ou terrain seul) gagne +${VP_PER_CONTROLLED_ZONE} VP au début de son tour, et +${MANA_PER_CONTROLLED_ZONE} mana s’il y a un terrain.`,
-          'Si les deux joueurs y ont des monstres, elle est contestée : ni mana ni VP pour personne, et aucun terrain ne s’y pose. Un terrain la tient tant qu’il n’est pas détruit.',
+          `Le joueur qui a le plus d’unités dans ses 9 cases (monstres, et son terrain : 1 unité) la tient et gagne +${VP_PER_CONTROLLED_ZONE} VP au début de son tour, et +${MANA_PER_CONTROLLED_ZONE} mana s’il y a un terrain.`,
+          'À égalité (par exemple 1 contre 1), elle est contestée : ni mana ni VP pour personne, et aucun terrain ne s’y pose. On ne pose un terrain que dans une zone qu’on tient.',
         ]
       : [
           `Celui qui l’occupe (monstre, ou terrain seul) gagne +${VP_PER_CONTROLLED_ZONE} VP au début de son tour, et +${MANA_PER_CONTROLLED_ZONE} mana s’il y a un terrain dessus : un monstre seul ne génère pas de mana.`,
@@ -449,7 +449,7 @@ function zoneChip(view: PlayerView, monster: MonsterUnit): SheetChip | null {
   if (contested) return effect(ZONE_ICONS[area.zone], name, `${name} contestée : ni mana ni VP pour personne, pas de terrain`, 'warn');
   if (controller === null) return null;
   if (controller !== monster.owner) {
-    return effect(ZONE_ICONS[area.zone], name, `${name} tenue par J${controller} : détruire son terrain pour la prendre`, 'warn');
+    return effect(ZONE_ICONS[area.zone], name, `${name} tenue par J${controller} : il faut être plus nombreux dans la zone pour la prendre`, 'warn');
   }
   return effect(ZONE_ICONS[area.zone], name, `Tient ${name} : ${zoneIncome(getZoneMana(view, area.pos, controller))}, +${VP_PER_CONTROLLED_ZONE} VP`, 'zone');
 }
