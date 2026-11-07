@@ -72,6 +72,8 @@ interface BoardProps {
    * pour sortir chaque bord du plateau de sous un panneau flottant (fiche à gauche, grimoire à droite).
    */
   margins?: { readonly left: number; readonly right: number };
+  /** Défilement quand la souris touche un bord du cadre (réglage ; vrai par défaut). */
+  edgeScroll?: boolean;
   /** Reçoit la commande de la caméra (centrer la vue sur une case), tant que le plateau est monté. */
   cameraRef?: RefObject<BoardCamera | null>;
   onCellClick: (pos: Position) => void;
@@ -425,7 +427,7 @@ export function revealCells(view: PlayerView, hovered: Position | null): Set<str
 export const isPixiBoard = (board: BoardData): boolean => paintedDecor(board) !== null && isoScenery(board) !== null;
 
 export function Board(props: BoardProps) {
-  const { view, path, showArt, zoom, animated, flipped, onCellHover, margins = NO_MARGINS } = props;
+  const { view, path, showArt, zoom, animated, flipped, onCellHover, margins = NO_MARGINS, edgeScroll = true } = props;
   const scenery = isoScenery(view.board);
   // Le 15 × 15 est dessiné par PixiJS en vue isométrique (la vue inclinée y revient) ; la vue de dessus reste en HTML.
   const pixiMode = isPixiBoard(view.board) && props.mode !== 'top';
@@ -462,7 +464,7 @@ export function Board(props: BoardProps) {
     mode,
     { x: shownWidth + margins.left + margins.right > area.width + 1, y: shownHeight > area.height + 1 },
     viewportRef,
-    { left: margins.left, right: margins.right, enabled: !props.anchor },
+    { left: margins.left, right: margins.right, enabled: edgeScroll && !props.anchor },
   );
   zoomView.focusY.current = iso ? camera.centerY / camera.height : tilted ? geometry.originY / geometry.sceneHeight : 0.5;
   const sceneStyle: CSSProperties = iso

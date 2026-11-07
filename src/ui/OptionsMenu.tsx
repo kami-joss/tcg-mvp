@@ -1,5 +1,5 @@
 // Roue des options de la barre du haut (handoff V11, lot 12 §2) : tous les réglages d'affichage dans un panneau ancré
-// sous la roue, à droite. Vue, zoom, stats sur les jetons (lot 6), son et volume, animations, plateau tourné, puis
+// sous la roue, à droite. Vue, zoom, stats sur les jetons (lot 6), son et volume, animations, défilement aux bords, plateau tourné, puis
 // « Nouvelle partie ». Un clic en dehors (calque transparent sous le panneau) ou Échap le referme.
 import { useEffect, useState } from 'react';
 import { Icon } from './Icon';
@@ -151,6 +151,10 @@ function OptionsPanel({ settings, boardView, isoAvailable, tiltAvailable, onChan
         <label className="options__check">
           <input type="checkbox" checked={settings.animations} onChange={(event) => onChange({ animations: event.target.checked })} />
           Animations
+        </label>
+        <label className="options__check">
+          <input type="checkbox" checked={settings.edgeScroll} onChange={(event) => onChange({ edgeScroll: event.target.checked })} />
+          Défilement aux bords
         </label>
       </section>
 

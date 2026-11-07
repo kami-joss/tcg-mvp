@@ -561,6 +561,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
             flipped={flipped}
             stats={peek ? ALL_TOKEN_STATS : settings.tokenStats}
             margins={glide}
+            edgeScroll={settings.edgeScroll}
             cameraRef={cameraRef}
             onCellClick={handleCellClick}
             onCellContextMenu={handleCellContextMenu}
