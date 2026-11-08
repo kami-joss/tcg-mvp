@@ -114,6 +114,8 @@ export type CardId =
   | 'trebuchet'
   | 'monstre-de-test'
   | 'fleche-divine'
+  | 'nid-de-dragons'
+  | 'hurlements'
   // Deck Archers impériaux
   | 'ecuyer-archers'
   | 'archer-imperial'
@@ -316,13 +318,13 @@ export type TargetReach =
  * de côté, « devant » = le sens où il regarde), son carré de 1 (les 8 cases autour), les 3 cases en ligne
  * dans une direction choisie par le joueur (`line3`, la source se tourne vers elle), ou son carré de 2 (`square2`).
  */
-export type AreaZone = 'front3' | 'square1' | 'line3' | 'square2';
+export type AreaZone = 'front3' | 'square1' | 'line3' | 'square2' | 'line3Diagonals';
 
 /** Ce que vise un effet (SPEC.md §5.3). */
 export type Targeting =
   /** Un monstre choisi par le joueur : jamais un terrain (§10) ; d'une famille, s'il y en a une (« un allié bodybuilder »). */
   | { readonly type: 'monster'; readonly side: 'ally' | 'enemy'; readonly reach: TargetReach; readonly archetype?: Archetype }
-  /** Tous les monstres ennemis de la zone (jamais un monstre invisible pour le lanceur) ; jouable si au moins un. */
+  /** Tous les monstres ennemis de la zone, invisibles compris (§5.3) ; jouable si le lanceur en voit au moins un. */
   | { readonly type: 'zone'; readonly zone: AreaZone }
   /** Une case jouable du carré de 1, sans unité (pose de piège). */
   | { readonly type: 'emptySquareCell' }
@@ -339,6 +341,11 @@ export type Targeting =
    * une fois par unité alliée à côté de laquelle l'ennemi se trouve ; jouable s'il y en a au moins un.
    */
   | { readonly type: 'enemiesNearAllies'; readonly zone: 'square1' }
+  /**
+   * Un de ses monstres d'une famille, choisi, puis tous les monstres ennemis de son carré de N, invisibles compris
+   * (Hurlements) ; jouable dès qu'il a un monstre de la famille, même sans ennemi dans la zone.
+   */
+  | { readonly type: 'enemiesAroundAlly'; readonly archetype: Archetype; readonly square: number }
   /** Une case libre où la source a été pendant ce tour, sa case de départ comprise (retour, Explorateur du temps). */
   | { readonly type: 'trail' };
 
@@ -400,7 +407,8 @@ export type Effect =
    * (`evolvesFrom`), sans payer son coût ; le nouveau monstre ne peut pas agir ce tour. Impossible le tour où la source
    * a été invoquée (§10).
    */
-  | { readonly type: 'evolve' }
+  /** `status` : posé sur le monstre invoqué (Évolution draconique : stun jusqu'à son prochain tour). */
+  | { readonly type: 'evolve'; readonly status?: StatusSpec }
   /**
    * Invocation (Invocateur) : un monstre de son grimoire, choisi par le joueur, est invoqué sur la case visée en payant
    * aussi son coût ; il peut agir aussitôt (§4.5).
@@ -529,6 +537,8 @@ export interface StatAura {
   readonly range?: number;
   /** Nombre total d'attaques par tour (Carquois prêt ! : 2) ; plusieurs auras ne s'additionnent pas. */
   readonly attacks?: number;
+  /** Coût d'activation de leurs effets actifs fixé à N mana tant qu'ils sont dans la zone (Nid de dragons : 1). */
+  readonly effectCost?: number;
   /** Camouflage (carré de 2) ou Invisible (carré de 1) tant qu'ils sont dans la zone (Terrain de jeu : invisible) ; la plus grande portée compte. */
   readonly stealth?: 'camouflage' | 'invisible';
 }

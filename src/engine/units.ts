@@ -184,6 +184,15 @@ export function auraSources(state: BoardState, monster: MonsterUnit): Unit[] {
   });
 }
 
+/**
+ * Coût d'activation d'un effet actif de `monster` : celui de la carte, ou le coût fixé par une aura alliée qui le couvre
+ * (Nid de dragons : 1), le plus bas s'il y en a plusieurs ; jamais plus que le coût de la carte.
+ */
+export function getEffectCost(state: BoardState, monster: MonsterUnit, ability: { readonly manaCost: number }): number {
+  const fixed = auraSources(state, monster).map((other) => auraOf(other)?.effectCost).filter((n): n is number => n !== undefined);
+  return Math.min(ability.manaCost, ...fixed);
+}
+
 /** Le monstre survole les cases X : mot-clé Vol de sa carte, ou statut Vol (§5.6, §5 bis). */
 export function canFly(monster: MonsterUnit): boolean {
   return hasKeyword(monster, 'vol') || monster.statuses.some((status) => status.kind === 'vol');

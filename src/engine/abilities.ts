@@ -6,7 +6,7 @@ import { emit } from './events';
 import { addMana } from './players';
 import { isSilenced, isStunned } from './statuses';
 import { perceived } from './stealth';
-import { getActiveMonster, getMonsters, setUnit } from './units';
+import { getActiveMonster, getEffectCost, getMonsters, setUnit } from './units';
 import type { Action, ActivatedAbility, GameEvent, GameState, MonsterUnit } from './types';
 
 type ActivateEffectAction = Extract<Action, { type: 'activateEffect' }>;
@@ -31,7 +31,7 @@ export function getActivateEffectActions(state: GameState): Action[] {
   return getMonsters(state, state.activePlayer).flatMap((monster) => {
     if (isStunned(monster) || isSilenced(monster)) return [];
     return getMonsterCard(monster.cardId).activated.flatMap((ability, effect) => {
-      if (effectSpent(monster, ability, effect) || ability.manaCost > mana) return [];
+      if (effectSpent(monster, ability, effect) || getEffectCost(state, monster, ability) > mana) return [];
       return getEffectTargets(state, ability, monster.owner, monster).map(
         (target): Action => ({ type: 'activateEffect', unitId: monster.id, ...(effect > 0 ? { effect } : {}), target }),
       );
@@ -48,8 +48,9 @@ export function applyActivateEffect(state: GameState, action: ActivateEffectActi
   if (isStunned(monster)) throw new IllegalActionError(`${monster.id} est stun : aucune action possible`);
   if (isSilenced(monster)) throw new IllegalActionError(`${monster.id} est silence : aucun effet actif possible`);
   const { mana } = state.players[monster.owner];
-  if (mana < ability.manaCost) {
-    throw new IllegalActionError(`Mana insuffisant pour l'effet de ${monster.id} : ${mana} < ${ability.manaCost}`);
+  const cost = getEffectCost(state, monster, ability);
+  if (mana < cost) {
+    throw new IllegalActionError(`Mana insuffisant pour l'effet de ${monster.id} : ${mana} < ${cost}`);
   }
   const targets = getEffectTargets(perceived(state), ability, monster.owner, monster);
   if (!targets.some((t) => sameEffectTarget(t, action.target))) {
@@ -79,7 +80,7 @@ export function applyActivateEffect(state: GameState, action: ActivateEffectActi
     ...(facing ? { facing } : {}),
     ...(effect > 0 ? { effect } : {}),
   };
-  const paid = addMana(emit(used, event), monster.owner, -ability.manaCost);
+  const paid = addMana(emit(used, event), monster.owner, -cost);
   const resolved = resolveAbility(paid, ability, action.target, monster.owner, source, { cardId: monster.cardId, ...(ability.name ? { effect: ability.name } : {}) });
   // « Puis plus d'attaque ce tour » (Zoldik) : il a pu attaquer avant, plus après.
   // Contre-coup : sur lui-même, après l'effet.

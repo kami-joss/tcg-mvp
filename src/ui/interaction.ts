@@ -14,6 +14,7 @@ import {
   getPushDestination,
   getUnitsAt,
   hitsFromBehind,
+  isDirectionalZone,
   isInSquare,
   samePos,
 } from '../engine';
@@ -140,14 +141,17 @@ export function getEffectArea(view: PlayerView, unitId: UnitId, direction?: Dire
   if (unit?.kind !== 'monster' || !getEffectActions(view, unitId, effect).some((a) => a.target.kind === 'area')) return [];
   const targeting = getMonsterCard(unit.cardId).activated[effect]?.targeting;
   if (targeting?.type !== 'zone') return [];
-  if (targeting.zone !== 'line3') return getAreaCells(view, unit, targeting.zone);
+  if (!isDirectionalZone(targeting.zone)) return getAreaCells(view, unit, targeting.zone);
+  const zone = targeting.zone;
   return getAreaDirections(view, unitId, effect)
     .filter((d) => !direction || d === direction)
-    .flatMap((d) => getAreaCells(view, { ...unit, facing: d }, 'line3'));
+    .flatMap((d) => getAreaCells(view, { ...unit, facing: d }, zone));
 }
 
 /** Direction de la ligne qui passe par `pos`, pour un effet de zone en ligne. */
 function areaDirectionAt(view: PlayerView, unitId: UnitId, pos: Position, effect = 0): Direction | undefined {
+  // Une case en diagonale devant le dragon peut être dans deux zones (« 3 en ligne et 2 diagonales ») : la première
+  // direction l'emporte ; un clic sur une case de la ligne choisit l'autre.
   return getAreaDirections(view, unitId, effect).find((d) => getEffectArea(view, unitId, d, effect).some((cell) => samePos(cell, pos)));
 }
 

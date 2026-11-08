@@ -296,7 +296,7 @@ export function applyAttack(state: GameState, action: AttackAction): GameState {
   });
   let next = dealDamage(setUnit(declared, attacked), target.id, attackDamage(state, attacker, target), attacker.owner, 'attack');
   // Armé (Flèche explosive) : 1 dégât aux ennemis du carré de 1 de la cible, cible exclue, que celle-ci survive ou non.
-  if (armed && armed.splash > 0) next = splashDamage(next, seen, attacker, target, armed.splash);
+  if (armed && armed.splash > 0) next = splashDamage(next, attacker, target, armed.splash);
   // Soif (Vampire) : il récupère ses PV après les dégâts, avant la riposte et l'avancée, même si la cible est détruite (§10).
   const soif = getKeyword(attacker, 'soif');
   if (soif) next = applyTriggeredEffects(next, [{ type: 'heal', amount: soif.amount }], attacker.id, attacked);
@@ -341,13 +341,14 @@ export function applyAttack(state: GameState, action: AttackAction): GameState {
 }
 
 /**
- * Éclats d'une attaque armée (Flèche explosive) : `amount` dégâts d'effet à chaque monstre ennemi que voit l'attaquant dans
+ * Éclats d'une attaque armée (Flèche explosive) : `amount` dégâts d'effet à chaque monstre ennemi (invisibles compris) dans
  * le carré de 1 de la case de la cible (la cible n'en fait pas partie : elle subit déjà l'attaque). Falaises et cases X
  * coupent la zone ; un monstre détruit rapporte son VP.
  */
-function splashDamage(state: GameState, seen: BoardState, attacker: MonsterUnit, target: Unit, amount: number): GameState {
-  const hit = Object.values(seen.units).filter(
-    (unit) => unit.kind === 'monster' && unit.owner !== attacker.owner && unit.id !== target.id && isInSquare(seen.board, target.pos, unit.pos),
+function splashDamage(state: GameState, attacker: MonsterUnit, target: Unit, amount: number): GameState {
+  // Les ennemis invisibles sont touchés aussi : être caché ne protège de rien (§5.3, 2026-11-08).
+  const hit = Object.values(state.units).filter(
+    (unit) => unit.kind === 'monster' && unit.owner !== attacker.owner && unit.id !== target.id && isInSquare(state.board, target.pos, unit.pos),
   );
   return hit.reduce((next, unit) => (next.units[unit.id] ? dealDamage(next, unit.id, amount, attacker.owner, 'effect') : next), state);
 }

@@ -48,11 +48,14 @@ function spell(id: CardId, name: string, cost: number, ability: Ability): Card {
   return { kind: 'spell', id, name, cost, ability };
 }
 
-/** Dragon élémentaire : 7 mana, ou évolution d'un Jeune dragon élémentaire ; Vol ; effet actif de zone à 3 mana (§6 bis). */
+/**
+ * Dragon élémentaire : 7 mana, ou Évolution draconique d'un Jeune dragon ; Vol ; effet actif à 3 mana (1 dans un Nid de
+ * dragons, §6 bis).
+ */
 function dragon(
   id: CardId,
   name: string,
-  stats: { atk: number; hp: number; mobility: number },
+  stats: { atk: number; hp: number; mobility: number; range?: number },
   ability: Omit<ActivatedAbility, 'manaCost'>,
 ): MonsterCard {
   return { ...monster(id, name, { cost: 7, range: 1, ...stats }, [VOL], { manaCost: 3, ...ability }, 'jeune-dragon'), archetype: 'dragon' };
@@ -68,13 +71,14 @@ function terrain(
   return { kind: 'terrain', id, name, ...stats, zoneManaBonus: 0, passage: null, summonPoint: false, onMove: null, aura: null, ...passives };
 }
 
+/** 3 cases en ligne et les 2 diagonales devant, direction au choix (Lance-flamme, Tsunamie, Tempête). */
+const LINE3_DIAGONALS: Targeting = { type: 'zone', zone: 'line3Diagonals' };
+
 const VOL: KeywordSpec = { keyword: 'vol' };
 /** Brûlure des sorciers du feu : à l'attaque, burn 1 pendant 2 tours (terrains compris, §10). */
 const BRULURE_2: KeywordSpec = { keyword: 'brulure', amount: 1, turns: 2 };
 const AN_ALLY: Targeting = { type: 'monster', side: 'ally', reach: { type: 'anywhere' } };
 const AN_ENEMY: Targeting = { type: 'monster', side: 'enemy', reach: { type: 'anywhere' } };
-const FRONT3: Targeting = { type: 'zone', zone: 'front3' };
-const LINE3: Targeting = { type: 'zone', zone: 'line3' };
 const EMPTY_SQUARE_CELL: Targeting = { type: 'emptySquareCell' };
 const SQUARE_ENEMY: Targeting = { type: 'monster', side: 'enemy', reach: { type: 'square1' } };
 /** Retour (Explorateur du temps) : 1 mana, il se téléporte sur une case libre où il a été ce tour, puis ne bouge plus (§10). */
@@ -250,43 +254,60 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   }),
 
   // Deck Dragons : famille Dragon élémentaire, Jeune dragon compris (§10).
+  // Deck Dragons élémentaires (refait le 2026-11-08) : les ids de cartes ne changent pas, seulement les noms et les effets.
   'jeune-dragon': inArchetype(
     'dragon',
-    monster('jeune-dragon', 'Jeune dragon élémentaire - Dragons', { cost: 2, atk: 3, hp: 2, mobility: 4, range: 1 }, [], {
-      name: 'Évolution',
-      manaCost: 2,
+    monster('jeune-dragon', 'Jeune dragon - Dragons élémentaires', { cost: 2, atk: 3, hp: 2, mobility: 4, range: 1 }, [], {
+      name: 'Évolution draconique',
+      manaCost: 3,
       targeting: { type: 'self' },
-      effects: [{ type: 'evolve' }],
+      // Sacrifie ce monstre, invoque à sa place un dragon élémentaire sans payer son coût ; il est stun jusqu'à son prochain tour.
+      effects: [{ type: 'evolve', status: { kind: 'stun', turns: 0 } }],
     }),
   ),
-  'dragon-feu': dragon('dragon-feu', 'Dragon élémentaire de feu - Dragons', { atk: 5, hp: 5, mobility: 5 }, {
-    name: 'Déflagration',
-    targeting: FRONT3,
+  'dragon-feu': dragon('dragon-feu', 'Ignis - Dragons élémentaires', { atk: 5, hp: 5, mobility: 5, range: 3 }, {
+    name: 'Lance-flamme',
+    targeting: LINE3_DIAGONALS,
     effects: [
       { type: 'damage', amount: 2 },
-      { type: 'status', kind: 'burn', amount: 1, turns: 1 },
+      { type: 'status', kind: 'burn', amount: 2, turns: 1 },
     ],
   }),
-  'dragon-eau': dragon('dragon-eau', 'Dragon élémentaire d’eau - Dragons', { atk: 4, hp: 7, mobility: 4 }, {
-    name: 'Raz de marée',
-    targeting: LINE3,
-    effects: [{ type: 'status', kind: 'stun', turns: 1 }],
+  'dragon-eau': dragon('dragon-eau', 'Aqua - Dragons élémentaires', { atk: 4, hp: 9, mobility: 4 }, {
+    name: 'Tsunami',
+    targeting: LINE3_DIAGONALS,
+    effects: [
+      { type: 'damage', amount: 2 },
+      { type: 'status', kind: 'slow', amount: 2, turns: 1 },
+    ],
   }),
-  'dragon-vent': dragon('dragon-vent', 'Dragon élémentaire de vent - Dragons', { atk: 4, hp: 4, mobility: 7 }, {
-    name: 'Vent violent',
-    targeting: LINE3,
-    effects: [{ type: 'push', distance: 3, direction: 'forward', chooseDistance: true }],
+  'dragon-vent': dragon('dragon-vent', 'Ventus - Dragons élémentaires', { atk: 4, hp: 4, mobility: 9 }, {
+    name: 'Tempête',
+    targeting: LINE3_DIAGONALS,
+    effects: [
+      { type: 'damage', amount: 2 },
+      { type: 'push', distance: 2, direction: 'forward', chooseDistance: false },
+    ],
   }),
-  'dragon-terre': dragon('dragon-terre', 'Dragon élémentaire de terre - Dragons', { atk: 6, hp: 5, mobility: 4 }, {
-    name: 'Tremblement de terre',
+  'dragon-terre': dragon('dragon-terre', 'Terra - Dragons élémentaires', { atk: 9, hp: 4, mobility: 4 }, {
+    name: 'Séisme',
     targeting: { type: 'zone', zone: 'square2' },
     effects: [{ type: 'damage', amount: 3 }],
   }),
-  // Vol, mais pas d'évolution : elle s'invoque pour 10 mana (§10).
+  // Plus de deck depuis le 2026-11-08 : gardée pour ses données (Vol, aura), sans évolution.
   'dragon-origine': {
-    ...inArchetype('dragon', monster('dragon-origine', 'Origine - Dragons', { cost: 10, atk: 7, hp: 7, mobility: 7, range: 1 }, [VOL])),
+    ...inArchetype('dragon', monster('dragon-origine', 'Origine - Dragons élémentaires', { cost: 10, atk: 7, hp: 7, mobility: 7, range: 1 }, [VOL])),
     aura: { zone: 'square1', archetype: 'dragon', atk: 1, hp: 1, mobility: 1 },
   },
+  // « Effrayés » n'est que l'ambiance du texte : l'effet est le statut ATK −1 pendant 1 tour (validé le 2026-11-08).
+  hurlements: spell('hurlements', 'Hurlements - Dragons élémentaires', 1, {
+    targeting: { type: 'enemiesAroundAlly', archetype: 'dragon', square: 5 },
+    effects: [{ type: 'status', kind: 'stat', stat: 'atk', amount: -1, turns: 1 }],
+  }),
+  // Nid de dragons : les effets actifs de ses dragons élémentaires sur sa case ou dans son carré de 1 coûtent 1 mana.
+  'nid-de-dragons': terrain('nid-de-dragons', 'Nid de dragons - Dragons élémentaires', { cost: 3, hp: 5 }, {
+    aura: { zone: 'cellAndSquare', archetype: 'dragon', atk: 0, hp: 0, mobility: 0, effectCost: 1 },
+  }),
 
   // Deck Sorciers du feu : famille Sorcier du feu (§10). Brûlure 1, 2 tours : à l'attaque, burn 1 pendant 2 tours.
   apprenti: inArchetype(
@@ -597,13 +618,11 @@ export const DECKS: readonly Deck[] = [
       ['farceur', 3],
       ['poseur-de-bombe', 3],
       ['clown-assassin', 3],
-      ['penombre', 2],
-      ['boule-de-feu', 1],
-      ['charge', 1],
-      ['bourrasque', 1],
+      ['penombre', 3],
+      ['boule-de-feu', 3],
       ['benediction', 1],
       ['terrain-de-jeu', 3],
-      ['terrain-piege', 2],
+      ['terrain-piege', 1],
       ['zone-invocation', 2],
     ]),
   },
@@ -625,19 +644,17 @@ export const DECKS: readonly Deck[] = [
   },
   {
     id: 'dragons',
-    name: 'Dragons',
+    name: 'Dragons élémentaires',
     cards: expand([
       ['jeune-dragon', 3],
-      ['dragon-feu', 2],
-      ['dragon-eau', 2],
-      ['dragon-vent', 2],
-      ['dragon-terre', 2],
-      ['dragon-origine', 1],
-      ['boule-de-feu', 2],
-      ['charge', 3],
-      ['benediction', 1],
-      ['autel-de-mana', 2],
-      ...COMMONS_ONCE,
+      ['dragon-feu', 3],
+      ['dragon-eau', 3],
+      ['dragon-vent', 3],
+      ['dragon-terre', 3],
+      ['hurlements', 3],
+      ['nid-de-dragons', 3],
+      ['autel-de-mana', 3],
+      ['invocateur', 1],
     ]),
   },
   {

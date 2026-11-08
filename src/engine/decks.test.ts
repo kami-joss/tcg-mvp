@@ -75,13 +75,11 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
       farceur: 3,
       'poseur-de-bombe': 3,
       'clown-assassin': 3,
-      penombre: 2,
-      'boule-de-feu': 1,
-      charge: 1,
-      bourrasque: 1,
+      penombre: 3,
+      'boule-de-feu': 3,
       benediction: 1,
       'terrain-de-jeu': 3, // 2026-11-08 : à la place de l'Autel de mana, du Terrain drainant et de l'Invocateur
-      'terrain-piege': 2,
+      'terrain-piege': 1,
       'zone-invocation': 2,
     });
     expect(composition('bodybuilder')).toEqual({
@@ -96,18 +94,17 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
       bastion: 1,
       ...commons,
     });
+    // Dragons élémentaires (refait le 2026-11-08) : sans Origine ni cartes de base ; des communes, seul l'Invocateur.
     expect(composition('dragons')).toEqual({
       'jeune-dragon': 3,
-      'dragon-feu': 2,
-      'dragon-eau': 2,
-      'dragon-vent': 2,
-      'dragon-terre': 2,
-      'dragon-origine': 1,
-      'boule-de-feu': 2,
-      charge: 3,
-      benediction: 1,
-      'autel-de-mana': 2,
-      ...commons,
+      'dragon-feu': 3,
+      'dragon-eau': 3,
+      'dragon-vent': 3,
+      'dragon-terre': 3,
+      hurlements: 3,
+      'nid-de-dragons': 3,
+      'autel-de-mana': 3,
+      invocateur: 1,
     });
     expect(composition('sorciers-du-feu')).toEqual({
       apprenti: 3,

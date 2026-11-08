@@ -17,7 +17,7 @@ import type {
   Targeting,
   TerrainCard,
 } from '../engine';
-import { getMonsterCard } from '../engine';
+import { getMonsterCard, isDirectionalZone } from '../engine';
 import { ARCHETYPE_NAMES, cardTitle } from './cardText';
 import { STAT_NAMES, signed } from './statusInfo';
 
@@ -129,6 +129,7 @@ const ZONES: Readonly<Record<AreaZone, string>> = {
   square1: `dans un ${t('carre', 'carré')} de 1`,
   line3: 'sur 3 cases en ligne dans la direction de ton choix',
   square2: `dans un ${t('carre', 'carré')} de 2`,
+  line3Diagonals: 'sur 3 cases en ligne et les 2 cases en diagonale devant lui, dans la direction de ton choix',
 };
 
 const archetypeOne = (archetype: Archetype | undefined) => (archetype ? ` ${ARCHETYPE_NAMES[archetype].one}` : '');
@@ -158,6 +159,8 @@ function targetOf(targeting: Targeting): Target {
       return many('tous les ennemis');
     case 'enemiesNearAllies':
       return many(`les ennemis dans un ${t('carre', 'carré')} de 1 de chacune de tes unités`);
+    case 'enemiesAroundAlly':
+      return many(`les ennemis dans un ${t('carre', 'carré')} de ${targeting.square} autour d’un allié${archetypeOne(targeting.archetype)} de ton choix`);
     case 'self':
     case 'trail':
       return one('ce monstre');
@@ -238,7 +241,7 @@ function clause(effect: Effect, next: Effect | undefined, target: Target, first:
       const way =
         effect.direction === 'chosen'
           ? ', dans la direction de ton choix'
-          : targeting.type === 'zone' && targeting.zone === 'line3'
+          : targeting.type === 'zone' && isDirectionalZone(targeting.zone)
             ? '' // La zone dit déjà la direction : il recule dans celle-ci.
             : ', vers l’avant';
       const verb = t('repousser', 'repousse');
@@ -311,6 +314,7 @@ const EACH_IN_ZONE: Readonly<Record<AreaZone, string>> = {
   square1: `chaque ennemi dans un ${t('carre', 'carré')} de 1`,
   line3: 'chaque ennemi sur 3 cases en ligne dans la direction de ton choix',
   square2: `chaque ennemi dans un ${t('carre', 'carré')} de 2`,
+  line3Diagonals: 'chaque ennemi sur 3 cases en ligne et les 2 cases en diagonale devant lui, dans la direction de ton choix',
 };
 
 /** Nom d'une forme dans une phrase : « chauve-souris » pour Emma chauve-souris (forme d'Emma), sinon le nom de la carte. */
@@ -471,7 +475,9 @@ function auraRules(aura: StatAura): string {
   const who = capitalize(alliesAround(aura));
   const stats = statBonus(aura);
   const attacks = aura.attacks ? `peuvent attaquer ${aura.attacks} fois par tour` : '';
-  return [stats ? `${who} ont ${stats}` : null, attacks ? (stats ? `et ${attacks}` : `${who} ${attacks}`) : null].filter(Boolean).join(' ') + '.';
+  const cost = aura.effectCost !== undefined ? `paient ${aura.effectCost} mana pour activer leurs effets` : '';
+  const verbs = [attacks, cost].filter(Boolean).join(' et ');
+  return [stats ? `${who} ont ${stats}` : null, verbs ? (stats ? `et ${verbs}` : `${who} ${verbs}`) : null].filter(Boolean).join(' ') + '.';
 }
 
 /** Au déplacement (Terrain de chasse) : « Quand un de tes monstres commence un déplacement sur sa case… ». */

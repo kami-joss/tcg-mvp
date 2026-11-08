@@ -42,6 +42,7 @@ import golemDeLave from '../assets/art/golem-de-lave.jpg';
 import invocateur from '../assets/art/invocateur.jpg';
 import jeanBon from '../assets/art/jean-bon.jpg';
 import jeuneDragon from '../assets/art/jeune-dragon.jpg';
+import nidDeDragons from '../assets/art/nid-de-dragons.jpg';
 import jeuneGomuscu from '../assets/art/jeune-gomuscu.jpg';
 import kiNe from '../assets/art/ki-ne.jpg';
 import lutinBrasier from '../assets/art/lutin-brasier.jpg';
@@ -53,6 +54,7 @@ import poseurDePiege from '../assets/art/poseur-de-piege.jpg';
 import sacrificeSanguinaire from '../assets/art/sacrifice-sanguinaire.jpg';
 import seringue from '../assets/art/seringue.jpg';
 import teleporteur from '../assets/art/teleporteur.jpg';
+import terrainDeJeu from '../assets/art/terrain-de-jeu.jpg';
 import terrainDrainant from '../assets/art/terrain-drainant.jpg';
 import terrainPiege from '../assets/art/terrain-piege.jpg';
 import trebuchet from '../assets/art/trebuchet.jpg';
@@ -71,9 +73,15 @@ export interface CardArt {
   readonly eye: readonly [number, number];
   /** Zoom du jeton : la largeur d'image qu'il montre (avant son recul), en % de la largeur de l'image : le visage et un peu autour. */
   readonly face: number;
+  /**
+   * Yeux pour le jeton, s'ils ne sont pas à `eye` : une illustration peu recadrée garde `eye` à 13 % (la fiche et la
+   * tuile la calent en haut, sans zoom) et donne ici la vraie place des yeux, pour centrer le jeton sur le visage.
+   */
+  readonly token?: readonly [number, number];
 }
 
-const art = (src: string, w: number, h: number, eye: readonly [number, number], face: number): CardArt => ({ src, w, h, eye, face });
+const art = (src: string, w: number, h: number, eye: readonly [number, number], face: number, token?: readonly [number, number]): CardArt =>
+  token ? { src, w, h, eye, face, token } : { src, w, h, eye, face };
 
 export const CARD_ART: Partial<Record<CardId, CardArt>> = {
   // Deck Archers
@@ -85,24 +93,29 @@ export const CARD_ART: Partial<Record<CardId, CardArt>> = {
   // Deck Archers impériaux (sources dans artworks/, recadrées au ratio 1,78 comme les autres decks en 9:16) : les yeux à 13 %
   // de la hauteur (SHEET_FRAME.eyeAt), sinon l'image remonte et laisse du vide en bas de la fiche ; scènes et machines : le point
   // d'intérêt est donné à 13 %, l'image reste calée en haut.
-  'ecuyer-archers': art(ecuyerArchers, 576, 1024, [25.7, 13], 33),
-  'archer-imperial': art(archerImperial, 576, 1024, [36.3, 13], 27),
-  'arbaletrier-imperial': art(arbaletrierImperial, 576, 1024, [44.9, 13], 28),
+  'ecuyer-archers': art(ecuyerArchers, 576, 1024, [24.2, 13], 30, [24.2, 20.3]),
+  'archer-imperial': art(archerImperial, 576, 1024, [38.4, 13], 26, [38.4, 23.3]),
+  'arbaletrier-imperial': art(arbaletrierImperial, 576, 1024, [50.3, 13], 24, [50.3, 29.5]),
   'trebuchet-archers': art(trebuchetArchers, 576, 1024, [30, 13], 70),
   'camps-de-tir': art(campsDeTir, 576, 1024, [55, 13], 60),
   'fleche-divine': art(flecheDivine, 576, 1024, [22.1, 13], 29),
-  // Deck Pièges
-  'poseur-de-piege': art(poseurDePiege, 1024, 1024, [65, 32.5], 30),
-  farceur: art(farceur, 1024, 1024, [70, 30.5], 40),
-  'poseur-de-bombe': art(poseurDeBombe, 1024, 1024, [55.5, 36], 36),
-  'clown-assassin': art(clownAssassin, 1024, 1024, [64, 28], 32),
-  penombre: art(penombre, 687, 1024, [45, 26], 60),
-  // Deck Dragons
-  'jeune-dragon': art(jeuneDragon, 1024, 559, [63.1, 24], 24),
-  'dragon-feu': art(dragonFeu, 1024, 559, [58, 42], 30),
-  'dragon-eau': art(dragonEau, 1024, 559, [71.5, 21], 28),
-  'dragon-vent': art(dragonVent, 1024, 559, [42, 32], 28),
-  'dragon-terre': art(dragonTerre, 1024, 559, [37.5, 25], 30),
+  // Deck Maîtres des pièges
+  // Nouvelles illustrations du 2026-11-08 (sources dans artworks/) : recadrées au ratio 1,78, les yeux à 13 % de la hauteur
+  // pour couvrir toute la fiche ; Pénombre, une scène, calée en haut.
+  'poseur-de-piege': art(poseurDePiege, 576, 1024, [50.4, 13], 21, [50.4, 17.4]),
+  farceur: art(farceur, 576, 1024, [50.2, 13], 26, [50.2, 36.6]),
+  'poseur-de-bombe': art(poseurDeBombe, 576, 1024, [63.5, 13], 20, [63.5, 33.5]),
+  'clown-assassin': art(clownAssassin, 576, 1024, [47.4, 13], 23, [47.4, 28.5]),
+  penombre: art(penombre, 576, 1024, [53, 13], 60),
+  'terrain-de-jeu': art(terrainDeJeu, 576, 1024, [50, 13], 60, [50, 30]),
+  // Deck Dragons élémentaires (refait le 2026-11-08, sources dans artworks/) : recadrées au ratio 1,78, les yeux à 13 % de
+  // la hauteur (SHEET_FRAME.eyeAt) pour couvrir toute la fiche ; le Nid, une scène, calée en haut.
+  'jeune-dragon': art(jeuneDragon, 576, 1024, [41.3, 13], 32, [41.3, 20.4]),
+  'dragon-feu': art(dragonFeu, 576, 1024, [54, 13], 30, [54, 37.4]),
+  'dragon-eau': art(dragonEau, 576, 1024, [25.6, 13], 27, [25.6, 26.7]),
+  'dragon-vent': art(dragonVent, 576, 1024, [70.4, 13], 27, [70.4, 36.4]),
+  'dragon-terre': art(dragonTerre, 576, 1024, [63.4, 13], 30, [63.4, 28.5]),
+  'nid-de-dragons': art(nidDeDragons, 576, 1024, [50, 13], 60),
   'dragon-origine': art(dragonOrigine, 1024, 559, [46.5, 12], 30),
   // Deck Bodybuilder
   'jeune-gomuscu': art(jeuneGomuscu, 1024, 559, [51.7, 35.4], 15),
@@ -215,8 +228,9 @@ export function tokenFit(image: CardArt): ArtFit {
   const r = image.h / image.w;
   const size = Math.max(100 / Math.min(100, image.face * TOKEN_STEP_BACK), 1, 1 / r);
   const height = size * r;
-  const x = Math.min(0, Math.max(1 - size, 0.5 - (image.eye[0] / 100) * size));
-  const y = Math.min(0, Math.max(1 - height, 0.25 - (image.eye[1] / 100) * height));
+  const [eyeX, eyeY] = image.token ?? image.eye;
+  const x = Math.min(0, Math.max(1 - size, 0.5 - (eyeX / 100) * size));
+  const y = Math.min(0, Math.max(1 - height, 0.25 - (eyeY / 100) * height));
   return { x, y, size, edge: (y + height) * 100 };
 }
 
@@ -246,10 +260,6 @@ const SHORT_NAMES: Partial<Record<CardId, string>> = {
   'poseur-de-bombe': 'Poseur bombe',
   'clown-assassin': 'Clown',
   'jeune-dragon': 'Jeune dragon',
-  'dragon-feu': 'Dragon feu',
-  'dragon-eau': 'Dragon eau',
-  'dragon-vent': 'Dragon vent',
-  'dragon-terre': 'Dragon terre',
   'dragon-origine': 'Origine',
   'apprenti-temps': 'Apprenti',
   chronomancienne: 'Chronomanc.',

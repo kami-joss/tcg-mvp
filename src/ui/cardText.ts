@@ -109,13 +109,14 @@ const ZONE_TEXT: Readonly<Record<AreaZone, string>> = {
   square1: 'carré de 1',
   line3: '3 cases en ligne, direction au choix',
   square2: 'carré de 2',
+  line3Diagonals: '3 cases en ligne et 2 diagonales devant, direction au choix',
 };
 
 /** Familles (§5.1) : nom sur la carte, puis au singulier et au pluriel dans un effet (« un allié bodybuilder »). */
 export const ARCHETYPE_NAMES: Readonly<Record<Archetype, { readonly title: string; readonly one: string; readonly many: string }>> = {
   bodybuilder: { title: 'Bodybuilder', one: 'bodybuilder', many: 'bodybuilders' },
   archer: { title: 'Archers impériaux', one: 'archer impérial', many: 'archers impériaux' },
-  dragon: { title: 'Dragons', one: 'dragon élémentaire', many: 'dragons élémentaires' },
+  dragon: { title: 'Dragons élémentaires', one: 'dragon élémentaire', many: 'dragons élémentaires' },
   piege: { title: 'Maîtres des pièges', one: 'maître des pièges', many: 'maîtres des pièges' },
   sorcier: { title: 'Sorciers du feu', one: 'sorcier du feu', many: 'sorciers du feu' },
   temps: { title: 'Explorateur du temps', one: 'explorateur du temps', many: 'explorateurs du temps' },
@@ -168,6 +169,8 @@ export function targetText(targeting: Targeting): string {
       return 'tous les ennemis';
     case 'enemiesNearAllies':
       return 'tous les ennemis dans un carré de 1 d’une de tes unités';
+    case 'enemiesAroundAlly':
+      return `un ${ARCHETYPE_NAMES[targeting.archetype].one} allié · ennemis, carré de ${targeting.square} de la cible`;
     case 'trail':
       return 'une case de son chemin du tour';
   }
@@ -337,7 +340,7 @@ export function onKillText(card: MonsterCard): string | null {
 }
 
 /** Bonus d'une aura : « +2 ATK », « +1 ATK +1 PV +1 mobilité ». */
-export function auraBonusText({ atk, hp, mobility, range, attacks, stealth }: Pick<StatAura, 'atk' | 'hp' | 'mobility' | 'range' | 'attacks' | 'stealth'>): string {
+export function auraBonusText({ atk, hp, mobility, range, attacks, stealth, effectCost }: Pick<StatAura, 'atk' | 'hp' | 'mobility' | 'range' | 'attacks' | 'stealth' | 'effectCost'>): string {
   return [
     atk ? `+${atk} ATK` : null,
     hp ? `+${hp} PV` : null,
@@ -345,6 +348,7 @@ export function auraBonusText({ atk, hp, mobility, range, attacks, stealth }: Pi
     range ? `+${range} portée` : null,
     attacks ? `${attacks} attaques par tour` : null,
     stealth ?? null,
+    effectCost !== undefined ? `effets actifs à ${effectCost} mana` : null,
   ]
     .filter(Boolean)
     .join(' ');

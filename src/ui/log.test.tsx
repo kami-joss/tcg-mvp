@@ -140,19 +140,20 @@ describe('journal des actions (SPEC.md §7)', () => {
       players: { 1: { mana: 10, grimoire: ['dragon-feu'] } },
     });
     expect(logOf(evolving, { type: 'activateEffect', unitId: 'u1', target: { kind: 'card', cardId: 'dragon-feu' } })).toEqual([
-      'Jeune dragon élémentaire - Dragons de J1 évolue en Dragon élémentaire de feu - Dragons en (5, 3).',
+      'Jeune dragon - Dragons élémentaires de J1 évolue en Ignis - Dragons élémentaires en (5, 3).',
     ]);
     const blasting = gameWith(
       [
-        { monster: 'dragon-feu', owner: 1, at: at(8, 2), facing: 'down' },
+        { monster: 'dragon-feu', owner: 1, at: at(8, 2), facing: 'up' },
         { monster: 'golem', owner: 2, at: at(9, 2) },
       ],
       { players: { 1: { mana: 5 } } },
     );
-    expect(logOf(blasting, { type: 'activateEffect', unitId: 'u1', target: { kind: 'area' } })).toEqual([
-      'Dragon élémentaire de feu - Dragons de J1 lance Déflagration.',
+    expect(logOf(blasting, { type: 'activateEffect', unitId: 'u1', target: { kind: 'area', direction: 'down' } })).toEqual([
+      'Ignis - Dragons élémentaires de J1 lance Lance-flamme vers le bas.',
       'Golem de J2 : 7 → 5 PV.',
     ]);
+    // Tempête : 2 dégâts, puis recul de 2 vers l'avant (sans distance à choisir).
     const blowing = gameWith(
       [
         { monster: 'dragon-vent', owner: 1, at: at(8, 1), facing: 'up' },
@@ -160,8 +161,9 @@ describe('journal des actions (SPEC.md §7)', () => {
       ],
       { players: { 1: { mana: 5 } } },
     );
-    expect(logOf(blowing, { type: 'activateEffect', unitId: 'u1', target: { kind: 'area', direction: 'right', distance: 2 } })).toEqual([
-      'Dragon élémentaire de vent - Dragons de J1 lance Vent violent vers la droite (recul de 2).',
+    expect(logOf(blowing, { type: 'activateEffect', unitId: 'u1', target: { kind: 'area', direction: 'right' } })).toEqual([
+      'Ventus - Dragons élémentaires de J1 lance Tempête vers la droite.',
+      'Golem de J2 : 7 → 5 PV.',
       'Golem de J2 recule sur la Ferme.',
     ]);
   });

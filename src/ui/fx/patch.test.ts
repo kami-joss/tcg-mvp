@@ -93,12 +93,13 @@ describe('zone en ligne : le dragon se tourne', () => {
     const state = gameWith(
       [
         { monster: 'dragon-vent', owner: 1, at: at(8, 1), facing: 'up' },
-        { monster: 'milicien', owner: 2, at: at(8, 2) },
-        { monster: 'milicien', owner: 2, at: at(8, 3) },
+        { monster: 'golem', owner: 2, at: at(8, 2) },
+        { monster: 'golem', owner: 2, at: at(8, 3) },
       ],
       { players: { 1: { mana: 5 } } },
     );
-    const action: Action = { type: 'activateEffect', unitId: 'u1', target: { kind: 'area', direction: 'right', distance: 2 } };
+    // Tempête : 2 dégâts puis recul de 2, dans la direction choisie.
+    const action: Action = { type: 'activateEffect', unitId: 'u1', target: { kind: 'area', direction: 'right' } };
     const { replayed, after } = replay(state, action);
     expect(replayed.units).toEqual(after.units);
     const effect = after.events.find((e) => e.type === 'effect')!;

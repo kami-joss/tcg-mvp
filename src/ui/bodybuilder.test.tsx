@@ -61,7 +61,7 @@ describe('textes des cartes Bodybuilder', () => {
     expect(describeCard(getCard('seringue'))).toEqual(['Un allié bodybuilder · ATK ×2 (pour ce tour) + requiem']);
     expect(statusText({ kind: 'requiem' })).toBe('requiem');
     // L'évolution reste écrite seule.
-    expect(describeCard(getCard('jeune-dragon')).at(-1)).toBe('Actif (2 mana) · Évolution');
+    expect(describeCard(getCard('jeune-dragon')).at(-1)).toBe('Actif (3 mana) · Évolution draconique');
   });
 
   it('fiche d’une carte du grimoire : type, passifs', () => {

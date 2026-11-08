@@ -35,13 +35,13 @@ const renderBoard = (state: GameState) =>
     />,
   );
 
-describe('Dragon élémentaire - Origine', () => {
-  it('texte : Vol ; aura sur les dragons élémentaires alliés adjacents', () => {
+describe('Origine - Dragons élémentaires (plus dans aucun deck, données gardées)', () => {
+  it('texte : Vol ; aura sur les dragons élémentaires alliés de son carré de 1', () => {
     expect(cardEffectLine(getCard('dragon-origine'))).toBe('Vol ; Aura · dragons élémentaires alliés, carré de 1 · +1 ATK +1 PV +1 mobilité');
-    expect(describeCard(getCard('dragon-origine'))[1]).toBe('Archétype Dragons.');
+    expect(describeCard(getCard('dragon-origine'))[1]).toBe('Archétype Dragons élémentaires.');
   });
 
-  it('fiche et animation : le dragon adjacent gagne 1 PV, la puce dit d’où vient le bonus', () => {
+  it('fiche et animation : le dragon de son carré de 1 gagne 1 PV, la puce dit d’où vient le bonus', () => {
     const state = gameWith([{ monster: 'dragon-origine', owner: 1, at: at(1, 4) }], {
       players: { 1: { mana: 10, grimoire: ['dragon-feu'] as CardId[] } },
     });
@@ -51,7 +51,7 @@ describe('Dragon élémentaire - Origine', () => {
       ['6', 1],
       ['6/6', 1],
     ]);
-    expect(sheet.status).toContainEqual({ icon: 'aura', text: 'Aura', detail: '+1 ATK +1 PV +1 mobilité (Origine - Dragons)', kind: 'boost', group: 'effect' });
+    expect(sheet.status).toContainEqual({ icon: 'aura', text: 'Aura', detail: '+1 ATK +1 PV +1 mobilité (Origine - Dragons élémentaires)', kind: 'boost', group: 'effect' });
     const aura = view(after).events.find((e) => e.type === 'auraHp')!;
     const before = { ...view(after), units: { ...view(after).units, u2: { ...view(after).units.u2!, hp: 5, maxHp: 5, auraHp: 0 } } };
     expect(applyEvent(before, aura, view(after)).units.u2).toMatchObject({ hp: 6, maxHp: 6, auraHp: 1 });

@@ -51,10 +51,10 @@ describe('cut-in : la carte qui agit, mise en avant', () => {
     expect(cutInFor(state, action)).toMatchObject({
       kind: 'effect',
       cardId: 'dragon-feu',
-      title: 'Dragon élémentaire de feu',
-      archetype: 'Dragons',
+      title: 'Ignis',
+      archetype: 'Dragons élémentaires',
       action: 'Effet actif',
-      effect: 'Déflagration',
+      effect: 'Lance-flamme',
       to: at(8, 1),
     });
   });

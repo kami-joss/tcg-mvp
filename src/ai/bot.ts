@@ -27,6 +27,7 @@ import {
   getZoneController,
   getZoneMana,
   canFly,
+  getEffectCost,
   isHiddenFrom,
   isPlayable,
   isStunned,
@@ -362,7 +363,7 @@ function getFollowUps(before: GameState, action: Action, after: GameState, me: P
     // Après un déplacement ou une invocation, son effet seulement s'il dépend de l'endroit où il se trouve (Mage,
     // Chaman, dragons) ou de la case des pièges à poser ; évoluer vaut autant d'ici que d'ailleurs.
     !monster.usedEffects.includes(i) &&
-    ability.manaCost <= after.players[me].mana &&
+    getEffectCost(after, monster, ability) <= after.players[me].mana &&
     (!quick ||
       ability.targeting.type === 'zone' ||
       ability.effects.some((effect) => effect.type === 'placeTrap') ||

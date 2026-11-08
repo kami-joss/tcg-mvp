@@ -87,9 +87,9 @@ describe('fiche (lot 9)', () => {
     const sheet = getSheet(getPlayerView(state, 1), { kind: 'card', cardId: 'dragon-feu' });
     expect(sheet?.passive?.items).toEqual([{ name: 'Vol', text: 'En se déplaçant, survole les cases X et les falaises de la Scierie (pas celles de la Mine), mais pas les ennemis.' }]);
     expect(sheet?.active).toEqual([{
-      name: 'Déflagration',
+      name: 'Lance-flamme',
       cost: 3,
-      text: 'Inflige 2 dégâts aux ennemis des 3 cases devant et leur inflige {{burn|burn 1}} pendant 1 tour.',
+      text: 'Inflige 2 dégâts aux ennemis sur 3 cases en ligne et les 2 cases en diagonale devant lui, dans la direction de ton choix et leur inflige {{burn|burn 2}} pendant 1 tour.',
       foot: null,
     }]);
   });

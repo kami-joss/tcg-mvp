@@ -46,7 +46,7 @@ describe('cartes (SPEC.md §6)', () => {
       // Un sort n'a pas de monstre source : ni zone, ni case autour de lui, ni portée relative, ni recul vers l'avant.
       if (card.kind !== 'spell') continue;
       const { targeting, effects } = card.ability;
-      expect(['monster', 'allies', 'enemies', 'enemiesNearAllies'], card.id).toContain(targeting.type);
+      expect(['monster', 'allies', 'enemies', 'enemiesNearAllies', 'enemiesAroundAlly'], card.id).toContain(targeting.type);
       if (targeting.type === 'monster') expect(['square1', 'line'], card.id).not.toContain(targeting.reach.type);
       for (const effect of effects) {
         expect(['placeTrap', 'evolve'], card.id).not.toContain(effect.type);

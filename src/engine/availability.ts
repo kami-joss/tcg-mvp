@@ -3,7 +3,7 @@
 // joueur (ses actions légales y sont déjà) : elle ne révèle rien de caché.
 import { getCard, getMonsterCard } from './cards';
 import { isExhausted, isSilenced, isStunned } from './statuses';
-import { canAttack } from './units';
+import { canAttack, getEffectCost } from './units';
 import type { CardId, PlayerView, UnitId } from './types';
 
 /**
@@ -76,7 +76,8 @@ export function effectAvailability(view: PlayerView, unitId: UnitId, effect = 0)
   if (isStunned(unit)) return no({ kind: 'stunned' });
   if (isSilenced(unit)) return no({ kind: 'silenced' });
   if (!ability.unlimited && unit.usedEffects.includes(effect)) return no({ kind: 'alreadyUsed' });
-  if (view.me.mana < ability.manaCost) return no({ kind: 'mana', missing: ability.manaCost - view.me.mana });
+  const cost = getEffectCost(view, unit, ability);
+  if (view.me.mana < cost) return no({ kind: 'mana', missing: cost - view.me.mana });
   if (ability.effects.some((e) => e.type === 'arm')) {
     if (unit.armed) return no({ kind: 'armed' });
     if (!canAttack(view, unit)) return no({ kind: 'noAttack' });
@@ -87,7 +88,7 @@ export function effectAvailability(view: PlayerView, unitId: UnitId, effect = 0)
     return no(unit.summonedOnTurn === view.turn ? { kind: 'justSummoned' } : { kind: 'noTarget', target: 'evolution' });
   }
   if (effects.some((e) => e.type === 'summon')) {
-    const budget = view.me.mana - ability.manaCost;
+    const budget = view.me.mana - cost;
     const affordable = view.me.grimoire.some((id) => {
       const card = getCard(id);
       return card.kind === 'monster' && card.cost <= budget;

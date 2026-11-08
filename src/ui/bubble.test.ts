@@ -145,7 +145,8 @@ describe('bulle : effets', () => {
     const evolve = bubble(state, { kind: 'effects', unitId: 'u1', page: 'evolve' });
     expect(evolve.header).toMatchObject({ kind: 'page', title: 'Évolution' });
     expect(bubbleBack(evolve)).toEqual({ kind: 'effects', unitId: 'u1', page: 'effects' });
-    expect(evolve.rows.map((r) => r.title)).toEqual(['Dragon élémentaire de feu', 'Dragon élémentaire de vent']);
+    // Le nom de chaque dragon, sans son archétype (Ignis - Dragons élémentaires, Ventus - Dragons élémentaires).
+    expect(evolve.rows.map((r) => r.title)).toEqual(['Ignis', 'Ventus']);
     expect(evolve.rows[0]!.pick).toEqual({
       action: { type: 'activateEffect', unitId: 'u1', target: { kind: 'card', cardId: 'dragon-feu' } },
     });
@@ -153,7 +154,8 @@ describe('bulle : effets', () => {
 });
 
 describe('bulle : choix en plusieurs temps', () => {
-  it('Vent violent : la direction est cliquée sur le plateau, la distance se choisit dans la bulle', () => {
+  it('Tempête : direction choisie, rien d’autre à choisir (recul de 2 vers l’avant) : une seule ligne pour la lancer', () => {
+    // Aucune carte n'a plus de recul « de 1 à N au choix » sur une zone : la bulle de direction n'a qu'une ligne.
     const state = gameWith(
       [
         { monster: 'dragon-vent', owner: 1, at: at(8, 1), facing: 'up' },
@@ -163,8 +165,11 @@ describe('bulle : choix en plusieurs temps', () => {
     );
     const selection: Selection = { kind: 'areaDirection', unitId: 'u1', direction: 'right' };
     const model = bubble(state, selection);
-    expect(model.header).toMatchObject({ kind: 'page', title: 'Vent violent', note: 'vers la droite', back: { kind: 'unit', unitId: 'u1', mode: 'effect' } });
-    expect(model.rows.map((r) => r.title)).toEqual(['Recul de 1', 'Recul de 2', 'Recul de 3']);
+    expect(model.header).toMatchObject({ kind: 'page', title: 'Tempête', note: 'vers la droite', back: { kind: 'unit', unitId: 'u1', mode: 'effect' } });
+    expect(model.rows.map((r) => r.title)).toEqual(['Lancer Tempête']);
+    expect(model.rows[0]!.pick).toEqual({
+      action: { type: 'activateEffect', unitId: 'u1', target: { kind: 'area', direction: 'right' } },
+    });
     expect(model.rows.every((r) => r.arrow === 'right')).toBe(true);
     // Plateau retourné : la bulle parle de l'écran.
     const flipped = bubble(state, selection, true);

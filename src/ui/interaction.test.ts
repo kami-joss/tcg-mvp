@@ -325,8 +325,8 @@ describe('interaction : dragons (évolution, effets de zone)', () => {
     expect(getHighlights(view, effectMode).size).toBe(0);
   });
 
-  it('effet de zone : la zone en violet ; un clic dessus le lance (sauf Vent violent, qui demande la distance)', () => {
-    const state = (cardId: 'dragon-feu' | 'dragon-vent') =>
+  it('effet de zone : la zone en violet ; un clic dessus le lance (en ligne, avec la direction de la ligne cliquée)', () => {
+    const state = (cardId: 'dragon-terre' | 'dragon-vent') =>
       activeView(
         gameWith(
           [
@@ -336,19 +336,20 @@ describe('interaction : dragons (évolution, effets de zone)', () => {
           MANA,
         ),
       );
-    const fire = state('dragon-feu');
+    // Séisme : le carré de 2 de (8, 2), coupé par le bord du plateau et la case X (7, 4) : 8 + 11 cases.
+    const earth = state('dragon-terre');
     const effectMode = { kind: 'unit', unitId: 'u1', mode: 'effect' } as const;
-    expect([...getHighlights(fire, effectMode).entries()].filter(([, h]) => h === 'effect').length).toBe(3);
-    expect(clickCell(fire, effectMode, at(9, 1))).toEqual({
+    expect([...getHighlights(earth, effectMode).entries()].filter(([, h]) => h === 'effect').length).toBe(19);
+    expect(clickCell(earth, effectMode, at(10, 4))).toEqual({
       action: { type: 'activateEffect', unitId: 'u1', target: { kind: 'area' } },
     });
-    // Vent violent : la ligne cliquée donne la direction ; reste la distance, dans la bulle.
+    // Tempête : pas de distance à choisir (recul de 2 vers l'avant), la ligne cliquée donne la direction et le lance.
     expect(clickCell(state('dragon-vent'), effectMode, at(9, 2))).toEqual({
-      selection: { kind: 'areaDirection', unitId: 'u1', direction: 'down' },
+      action: { type: 'activateEffect', unitId: 'u1', target: { kind: 'area', direction: 'down' } },
     });
   });
 
-  it('zone en ligne : les lignes de chaque direction utile en violet ; un clic choisit la direction de sa ligne', () => {
+  it('zone en ligne : les zones de chaque direction utile en violet ; un clic choisit la direction de sa ligne', () => {
     const view = activeView(
       gameWith(
         [
@@ -361,8 +362,9 @@ describe('interaction : dragons (évolution, effets de zone)', () => {
     );
     const effectMode = { kind: 'unit', unitId: 'u1', mode: 'effect' } as const;
     expect(getAreaDirections(view, 'u1')).toEqual(['down', 'right']);
+    // Vers le bas : (9, 2) et ses diagonales (9, 1), (9, 3) ; vers la droite : (8, 3) à (8, 5) et les diagonales (7, 3), (9, 3).
     const violet = [...getHighlights(view, effectMode).entries()].filter(([, h]) => h === 'effect').map(([key]) => key);
-    expect(violet.sort()).toEqual(['8,3', '8,4', '8,5', '9,2']);
+    expect(violet.sort()).toEqual(['7,3', '8,3', '8,4', '8,5', '9,1', '9,2', '9,3']);
     expect(clickCell(view, effectMode, at(8, 5))).toEqual({
       action: { type: 'activateEffect', unitId: 'u1', target: { kind: 'area', direction: 'right' } },
     });
@@ -380,7 +382,7 @@ describe('interaction : dragons (évolution, effets de zone)', () => {
       ),
     );
     const picked = { kind: 'areaDirection', unitId: 'u1', direction: 'right' } as const;
-    expect([...getHighlights(wind, picked).keys()].sort()).toEqual(['8,3', '8,4', '8,5']);
+    expect([...getHighlights(wind, picked).keys()].sort()).toEqual(['7,3', '8,3', '8,4', '8,5', '9,3']);
     expect(isFocused(picked)).toBe(true);
   });
 });

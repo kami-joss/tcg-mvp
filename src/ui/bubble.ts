@@ -3,7 +3,7 @@
 // droit), carte du grimoire (clic droit : l'invoquer, la lancer, la poser), et chaque choix en plusieurs temps (carte
 // d'évolution, monstre à invoquer, direction de la Bourrasque, distance d'un recul). Tout vient des actions légales et
 // des aperçus du moteur : la bulle ne calcule rien elle-même.
-import { cardAvailability, effectAvailability, getCard, getMonsterCard, previewAttack } from '../engine';
+import { cardAvailability, effectAvailability, getCard, getEffectCost, getMonsterCard, previewAttack } from '../engine';
 import type {
   Action,
   CardId,
@@ -241,7 +241,8 @@ function effectsBubble(
           tone: 'effect',
           title: effectName(ability),
           subtitle: availability?.ok ? plainRules(abilityRules(ability)) : availability ? reasonText(availability.reason, 'Déjà utilisé ce tour') : '',
-          cost: ability.manaCost,
+          // Le coût du moment : 1 mana dans un Nid de dragons.
+          cost: getEffectCost(view, unit, ability),
           enabled: availability?.ok ?? false,
           warn: availability?.ok === false && availability.reason.kind === 'mana',
           pick: availability?.ok ? effectPick(view, unit.id, selection, i) : null,

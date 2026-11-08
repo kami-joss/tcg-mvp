@@ -122,6 +122,14 @@ export function getAreaCells(state: BoardState, source: MonsterUnit, zone: AreaZ
     return cells;
   }
   const step = DIRECTION_OFFSETS[source.facing];
+  // 3 cases en ligne et les 2 diagonales devant (Lance-flamme, Tsunamie, Tempête) : `line3` plus les côtés de `front3`.
+  if (zone === 'line3Diagonals') {
+    const front = { row: source.pos.row + step.row, col: source.pos.col + step.col };
+    const sides = [1, -1]
+      .map((s) => ({ row: front.row + step.col * s, col: front.col + step.row * s }))
+      .filter((pos) => around.some((cell) => samePos(cell, pos)));
+    return [...getAreaCells(state, source, 'line3'), ...sides];
+  }
   if (zone === 'line3') {
     const line: Position[] = [];
     let pos = source.pos;
@@ -138,6 +146,9 @@ export function getAreaCells(state: BoardState, source: MonsterUnit, zone: AreaZ
   const row = [front, ...[1, -1].map((s) => ({ row: front.row + step.col * s, col: front.col + step.row * s }))];
   return row.filter((pos) => around.some((cell) => samePos(cell, pos)));
 }
+
+/** Zones dont le joueur choisit la direction (la source se tourne vers elle) : `line3`, `line3Diagonals`. */
+export const isDirectionalZone = (zone: AreaZone): boolean => zone === 'line3' || zone === 'line3Diagonals';
 
 /** Monstres ennemis de `player` dans une zone autour de la source (jamais un terrain, §10). */
 export function getAreaTargets(state: BoardState, zone: AreaZone, player: PlayerId, source: MonsterUnit): MonsterUnit[] {
@@ -201,12 +212,21 @@ export function getTrailCells(state: BoardState, source: MonsterUnit): Position[
  * Brûlure en chaîne : pour chaque unité alliée de `player` (monstre ou terrain), les monstres ennemis qu'il voit sur ses
  * 8 cases de son carré de 1 (§10). Un ennemi à côté de plusieurs unités alliées y est autant de fois.
  */
-export function getEnemiesNearAllies(state: GameState, player: PlayerId): MonsterUnit[] {
-  const seen = perceivedBy(state, player);
-  const enemies = getMonsters(seen, opponent(player));
+export function getEnemiesNearAllies(state: GameState, player: PlayerId, hiddenToo = false): MonsterUnit[] {
+  // Jouable d'après ce qu'il voit ; à la résolution, les ennemis invisibles sont touchés aussi (§5.3, 2026-11-08).
+  const enemies = getMonsters(hiddenToo ? state : perceivedBy(state, player), opponent(player));
   return Object.values(state.units)
     .filter((ally) => ally.owner === player)
     .flatMap((ally) => squareCells(state.board, ally.pos).flatMap((pos) => enemies.filter((enemy) => samePos(enemy.pos, pos))));
+}
+
+/**
+ * Hurlements : les monstres ennemis du carré de `square` autour de son allié `around`, invisibles compris (une zone
+ * touche aussi ceux que le lanceur ne voit pas, §5.3).
+ */
+export function getEnemiesAround(state: GameState, around: MonsterUnit, square: number): MonsterUnit[] {
+  const cells = squareCells(state.board, around.pos, square);
+  return getMonsters(state, opponent(around.owner)).filter((enemy) => cells.some((pos) => samePos(pos, enemy.pos)));
 }
 
 /** Le recul de l'effet, s'il en a un. */
@@ -247,6 +267,9 @@ export function getEffectTargets(
       return getMonsters(state, opponent(player)).length > 0 ? [{ kind: 'all' }] : [];
     case 'enemiesNearAllies':
       return getEnemiesNearAllies(state, player).length > 0 ? [{ kind: 'all' }] : [];
+    case 'enemiesAroundAlly':
+      // Un de ses monstres de la famille, au choix ; jouable même sans ennemi autour (validé le 2026-11-08).
+      return alliesOf(state, player, targeting.archetype).map((m): EffectTarget => ({ kind: 'unit', unitId: m.id }));
     case 'trail':
       return getTrailCells(state, requireSource(source)).map((pos): EffectTarget => ({ kind: 'cell', pos }));
     case 'self':
@@ -261,7 +284,7 @@ export function getEffectTargets(
     case 'zone': {
       // Jouable s'il touche au moins un ennemi ; en ligne, dans chaque direction où il en touche un.
       const from = requireSource(source);
-      const directions: (Direction | undefined)[] = targeting.zone === 'line3' ? [...DIRECTIONS] : [undefined];
+      const directions: (Direction | undefined)[] = isDirectionalZone(targeting.zone) ? [...DIRECTIONS] : [undefined];
       const push = findPush(effects);
       const distances = push?.chooseDistance ? Array.from({ length: push.distance }, (_, i) => i + 1) : [undefined];
       return directions
@@ -401,24 +424,34 @@ export function resolveAbility(
       // Ses monstres de la famille au moment où le sort est lancé ; ceux qui arrivent ensuite n'ont rien.
       return alliesOf(state, by, targeting.archetype).reduce((next, m) => applyEffects(next, effects, m.id, { by, source, origin }), state);
     case 'enemies':
-      // Les monstres ennemis que voit le lanceur (jamais un monstre invisible pour lui), au moment du sort.
-      return getMonsters(perceivedBy(state, by), opponent(by)).reduce((next, m) => applyEffects(next, effects, m.id, { by, source, origin }), state);
+      // Tous les monstres ennemis au moment du sort, invisibles compris : être caché ne protège de rien (§5.3).
+      return getMonsters(state, opponent(by)).reduce((next, m) => applyEffects(next, effects, m.id, { by, source, origin }), state);
     case 'enemiesNearAllies':
       // Au moment du sort : un ennemi à côté de deux unités alliées subit les effets deux fois (ils se cumulent, §5 bis).
-      return getEnemiesNearAllies(state, by).reduce((next, m) => applyEffects(next, effects, m.id, { by, source, origin }), state);
+      return getEnemiesNearAllies(state, by, true).reduce((next, m) => applyEffects(next, effects, m.id, { by, source, origin }), state);
+    case 'enemiesAroundAlly': {
+      if (target.kind !== 'unit') throw new Error('Cet effet vise un allié');
+      const around = state.units[target.unitId];
+      if (around?.kind !== 'monster' || around.owner !== by) throw new Error(`Allié invalide : ${target.unitId}`);
+      return getEnemiesAround(state, around, targeting.square).reduce(
+        (next, m) => applyEffects(next, effects, m.id, { by, source, origin }),
+        state,
+      );
+    }
     case 'trail': {
       if (target.kind !== 'cell') throw new Error('Le retour vise une case');
       const from = requireSource(source);
       return applyEffects(state, effects, from.id, { by, source: from, destination: target.pos, origin });
     }
     case 'self':
-      if (effects.some((effect) => effect.type === 'evolve')) return resolveEvolve(state, target, requireSource(source));
+      if (effects.some((effect) => effect.type === 'evolve')) return resolveEvolve(state, target, requireSource(source), effects);
       return applyEffects(state, effects, requireSource(source).id, { by, source, origin });
     case 'zone': {
-      // Chaque ennemi de la zone que le lanceur voit (jamais un monstre invisible pour lui) subit les effets, dans l'ordre.
+      // Chaque ennemi de la zone subit les effets, dans l'ordre, invisibles compris : un monstre caché l'est à la vue
+      // de l'adversaire, il n'est protégé de rien (§5.3, 2026-11-08). L'effet n'est jouable que si le lanceur y voit un ennemi.
       const from = requireSource(source);
       // Le plus éloigné de la source d'abord : sur une ligne, un recul ne bute pas sur l'ennemi suivant.
-      const ids = getAreaTargets(perceivedBy(state, by), targeting.zone, by, from)
+      const ids = getAreaTargets(state, targeting.zone, by, from)
         .sort((a, b) => distance(b.pos, from.pos) - distance(a.pos, from.pos))
         .map((m) => m.id);
       const context: EffectContext = { by, source: from, distance: target.kind === 'area' ? target.distance : undefined, origin };
@@ -670,7 +703,7 @@ function getEvolveTargets(state: GameState, player: PlayerId, source: MonsterUni
  * La source est sacrifiée (sans être détruite : pas de VP) ; la carte choisie quitte le grimoire sans être payée et
  * son monstre prend sa place, dans le même sens, sans pouvoir agir ce tour.
  */
-function resolveEvolve(state: GameState, target: EffectTarget, source: MonsterUnit): GameState {
+function resolveEvolve(state: GameState, target: EffectTarget, source: MonsterUnit, effects: readonly Effect[]): GameState {
   if (target.kind !== 'card') throw new Error('L’évolution choisit une carte du grimoire');
   const card = getCard(target.cardId);
   if (card.kind !== 'monster') throw new Error(`« ${target.cardId} » n'est pas un monstre`);
@@ -686,5 +719,8 @@ function resolveEvolve(state: GameState, target: EffectTarget, source: MonsterUn
     hasAttacked: true,
     usedEffects: card.activated.map((_, i) => i),
   };
-  return addUnit(emit(next, { type: 'summon', unit }), () => unit);
+  next = addUnit(emit(next, { type: 'summon', unit }), () => unit);
+  // Évolution draconique : le dragon invoqué est stun jusqu'à son prochain tour.
+  const evolve = effects.find((effect) => effect.type === 'evolve');
+  return evolve?.type === 'evolve' && evolve.status ? addStatus(next, id, evolve.status) : next;
 }

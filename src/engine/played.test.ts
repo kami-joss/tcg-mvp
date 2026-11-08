@@ -47,7 +47,7 @@ describe('cartes jouées (SPEC.md §4.3, §10)', () => {
 
   it('évolution : le dragon est une carte jouée, le Jeune dragon sacrifié va au cimetière', () => {
     const state = gameWith([{ monster: 'jeune-dragon', owner: 1, at: at(5, 2) }], {
-      players: { 1: { mana: 2, grimoire: ['dragon-feu'] } },
+      players: { 1: { mana: 3, grimoire: ['dragon-feu'] } }, // Évolution draconique : 3 mana
       turn: 3,
     });
     const after = applyAction(state, activate('u1', { kind: 'card', cardId: 'dragon-feu' }));
