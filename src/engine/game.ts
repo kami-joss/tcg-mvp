@@ -2,7 +2,7 @@
 import { BOARD } from './board';
 import { TEST_GRIMOIRE } from './cards';
 import { startTurn } from './turns';
-import type { Board, CardId, GameMode, GameState, PlayerId, PlayerState } from './types';
+import type { Board, CardId, Economy, GameMode, GameState, PlayerId, PlayerState } from './types';
 
 /** Les exemplaires brillants qui sont bien dans le deck (un par exemplaire présent, au plus). */
 function shinyCopies(deck: readonly CardId[], shiny: readonly CardId[]): readonly CardId[] {
@@ -31,6 +31,7 @@ export function createGame(
   shiny: Readonly<Record<PlayerId, readonly CardId[]>> = { 1: [], 2: [] },
   mode: GameMode = 'normal',
   first: PlayerId = 1,
+  economy: Economy = 'classic',
 ): GameState {
   if (mode === 'contestation' && !board.contestation) {
     throw new Error(`Le mode contestation ne se joue pas sur « ${board.name} »`);
@@ -39,6 +40,7 @@ export function createGame(
   return startTurn({
     board,
     mode,
+    economy,
     players: { 1: createPlayer(1, decks[1], shiny[1]), 2: createPlayer(2, decks[2], shiny[2]) },
     activePlayer: first,
     turn: 1,

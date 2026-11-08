@@ -9,6 +9,7 @@
 // « ★ Brillante », reflets (images brillantes de l'overframe, ou shiny générique sur l'illustration).
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
+import type { Position } from '../engine';
 import { SHEET_FRAME, artFit, cardArtFor, fitBackground } from './art';
 import { Icon } from './Icon';
 import type { IconName } from './Icon';
@@ -115,11 +116,13 @@ interface HoverSheetProps {
   animated?: boolean;
   /** Clic sur une fiche à overframe : l'ouvrir en grand. */
   onOpen?: () => void;
+  /** Survol d'un effet actif : sa portée à montrer sur le plateau (`null` : plus rien). */
+  onHoverReach?: (reach: readonly Position[] | null) => void;
 }
 
-export function HoverSheet({ sheet, animated = false, onOpen }: HoverSheetProps) {
+export function HoverSheet({ sheet, animated = false, onOpen, onHoverReach }: HoverSheetProps) {
   const overframe = sheetOverframe(sheet);
-  if (!overframe) return <SheetFrame sheet={sheet} animated={animated} />;
+  if (!overframe) return <SheetFrame sheet={sheet} animated={animated} onHoverReach={onHoverReach} />;
   return (
     <OverframeStage
       def={overframe}
@@ -128,12 +131,22 @@ export function HoverSheet({ sheet, animated = false, onOpen }: HoverSheetProps)
       onClick={onOpen}
       title={onOpen ? 'Voir la carte en grand' : undefined}
     >
-      {(layers) => <SheetFrame sheet={sheet} animated={animated} layers={layers} />}
+      {(layers) => <SheetFrame sheet={sheet} animated={animated} layers={layers} onHoverReach={onHoverReach} />}
     </OverframeStage>
   );
 }
 
-function SheetFrame({ sheet, animated, layers }: { sheet: SheetData; animated: boolean; layers?: OverframeLayers }) {
+function SheetFrame({
+  sheet,
+  animated,
+  layers,
+  onHoverReach,
+}: {
+  sheet: SheetData;
+  animated: boolean;
+  layers?: OverframeLayers;
+  onHoverReach?: (reach: readonly Position[] | null) => void;
+}) {
   const card = sheet.art !== null;
   const classes = [
     'sheet',
@@ -214,7 +227,12 @@ function SheetFrame({ sheet, animated, layers }: { sheet: SheetData; animated: b
           </div>
         )}
         {sheet.active.map((active, i) => (
-          <div key={i} className="sheet__block sheet__block--active">
+          <div
+            key={i}
+            className={`sheet__block sheet__block--active${active.reach && onHoverReach ? ' has-reach' : ''}`}
+            onMouseEnter={active.reach && onHoverReach ? () => onHoverReach(active.reach!) : undefined}
+            onMouseLeave={active.reach && onHoverReach ? () => onHoverReach(null) : undefined}
+          >
             <p className="sheet__block-head">
               <Icon name="magic-swirl" />
               <span>Effet actif{active.name && ` · ${active.name}`}</span>

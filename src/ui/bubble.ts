@@ -3,7 +3,7 @@
 // droit), carte du grimoire (clic droit : l'invoquer, la lancer, la poser), et chaque choix en plusieurs temps (carte
 // d'évolution, monstre à invoquer, direction de la Bourrasque, distance d'un recul). Tout vient des actions légales et
 // des aperçus du moteur : la bulle ne calcule rien elle-même.
-import { cardAvailability, effectAvailability, getCard, getEffectCost, getMonsterCard, previewAttack } from '../engine';
+import { cardAvailability, effectAvailability, getCard, getEffectCost, getEffectReach, getMonsterCard, previewAttack } from '../engine';
 import type {
   Action,
   CardId,
@@ -44,6 +44,8 @@ export interface BubbleRow {
   readonly pick: BubblePick | null;
   /** Trajet à montrer sur le plateau au survol de la ligne (attaquer et avancer). */
   readonly path?: readonly Position[];
+  /** Portée d'un effet, montrée sur le plateau au survol de sa ligne, même s'il n'est pas disponible. */
+  readonly reach?: readonly Position[];
 }
 
 export type BubbleHeader =
@@ -249,6 +251,7 @@ function effectsBubble(
           enabled: availability?.ok ?? false,
           warn: availability?.ok === false && availability.reason.kind === 'mana',
           pick: availability?.ok ? effectPick(view, unit.id, selection, i) : null,
+          reach: getEffectReach(view, ability, unit.owner, unit),
         };
       })
     : [

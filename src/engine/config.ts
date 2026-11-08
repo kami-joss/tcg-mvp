@@ -12,6 +12,15 @@ export const BASE_MANA_FIRST_TURN = 3;
 export const MANA_GROWTH_PER_TURN = 1;
 export const BASE_MANA_CAP = 10;
 
+/**
+ * Économie « Réserve » (option de l'accueil, SPEC.md §10) : mana de base 3, 4, 5, puis `RESERVE_BASE_MANA_CAP` à chaque
+ * tour ; le mana se garde d'un tour à l'autre, jusqu'à `RESERVE_MANA_LIMIT`, plus `RESERVE_LIMIT_PER_TERRAIN` par terrain
+ * du joueur sur le plateau (15 au plus avec les 5 mana zones).
+ */
+export const RESERVE_BASE_MANA_CAP = 6;
+export const RESERVE_MANA_LIMIT = 10;
+export const RESERVE_LIMIT_PER_TERRAIN = 1;
+
 /** Requiem : meurt au début de son deuxième tour après affectation (SPEC.md §5 bis), sans paramètre. */
 export const REQUIEM_TURNS = 2;
 

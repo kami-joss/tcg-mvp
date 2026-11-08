@@ -20,6 +20,7 @@ import {
   getAtk,
   getCard,
   getCell,
+  getEffectReach,
   getMonsterCard,
   getNextTurnMobility,
   getOnMoveBonus,
@@ -119,6 +120,8 @@ export interface SheetActive {
   readonly cost: number | null;
   readonly text: string;
   readonly foot: SheetStatus | null;
+  /** Portée de l'effet d'un monstre du plateau, montrée sur le plateau au survol du bloc. */
+  readonly reach?: readonly Position[];
 }
 
 /** Couleur d'une puce « Effets en cours », selon ce qui la cause. */
@@ -214,13 +217,21 @@ const familySuffix = (card: Card) => (card.kind === 'monster' && card.archetype 
 
 const hasRiposte = (card: MonsterCard) => card.keywords.some((spec) => spec.keyword === 'riposte');
 
-/** Un bloc par effet actif ; `foot` : sa disponibilité (sur le plateau, pendant son tour), par rang d'effet. */
-function activeBlocks(card: MonsterCard, foot: (effect: number) => SheetStatus | null = () => null): SheetActive[] {
+/**
+ * Un bloc par effet actif ; `foot` : sa disponibilité (sur le plateau, pendant son tour), par rang d'effet ; `monster` :
+ * le monstre du plateau, dont la portée de chaque effet se montre au survol.
+ */
+function activeBlocks(
+  card: MonsterCard,
+  foot: (effect: number) => SheetStatus | null = () => null,
+  monster?: { view: PlayerView; unit: MonsterUnit },
+): SheetActive[] {
   return card.activated.map((ability, i) => ({
     name: ability.name ?? (card.activated.length > 1 ? effectName(ability) : null),
     cost: ability.manaCost,
     text: abilityRules(ability),
     foot: foot(i),
+    ...(monster ? { reach: getEffectReach(monster.view, ability, monster.unit.owner, monster.unit) } : {}),
   }));
 }
 
@@ -535,7 +546,7 @@ function monsterSheet(view: PlayerView, monster: MonsterUnit): SheetData {
           `À son prochain tour : hachures orange, là où il pourra aller (mobilité ${getNextTurnMobility(monster, view.turn, view.activePlayer)}) ; rouges, là où il pourra frapper (portée ${card.range}).`,
         ],
     passive: passiveBlock(keywordItems(card), riposte),
-    active: activeBlocks(card, effectFoot),
+    active: activeBlocks(card, effectFoot, { view, unit: monster }),
     status: monsterChips(view, monster, terrain),
   };
 }

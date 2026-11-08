@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Déplacements discrets</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<style>html,body{margin:0;height:100%;background:#24261f;overflow:hidden}a{color:#f3d27a}a:hover{color:#fff1c4}</style>
+</helmet>
+<div data-screen-label="Déplacements discrets" ref="{{ rootRef }}" onMouseDown="{{ onDown }}" onMouseMove="{{ onMove }}" onMouseUp="{{ onUp }}" onMouseLeave="{{ onUp }}" style="position:fixed;inset:0;overflow:hidden;background:radial-gradient(ellipse at 50% 45%, #33372b, #1e2019 75%);user-select:none;font-family:Nunito, system-ui, sans-serif;cursor:{{ cursor }}">
+  <sc-if value="{{ ready }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:0;top:0;transform-origin:0 0;width:{{ W }}px;height:{{ H }}px;transform:{{ tf }}">
+      <div onMouseLeave="{{ clearHover }}" style="position:absolute;left:0;top:0;width:1104px;height:1104px;transform-origin:0 0;transform:{{ planeTf }}">
+        <div style="position:absolute;left:0;top:0;width:1104px;height:1104px;pointer-events:none;background-size:100% 100%;background-image:{{ solBg }};transform:{{ solTf }}"></div>
+        <sc-for list="{{ marks }}" as="m" hint-placeholder-count="0">
+          <div style="position:absolute;pointer-events:none;box-sizing:border-box;border-radius:50%;left:{{ m.x }}px;top:{{ m.y }}px;width:{{ m.s }}px;height:{{ m.s }}px;border:{{ m.border }};background:{{ m.bg }};box-shadow:{{ m.sh }}"></div>
+        </sc-for>
+        <sc-for list="{{ cells }}" as="t" hint-placeholder-count="0">
+          <div onClick="{{ t.click }}" onMouseEnter="{{ t.enter }}" style="position:absolute;box-sizing:border-box;transition:background .15s, box-shadow .15s;width:{{ t.w }}px;height:{{ t.w }}px;border-radius:{{ t.rad }}px;left:{{ t.x }}px;top:{{ t.y }}px;background:{{ t.fill }};box-shadow:{{ t.sh }};cursor:{{ t.cur }}"></div>
+        </sc-for>
+      </div>
+      <sc-for list="{{ sprites }}" as="s" hint-placeholder-count="0">
+        <div style="position:absolute;pointer-events:none;background-size:100% 100%;background-repeat:no-repeat;background-image:{{ s.bg }};left:{{ s.x }}px;top:{{ s.y }}px;width:{{ s.w }}px;height:{{ s.h }}px;z-index:{{ s.z }};transform-origin:{{ s.o }};transform:{{ s.tf }};transition:opacity .25s;opacity:{{ s.op }}"></div>
+      </sc-for>
+      <sc-for list="{{ units }}" as="u" hint-placeholder-count="0">
+        <div onClick="{{ u.click }}" style="position:absolute;width:0;height:0;cursor:pointer;transition:left .3s ease, top .3s ease;left:{{ u.x }}px;top:{{ u.y }}px;z-index:{{ u.z }}">
+          <div style="position:absolute;left:-34px;width:68px;box-sizing:border-box;border-radius:50%;border:3px solid {{ u.ring }};top:{{ u.bt }}px;height:{{ u.bh }}px;background:{{ u.baseFill }};box-shadow:{{ u.glow }}"></div>
+          <div style="position:absolute;left:-14px;top:-9px;width:28px;height:12px;border-radius:50%;background:rgba(0,0,0,.35);filter:blur(2px)"></div>
+          <div style="position:absolute;left:-3px;top:-21px;width:6px;height:19px;border-radius:3px;background:linear-gradient(90deg,#e6d3a8,#8a7550)"></div>
+          <div style="position:absolute;left:-19px;width:38px;height:38px;box-sizing:border-box;border-radius:50%;border:3px solid #fff3d2;display:flex;align-items:center;justify-content:center;color:#fff;font-family:Cinzel, serif;font-weight:700;font-size:17px;text-shadow:0 2px 2px rgba(0,0,0,.4);box-shadow:0 4px 8px rgba(0,0,0,.45), inset 0 -3px 0 rgba(0,0,0,.22), inset 0 2px 0 rgba(255,255,255,.35);transition:top .15s;top:{{ u.top }}px;background:{{ u.bg }}">{{ u.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+  <sc-if value="{{ loading }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#f3ead2;font-family:Cinzel, serif;font-weight:700;font-size:20px;letter-spacing:.08em;pointer-events:none">Calcul du sol…</div>
+  </sc-if>
+  <div style="position:absolute;left:20px;top:20px;display:flex;flex-direction:column;gap:6px;padding:14px 18px;max-width:340px;border-radius:14px;background:rgba(24,26,20,.82);border:1px solid rgba(243,210,122,.35);box-shadow:0 8px 24px rgba(0,0,0,.35);color:#f3ead2;pointer-events:none">
+    <div style="font-family:Cinzel, serif;font-weight:700;font-size:18px;letter-spacing:.06em;color:#f3d27a">Déplacements &amp; menaces</div>
+    <div style="font-size:14px;line-height:1.4;text-wrap:pretty">{{ info }}</div>
+    <sc-if value="{{ hasHoverInfo }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size:13px;font-weight:700;line-height:1.35;color:#f3d27a;text-wrap:pretty">{{ hoverInfo }}</div>
+    </sc-if>
+    <div style="font-size:12px;opacity:.75">{{ solSource }} · Molette : zoom · Glisser : déplacer</div>
+  </div>
+  <div onMouseDown="{{ stop }}" style="position:absolute;left:20px;bottom:20px;display:flex;flex-direction:column;gap:8px;padding:12px 14px;max-width:340px;border-radius:14px;background:rgba(24,26,20,.88);border:1px solid rgba(243,210,122,.35);box-shadow:0 8px 24px rgba(0,0,0,.35);color:#f3ead2">
+    <div style="font-family:Cinzel, serif;font-weight:700;font-size:14px;letter-spacing:.06em;color:#f3d27a">Légende</div>
+    <div style="display:flex;gap:6px">
+      <sc-for list="{{ palettes }}" as="m" hint-placeholder-count="2">
+        <button onClick="{{ m.pick }}" aria-pressed="{{ m.pressed }}" style="height:30px;padding:0 10px;border-radius:8px;border:1px solid {{ m.bd }};background:{{ m.bg }};color:{{ m.fg }};font-family:Nunito, system-ui, sans-serif;font-size:12px;font-weight:800;cursor:pointer">{{ m.label }}</button>
+      </sc-for>
+    </div>
+    <sc-for list="{{ legend }}" as="l" hint-placeholder-count="4">
+      <div style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;opacity:{{ l.op }}">
+        <div style="width:22px;height:22px;flex:none;border-radius:5px;background:#3a4430;box-shadow:{{ l.sh }}"></div>{{ l.label }}
+      </div>
+    </sc-for>
+    <div style="display:flex;align-items:center;gap:9px;font-size:12px;line-height:1.35;opacity:.85;text-wrap:pretty">
+      <div style="width:22px;height:22px;flex:none;border-radius:5px;background:#3a4430;box-shadow:{{ mixSwatch }}"></div>{{ mixText }}
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;padding-top:2px">
+      <button onClick="{{ toggleMenace }}" aria-pressed="{{ menacePressed }}" style="height:30px;padding:0 10px;border-radius:8px;border:1px solid rgba(243,210,122,.3);background:rgba(243,210,122,.12);color:#f3ead2;font-family:Nunito, system-ui, sans-serif;font-size:12px;font-weight:800;cursor:pointer">{{ menaceLabel }}</button>
+      <button onClick="{{ toggleChemin }}" aria-pressed="{{ cheminPressed }}" style="height:30px;padding:0 10px;border-radius:8px;border:1px solid rgba(243,210,122,.3);background:rgba(243,210,122,.12);color:#f3ead2;font-family:Nunito, system-ui, sans-serif;font-size:12px;font-weight:800;cursor:pointer">{{ cheminLabel }}</button>
+    </div>
+  </div>
+  <div onMouseDown="{{ stop }}" style="position:absolute;right:20px;bottom:20px;display:flex;align-items:center;gap:6px;padding:6px;border-radius:12px;background:rgba(24,26,20,.82);border:1px solid rgba(243,210,122,.35);box-shadow:0 8px 24px rgba(0,0,0,.35)">
+    <button onClick="{{ zoomOut }}" aria-label="Dézoomer" style="width:36px;height:36px;border:none;border-radius:9px;background:rgba(243,210,122,.15);color:#f3ead2;font-size:20px;font-weight:800;cursor:pointer" style-hover="background:rgba(243,210,122,.32)">−</button>
+    <div style="min-width:52px;text-align:center;color:#f3ead2;font-weight:700;font-size:13px">{{ zoomPct }}</div>
+    <button onClick="{{ zoomIn }}" aria-label="Zoomer" style="width:36px;height:36px;border:none;border-radius:9px;background:rgba(243,210,122,.15);color:#f3ead2;font-size:20px;font-weight:800;cursor:pointer" style-hover="background:rgba(243,210,122,.32)">+</button>
+    <button onClick="{{ reset }}" style="height:36px;padding:0 12px;border:none;border-radius:9px;background:rgba(243,210,122,.15);color:#f3ead2;font-family:Nunito, system-ui, sans-serif;font-size:13px;font-weight:700;cursor:pointer" style-hover="background:rgba(243,210,122,.32)">Recentrer</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;portee&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 1, &quot;min&quot;: 1, &quot;max&quot;: 5, &quot;tsType&quot;: &quot;number&quot;}, &quot;menace&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;}, &quot;chemin&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;}, &quot;vue&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;Isométrique J1&quot;, &quot;Isométrique J2&quot;, &quot;Dessus&quot;], &quot;default&quot;: &quot;Isométrique J1&quot;, &quot;tsType&quot;: &quot;string&quot;}, &quot;mouvement&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 4, &quot;min&quot;: 1, &quot;max&quot;: 8, &quot;tsType&quot;: &quot;number&quot;}, &quot;vol&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;}, &quot;grille&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;}}">
+class Component extends DCLogic {
+  static PAS = 72; static CASE = 68; static MARGE = 14; static N = 15; static PLAN = 1104;
+  static NOMS = { F: 'Forge', E: 'Écurie', S: 'Scierie', M: 'Mine', R: 'Ferme' };
+  // Couleurs des halos (relatives au pion sélectionné) : [rvb, opacité du halo].
+  // reco : cyan = aller, orange = attaquer, violet en contour = zone de danger ennemie. quatre : la version 4 couleurs.
+  static PAL = {
+    reco: { move: ['80,225,255', .8], atk: ['255,145,30', .85] },
+    quatre: { move: ['120,205,255', .75], atk: ['45,95,235', .9], eMove: ['255,150,40', .75], eAtk: ['235,45,45', .8] },
+  };
+  static DANGER = '190,100,255';
+  static LEG = [['move', 'Là où je peux aller'], ['atk', 'Là où je peux attaquer'], ['eMove', 'Là où l’ennemi peut aller'], ['eAtk', 'Là où l’ennemi peut taper']];
+
+  // --- portage JS de isoGround.ts (handoff « Plateau 15 × 15 ») ---------------------------------------------
+  static seeded(seed) {
+    let a = seed >>> 0;
+    return () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  static weightedPick(random, names, weights) {
+    const total = weights.reduce((s, w) => s + w, 0); let x = random() * total;
+    for (let i = 0; i < names.length; i++) { x -= weights[i]; if (x <= 0) return names[i]; }
+    return names[names.length - 1];
+  }
+  static smoothstep(t) { const u = Math.min(1, Math.max(0, t)); return u * u * (3 - 2 * u); }
+  static zoneBlend(mask, coarse, fine, patches) {
+    const d = (mask - 0.5) * 2.2 + 0.32 * coarse + 0.06 * fine;
+    let alpha = Component.smoothstep((d + 0.12) / 0.24);
+    if (patches) alpha *= Math.min(1, Math.max(0, (patches.noise * 0.9 + fine * 0.25 + patches.offset) * 1.8));
+    return { alpha, band: Math.exp(-((d / 0.16) ** 2)) };
+  }
+  static socleBlend(mask, coarse, fine) {
+    const s = mask + 0.16 * coarse + 0.05 * fine;
+    return { alpha: Math.min(1, Math.max(0, (s - 0.2) / 0.14)), rim: Math.exp(-(((s - 0.22) / 0.04) ** 2)) * 0.18 };
+  }
+  static buildGround(size, decor, images) {
+    const C = Component, SHADOW = { haute: 0.9, moyenne: 0.45, basse: 0.15 };
+    const { pas, case: cell, marge, densite: D } = decor.plan;
+    const plan = 2 * marge + size * pas - (pas - cell), W = Math.round(plan * D);
+    const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+    const ground = mk(W, W), g = ground.getContext('2d');
+    const fresh = () => { const c = mk(W, W); return [c, c.getContext('2d')]; };
+    const inPlan = ctx => ctx.setTransform(D, 0, 0, D, 0, 0);
+    const cellX = col => marge + col * pas - (pas - cell) / 2, cellY = row => marge + row * pas - (pas - cell) / 2;
+    const tile = (ctx, name, row, col) => ctx.drawImage(images[name], cellX(col), cellY(row), pas, pas);
+    const random = C.seeded(decor.graine), M = Math.round(plan);
+    const noise = (() => {
+      const c = mk(M, M), x = c.getContext('2d', { willReadFrequently: true }), period = 2.5 * pas;
+      for (let y = 0; y < M; y += period) for (let xx = 0; xx < M; xx += period) x.drawImage(images.bruit, xx, y, period, period);
+      const d = x.getImageData(0, 0, M, M).data, n = M * M;
+      const coarse = new Float32Array(n), fine = new Float32Array(n), patches = new Float32Array(n);
+      for (let i = 0; i < n; i++) { coarse[i] = (d[i * 4] - 128) / 42; fine[i] = (d[i * 4 + 1] - 128) / 42; patches[i] = (d[i * 4 + 2] - 128) / 42; }
+      return { coarse, fine, patches };
+    })();
+    const cellMask = (cells, blur, grow = 0) => {
+      const a = mk(M, M), ax = a.getContext('2d'); ax.fillStyle = '#fff';
+      for (const [row, col] of cells) ax.fillRect(cellX(col) - grow, cellY(row) - grow, pas + 2 * grow, pas + 2 * grow);
+      const b = mk(M, M), bx = b.getContext('2d', { willReadFrequently: true }); bx.filter = `blur(${blur}px)`; bx.drawImage(a, 0, 0);
+      const d = bx.getImageData(0, 0, M, M).data, v = new Float32Array(M * M);
+      for (let i = 0; i < v.length; i++) v[i] = d[i * 4 + 3] / 255;
+      return v;
+    };
+    const alphaCanvas = (alpha, rgb = [0, 0, 0]) => {
+      const m = mk(M, M), mx = m.getContext('2d'), img = mx.createImageData(M, M);
+      for (let i = 0; i < alpha.length; i++) { img.data[i * 4] = rgb[0]; img.data[i * 4 + 1] = rgb[1]; img.data[i * 4 + 2] = rgb[2]; img.data[i * 4 + 3] = Math.round(255 * Math.min(1, Math.max(0, alpha[i]))); }
+      mx.putImageData(img, 0, 0);
+      const [c, x] = fresh(); x.drawImage(m, 0, 0, W, W); return c;
+    };
+    const masked = (layer, alpha) => {
+      const x = layer.getContext('2d'); x.setTransform(1, 0, 0, 1, 0, 0);
+      x.globalCompositeOperation = 'destination-in'; x.drawImage(alphaCanvas(alpha, [255, 255, 255]), 0, 0); x.globalCompositeOperation = 'source-over';
+      return layer;
+    };
+    const ring = cells => {
+      const seen = new Set(), out = [];
+      for (const [r, c] of cells) for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        const k = `${r + dr},${c + dc}`;
+        if (!seen.has(k) && r + dr >= 0 && c + dc >= 0 && r + dr < size && c + dc < size) { seen.add(k); out.push([r + dr, c + dc]); }
+      }
+      return out;
+    };
+    // 1. herbe partout, marge comprise
+    inPlan(g);
+    for (let row = -1; row <= size; row++) for (let col = -1; col <= size; col++) tile(g, C.weightedPick(random, decor.herbe.tuiles, decor.herbe.poids), row, col);
+    { const [c, x] = fresh(); x.filter = 'saturate(0.8) sepia(0.1) brightness(0.93)'; x.drawImage(ground, 0, 0); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, W); g.drawImage(c, 0, 0); }
+    // 2. sols de zones
+    for (const zone of decor.zones) {
+      const [layer, lx] = fresh(); inPlan(lx);
+      for (const [row, col] of ring(zone.cases)) tile(lx, C.weightedPick(random, zone.tuiles, zone.poids), row, col);
+      const mask = cellMask(zone.cases, 10), alpha = new Float32Array(mask.length), band = new Float32Array(mask.length);
+      for (let i = 0; i < mask.length; i++) {
+        const b = C.zoneBlend(mask[i], noise.coarse[i], noise.fine[i], zone.plaques === undefined ? undefined : { noise: noise.patches[i], offset: zone.plaques });
+        alpha[i] = b.alpha; band[i] = b.band * zone.forceBande;
+      }
+      g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(masked(layer, alpha), 0, 0); g.drawImage(alphaCanvas(band, zone.bande), 0, 0);
+    }
+    // 3. socles de terre teintés
+    for (const socle of decor.socles) {
+      const [layer, lx] = fresh(); inPlan(lx);
+      for (const [row, col] of ring(socle.cases)) tile(lx, random() < 0.5 ? 'terre_unie' : 'terre_copeaux', row, col);
+      const [tinted, tx] = fresh();
+      tx.filter = 'saturate(0.45)'; tx.drawImage(layer, 0, 0); tx.filter = 'none';
+      tx.globalCompositeOperation = 'multiply'; tx.fillStyle = `rgb(${socle.teinte.map(v => Math.round(v * 255)).join(',')})`; tx.fillRect(0, 0, W, W);
+      tx.globalCompositeOperation = 'screen'; tx.fillStyle = 'rgb(40,34,26)'; tx.fillRect(0, 0, W, W);
+      tx.globalCompositeOperation = 'destination-in'; tx.drawImage(layer, 0, 0); tx.globalCompositeOperation = 'source-over';
+      const mask = cellMask(socle.cases, 13), alpha = new Float32Array(mask.length), rim = new Float32Array(mask.length);
+      for (let i = 0; i < mask.length; i++) { const b = C.socleBlend(mask[i], noise.coarse[i], noise.fine[i]); alpha[i] = b.alpha; rim[i] = b.rim; }
+      g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(masked(tinted, alpha), 0, 0); g.drawImage(alphaCanvas(rim), 0, 0);
+    }
+    // 4. pièces peintes (canal, étangs)
+    for (const d of decor.decals) {
+      const [row, col] = d.case, x = cellX(col), y = cellY(row);
+      if (d.sens === 'lignes') g.setTransform(D, 0, 0, D, x * D, y * D); else g.setTransform(0, D, D, 0, x * D, y * D);
+      g.drawImage(images[d.image], 0, 0, pas, 2 * pas);
+    }
+    // 5. occlusion et ombres portées (+colonne)
+    const [ao, aox] = fresh(), [cast, cx] = fresh();
+    inPlan(aox); inPlan(cx); aox.fillStyle = '#000'; cx.fillStyle = '#000';
+    for (const s of decor.sprites) {
+      if (!s.ombre) continue;
+      for (const [row, col] of (s.empreinte || (s.case ? [s.case] : []))) {
+        aox.fillRect(cellX(col) - 4, cellY(row) - 4, pas + 8, pas + 8);
+        cx.fillRect(cellX(col) + pas * 0.2, cellY(row) + pas * 0.1, pas * (0.8 + SHADOW[s.ombre]), pas * 0.8);
+      }
+    }
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    const blurred = (src, px) => { const [c, x] = fresh(); x.filter = `blur(${px * D}px)`; x.drawImage(src, 0, 0); return c; };
+    g.globalAlpha = 0.26; g.drawImage(blurred(cast, 14), 0, 0);
+    g.globalAlpha = 0.34; g.drawImage(blurred(ao, 12), 0, 0);
+    g.globalAlpha = 1;
+    return ground;
+  }
+
+  state = {
+    champ: null, decor: null, sz: null, sol: null, solSource: '',
+    // Pion 4 rouge présélectionné près de la Forge, pion 4 bleu à portée : on voit tout de suite zone de mana, obstacles et case occupée.
+    units: [
+      { id: 'r1', t: 1, n: 1, r: 0, c: 0 }, { id: 'r2', t: 1, n: 2, r: 0, c: 1 }, { id: 'r3', t: 1, n: 3, r: 1, c: 0 }, { id: 'r4', t: 1, n: 4, r: 6, c: 5 },
+      { id: 'b1', t: 2, n: 1, r: 14, c: 14 }, { id: 'b2', t: 2, n: 2, r: 14, c: 13 }, { id: 'b3', t: 2, n: 3, r: 13, c: 14 }, { id: 'b4', t: 2, n: 4, r: 8, c: 7 },
+    ],
+    sel: 'r4', hover: null, z: 1, px: 0, py: 0, vw: 1280, vh: 800, menace: null, chemin: null, palette: 'reco',
+  };
+  rootRef = React.createRef();
+  drag = null; dragged = false;
+
+  componentDidMount() {
+    const j = u => fetch(u).then(r => r.json());
+    Promise.all([j('assets/plateau15/champ-15x15.json'), j('assets/plateau15/decor-15x15.json'), j('assets/plateau15/sprites/sprites.json')])
+      .then(([champ, decor, sz]) => { this.setState({ champ, decor, sz }, () => this.recenter()); setTimeout(() => this.makeGround(decor), 40); });
+    this.onResize = () => { if (this.state.z === 1) this.recenter(); else { const el = this.rootRef.current; this.setState({ vw: (el && el.clientWidth) || innerWidth, vh: (el && el.clientHeight) || innerHeight }); } };
+    addEventListener('resize', this.onResize);
+    if (window.ResizeObserver) { this.ro = new ResizeObserver(() => this.onResize()); this.ro.observe(document.documentElement); }
+    this.rootRef.current && this.rootRef.current.addEventListener('wheel', this.onWheel, { passive: false });
+  }
+  componentWillUnmount() {
+    removeEventListener('resize', this.onResize); this.ro && this.ro.disconnect();
+    this.rootRef.current && this.rootRef.current.removeEventListener('wheel', this.onWheel);
+    this.url && URL.revokeObjectURL(this.url);
+  }
+  componentDidUpdate(pp) {
+    if ((pp.vue ?? 'Isométrique J1') !== (this.props.vue ?? 'Isométrique J1')) this.recenter();
+    if (pp.menace !== this.props.menace && this.state.menace !== null) this.setState({ menace: null });
+    if (pp.chemin !== this.props.chemin && this.state.chemin !== null) this.setState({ chemin: null });
+  }
+
+  async makeGround(decor) {
+    const fallback = () => this.setState({ sol: 'assets/plateau15/sol_precalcule.webp', solSource: 'Sol précalculé' });
+    const t = document.createElement('canvas').getContext('2d'); t.filter = 'blur(2px)';
+    if (t.filter !== 'blur(2px)') return fallback();
+    try {
+      const names = new Set(['bruit', 'terre_unie', 'terre_copeaux', ...decor.herbe.tuiles, ...decor.zones.flatMap(z => z.tuiles), ...decor.decals.map(d => d.image)]);
+      const images = {};
+      await Promise.all([...names].map(n => new Promise((ok, ko) => { const im = new Image(); im.onload = () => ok(images[n] = im); im.onerror = ko; im.src = `assets/plateau15/sol/${n}.png`; })));
+      const t0 = performance.now(), cv = Component.buildGround(Component.N, decor, images), ms = Math.round(performance.now() - t0);
+      cv.toBlob(b => { if (!b) return fallback(); this.url = URL.createObjectURL(b); this.setState({ sol: this.url, solSource: `Sol calculé en ${ms} ms` }); });
+    } catch (e) { console.warn('Sol : calcul impossible', e); fallback(); }
+  }
+
+  view() {
+    const v = this.props.vue ?? 'Isométrique J1', top = v === 'Dessus', j2 = v === 'Isométrique J2';
+    return top ? { top, j2: false, W: 1164, H: 1164, ox: 30, oy: 30 } : { top, j2, W: 1620, H: 1010, ox: 810, oy: 72 };
+  }
+  proj(x, y, V) { return V.top ? [V.ox + x, V.oy + y] : [V.ox + (x - y) * 0.70710678, V.oy + (x + y) * 0.40824829]; }
+  disp(x, y, V) { const P = Component.PLAN; return V.j2 ? [P - x, P - y] : [x, y]; }
+  ctr(r, c) { const C = Component; return [C.MARGE + c * C.PAS + C.CASE / 2, C.MARGE + r * C.PAS + C.CASE / 2]; }
+
+  grid() {
+    const ch = this.state.champ; if (!ch) return null;
+    if (this._g && this._g.src === ch) return this._g;
+    const L = ch.lignes.map(l => l.split(' ')), eau = new Set(ch.eau);
+    const haute = new Set((ch.casesX.haute || []).map(a => a.join(','))), basse = new Set((ch.casesX.basse || []).map(a => a.join(',')));
+    const kind = (r, c) => { const k = r + ',' + c, v = L[r][c]; if (v !== 'X') return v; return haute.has(k) ? 'haute' : basse.has(k) ? 'basse' : eau.has(k) ? 'eau' : 'roc'; };
+    this._g = { src: ch, L, eau, kind };
+    return this._g;
+  }
+  fit() { const V = this.view(); return Math.max(0.05, Math.min(this.state.vw / V.W, this.state.vh / V.H)); }
+  recenter() {
+    const el = this.rootRef.current, vw = (el && el.clientWidth) || innerWidth, vh = (el && el.clientHeight) || innerHeight;
+    if (!vw || !vh) { setTimeout(() => this.recenter(), 50); return; }
+    const V = this.view(), s0 = Math.min(vw / V.W, vh / V.H);
+    this.setState({ vw, vh, z: 1, px: (vw - V.W * s0) / 2, py: (vh - V.H * s0) / 2 });
+  }
+  zoomAt(mx, my, f) {
+    const s = this.state, z = Math.max(1, Math.min(5, s.z * f));
+    if (z === s.z) return; if (z === 1) return this.recenter();
+    const k = z / s.z; this.setState({ z, px: mx - (mx - s.px) * k, py: my - (my - s.py) * k });
+  }
+  onWheel = e => { e.preventDefault(); const r = this.rootRef.current.getBoundingClientRect(); this.zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015)); };
+  onDown = e => { if (e.button !== 0) return; this.drag = { x: e.clientX, y: e.clientY, px: this.state.px, py: this.state.py }; this.dragged = false; };
+  onMove = e => {
+    const d = this.drag; if (!d) return;
+    const dx = e.clientX - d.x, dy = e.clientY - d.y;
+    if (!this.dragged && Math.hypot(dx, dy) < 5) return;
+    this.dragged = true; this.setState({ px: d.px + dx, py: d.py + dy });
+  };
+  onUp = () => { if (!this.drag) return; this.drag = null; if (this.dragged) setTimeout(() => { this.dragged = false; this.forceUpdate(); }, 0); };
+
+  // Déplacement : on ne s'arrête jamais sur une X ; à pied on ne traverse aucune X ; en vol on survole tout sauf les X hautes.
+  // Renvoie aussi la case précédente de chaque case (pour tracer le chemin au survol).
+  reach(u, mv, vol) {
+    const G = this.grid(), N = Component.N, occ = new Set(this.state.units.filter(o => o.id !== u.id).map(o => o.r + ',' + o.c));
+    const d = new Map([[u.r + ',' + u.c, 0]]), q = [[u.r, u.c]], stop = new Set(), prev = new Map();
+    while (q.length) {
+      const [r, c] = q.shift(), dk = d.get(r + ',' + c);
+      if (dk >= mv) continue;
+      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nr = r + dr, nc = c + dc, nk = nr + ',' + nc;
+        if (nr < 0 || nc < 0 || nr >= N || nc >= N || d.has(nk)) continue;
+        const k = G.kind(nr, nc), isX = ['haute', 'basse', 'eau', 'roc'].includes(k);
+        if (isX && (!vol || k === 'haute')) continue;
+        if (occ.has(nk) && !vol) continue;
+        d.set(nk, dk + 1); prev.set(nk, r + ',' + c); q.push([nr, nc]);
+        if (!isX && !occ.has(nk)) stop.add(nk);
+      }
+    }
+    return { stop, prev };
+  }
+  moveTo(r, c) { this.setState(s => ({ units: s.units.map(u => (u.id === s.sel ? { ...u, r, c } : u)), sel: null })); }
+  hoverText(r, c) {
+    const G = this.grid(), k = G.kind(r, c), N = Component.NOMS;
+    if (k === 'haute') return 'Paroi (X haute) : infranchissable, même en vol · coupe toutes les lignes de vue.';
+    if (k === 'basse') return (!G.eau.has(r + ',' + c) ? 'Billot' : c === 7 ? 'Étang' : 'Canal') + ' (X basse) : survolé en vol · les tirs de portée 2 ou plus passent.';
+    if (k === 'eau') return 'Eau : infranchissable · arrête les tirs.';
+    if (k === 'roc') return 'Rochers : infranchissables.';
+    if (N[k]) return 'Mana zone : ' + N[k];
+    if (k === '1' || k === '2') return 'Invocation J' + k;
+    if ((r === 9 && c === 1) || (r === 13 && c === 5)) return 'Pont : case libre';
+    if ((r === 1 && c === 9) || (r === 5 && c === 13)) return 'Entrée de la Mine';
+    return '';
+  }
+
+  // Cases à portée d'attaque (distance de Manhattan ≤ pt) depuis un ensemble de cases ; on ignore les X (aucune cible possible) et ce que skip écarte.
+  atkZone(from, pt, skip) {
+    const G = this.grid(), N = Component.N, out = new Set();
+    for (const k of from) {
+      const [r, c] = k.split(',').map(Number);
+      for (let dr = -pt; dr <= pt; dr++) for (let dc = -pt; dc <= pt; dc++) {
+        if ((!dr && !dc) || Math.abs(dr) + Math.abs(dc) > pt) continue;
+        const nr = r + dr, nc = c + dc, nk = nr + ',' + nc;
+        if (nr < 0 || nc < 0 || nr >= N || nc >= N || out.has(nk) || skip(nk)) continue;
+        if (['haute', 'basse', 'eau', 'roc'].includes(G.kind(nr, nc))) continue;
+        out.add(nk);
+      }
+    }
+    return out;
+  }
+
+  renderVals() {
+    const p = this.props, s = this.state, V = this.view(), G = this.grid(), C = Component;
+    const mv = p.mouvement ?? 4, vol = p.vol ?? false, gridOn = p.grille ?? true;
+    const pt = p.portee ?? 1, menace = s.menace ?? p.menace ?? true, chemin = s.chemin ?? p.chemin ?? true;
+    const reco = s.palette !== 'quatre', COL = C.PAL[reco ? 'reco' : 'quatre'], DG = C.DANGER;
+    const halo = (kind, blur = 14, spread = 0, extra = 0) => { const [rgb, a] = COL[kind]; return `inset 0 0 ${blur}px ${spread}px rgba(${rgb},${Math.min(1, a + extra)})`; };
+    const rim = kind => `inset 0 0 0 2.5px rgba(${COL[kind][0]},.95)`;
+    const base = {
+      rootRef: this.rootRef, onDown: this.onDown, onMove: this.onMove, onUp: this.onUp, stop: e => e.stopPropagation(),
+      cursor: this.drag && this.dragged ? 'grabbing' : 'grab', W: V.W, H: V.H,
+      tf: `translate(${s.px}px, ${s.py}px) scale(${this.fit() * s.z})`,
+      zoomPct: Math.round(s.z * 100) + ' %',
+      zoomIn: () => this.zoomAt(s.vw / 2, s.vh / 2, 1.4), zoomOut: () => this.zoomAt(s.vw / 2, s.vh / 2, 1 / 1.4), reset: () => this.recenter(),
+      loading: !s.sol, ready: !!(G && s.sol && s.decor && s.sz), solSource: s.solSource || 'Sol en calcul',
+      clearHover: () => this.state.hover && this.setState({ hover: null }),
+      legend: reco
+        ? [{ label: 'Là où je peux aller', sh: halo('move', 7, 1, .15), op: 1 }, { label: 'Là où je peux attaquer', sh: halo('atk', 7, 1, .15), op: 1 },
+           { label: 'Zone de danger ennemie (aller ou taper)', sh: `inset 0 0 0 3px rgba(${DG},.95), inset 0 0 0 22px rgba(${DG},.12)`, op: menace ? 1 : .4 }]
+        : C.LEG.map(([kind, label]) => ({ label, sh: halo(kind, 7, 1, .15), op: kind[0] === 'e' && !menace ? .4 : 1 })),
+      mixSwatch: reco ? `inset 0 0 0 3px rgba(${DG},.95), ${halo('move', 7, 1, .15)}` : `${rim('eAtk')}, ${halo('move', 7, 1, .15)}`,
+      mixText: reco ? 'Case cyan dans le contour violet : vous pouvez y aller, mais un ennemi peut vous y atteindre.' : 'Bord orange ou rouge sur une case bleue : l’ennemi peut aussi y aller ou y taper.',
+      palettes: [['reco', 'Recommandé'], ['quatre', '4 couleurs']].map(([id, label]) => { const on = (reco ? 'reco' : 'quatre') === id;
+        return { label, pressed: on ? 'true' : 'false', pick: () => this.setState({ palette: id }), bg: on ? '#f3d27a' : 'rgba(243,210,122,.12)', fg: on ? '#24261f' : '#f3ead2', bd: on ? '#f3d27a' : 'rgba(243,210,122,.3)' }; }),
+      menacePressed: menace ? 'true' : 'false', menaceLabel: menace ? '✓ Menace ennemie' : 'Menace ennemie masquée',
+      toggleMenace: () => this.setState({ menace: !menace }),
+      cheminPressed: chemin ? 'true' : 'false', cheminLabel: chemin ? '✓ Chemin au survol' : 'Chemin au survol masqué',
+      toggleChemin: () => this.setState({ chemin: !chemin }),
+    };
+    if (!base.ready) return { ...base, info: 'Chargement de la carte…', hoverInfo: '', hasHoverInfo: false, cells: [], marks: [], sprites: [], units: [] };
+
+    const su = s.units.find(u => u.id === s.sel), RR = su ? this.reach(su, mv, vol) : null, R = RR ? RR.stop : null;
+    // Chemin : cases traversées entre le pion et la case survolée (sans le départ ni l'arrivée).
+    const path = new Set();
+    if (RR && chemin && s.hover && R.has(s.hover)) { const home = su.r + ',' + su.c; let k = RR.prev.get(s.hover); while (k && k !== home) { path.add(k); k = RR.prev.get(k); } }
+    // Zones : les miennes (pion sélectionné) et celles de l'équipe adverse (union de tous ses pions).
+    const meT = su ? su.t : 1, occBy = new Map(s.units.map(u => [u.r + ',' + u.c, u.t]));
+    const myAtk = su ? this.atkZone([...R, su.r + ',' + su.c], pt, k => R.has(k) || occBy.get(k) === meT) : new Set();
+    const eMove = new Set(), eFrom = new Set();
+    if (menace) for (const e of s.units.filter(u => u.t !== meT)) { eFrom.add(e.r + ',' + e.c); for (const k of this.reach(e, mv, vol).stop) { eMove.add(k); eFrom.add(k); } }
+    const eAtk = menace ? this.atkZone(eFrom, pt, k => eMove.has(k) || (occBy.has(k) && occBy.get(k) !== meT)) : new Set();
+    this._zone = { R, myAtk, eMove, eAtk };
+    const gsh = gridOn ? ['inset 0 0 0 1px rgba(255,250,225,.16)'] : [], up = V.j2 ? 1 : -1;
+    const crumbLayer = 'radial-gradient(circle, #fff 0 3px, rgba(120,205,255,.95) 3.5px 5.5px, rgba(10,20,40,.45) 6px 7.5px, transparent 8px)';
+    const cells = [], marks = [];
+    for (let r = 0; r < C.N; r++) for (let c = 0; c < C.N; c++) {
+      const k = r + ',' + c, kind = G.kind(r, c), [x, y] = this.disp(...this.ctr(r, c), V);
+      const rk = !!(R && R.has(k)), hv = s.hover === k, bl = ['haute', 'basse', 'eau', 'roc'].includes(kind), crumb = path.has(k);
+      const mine = rk ? 'move' : myAtk.has(k) ? 'atk' : null, foe = eMove.has(k) ? 'eMove' : eAtk.has(k) ? 'eAtk' : null;
+      let fill = 'transparent', w = 68, rad = 6;
+      const sh = [], inDanger = reco && !!foe;
+      if (inDanger) {
+        // Contour violet : trait seulement sur les côtés qui donnent hors de la zone de danger ; cases pleines (72 px) pour un trait continu.
+        const out = (dr, dc) => { const q = (r + dr) + ',' + (c + dc); return !eMove.has(q) && !eAtk.has(q); }, col = `rgba(${DG},.95)`;
+        if (out(up, 0)) sh.push(`inset 0 3px 0 0 ${col}`);
+        if (out(-up, 0)) sh.push(`inset 0 -3px 0 0 ${col}`);
+        if (out(0, up)) sh.push(`inset 3px 0 0 0 ${col}`);
+        if (out(0, -up)) sh.push(`inset -3px 0 0 0 ${col}`);
+        w = 72; rad = 0;
+      } else if (foe) sh.push(mine ? rim(foe) : halo(foe)); // 4 couleurs : bord ennemi sur mes cases, sinon halo ennemi.
+      if (hv && mine === 'move') { fill = `rgba(${COL.move[0]},.22)`; sh.push(`inset 0 0 0 5px ${reco ? 'rgba(200,245,255,.95)' : 'rgba(215,240,255,.95)'}`); }
+      else if (hv && mine === 'atk') { fill = `rgba(${COL.atk[0]},.2)`; sh.push(`inset 0 0 0 5px ${reco ? 'rgba(255,210,150,.9)' : 'rgba(150,180,255,.9)'}`); }
+      else if (hv && !mine && !bl) { fill = 'rgba(255,255,255,.14)'; sh.push('inset 0 0 0 4.5px rgba(255,255,255,.75)'); }
+      if (mine) sh.push(halo(mine));
+      if (inDanger && fill === 'transparent') fill = `rgba(${DG},.08)`;
+      sh.push(...gsh);
+      if (crumb) fill = crumbLayer + ', ' + fill;
+      cells.push({
+        x: x - w / 2, y: y - w / 2, w, rad, fill, sh: sh.length ? sh.join(', ') : 'none', cur: rk ? 'pointer' : 'inherit',
+        click: () => { if (this.dragged) return; if (rk) this.moveTo(r, c); else if (this.state.sel) this.setState({ sel: null }); },
+        enter: () => { if (this.state.hover !== k) this.setState({ hover: k }); },
+      });
+      if (C.NOMS[kind]) marks.push({ x: x - 29, y: y - 29, s: 58, border: '3px solid rgba(243,210,122,.9)', bg: 'radial-gradient(circle, rgba(255,226,140,.34) 0 46%, transparent 47% 60%, rgba(255,226,140,.22) 61%)', sh: '0 0 10px rgba(255,214,110,.55), inset 0 0 0 7px rgba(243,210,122,.16)' });
+      else if (kind === '1' || kind === '2') {
+        const col = kind === '1' ? '232,96,74' : '74,138,232';
+        marks.push({ x: x - 31, y: y - 31, s: 62, border: `2px solid rgba(${col},.85)`, bg: `radial-gradient(circle, rgba(${col},.5), rgba(${col},.32) 70%)`, sh: `0 0 8px rgba(${col},.45)` });
+      }
+    }
+    const upos = s.units.map(u => this.proj(...this.disp(...this.ctr(u.r, u.c), V), V));
+    const sprites = V.top ? [] : s.decor.sprites.map(sp => {
+      const [w, h, ax, ay] = s.sz[sp.id];
+      // Ancre = case de l'empreinte la plus proche de la caméra ; plateau tourné : la case opposée de l'empreinte.
+      const anchor = sp.empreinte && V.j2 ? sp.empreinte.reduce((a, q) => (q[0] + q[1] < a[0] + a[1] ? q : a)) : sp.case;
+      const pt = sp.entre ? sp.entre.map(([r, c]) => this.ctr(r, c)) : [this.ctr(...anchor)];
+      const mx = pt.reduce((a, q) => a + q[0], 0) / pt.length, my = pt.reduce((a, q) => a + q[1], 0) / pt.length;
+      const [sx, sy] = this.proj(...this.disp(mx, my, V), V), l = sx - ax / 2, t = sy - ay / 2;
+      const hides = upos.some(([ux, uy]) => uy < sy - 4 && ux > l + 8 && ux < l + w / 2 - 8 && uy - 30 > t && uy - 30 < t + h / 2);
+      return { bg: `url("assets/plateau15/sprites/${sp.id}.png")`, x: l.toFixed(1), y: t.toFixed(1), w: w / 2, h: h / 2, z: Math.round(sy), o: `${ax / 2}px ${ay / 2}px`, tf: sp.miroir ? 'scaleX(-1)' : 'none', op: hides ? 0.45 : 1 };
+    });
+    const units = s.units.map((u, i) => {
+      const [x, y] = upos[i], on = u.id === s.sel, red = u.t === 1;
+      return {
+        x: x.toFixed(1), y: y.toFixed(1), z: Math.round(y) + 1, top: on ? -64 : -57, label: u.n,
+        bt: V.top ? -34 : -20, bh: V.top ? 68 : 40,
+        bg: red ? 'radial-gradient(circle at 38% 30%, #ffa594, #cf3b31 62%, #8a2019)' : 'radial-gradient(circle at 38% 30%, #9ad6ff, #2f74d8 62%, #1d4a96)',
+        ring: on ? '#ffd76a' : red ? '#ff5a4a' : '#3f8cff',
+        baseFill: red ? 'rgba(220,50,40,.28)' : 'rgba(40,110,230,.28)',
+        glow: on ? '0 0 16px 4px rgba(255,215,106,.85)' : '0 2px 6px rgba(0,0,0,.35)',
+        click: () => { if (this.dragged) return; this.setState({ sel: on ? null : u.id }); },
+      };
+    });
+    const hv = s.hover ? s.hover.split(',').map(Number) : null;
+    const danger = !s.hover ? '' : reco ? (eMove.has(s.hover) || eAtk.has(s.hover) ? 'Zone de danger : un ennemi peut vous atteindre ici.' : '')
+      : eMove.has(s.hover) ? 'L’ennemi peut venir ici.' : eAtk.has(s.hover) ? 'L’ennemi peut taper ici.' : '';
+    const hoverInfo = hv ? [this.hoverText(hv[0], hv[1]), danger].filter(Boolean).join(' · ') : '';
+    const info = su ? `Pion ${su.t === 1 ? 'rouge (J1)' : 'bleu (J2)'} ${su.n} · ${mv} cases · portée ${pt}${vol ? ' · vol' : ''}. Survole une case ${reco ? 'cyan' : 'bleu ciel'} pour voir le chemin, clique pour y aller.` : 'Clique un pion pour voir où il peut aller et taper.';
+    return {
+      ...base, cells, marks, sprites, units, info, hoverInfo, hasHoverInfo: !!hoverInfo,
+      solBg: `url("${s.sol}")`, planeTf: V.top ? `matrix(1,0,0,1,${V.ox},${V.oy})` : `matrix(0.70710678,0.40824829,-0.70710678,0.40824829,${V.ox},${V.oy})`,
+      solTf: V.j2 ? 'rotate(180deg)' : 'none',
+    };
+  }
+}
+</script>
+</body>
+</html>

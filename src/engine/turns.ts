@@ -1,5 +1,5 @@
 // Déroulé des tours (SPEC.md §4.2) : fin de tour, puis début de tour du joueur suivant.
-import { BASE_MANA_CAP, BASE_MANA_FIRST_TURN, MANA_GROWTH_PER_TURN, VP_PER_CONTROLLED_ZONE } from './config';
+import { BASE_MANA_CAP, BASE_MANA_FIRST_TURN, MANA_GROWTH_PER_TURN, RESERVE_BASE_MANA_CAP, VP_PER_CONTROLLED_ZONE } from './config';
 import { dealDamage } from './damage';
 import { emit } from './events';
 import { addMana, addVp, opponent } from './players';
@@ -11,11 +11,12 @@ import { statTotal } from './units';
 import { auraMobility, getMonsters, removeUnit, setUnit } from './units';
 import { isInZone } from './board';
 import { getControlledZones, getZoneMana } from './zones';
-import type { GameState } from './types';
+import type { Economy, GameState } from './types';
 
 /** Mana de base du tour `turn` (numéro global) : 3 à son premier tour, +1 à chacun de ses tours suivants, 10 au plus (§4.2). */
-export function getBaseMana(turn: number): number {
-  return Math.min(BASE_MANA_CAP, BASE_MANA_FIRST_TURN + (Math.ceil(turn / 2) - 1) * MANA_GROWTH_PER_TURN);
+export function getBaseMana(turn: number, economy: Economy = 'classic'): number {
+  const cap = economy === 'reserve' ? RESERVE_BASE_MANA_CAP : BASE_MANA_CAP;
+  return Math.min(cap, BASE_MANA_FIRST_TURN + (Math.ceil(turn / 2) - 1) * MANA_GROWTH_PER_TURN);
 }
 
 /**
@@ -40,8 +41,9 @@ export function startTurn(state: GameState): GameState {
 
   // 1. Revenus : mana et VP (§4.2).
   const zones = getControlledZones(next, player);
-  next = addMana(next, player, -next.players[player].mana);
-  next = addMana(next, player, getBaseMana(next.turn));
+  // Économie classique : le mana non dépensé est perdu ; « Réserve » : il reste, et les revenus s'arrêtent à la limite.
+  if (next.economy !== 'reserve') next = addMana(next, player, -next.players[player].mana);
+  next = addMana(next, player, getBaseMana(next.turn, next.economy));
   for (const { pos } of zones) next = addMana(next, player, getZoneMana(next, pos), pos);
   for (const { pos } of zones) next = addVp(next, player, VP_PER_CONTROLLED_ZONE, pos);
 

@@ -30,7 +30,9 @@ import { CARD_ART, boardArt, fitBackground, shortName, tokenFit } from './art';
 import { Icon } from './Icon';
 import { isExhausted, posKey } from './interaction';
 import { PixiBoard } from './pixi/PixiBoard';
-import type { AttackPreview, Highlight } from './interaction';
+import { NO_ZONE_VIEW } from './interaction';
+import type { AttackPreview, Highlight, ZoneView } from './interaction';
+import type { DangerEdges } from './zones';
 import { trapLabel } from './cardText';
 import { IsoDecor } from './iso/IsoDecor';
 import { boardMetrics, fitCell, tiltGeometry } from './boardGeometry';
@@ -53,10 +55,10 @@ interface BoardProps {
   anchor?: Position | null;
   /** Atténuer les cases qui ne sont pas des cibles. */
   focused: boolean;
-  /** Chemin prévu sous la souris, dans l'ordre des pas. */
+  /** Chemin prévu sous la souris, dans l'ordre des pas (la case d'arrivée en dernier). */
   path: readonly Position[];
-  /** Menace d'un monstre adverse : où il pourra aller (`move`), et les autres cases qu'il pourra frapper (`strike`). */
-  reach: ReadonlyMap<string, 'move' | 'strike'>;
+  /** Zones du monstre sujet (halos cyan et orange) et danger adverse (contour violet) : handoff « zones ». */
+  zones?: ZoneView;
   showArt: boolean;
   /** Vue du plateau (déjà ramenée à « inclinée » si le plateau n'a pas de vue isométrique). */
   mode: BoardView;
@@ -502,7 +504,8 @@ export function Board(props: BoardProps) {
     ...(art ? { backgroundImage: `url(${art})` } : {}),
   };
   const boardStyle = boardVars as CSSProperties;
-  const steps = new Map(path.map((pos, i) => [posKey(pos), i + 1]));
+  // Chemin : un point sur chaque case traversée, sans la case d'arrivée.
+  const steps = new Map(path.slice(0, -1).map((pos, i) => [posKey(pos), i + 1]));
   // Zones des terrains « Passage » : l'icône de ce qu'ils infligent, au sol de chaque case touchée.
   const zoneMarks = getZoneMarks(view);
   // Plateau retourné : les cases sont simplement rendues dans l'ordre inverse de la grille.
@@ -535,6 +538,9 @@ export function Board(props: BoardProps) {
     };
   }, [cameraRef]);
   const reveal = revealCells(view, props.hovered ?? null);
+  const zones = props.zones ?? NO_ZONE_VIEW;
+  const hoveredKey = props.hovered ? posKey(props.hovered) : null;
+  const zoneHovered = hoveredKey && (zones.moves.has(hoveredKey) || zones.attacks.has(hoveredKey)) ? props.hovered! : null;
 
   return (
     <div
@@ -564,7 +570,9 @@ export function Board(props: BoardProps) {
             selectedUnitId: props.selectedUnitId,
             focused: props.focused,
             path,
-            reach: props.reach,
+            zones: props.zones ?? NO_ZONE_VIEW,
+            // Seul le survol d'une case de zone change le dessin : les autres ne redessinent pas les cases.
+            hovered: zoneHovered,
             grid: props.grid ?? true,
           }}
           stats={props.stats ?? DEFAULT_TOKEN_STATS}
@@ -625,6 +633,25 @@ export function Board(props: BoardProps) {
   );
 }
 
+/**
+ * Contour violet d'une case de danger : un trait de 3 px sur chaque côté qui donne sur une case hors danger (handoff
+ * « zones », un `inset` par côté) ; plateau retourné, haut et bas, gauche et droite s'échangent.
+ */
+export function dangerShadow(edges: DangerEdges, flipped: boolean): string {
+  // Au bord, un filet sombre de 1,5 px (premier listé, donc dessus), puis le trait violet jusqu'à 4,5 px.
+  const [line, ink] = ['rgb(205, 120, 255)', 'rgba(8, 14, 24, 0.8)'];
+  const [up, down, left, right] = flipped ? [edges.down, edges.up, edges.right, edges.left] : [edges.up, edges.down, edges.left, edges.right];
+  const side = (on: boolean, x: number, y: number) => (on ? [`inset ${x * 1.5}px ${y * 1.5}px 0 0 ${ink}`, `inset ${x * 4.5}px ${y * 4.5}px 0 0 ${line}`] : []);
+  return [
+    ...side(up, 0, 1),
+    ...side(down, 0, -1),
+    ...side(left, 1, 0),
+    ...side(right, -1, 0),
+  ]
+    .filter(Boolean)
+    .join(', ') || 'none';
+}
+
 function BoardCell({
   view,
   pos,
@@ -636,7 +663,8 @@ function BoardCell({
   attacks,
   selectedUnitId,
   focused,
-  reach,
+  zones = NO_ZONE_VIEW,
+  hovered,
   mode,
   flipped,
   stats = DEFAULT_TOKEN_STATS,
@@ -705,7 +733,11 @@ function BoardCell({
   const attack = attacks.get(key);
   const trap = view.traps.find((t) => samePos(t.pos, pos));
   const isSelected = (unit: Unit | undefined) => unit !== undefined && unit.id === selectedUnitId;
-  const dim = focused && !highlight && !step && !isSelected(monster) && !isSelected(terrain);
+  const reachKind = zones.moves.has(key) ? 'move' : zones.targets.has(key) ? 'target' : zones.attacks.has(key) ? 'attack' : null;
+  const danger = zones.danger.get(key);
+  const moveCost = reachKind === 'move' ? zones.moveCosts.get(key) : undefined;
+  const isHovered = hovered ? samePos(hovered, pos) : false;
+  const dim = focused && !highlight && !reachKind && !step && !isSelected(monster) && !isSelected(terrain);
   // En vue inclinée ou isométrique, les unités sont debout : une cible posée sur un monstre s'affiche sur le jeton.
   const upright = mode !== 'top';
   const onToken = upright && monster !== undefined;
@@ -745,18 +777,18 @@ function BoardCell({
           {zone && <span className="cell__glow" />}
           {marks && <ZoneMarks marks={marks} />}
           {dim && <span className="layer layer--dim" />}
-          {step !== undefined ? (
-            <span className="layer hl-path">
-              <span>{step}</span>
+          {/* Zones (handoff « zones ») : halo, anneau de survol, puis contour violet du danger, de bas en haut. */}
+          {reachKind && <span className={`layer zone-halo zone-halo--${reachKind}${zone && reachKind !== 'target' ? ' zone-halo--mana' : ''}`} />}
+          {reachKind && isHovered && <span className={`layer zone-hover zone-hover--${reachKind}`} />}
+          {step !== undefined && moveCost === undefined && <span className="layer zone-step" />}
+          {moveCost !== undefined && (
+            <span className={`layer zone-cost${step !== undefined || isHovered ? ' zone-cost--lit' : ''}`}>
+              <span>{moveCost}</span>
             </span>
-          ) : (
-            highlight === 'move' && <span className="layer hl-move" />
           )}
+          {danger && <span className="layer zone-danger" style={{ boxShadow: dangerShadow(danger, flipped) }} />}
           {highlight === 'effect' && <span className="layer hl-effect" />}
           {highlight === 'target' && !onToken && <span className="layer hl-target">{!monster && '+'}</span>}
-          {/* Menace adverse au survol : par-dessus les surbrillances, même avec un de ses monstres sélectionné. */}
-          {reach.get(key) === 'move' && <span className="layer layer--reach" />}
-          {reach.get(key) === 'strike' && <span className="layer layer--threat" />}
           {trap && !monster && <TrapMarker trap={trap} />}
         </>
       )}

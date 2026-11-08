@@ -19,6 +19,7 @@ export function getPlayerView(state: GameState, player: PlayerId): PlayerView {
     viewer: player,
     board: state.board,
     mode: state.mode,
+    economy: state.economy,
     units: withoutEnemyTrails(perceivedBy(state, player).units, player),
     activePlayer: state.activePlayer,
     turn: state.turn,

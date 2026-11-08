@@ -169,3 +169,18 @@ describe('fiche d’un sort déjà lancé ce tour', () => {
     expect(getSheet(view, { kind: 'card', cardId: 'charge' })?.lines[0]?.status).toEqual({ text: 'Disponible', tone: 'ok' });
   });
 });
+
+describe('fiche : portée des effets actifs', () => {
+  it('un monstre du plateau : chaque effet actif porte sa portée, montrée au survol de son bloc ; une carte, non', async () => {
+    const { renderToStaticMarkup } = await import('react-dom/server');
+    const { createElement } = await import('react');
+    const { HoverSheet } = await import('./HoverSheet');
+    const state = gameWith([{ monster: 'poseur-de-bombe', owner: 1, at: at(5, 4) }]);
+    const sheet = getSheet(getPlayerView(state, 1), { kind: 'cell', pos: at(5, 4) })!;
+    expect(sheet.active[0]!.reach).toHaveLength(6); // son carré de 1, sans la falaise du plateau classique
+    const html = renderToStaticMarkup(createElement(HoverSheet, { sheet, onHoverReach: () => {} }));
+    expect(html).toContain('sheet__block--active has-reach');
+    const card = getSheet(getPlayerView(state, 1), { kind: 'card', cardId: 'poseur-de-bombe' })!;
+    expect(card.active[0]!.reach).toBeUndefined();
+  });
+});

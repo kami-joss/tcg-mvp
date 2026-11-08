@@ -1,8 +1,9 @@
 // Dessin des cases du plateau PixiJS (migration, sous-étape 3b), d'après `cellVisuals` : dans le plan isométrique, comme
 // les cases en CSS (fond et trait du plateau peint, mana zones, cases d'invocation, zones de contestation, lueur qui
-// pulse, atténuation, déplacements, chemin, effets, cibles, menace hachurée, pièges, cadres d'attaque, marques des
-// « Passage ») ; à l'écran, droits et à taille fixe comme les « textes au sol » du CSS (contre-rotation, `--qz`) : J1/J2,
-// numéros du chemin, dégâts annoncés, noms des pièges, icônes des marques ; et debout devant, le nom des mana zones.
+// pulse, atténuation, effets, cibles, pièges, cadres d'attaque, marques des « Passage », et les zones du handoff
+// « zones » : halos d'aller et d'attaque, anneau de survol, points du chemin, voile et contour du danger) ; à l'écran,
+// droits et à taille fixe comme les « textes au sol » du CSS (contre-rotation, `--qz`) : J1/J2, dégâts annoncés, noms
+// des pièges, icônes des marques ; et debout devant, le nom des mana zones.
 import type { Container as PixiContainer, Graphics, Sprite, Texture } from 'pixi.js';
 import type { ZoneEdge } from '../contestZones';
 import type { IconName } from '../Icon';
@@ -10,10 +11,69 @@ import { ICON_PATHS, MDI_PATHS } from '../iconPaths';
 import type { IsoCamera } from '../iso/scenery';
 import { diceLayout } from '../zoneMarks';
 import { CELL_COLORS, CELL_SIZE } from './cellModel';
+import { ISO } from '../iso/scenery';
 import type { CellVisual } from './cellModel';
 import { painted } from './groundFx';
 import type { Pixi } from './groundFx';
 import { isoDepth, isoProject } from './isoProjection';
+
+/**
+ * Zones (handoff « zones ») : couleurs des halos, du survol et du danger. Accentuées puis contrastées (demandes du
+ * 2026-11-08, on ne voyait pas assez sur l'herbe) : voile de la couleur à 20 %, halo dense, et au bord de la case un
+ * filet sombre puis un liseré de 3 px de la couleur ; danger : filet sombre au bord, trait violet de 3 px, voile à 20 %.
+ */
+const ZONE = {
+  move: { halo: 'rgb(80, 225, 255)', fill: 'rgba(80, 225, 255, 0.2)', edge: 'rgb(110, 235, 255)', veil: 'rgba(80, 225, 255, 0.42)', ring: 'rgb(220, 250, 255)' },
+  attack: { halo: 'rgb(255, 145, 30)', fill: 'rgba(255, 145, 30, 0.2)', edge: 'rgb(255, 170, 60)', veil: 'rgba(255, 145, 30, 0.42)', ring: 'rgb(255, 225, 175)' },
+  /** Monstre ennemi visible à portée d'attaque : rouge vif (validé le 2026-11-08). */
+  target: { halo: 'rgb(255, 40, 40)', fill: 'rgba(255, 40, 40, 0.3)', edge: 'rgb(255, 70, 70)', veil: 'rgba(255, 40, 40, 0.45)', ring: 'rgb(255, 205, 205)' },
+  /** Voile d'une case de zone sur une mana zone : doré, comme les mana zones. */
+  manaFill: 'rgba(255, 205, 60, 0.32)',
+  /** Filet sombre au bord des zones : il détache la couleur du sol. */
+  ink: 'rgba(8, 14, 24, 0.8)',
+  dangerLine: 'rgb(205, 120, 255)',
+  dangerVeil: 'rgba(190, 100, 255, 0.2)',
+} as const;
+
+/** Halo intérieur d'une case (`box-shadow: inset 0 0 14px`), en blanc, à teinter : case de 68 px, rayon 6, deux fois plus fine. */
+const HALO_RES = 2;
+function haloTexture(pixi: Pixi): Texture {
+  return painted(pixi, S * HALO_RES, S * HALO_RES, (ctx) => {
+    ctx.scale(HALO_RES, HALO_RES);
+    ctx.beginPath();
+    ctx.roundRect(0, 0, S, S, 6);
+    ctx.clip();
+    // Un cadre autour de la case, hors du découpage : seule son ombre floue entre dans la case (le flou du canvas ne
+    // suit pas l'échelle, d'où × HALO_RES).
+    ctx.shadowColor = 'white';
+    ctx.shadowBlur = 14 * HALO_RES;
+    ctx.fillStyle = 'white';
+    ctx.beginPath();
+    ctx.rect(-S, -S, 3 * S, 3 * S);
+    ctx.roundRect(0, 0, S, S, 6);
+    // Deux passes : un halo plus dense que le seul `inset 0 0 14px`.
+    ctx.fill('evenodd');
+    ctx.fill('evenodd');
+  });
+}
+
+/** Point du chemin : `radial-gradient(circle, #fff 0 3px, rgba(120,205,255,.95) 3.5px 5.5px, rgba(10,20,40,.45) 6px 7.5px, transparent 8px)`. */
+function dotTexture(pixi: Pixi): Texture {
+  const r = 8 * HALO_RES;
+  return painted(pixi, 2 * r, 2 * r, (ctx) => {
+    const gradient = ctx.createRadialGradient(r, r, 0, r, r, r);
+    const stop = (px: number, color: string) => gradient.addColorStop(px / 8, color);
+    stop(0, '#fff');
+    stop(3, '#fff');
+    stop(3.5, 'rgba(120, 205, 255, 0.95)');
+    stop(5.5, 'rgba(120, 205, 255, 0.95)');
+    stop(6, 'rgba(10, 20, 40, 0.45)');
+    stop(7.5, 'rgba(10, 20, 40, 0.45)');
+    stop(8, 'rgba(10, 20, 40, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 2 * r, 2 * r);
+  });
+}
 
 /** Échelle à l'écran des textes au sol et des noms de zones (`--qz` × k du CSS). */
 const TEXT_SCALE = 0.92;
@@ -185,6 +245,13 @@ export class CellLayer {
   private readonly pulsing: Graphics;
   private readonly glowLayer: PixiContainer;
   private readonly overlays: Graphics;
+  /** Zones, de bas en haut : voile du danger, halos, anneau de survol, contour du danger, points du chemin. */
+  private readonly dangerVeil: Graphics;
+  private readonly halos: PixiContainer;
+  private readonly hoverRing: Graphics;
+  private readonly dangerLine: Graphics;
+  private readonly dots: PixiContainer;
+  private zoneTextures: { halo: Texture; dot: Texture } | null = null;
   private readonly glows: Sprite[] = [];
   private readonly placed: Placed[] = [];
   private glowTexture: Texture | null = null;
@@ -197,8 +264,13 @@ export class CellLayer {
     this.pulsing = new pixi.Graphics();
     this.glowLayer = new pixi.Container();
     this.overlays = new pixi.Graphics();
+    this.dangerVeil = new pixi.Graphics();
+    this.halos = new pixi.Container();
+    this.hoverRing = new pixi.Graphics();
+    this.dangerLine = new pixi.Graphics();
+    this.dots = new pixi.Container();
     layers.cells.addChild(this.ground, this.pulsing, this.glowLayer);
-    layers.over.addChild(this.overlays);
+    layers.over.addChild(this.overlays, this.dangerVeil, this.halos, this.hoverRing, this.dangerLine, this.dots);
   }
 
   /** Redessine toutes les cases. */
@@ -209,6 +281,11 @@ export class CellLayer {
     g.clear();
     o.clear();
     this.pulsing.clear();
+    this.dangerVeil.clear();
+    this.hoverRing.clear();
+    this.dangerLine.clear();
+    for (const child of this.halos.removeChildren()) child.destroy();
+    for (const child of this.dots.removeChildren()) child.destroy();
     for (const sprite of this.glows) sprite.destroy();
     this.glows.length = 0;
     for (const item of this.placed) item.node.destroy({ children: true });
@@ -320,17 +397,9 @@ export class CellLayer {
     // Atténuation des cases qui ne sont pas des cibles.
     for (const v of cells) if (v.dim) cellRect(o, v.x, v.y, 0, R, 'oklch(0.18 0.012 60 / 0.42)');
 
-    // Déplacements, chemin, effets, cibles.
+    // Effets, cibles.
     for (const v of cells) {
       const [cx, cy] = [v.x + S / 2, v.y + S / 2];
-      if (v.move) {
-        cellRect(o, v.x, v.y, 0, R, 'oklch(0.9 0.07 195 / 0.82)', { css: CELL_COLORS.moveLine, width: 2 });
-        o.circle(cx, cy, S * 0.09).fill(cssColor('oklch(0.42 0.1 205)'));
-      }
-      if (v.step !== null) {
-        cellRect(o, v.x, v.y, 0, R, 'oklch(0.9 0.07 195 / 0.95)', { css: 'oklch(0.42 0.1 205)', width: 2 });
-        place(pill(pixi, String(v.step), { fontSize: S * 0.22 * TEXT_SCALE, family: 'plain', fill: CELL_COLORS.path, color: 'white', padX: 0, padY: 0, radius: 0, circle: S * 0.41 * TEXT_SCALE }), cx, cy);
-      }
       if (v.effect) {
         cellRect(o, v.x, v.y, 3, R, 'oklch(0.62 0.15 300 / 0.35)');
         dashedRect(o, v.x + 4.5, v.y + 4.5, S - 9, S - 9, 7, 4, 3, CELL_COLORS.effect);
@@ -345,12 +414,25 @@ export class CellLayer {
       }
     }
 
-    // Menace d'un ennemi survolé : hachures orange (où il ira) ou rouges (ce qu'il frappera), bordées.
+    this.drawZones(cells);
+
+    // Cases d'aller : la mobilité que coûte d'y aller, à plat au centre ; pleine sur le chemin et la case survolée.
     for (const v of cells) {
-      if (!v.reach) continue;
-      const threat = v.reach === 'strike';
-      hatch(o, v.x, v.y, S, threat ? 8 : 9, 3, threat, threat ? 'oklch(0.6 0.21 27 / 0.85)' : 'oklch(0.68 0.16 55 / 0.8)');
-      cellRect(o, v.x, v.y, 0, R, null, { css: threat ? CELL_COLORS.threat : CELL_COLORS.danger, width: 2 });
+      if (v.moveCost === null) continue;
+      const s = TEXT_SCALE;
+      const lit = v.step || v.hover;
+      const chip = pill(pixi, String(v.moveCost), {
+        fontSize: S * (lit ? 0.24 : 0.2) * s,
+        family: 'plain',
+        fill: lit ? ZONE.move.edge : ZONE.ink,
+        color: lit ? ZONE.ink : ZONE.move.ring,
+        padX: 0,
+        padY: 0,
+        radius: 0,
+        circle: S * (lit ? 0.34 : 0.28) * s,
+      });
+      if (!lit) chip.alpha = 0.85;
+      place(chip, v.x + S / 2, v.y + S / 2);
     }
 
     // Pièges (les siens) : cercle en pointillés, nom au sol.
@@ -401,6 +483,49 @@ export class CellLayer {
     }
   }
 
+  /**
+   * Zones (handoff « zones ») : le centre des cases reste transparent. Halo intérieur cyan (aller) ou orange (attaquer) ;
+   * case survolée : voile et anneau de 5 px ; chemin : un point par case traversée ; danger : voile violet très léger
+   * sur toute la case (72 px, sans arrondi, pour un trait continu) et contour de 3 px sur les côtés qui donnent dehors.
+   */
+  private drawZones(cells: readonly CellVisual[]): void {
+    const { pixi } = this;
+    const textures = (this.zoneTextures ??= { halo: haloTexture(pixi), dot: dotTexture(pixi) });
+    const gap = (ISO.pitch - S) / 2;
+    const full = S + 2 * gap;
+    const line = cssColor(ZONE.dangerLine);
+    for (const v of cells) {
+      if (v.danger) {
+        const [x, y] = [v.x - gap, v.y - gap];
+        this.dangerVeil.rect(x, y, full, full).fill(cssColor(ZONE.dangerVeil));
+        // Au bord, un filet sombre de 1,5 px, puis le trait violet de 3 px.
+        const band = (inset: number, width: number): [boolean, number, number, number, number][] => [
+          [v.danger!.up, x, y + inset, full, width],
+          [v.danger!.down, x, y + full - inset - width, full, width],
+          [v.danger!.left, x + inset, y, width, full],
+          [v.danger!.right, x + full - inset - width, y, width, full],
+        ];
+        for (const [on, sx, sy, w, h] of band(0, 1.5)) if (on) this.dangerLine.rect(sx, sy, w, h).fill(cssColor(ZONE.ink));
+        for (const [on, sx, sy, w, h] of band(1.5, 3)) if (on) this.dangerLine.rect(sx, sy, w, h).fill(line);
+      }
+      if (v.reach) {
+        const look = ZONE[v.reach];
+        this.dangerVeil.roundRect(v.x, v.y, S, S, 6).fill(cssColor(v.reachOnMana && v.reach !== 'target' ? ZONE.manaFill : look.fill));
+        this.halos.addChild(new pixi.Sprite({ texture: textures.halo, x: v.x, y: v.y, width: S, height: S, tint: cssColor(look.halo).color }));
+        // Par-dessus le halo : filet sombre au bord, puis liseré de 3 px de la couleur.
+        this.hoverRing.roundRect(v.x, v.y, S, S, 6).stroke({ width: 1.5, ...cssColor(ZONE.ink), alignment: 1 });
+        this.hoverRing.roundRect(v.x + 1.5, v.y + 1.5, S - 3, S - 3, 5).stroke({ width: 3, ...cssColor(look.edge), alignment: 1 });
+        if (v.hover) {
+          this.hoverRing.roundRect(v.x, v.y, S, S, 6).fill(cssColor(look.veil));
+          this.hoverRing.roundRect(v.x, v.y, S, S, 6).stroke({ width: 5, ...cssColor(look.ring), alignment: 1 });
+        }
+      }
+      if (v.step && v.moveCost === null) {
+        this.dots.addChild(new pixi.Sprite({ texture: textures.dot, anchor: 0.5, x: v.x + S / 2, y: v.y + S / 2, width: 16, height: 16 }));
+      }
+    }
+  }
+
   /** Replace les éléments à l'écran selon la caméra. */
   layout(camera: Pick<IsoCamera, 'k' | 'width' | 'centerY'>, plan: number): void {
     for (const item of this.placed) {
@@ -431,10 +556,17 @@ export class CellLayer {
   destroy(): void {
     this.ground.destroy();
     this.overlays.destroy();
+    this.dangerVeil.destroy();
+    this.halos.destroy({ children: true });
+    this.hoverRing.destroy();
+    this.dangerLine.destroy();
+    this.dots.destroy({ children: true });
     this.glowLayer.destroy();
     this.pulsing.destroy();
     for (const sprite of this.glows) sprite.destroy();
     for (const item of this.placed) item.node.destroy({ children: true });
     this.glowTexture?.destroy(true);
+    this.zoneTextures?.halo.destroy(true);
+    this.zoneTextures?.dot.destroy(true);
   }
 }

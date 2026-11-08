@@ -4,7 +4,7 @@ import type { Action, GameState } from '../engine';
 import { at, gameWith, withStatus } from '../engine/test-utils';
 import type { UnitSpec } from '../engine/test-utils';
 import { cardEffectLine, describeCard } from './cardText';
-import { getEnemyReach } from './interaction';
+import { getUnitZones } from './zones';
 import { logEntry } from './log';
 import { passiveRules, plainRules, rulesSegments } from './rulesText';
 import { getSheet } from './sheet';
@@ -91,9 +91,9 @@ describe('Terrain de chasse : menace au survol', () => {
   it('le monstre adverse dans la zone de son Terrain de chasse ira 1 case plus loin à son prochain tour', () => {
     // J2 regarde le Milicien de J1 (mobilité 2) en (5, 3) : il pourra aller en (8, 3), à 3 cases.
     const state = hunting([{ monster: 'milicien', owner: 1, at: at(5, 3) }], { activePlayer: 2 });
-    const moves = getEnemyReach(view(state, 2), 'u2').moves;
+    const moves = getUnitZones(view(state, 2), 'u2').moves;
     expect(moves).toContainEqual(at(8, 3));
     const plain = gameWith([{ monster: 'milicien', owner: 1, at: at(5, 3) }], { activePlayer: 2 });
-    expect(getEnemyReach(view(plain, 2), 'u1').moves).not.toContainEqual(at(8, 3));
+    expect(getUnitZones(view(plain, 2), 'u1').moves).not.toContainEqual(at(8, 3));
   });
 });

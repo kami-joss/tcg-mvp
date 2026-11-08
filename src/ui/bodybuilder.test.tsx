@@ -31,7 +31,6 @@ const renderBoard = (view: PlayerView) =>
       selectedUnitId={null}
       focused={false}
       path={[]}
-      reach={new Map()}
       showArt
       mode="tilt"
       zoom={1}

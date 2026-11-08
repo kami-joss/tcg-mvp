@@ -59,6 +59,10 @@ export interface DisplaySettings {
   readonly edgeScroll: boolean;
   /** Quadrillage du plateau peint (traits et damier des cases) ; sans lui, seules restent les cases à repère. */
   readonly grid: boolean;
+  /** Zone de danger adverse (contour violet) autour du monstre sélectionné : bouton « Menace ennemie ». */
+  readonly zoneDanger: boolean;
+  /** Points du chemin sous la souris : bouton « Chemin au survol ». */
+  readonly zonePath: boolean;
 }
 
 export const DEFAULT_SETTINGS: DisplaySettings = {
@@ -72,6 +76,8 @@ export const DEFAULT_SETTINGS: DisplaySettings = {
   tokenStats: DEFAULT_TOKEN_STATS,
   edgeScroll: true,
   grid: true,
+  zoneDanger: true,
+  zonePath: true,
 };
 
 const KEYS = {
@@ -85,6 +91,8 @@ const KEYS = {
   tokenStats: 'tcg-plateau-stats-v6',
   edgeScroll: 'tcg-plateau-defilement-bords',
   grid: 'tcg-plateau-quadrillage',
+  zoneDanger: 'tcg-zones-menace',
+  zonePath: 'tcg-zones-chemin',
 } as const;
 
 /** Valeur mémorisée de chaque vue (celles de la maquette). */
@@ -125,6 +133,8 @@ export function loadSettings(): DisplaySettings {
   const grimoireOpen = read(KEYS.grimoireOpen);
   const edgeScroll = read(KEYS.edgeScroll);
   const grid = read(KEYS.grid);
+  const zoneDanger = read(KEYS.zoneDanger);
+  const zonePath = read(KEYS.zonePath);
   return {
     view: (Object.keys(VIEW_VALUES) as BoardView[]).find((v) => VIEW_VALUES[v] === view) ?? DEFAULT_SETTINGS.view,
     animations: animations === null ? DEFAULT_SETTINGS.animations : animations === '1',
@@ -136,6 +146,8 @@ export function loadSettings(): DisplaySettings {
     tokenStats: readTokenStats(),
     edgeScroll: edgeScroll === null ? DEFAULT_SETTINGS.edgeScroll : edgeScroll === '1',
     grid: grid === null ? DEFAULT_SETTINGS.grid : grid === '1',
+    zoneDanger: zoneDanger === null ? DEFAULT_SETTINGS.zoneDanger : zoneDanger === '1',
+    zonePath: zonePath === null ? DEFAULT_SETTINGS.zonePath : zonePath === '1',
   };
 }
 
@@ -150,6 +162,8 @@ export function saveSettings(settings: DisplaySettings): void {
     window.localStorage.setItem(KEYS.grimoireOpen, settings.grimoireOpen ? '1' : '0');
     window.localStorage.setItem(KEYS.edgeScroll, settings.edgeScroll ? '1' : '0');
     window.localStorage.setItem(KEYS.grid, settings.grid ? '1' : '0');
+    window.localStorage.setItem(KEYS.zoneDanger, settings.zoneDanger ? '1' : '0');
+    window.localStorage.setItem(KEYS.zonePath, settings.zonePath ? '1' : '0');
     const stats = Object.fromEntries((Object.keys(STAT_KEYS) as (keyof TokenStats)[]).map((k) => [STAT_KEYS[k], settings.tokenStats[k]]));
     window.localStorage.setItem(KEYS.tokenStats, JSON.stringify(stats));
   } catch {

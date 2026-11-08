@@ -880,6 +880,99 @@ select {
   max-height: none;
 }
 
+/*
+ * Légende des zones (handoff « zones ») : en bas à gauche du plateau, à côté de la colonne de la fiche, quand un monstre
+ * est sélectionné. Pastilles aux valeurs des halos et du contour.
+ */
+.zone-legend {
+  position: absolute;
+  z-index: 20;
+  bottom: 14px;
+  width: 300px;
+  gap: 6px;
+  padding: 10px 12px;
+  background: oklch(0.22 0.014 60 / 0.84);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 28px oklch(0 0 0 / 0.35);
+  font-size: 13px;
+}
+
+.zone-legend p {
+  margin: 0;
+}
+
+.zone-legend__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zone-legend__sw {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+}
+
+.zone-legend__sw--move {
+  background: rgba(80, 225, 255, 0.2);
+  box-shadow: inset 0 0 0 2px rgba(80, 225, 255, 0.95), inset 0 0 8px 2px rgb(80, 225, 255);
+}
+
+.zone-legend__sw--attack {
+  background: rgba(255, 145, 30, 0.2);
+  box-shadow: inset 0 0 0 2px rgba(255, 160, 50, 0.95), inset 0 0 8px 2px rgb(255, 145, 30);
+}
+
+.zone-legend__sw--target {
+  background: rgba(255, 40, 40, 0.3);
+  box-shadow: inset 0 0 0 2px rgb(255, 70, 70), inset 0 0 8px 2px rgb(255, 40, 40);
+}
+
+.zone-legend__sw--mana {
+  background: rgba(255, 205, 60, 0.32);
+  box-shadow: inset 0 0 0 2px rgb(110, 235, 255);
+}
+
+.zone-legend__sw--danger {
+  border-radius: 0;
+  background: rgba(190, 100, 255, 0.16);
+  box-shadow: inset 0 0 0 3px rgb(200, 110, 255);
+}
+
+.zone-legend__note {
+  min-height: 2.6em;
+  color: oklch(0.75 0.015 80);
+  font-size: 12px;
+}
+
+.zone-legend__buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.zone-legend__button {
+  flex: 1;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: oklch(0.18 0.014 60);
+  box-shadow: inset 0 0 0 1px oklch(0.36 0.014 60);
+  color: oklch(0.6 0.012 80);
+  font: 800 12px/1.1 var(--font);
+  cursor: pointer;
+}
+
+.zone-legend__button:hover {
+  background: oklch(0.28 0.014 60);
+}
+
+.zone-legend__button.is-on {
+  color: oklch(0.92 0.015 80);
+  box-shadow: inset 0 0 0 1px rgba(190, 100, 255, 0.7);
+}
+
 /* Grimoire à droite (lot 13 §4) : il remplit son panneau et défile ; replié, il glisse hors de l'écran sauf son onglet. */
 .game__side {
   position: absolute;
@@ -1315,53 +1408,99 @@ select {
   z-index: 1;
 }
 
-.layer--reach {
-  background: repeating-linear-gradient(-45deg, transparent 0 6px, oklch(0.68 0.16 55 / 0.8) 6px 9px);
-  box-shadow: inset 0 0 0 2px var(--danger);
+/*
+ * Zones (handoff « zones », valeurs exactes) : le centre des cases reste transparent. De bas en haut : halo intérieur
+ * cyan (aller) ou orange (attaquer), anneau de survol, point du chemin, contour violet du danger.
+ */
+.zone-halo {
+  border-radius: 6px;
   z-index: 2;
 }
 
-/* Cases que l'ennemi survolé pourra frapper sans y aller : hachures rouges, plus serrées. */
-.layer--threat {
-  background: repeating-linear-gradient(45deg, transparent 0 5px, oklch(0.6 0.21 27 / 0.85) 5px 8px);
-  box-shadow: inset 0 0 0 2px var(--threat);
-  z-index: 2;
+/* Contrastés (2026-11-08) : filet sombre au bord, liseré de 3 px, halo dense, voile à 20 %. */
+.zone-halo--move {
+  background: rgba(80, 225, 255, 0.2);
+  box-shadow: inset 0 0 0 1.5px rgba(8, 14, 24, 0.8), inset 0 0 0 4.5px rgb(110, 235, 255), inset 0 0 16px 4px rgb(80, 225, 255);
 }
 
-.hl-move,
-.hl-path {
+.zone-halo--attack {
+  background: rgba(255, 145, 30, 0.2);
+  box-shadow: inset 0 0 0 1.5px rgba(8, 14, 24, 0.8), inset 0 0 0 4.5px rgb(255, 170, 60), inset 0 0 16px 4px rgb(255, 145, 30);
+}
+
+.zone-halo--target {
+  background: rgba(255, 40, 40, 0.3);
+  box-shadow: inset 0 0 0 1.5px rgba(8, 14, 24, 0.8), inset 0 0 0 4.5px rgb(255, 70, 70), inset 0 0 16px 4px rgb(255, 40, 40);
+}
+
+/* Sur une mana zone : voile doré, liseré et halo de la zone gardés. */
+.zone-halo.zone-halo--mana {
+  background: rgba(255, 205, 60, 0.32);
+}
+
+.zone-hover {
+  border-radius: 6px;
+  z-index: 3;
+}
+
+.zone-hover--target {
+  background: rgba(255, 40, 40, 0.45);
+  box-shadow: inset 0 0 0 5px rgb(255, 205, 205);
+}
+
+.zone-hover--move {
+  background: rgba(80, 225, 255, 0.42);
+  box-shadow: inset 0 0 0 5px rgb(220, 250, 255);
+}
+
+.zone-hover--attack {
+  background: rgba(255, 145, 30, 0.42);
+  box-shadow: inset 0 0 0 5px rgb(255, 225, 175);
+}
+
+.zone-step {
+  background: radial-gradient(circle, #fff 0 3px, rgba(120, 205, 255, 0.95) 3.5px 5.5px, rgba(10, 20, 40, 0.45) 6px 7.5px, transparent 8px)
+    center / 16px 16px no-repeat;
+  z-index: 3;
+}
+
+/* Case d'aller : la mobilité que coûte d'y aller ; pleine sur le chemin et la case survolée. */
+.zone-cost {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2;
+  z-index: 3;
 }
 
-.hl-move {
-  background: oklch(0.9 0.07 195 / 0.82);
-  box-shadow: inset 0 0 0 2px var(--move-line);
-}
-
-.hl-move::after {
-  content: '';
-  width: calc(var(--cell) * 0.18);
-  height: calc(var(--cell) * 0.18);
+.zone-cost > span {
+  display: grid;
+  place-items: center;
+  width: calc(var(--cell) * 0.28);
+  height: calc(var(--cell) * 0.28);
   border-radius: 50%;
-  background: oklch(0.42 0.1 205);
+  background: rgba(8, 14, 24, 0.8);
+  color: rgb(220, 250, 255);
+  font-weight: 800;
+  font-size: calc(var(--cell) * 0.19);
+  line-height: 1;
+  opacity: 0.85;
 }
 
-.hl-path {
-  background: oklch(0.9 0.07 195 / 0.95);
-  box-shadow: inset 0 0 0 2px oklch(0.42 0.1 205);
+.zone-cost--lit > span {
+  width: calc(var(--cell) * 0.34);
+  height: calc(var(--cell) * 0.34);
+  background: rgb(110, 235, 255);
+  color: rgba(8, 14, 24, 0.9);
+  font-size: calc(var(--cell) * 0.23);
+  opacity: 1;
 }
 
-.hl-path span {
-  width: calc(var(--cell) * 0.41);
-  height: calc(var(--cell) * 0.41);
-  border-radius: 50%;
-  background: var(--path);
-  color: white;
-  font: 800 calc(var(--cell) * 0.22) / calc(var(--cell) * 0.41) var(--font);
-  text-align: center;
+/* Danger : pleine largeur (la moitié de l'espace entre les cases de chaque côté), sans arrondi, pour un trait continu. */
+.zone-danger {
+  inset: calc(var(--gap) / -2);
+  border-radius: 0;
+  background: rgba(190, 100, 255, 0.2);
+  z-index: 4;
 }
 
 .hl-effect {
@@ -2357,7 +2496,6 @@ select {
 
 /* Textes au sol : contre-rotation 2D, pour rester droits et lisibles. */
 .board--iso .cell__summon,
-.board--iso .hl-path span,
 .board--iso .trap span,
 .board--iso .cell > .dmg-pill {
   --ground: translateZ(3px) rotate(-45deg) scale(var(--qz), calc(var(--qz) * 1.7321));
@@ -2372,7 +2510,6 @@ select {
   box-shadow: 0 0 0 1.5px white;
 }
 
-.board--iso .hl-path span,
 .board--iso .trap span {
   transform: var(--ground);
 }
@@ -3360,7 +3497,8 @@ select {
 }
 
 .sw--move {
-  background: var(--move);
+  background: rgba(80, 225, 255, 0.2);
+  box-shadow: inset 0 0 0 2px rgba(80, 225, 255, 0.95), inset 0 0 8px 2px rgb(80, 225, 255);
 }
 
 .sw--attack {
@@ -3380,12 +3518,15 @@ select {
   background: oklch(0.62 0.15 300);
 }
 
-.sw--reach {
-  background: repeating-linear-gradient(-45deg, transparent 0 3px, var(--danger) 3px 6px);
+.sw--reach-attack {
+  background: rgba(255, 145, 30, 0.2);
+  box-shadow: inset 0 0 0 2px rgba(255, 160, 50, 0.95), inset 0 0 8px 2px rgb(255, 145, 30);
 }
 
-.sw--threat {
-  background: repeating-linear-gradient(45deg, transparent 0 3px, var(--threat) 3px 6px);
+.sw--danger {
+  border-radius: 0;
+  background: rgba(190, 100, 255, 0.16);
+  box-shadow: inset 0 0 0 3px rgb(200, 110, 255);
 }
 
 /* --- Panneaux des colonnes : grimoire et journal --- */
@@ -4308,6 +4449,16 @@ select {
 .sheet__block--active {
   background: linear-gradient(oklch(0.55 0.15 305 / 0.26), oklch(0.55 0.15 305 / 0.26)), oklch(0.13 0.01 60 / 0.55);
   box-shadow: inset 0 0 0 1px oklch(0.68 0.15 305 / 0.6);
+}
+
+/* Effet d'un monstre du plateau : au survol, sa portée s'affiche sur le plateau. */
+.sheet__block--active.has-reach {
+  pointer-events: auto;
+  transition: box-shadow 0.15s;
+}
+
+.sheet__block--active.has-reach:hover {
+  box-shadow: inset 0 0 0 1.5px oklch(0.8 0.15 305);
 }
 
 .sheet__block-head {

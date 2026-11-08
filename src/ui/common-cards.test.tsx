@@ -106,7 +106,6 @@ describe('terrains debout : un blason garni de l’illustration de la carte', ()
         selectedUnitId={null}
         focused={false}
         path={[]}
-        reach={new Map()}
         showArt
         mode="tilt"
         zoom={1}
@@ -153,7 +152,6 @@ describe('zone des terrains « Passage » : l’icône de ce qu’ils infligent 
           selectedUnitId={null}
           focused={false}
           path={[]}
-          reach={new Map()}
           showArt
           mode={mode}
           zoom={1}

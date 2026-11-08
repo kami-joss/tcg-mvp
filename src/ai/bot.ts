@@ -400,8 +400,9 @@ export function evaluate(state: GameState, me: PlayerId): number {
   evaluations++;
   if (state.winner !== null) return state.winner === me ? W.win : -W.win;
   const other = foe(me);
-  // Le mana non dépensé est perdu au début du tour suivant : il ne vaut que tant que c'est son tour.
-  const mana = state.activePlayer === me ? state.players[me].mana : 0;
+  // Économie classique : le mana non dépensé est perdu au début du tour suivant, il ne vaut que tant que c'est son tour.
+  // « Réserve » : il se garde, et vaut autant une fois le tour fini (grosse carte au tour suivant).
+  const mana = state.activePlayer === me || state.economy === 'reserve' ? state.players[me].mana : 0;
   let score =
     (state.players[me].vp - state.players[other].vp) * W.vp +
     Math.min(mana, W.hoardFrom) * W.mana +

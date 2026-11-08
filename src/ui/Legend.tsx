@@ -107,7 +107,7 @@ export function Legend({ onClose, mode = 'normal' }: { onClose: () => void; mode
       <div className="legend__group">
         <h3>Surbrillances</h3>
         <p>
-          <span className="sw sw--move" /> Se déplacer ici
+          <span className="sw sw--move" /> Là où il peut aller
         </p>
         <p>
           <span className="sw sw--attack" /> Attaquer · dégâts affichés
@@ -116,10 +116,10 @@ export function Legend({ onClose, mode = 'normal' }: { onClose: () => void; mode
           <span className="sw sw--target" /> Jouer la carte · <span className="sw sw--effect" /> Effet
         </p>
         <p>
-          <span className="sw sw--reach" /> Où l’ennemi survolé pourra aller
+          <span className="sw sw--reach-attack" /> Là où il peut attaquer (depuis sa case ou après un déplacement)
         </p>
         <p>
-          <span className="sw sw--threat" /> Où il pourra frapper (tes monstres compris)
+          <span className="sw sw--danger" /> Zone de danger ennemie : un ennemi peut y aller ou y taper
         </p>
       </div>
       <p className="legend__credit">

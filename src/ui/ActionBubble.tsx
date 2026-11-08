@@ -17,6 +17,8 @@ interface ActionBubbleProps {
   onClose: () => void;
   /** Trajet à montrer sur le plateau au survol d'une ligne (`null` : aucun). */
   onHoverPath: (path: readonly Position[] | null) => void;
+  /** Survol d'une ligne d'effet : sa portée à montrer sur le plateau (`null` : plus rien). */
+  onHoverReach?: (reach: readonly Position[] | null) => void;
 }
 
 /** Durée pendant laquelle la bulle se replace après un changement : celle des transitions de vue. */
@@ -59,7 +61,7 @@ interface Offset {
   readonly bottom: number;
 }
 
-export function ActionBubble({ model, layoutKey, onPick, onBack, onClose, onHoverPath }: ActionBubbleProps) {
+export function ActionBubble({ model, layoutKey, onPick, onBack, onClose, onHoverPath, onHoverReach }: ActionBubbleProps) {
   const ref = useRef<HTMLDivElement>(null);
   const arrowRef = useRef<HTMLDivElement>(null);
   const offset = useRef<Offset | null>(null);
@@ -130,7 +132,10 @@ export function ActionBubble({ model, layoutKey, onPick, onBack, onClose, onHove
   }, [anchorKey, model.anchorUnit, model.anchorCard, layoutKey, pageKey, model.rows.length]);
 
   const { header } = model;
-  const hover = (row: BubbleRow | null) => onHoverPath(row?.enabled ? (row.path ?? null) : null);
+  const hover = (row: BubbleRow | null) => {
+    onHoverPath(row?.enabled ? (row.path ?? null) : null);
+    onHoverReach?.(row?.reach ?? null);
+  };
 
   return (
     <div ref={ref} className="bubble" role="dialog" aria-label="Actions" onMouseLeave={() => hover(null)}>

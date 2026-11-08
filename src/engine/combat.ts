@@ -99,9 +99,18 @@ export function getDiagonalCells(state: BoardState, from: Position, range: numbe
 
 /**
  * Cases qu'un monstre de portée `range` peut frapper depuis `from` : dans chaque direction, les cases traversées par
- * son tir, jusqu'à la première occupée comprise (mêmes règles que la ligne de vue). Sert à montrer la menace adverse.
+ * son tir, jusqu'à la première occupée comprise (mêmes règles que la ligne de vue), et la diagonale. Sert à montrer la
+ * menace adverse.
  */
 export function getStrikeCells(state: BoardState, from: Position, range: number, owner?: PlayerId): Position[] {
+  return [...getLineCells(state, from, range, owner), ...getDiagonalCells(state, from, range, owner)];
+}
+
+/**
+ * Les mêmes cases, en ligne droite orthogonale seulement : la portée d'un effet « en ligne » (sans diagonale), pour
+ * l'afficher.
+ */
+export function getLineCells(state: BoardState, from: Position, range: number, owner?: PlayerId): Position[] {
   const cells: Position[] = [];
   for (const step of Object.values(DIRECTION_OFFSETS)) {
     for (let d = 1; d <= range; d++) {
@@ -115,7 +124,7 @@ export function getStrikeCells(state: BoardState, from: Position, range: number,
       if (units.length > 0 && !isAllyTransparent(units, owner)) break;
     }
   }
-  return [...cells, ...getDiagonalCells(state, from, range, owner)];
+  return cells;
 }
 
 /**

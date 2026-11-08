@@ -11,16 +11,16 @@ import {
   getAreaDirections,
   getAttackPreviews,
   getEffectActions,
-  getEnemyReach,
-  getOwnReach,
+  NO_ZONE_VIEW,
   getHighlights,
-  getReach,
+  getZoneView,
   getPathPreview,
   getPushChoices,
   isExhausted,
   isFocused,
   posKey,
 } from './interaction';
+import { getDangerZone, getUnitZones } from './zones';
 
 const activeView = (state: GameState) => getPlayerView(state, state.activePlayer);
 const MANA = { players: { 1: { mana: 10 } } };
@@ -178,37 +178,45 @@ describe('interaction : pièges et chemin (SPEC.md §6 bis)', () => {
   });
 });
 
-describe('interaction : portée de mes monstres au survol', () => {
-  it('à mon tour : ses déplacements légaux, sans les cases d’attaque ; rien s’il a fini', () => {
+describe('interaction : zones de mes monstres (handoff « zones »)', () => {
+  it('à mon tour : aller = ses déplacements légaux ; survolé sans sélection, ses zones, sans danger', () => {
     const view = activeView(
       gameWith([
         { monster: 'chevalier', owner: 1, at: at(8, 4) },
-        { monster: 'milicien', owner: 1, at: at(8, 8), mobilityLeft: 0 },
+        { monster: 'milicien', owner: 1, at: at(8, 8), mobilityLeft: 0, hasAttacked: true },
       ]),
     );
     const legal = view.legalActions.filter((a) => a.type === 'move' && a.unitId === 'u1').map((a) => (a as { to: Position }).to);
-    const reach = getOwnReach(view, 'u1');
-    expect(reach.moves).toHaveLength(new Set(legal.map((p) => `${p.row},${p.col}`)).size);
-    expect(reach.moves).toContainEqual(at(8, 7));
-    expect(reach.strikes).toEqual([]);
-    expect(getOwnReach(view, 'u2')).toEqual({ moves: [], strikes: [] });
-    expect(getReach(view, NO_SELECTION, at(8, 4))).toEqual(reach);
+    const zones = getZoneView(view, NO_SELECTION, at(8, 4));
+    expect(zones.unitId).toBe('u1');
+    expect([...zones.moves].sort()).toEqual([...new Set(legal.map(posKey))].sort());
+    expect(zones.moves.has('8,7')).toBe(true);
+    expect(zones.danger.size).toBe(0);
+    // Fini : ni aller, ni attaquer.
+    const done = getZoneView(view, NO_SELECTION, at(8, 8));
+    expect(done.moves.size + done.attacks.size).toBe(0);
   });
 
-  it('un monstre adverse n’a pas cette portée, et le monstre sélectionné est déjà en surbrillance', () => {
+  it('sélectionné : ses zones et le danger adverse ; le survol d’un autre monstre n’y change rien', () => {
     const view = activeView(
       gameWith([
         { monster: 'chevalier', owner: 1, at: at(8, 4) },
         { monster: 'milicien', owner: 2, at: at(1, 1) },
       ]),
     );
-    expect(getOwnReach(view, 'u2')).toEqual({ moves: [], strikes: [] });
-    expect(getReach(view, { kind: 'unit', unitId: 'u1', mode: 'act' }, at(8, 4))).toEqual({ moves: [], strikes: [] });
+    const selected = { kind: 'unit', unitId: 'u1', mode: 'act' } as const;
+    const zones = getZoneView(view, selected, at(1, 1));
+    expect(zones.unitId).toBe('u1');
+    expect([...zones.danger.keys()].sort()).toEqual(getDangerZone(view, 1).map(posKey).sort());
+    expect(zones.danger.size).toBeGreaterThan(0);
+    expect(getZoneView(view, selected, null, false).danger.size).toBe(0); // « Menace ennemie » masquée
+    // Un effet en préparation : ses cibles, pas de zones.
+    expect(getZoneView(view, { ...selected, mode: 'effect' }, null)).toBe(NO_ZONE_VIEW);
   });
 });
 
-describe('interaction : portée des monstres adverses', () => {
-  it('consulter un monstre adverse montre où il pourra aller (orange) et frapper (rouge) à son prochain tour', () => {
+describe('interaction : zones des monstres adverses', () => {
+  it('consulter un monstre adverse montre où il pourra aller (cyan) et attaquer (orange) à son prochain tour', () => {
     // Le Chevalier de J2 a déjà bougé (mobilité 0) : on montre sa mobilité complète (3) du prochain tour.
     const view = activeView(
       gameWith([
@@ -218,66 +226,61 @@ describe('interaction : portée des monstres adverses', () => {
     );
     const selection = clickCell(view, NO_SELECTION, at(1, 1));
     expect(selection).toEqual({ selection: { kind: 'inspect', unitId: 'u1' } });
-    const { moves, strikes } = getEnemyReach(view, 'u1');
+    const { moves, attacks } = getUnitZones(view, 'u1');
     expect(moves).toContainEqual(at(4, 1)); // 3 pas
-    expect(strikes).not.toContainEqual(at(4, 1)); // déjà en orange
-    expect(strikes).toContainEqual(at(5, 1)); // frappée depuis (4, 1)
-    expect([...moves, ...strikes]).not.toContainEqual(at(6, 1)); // trop loin, même pour frapper
-    expect(strikes).toContainEqual(at(1, 2)); // le Golem : il peut l'attaquer
-    expect(strikes).toContainEqual(at(1, 3)); // frappée depuis (2, 3), à 3 pas en contournant
-    expect(strikes).not.toContainEqual(at(1, 1)); // sa propre case
-    expect(getReach(view, { kind: 'inspect', unitId: 'u1' }, null)).toEqual({ moves, strikes });
+    expect(attacks).not.toContainEqual(at(4, 1)); // déjà en cyan
+    expect(attacks).toContainEqual(at(5, 1)); // frappée depuis (4, 1)
+    expect([...moves, ...attacks]).not.toContainEqual(at(6, 1)); // trop loin, même pour frapper
+    expect(attacks).toContainEqual(at(1, 2)); // le Golem : il peut l'attaquer
+    expect(attacks).toContainEqual(at(1, 3)); // frappée depuis (2, 3), à 3 pas en contournant
+    expect(attacks).not.toContainEqual(at(1, 1)); // sa propre case
+    const shown = getZoneView(view, { kind: 'inspect', unitId: 'u1' }, null);
+    expect([...shown.moves].sort()).toEqual(moves.map(posKey).sort());
+    expect([...shown.targets]).toEqual(['1,2']); // le Golem, ennemi visible : en rouge
+    // Vu de lui, le danger, ce sont mes monstres.
+    expect([...shown.danger.keys()].sort()).toEqual(getDangerZone(view, 2).map(posKey).sort());
   });
 
-  it('un slow réduit cette portée ; rien pour ses propres unités', () => {
-    const view = activeView(
-      gameWith([
-        { monster: 'chevalier', owner: 2, at: at(8, 1), hasAttacked: true },
-        { monster: 'milicien', owner: 1, at: at(1, 1) },
-      ]),
-    );
-    const chilled = activeView({
-      ...gameWith([{ monster: 'chevalier', owner: 2, at: at(8, 1) }]),
-    });
-    const all = (v: typeof view) => [...getEnemyReach(v, 'u1').moves, ...getEnemyReach(v, 'u1').strikes];
-    expect(all(view).length).toBeGreaterThan(0);
-    expect(getEnemyReach(view, 'u2')).toEqual({ moves: [], strikes: [] });
+  it('un slow réduit ses zones ; un stun les efface', () => {
+    const chilled = activeView(gameWith([{ monster: 'chevalier', owner: 2, at: at(8, 1) }]));
+    const all = (v: typeof chilled) => [...getUnitZones(v, 'u1').moves, ...getUnitZones(v, 'u1').attacks];
     const slowed = { kind: 'slow', amount: 2, turns: 1, expiresAtTurn: 4 } as const;
     const frozen = { ...chilled, units: { u1: { ...chilled.units.u1!, statuses: [slowed] } } } as typeof chilled;
     // Slow 2 : 1 pas, puis une frappe de portée 1 → rien au-delà de 2 cases.
     const near = (p: { row: number; col: number }, d: number) => Math.abs(p.row - 8) + Math.abs(p.col - 1) <= d;
     expect(all(frozen).every((p) => near(p, 2))).toBe(true);
-    expect(getEnemyReach(frozen, 'u1').moves.every((p) => near(p, 1))).toBe(true);
+    expect(getUnitZones(frozen, 'u1').moves.every((p) => near(p, 1))).toBe(true);
     expect(all(chilled).some((p) => !near(p, 2))).toBe(true);
     const stunned = { ...slowed, kind: 'stun', amount: 0 } as const;
     const knocked = { ...chilled, units: { u1: { ...chilled.units.u1!, statuses: [stunned] } } } as typeof chilled;
-    expect(getEnemyReach(knocked, 'u1')).toEqual({ moves: [], strikes: [] });
+    expect(getUnitZones(knocked, 'u1')).toEqual({ moves: [], attacks: [] });
   });
 
   it('un archer menace aussi les cases à 2 de chaque case qu’il peut atteindre', () => {
     const view = activeView(gameWith([{ monster: 'archer', owner: 2, at: at(8, 1) }])); // mobilité 2, portée 2
-    const { moves, strikes } = getEnemyReach(view, 'u1');
+    const { moves, attacks } = getUnitZones(view, 'u1');
     expect(moves).toContainEqual(at(8, 3));
-    expect(strikes).toContainEqual(at(8, 5)); // 2 pas jusqu'à (8, 3), puis tir à 2
-    expect(strikes).not.toContainEqual(at(8, 6));
+    expect(attacks).toContainEqual(at(8, 5)); // 2 pas jusqu'à (8, 3), puis tir à 2
+    expect(attacks).not.toContainEqual(at(8, 6));
   });
 
-  it('au survol d’un monstre adverse, sa portée, quelle que soit la sélection', () => {
+  it('au survol d’un monstre adverse, ses zones, sauf si un de mes monstres est sélectionné', () => {
     const view = activeView(
       gameWith([
         { monster: 'chevalier', owner: 2, at: at(8, 1) },
         { monster: 'milicien', owner: 1, at: at(1, 1) },
       ]),
     );
-    const reach = getEnemyReach(view, 'u1');
-    expect(getReach(view, NO_SELECTION, at(8, 1))).toEqual(reach);
-    // Même en préparant le déplacement de son Milicien : ses déplacements restent proposés à côté.
+    const enemy = getUnitZones(view, 'u1');
+    const hovered = getZoneView(view, NO_SELECTION, at(8, 1));
+    expect(hovered.unitId).toBe('u1');
+    expect([...hovered.moves].sort()).toEqual(enemy.moves.map(posKey).sort());
+    expect(getZoneView(view, { kind: 'card', cardId: 'milicien' }, at(8, 1)).unitId).toBe('u1');
+    // En préparant le déplacement de son Milicien : ses zones à lui, l'ennemi est dans le danger.
     const moving = { kind: 'unit', unitId: 'u2', mode: 'act' } as const;
-    expect(getReach(view, moving, at(8, 1))).toEqual(reach);
+    expect(getZoneView(view, moving, at(8, 1)).unitId).toBe('u2');
     expect(getHighlights(view, moving).size).toBeGreaterThan(0);
-    expect(getReach(view, { kind: 'card', cardId: 'milicien' }, at(8, 1))).toEqual(reach);
-    expect(getReach(view, NO_SELECTION, at(1, 1))).toEqual(getOwnReach(view, 'u2')); // son propre monstre : ses déplacements
-    expect(getReach(view, moving, at(5, 5))).toEqual({ moves: [], strikes: [] }); // case vide
+    expect(getZoneView(view, NO_SELECTION, at(5, 5))).toBe(NO_ZONE_VIEW); // case vide
   });
 });
 

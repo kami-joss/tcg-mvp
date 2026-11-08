@@ -2,6 +2,7 @@
 import { isInZone } from './board';
 import { getMonsterCard, getTerrainCard } from './cards';
 import { CAMOUFLAGE_RADIUS, INVISIBLE_RADIUS } from './config';
+import { clampMana } from './players';
 import { IllegalActionError } from './errors';
 import type {
   BoardState,
@@ -157,7 +158,9 @@ export function removeUnit(state: GameState, unitId: UnitId): GameState {
   if (!removed) return state;
   const owner = state.players[removed.owner];
   const copy: CardCopy = removed.shiny ? { cardId: cardOfOrigin(removed), shiny: true } : { cardId: cardOfOrigin(removed) };
-  return { ...state, units, players: { ...state.players, [owner.id]: { ...owner, graveyard: [...owner.graveyard, copy] } } };
+  const next = { ...state, units, players: { ...state.players, [owner.id]: { ...owner, graveyard: [...owner.graveyard, copy] } } };
+  // Un terrain de moins baisse la limite de la réserve (économie « Réserve ») : l'excédent est perdu aussitôt.
+  return removed.kind === 'terrain' ? clampMana(next, owner.id) : next;
 }
 
 /** Bonus d'ATK des auras (Arnold, §5.2) : chaque monstre allié autour dont l'aura vise la famille du monstre (cumulés). */

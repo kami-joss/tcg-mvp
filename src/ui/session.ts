@@ -2,7 +2,7 @@
 // deux tours ; ou contre l'IA d'entraînement (§7 bis) : pas d'écran de passage, l'écran montre toujours la vue du
 // joueur humain. App.tsx n'en est que l'enveloppe React : toute la logique est ici, testée sans navigateur.
 import { BATTLEFIELD_13, DECKS, IllegalActionError, applyAction, createGame, getPlayerView } from '../engine';
-import type { Action, Board, Deck, GameMode, GameState, PlayerId } from '../engine';
+import type { Action, Board, Deck, Economy, GameMode, GameState, PlayerId } from '../engine';
 import { logEntry } from './log';
 import type { LogEntry } from './log';
 
@@ -13,6 +13,8 @@ import type { LogEntry } from './log';
 export interface Setup {
   readonly board: Board;
   readonly mode?: GameMode;
+  /** Économie du mana : classique par défaut, ou « Réserve » (SPEC.md §10). */
+  readonly economy?: Economy;
   readonly decks: Readonly<Record<PlayerId, Deck>>;
   readonly ai?: PlayerId | null;
 }
@@ -96,7 +98,7 @@ function startLog(setup: Setup, game: GameState, opening: Opening | null, first:
       kind: 'start',
       player: null,
       icon: 'castle',
-      text: `Début de la partie sur la carte « ${board.name} »${mode === 'contestation' ? ', en mode contestation' : ''}, J1 avec le deck ${decks[1].name}, J2 avec le deck ${decks[2].name}.`,
+      text: `Début de la partie sur la carte « ${board.name} »${mode === 'contestation' ? ', en mode contestation' : ''}${game.economy === 'reserve' ? ', économie Réserve' : ''}, J1 avec le deck ${decks[1].name}, J2 avec le deck ${decks[2].name}.`,
       items: [],
     },
     ...(opening ? [{ kind: 'start' as const, player: null, icon: 'laurels' as const, text: openingText(opening, first, opening.winner), items: [] }] : []),
@@ -119,6 +121,7 @@ function startGame(setup: Setup, first: PlayerId): GameState {
     { 1: decks[1].shiny ?? [], 2: decks[2].shiny ?? [] },
     modeOf(setup),
     first,
+    setup.economy ?? 'classic',
   );
 }
 

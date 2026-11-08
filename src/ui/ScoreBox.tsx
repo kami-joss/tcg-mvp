@@ -4,7 +4,7 @@
 // est un peu terni. Le mana porte `data-mana` et les VP `data-vp` : les animations y font voler les gains. Mana dépensé :
 // des éclats cyan et de la brume s'échappent de l'orbe ; points gagnés : des étincelles dorées jaillissent des VP.
 import { useEffect, useRef, useState } from 'react';
-import { VICTORY_VP } from '../engine';
+import { VICTORY_VP, getManaLimit } from '../engine';
 import type { PlayerId, PlayerView } from '../engine';
 import { PileCounters } from './CardPiles';
 import { ManaOrb, orbBurst } from './ManaOrb';
@@ -55,6 +55,8 @@ export function ScoreBox({ view, player, deckName, ai = false, animated = true, 
   const vp = useTween(real.vp);
   const cards = mine ? view.me.grimoire.length : view.opponent.grimoireCount;
   const active = player === view.activePlayer;
+  // Économie « Réserve » : limite de sa réserve (10, +1 par terrain), publique comme ses terrains.
+  const limit = getManaLimit(view, player);
 
   // Mana qui baisse, VP qui montent : un éclat, une fois par changement (pas au premier affichage). Il part à l'image
   // suivante : quand une animation d'action reprend aussitôt l'écran d'avant (`GameScreen`), la valeur revient avant
@@ -82,9 +84,9 @@ export function ScoreBox({ view, player, deckName, ai = false, animated = true, 
       ref={root}
       className={`score score--p${player}${active ? ' is-active' : ''}`}
       aria-label={`Joueur ${player}`}
-      title={`Deck ${deckName} · ${cards} cartes ${mine ? 'en grimoire' : 'restantes'}`}
+      title={`Deck ${deckName} · ${cards} cartes ${mine ? 'en grimoire' : 'restantes'}${limit !== null ? ` · réserve de mana : ${real.mana} / ${limit}` : ''}`}
     >
-      <ManaOrb player={player} mana={mana} active={active} animated={animated} />
+      <ManaOrb player={player} mana={mana} active={active} animated={animated} limit={limit} />
       <div className="score__text">
         <div className="score__name">
           <strong>

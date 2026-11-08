@@ -4,6 +4,7 @@ export * from './board';
 export * from './cards';
 export * from './config';
 export { createGame } from './game';
+export { getManaLimit } from './players';
 export { applyAction, getLegalActions } from './actions';
 export { getPlayerView, getViewZoneController, getViewZoneStatus } from './view';
 export { IllegalActionError } from './errors';
@@ -18,7 +19,7 @@ export {
   type Destination,
 } from './movement';
 export { attackDamage, hitsFromBehind, isBehind, previewAttack, type AttackPreview } from './combat';
-export { getEmptySquareCells, getTrapCells, isDirectionalZone } from './effects';
+export { getEffectReach, getEmptySquareCells, getTrapCells, isDirectionalZone } from './effects';
 export { COMMON_CARDS } from './cards';
 export { getPassage, getPassageSources } from './traps';
 export { INITIAL_FACING } from './units';

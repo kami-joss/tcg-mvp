@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { getPlayerView } from '../engine';
+import { BOARD, getPlayerView, squareCells } from '../engine';
 import type { CardId, GameState } from '../engine';
 import { at, gameWith } from '../engine/test-utils';
 import { bubbleBack, getBubble } from './bubble';
 import type { BubbleModel } from './bubble';
-import { getHighlights, posKey } from './interaction';
+import { getHighlights, posKey, withReach } from './interaction';
 import type { Selection } from './interaction';
 
 // Bulle d'action (handoff V10, lot 11) : ce qu'elle propose vient des actions légales et de l'aperçu du moteur.
@@ -117,6 +117,22 @@ describe('bulle : effets', () => {
     expect(row(bubble(bomber(0), attack()), 'effects')).toMatchObject({ enabled: false, warn: true, subtitle: 'Il te manque 1 mana' });
     const effects = bubble(bomber(0), { kind: 'effects', unitId: 'u1', page: 'effects' });
     expect(effects.rows[0]).toMatchObject({ enabled: false, warn: true, subtitle: 'Il te manque 1 mana', pick: null });
+  });
+
+  it('chaque ligne d’effet porte sa portée (le carré de 1 de la Bombe), même sans mana pour le lancer', () => {
+    for (const mana of [5, 0]) {
+      const reach = bubble(bomber(mana), { kind: 'effects', unitId: 'u1', page: 'effects' }).rows[0]!.reach ?? [];
+      // Le carré de 1 sans les cases qu'on ne peut pas rejoindre (ici, une falaise du plateau classique).
+      expect(reach.map(posKey).sort()).toEqual(squareCells(BOARD, at(5, 4)).map(posKey).sort());
+      expect(reach).toHaveLength(6);
+    }
+  });
+
+  it('au survol, la portée passe en violet par-dessus les autres surbrillances ; le reste ne change pas', () => {
+    const merged = withReach(new Map([['5,5', 'move' as const], ['8,8', 'move' as const]]), [at(5, 5), at(4, 4)]);
+    expect(merged.get('5,5')).toBe('effect');
+    expect(merged.get('4,4')).toBe('effect');
+    expect(merged.get('8,8')).toBe('move');
   });
 
   it('clic droit : au-dessus de son monstre, son nom et son mana ; un effet sur soi se lance directement', () => {

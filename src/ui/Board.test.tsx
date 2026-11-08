@@ -15,7 +15,6 @@ const render = (view: PlayerView, mode: BoardView, zoom = 1, margins?: { left: n
       selectedUnitId={null}
       focused={false}
       path={[]}
-      reach={new Map()}
       showArt
       mode={mode}
       zoom={zoom}
@@ -131,5 +130,40 @@ describe('plateau PixiJS (15 × 15)', () => {
     expect(renderPixi(view, 'tilt')).toContain('board--iso');
     expect(renderPixi(view, 'top')).not.toContain('pixi-board');
     expect(renderPixi(getPlayerView(gameWith([], { board: BATTLEFIELD }), 1), 'iso')).not.toContain('pixi-board');
+  });
+});
+
+describe('plateau : coût des cases d’aller (vue de dessus)', () => {
+  it('la mobilité que coûte chaque case d’aller, en évidence sur le chemin', () => {
+    const view = getPlayerView(gameWith([{ monster: 'milicien', owner: 1, at: at(4, 4) }], { board: BATTLEFIELD }), 1);
+    const zones = {
+      unitId: 'u1',
+      moves: new Set(['3,4', '2,4']),
+      moveCosts: new Map([['3,4', 1], ['2,4', 2]]),
+      attacks: new Set<string>(),
+      targets: new Set<string>(),
+      danger: new Map(),
+    };
+    const html = renderToStaticMarkup(
+      <Board
+        view={view}
+        highlights={new Map()}
+        attacks={new Map()}
+        selectedUnitId="u1"
+        focused={false}
+        path={[at(3, 4), at(2, 4)]}
+        zones={zones}
+        showArt
+        mode="top"
+        zoom={1}
+        animated={false}
+        flipped={false}
+        onCellClick={() => {}}
+        onCellHover={() => {}}
+      />,
+    );
+    expect(html).toContain('<span class="layer zone-cost zone-cost--lit"><span>1</span></span>');
+    expect(html).toContain('<span class="layer zone-cost"><span>2</span></span>');
+    expect(html).not.toContain('zone-step'); // le numéro remplace le point du chemin
   });
 });

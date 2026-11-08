@@ -19,6 +19,7 @@ import type { Action, CardId, GameEvent, PlayerView, Position } from '../engine'
 import type { Setup } from './session';
 import { ActionBubble } from './ActionBubble';
 import { ActionLog } from './ActionLog';
+import { ZoneLegend } from './ZoneLegend';
 import { Board } from './Board';
 import type { BoardCamera } from './Board';
 import { bubbleBack, getBubble } from './bubble';
@@ -34,6 +35,8 @@ import { HoverSheet, SHEET_SCALE, SheetPreview, overframeFit, sheetOverframe, sh
 import { SHEET_W } from './Overframe';
 import {
   NO_SELECTION,
+  NO_ZONE_VIEW,
+  posKey,
   clickCard,
   clickCell,
   contextCard,
@@ -41,11 +44,11 @@ import {
   getAttackPreviews,
   getHighlights,
   getPathPreview,
-  getReach,
+  getZoneView,
   isBubble,
   isFocused,
-  posKey,
   selectedUnitId,
+  withReach,
 } from './interaction';
 import type { Selection } from './interaction';
 import { useAmbientLoops } from './ambientClock';
@@ -155,6 +158,10 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
   previewRef.current = preview;
   /** Trajet montré au survol d'une ligne de la bulle (« Attaquer et avancer »), pour la sélection où il a été montré. */
   const [bubblePath, setBubblePath] = useState<{ selection: Selection; path: readonly Position[] } | null>(null);
+  /** Portée de l'effet survolé dans la bulle, pour la sélection où elle a été montrée. */
+  const [bubbleReach, setBubbleReach] = useState<{ selection: Selection; reach: readonly Position[] } | null>(null);
+  /** Portée de l'effet actif survolé dans la fiche. */
+  const [sheetReach, setSheetReach] = useState<readonly Position[] | null>(null);
   const [settings, setSettings] = useState<DisplaySettings>(loadSettings);
   /** Alt (ou le bouton œil) maintenu : toutes les stats sur les jetons (lot 6). */
   const [peek, setPeek] = useState(false);
@@ -188,27 +195,36 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
   // Bulle d'action : pendant une animation, aucune ; une sélection de bulle qui n'a plus rien à proposer est oubliée.
   const bubble = useMemo(() => (busy ? null : getBubble(view, selection, flipped)), [busy, view, selection, flipped]);
   const activeSelection = busy || (isBubble(selection) && !bubble) ? NO_SELECTION : selection;
-  const highlights = useMemo(() => getHighlights(display, activeSelection), [display, activeSelection]);
+  const highlights = useMemo(() => {
+    const base = getHighlights(display, activeSelection);
+    const fromBubble = bubble && bubbleReach?.selection === activeSelection ? withReach(base, bubbleReach.reach) : base;
+    return sheetReach && !busy ? withReach(fromBubble, sheetReach) : fromBubble;
+  }, [display, activeSelection, bubble, bubbleReach, sheetReach, busy]);
   const attacks = useMemo(() => getAttackPreviews(display, activeSelection), [display, activeSelection]);
-  // Bulle ouverte : ni portée adverse ni chemin sous la souris, seulement le trajet de la ligne survolée.
-  const reach = useMemo(() => {
-    if (bubble || busy) return new Map<string, 'move' | 'strike'>();
-    const threat = getReach(display, activeSelection, hovered);
-    return new Map<string, 'move' | 'strike'>([
-      ...threat.moves.map((pos) => [posKey(pos), 'move'] as const),
-      ...threat.strikes.map((pos) => [posKey(pos), 'strike'] as const),
-    ]);
-  }, [bubble, busy, display, activeSelection, hovered]);
+  // Zones (handoff « zones ») : aller, attaquer, danger. Bulle ouverte ou animation : aucune, seulement le trajet de la
+  // ligne survolée. Le survol ne compte que sans monstre sélectionné (sinon, le calcul ne change pas d'une case à l'autre).
+  const zoneHover = activeSelection.kind === 'unit' || activeSelection.kind === 'inspect' ? null : hovered;
+  const zones = useMemo(
+    // La portée d'un effet survolé dans la fiche prend leur place le temps du survol.
+    () => (bubble || busy || sheetReach ? NO_ZONE_VIEW : getZoneView(display, activeSelection, zoneHover, settings.zoneDanger)),
+    [bubble, busy, sheetReach, display, activeSelection, zoneHover, settings.zoneDanger],
+  );
+  // Légende des zones : quand un monstre est sélectionné (pas au simple survol, elle clignoterait).
+  const zoneLegend = zones.unitId !== null && (activeSelection.kind === 'unit' || activeSelection.kind === 'inspect');
   const path = useMemo(
     () =>
       bubble
         ? bubblePath?.selection === activeSelection
           ? bubblePath.path
           : []
-        : getPathPreview(display, activeSelection, hovered),
-    [bubble, bubblePath, display, activeSelection, hovered],
+        : settings.zonePath
+          ? getPathPreview(display, activeSelection, hovered)
+          : [],
+    [bubble, bubblePath, display, activeSelection, hovered, settings.zonePath],
   );
   const sheet = focus ? getSheet(display, focus) : null;
+  // Une autre fiche, ou la partie qui avance : la portée survolée n'est plus la bonne.
+  useEffect(() => setSheetReach(null), [focus, view]);
   // Fiche : le haut du cadre toujours au même endroit (place du plus grand débordement réservée au-dessus) ; fenêtre
   // basse, place et overframes réduites pour laisser la sienne au journal.
   const leftRef = useRef<HTMLElement>(null);
@@ -553,7 +569,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
             anchor={bubble?.anchor ?? null}
             focused={isFocused(activeSelection)}
             path={path}
-            reach={reach}
+            zones={zones}
             showArt
             mode={mode}
             zoom={settings.zoom}
@@ -570,6 +586,16 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
             hovered={hovered}
           />
           {helpOpen && <Legend onClose={() => setHelpOpen(false)} mode={view.mode} />}
+          {zoneLegend && (
+            <ZoneLegend
+              danger={settings.zoneDanger}
+              path={settings.zonePath}
+              hint={hovered !== null && zones.danger.has(posKey(hovered))}
+              onToggleDanger={() => changeSettings({ zoneDanger: !settings.zoneDanger })}
+              onTogglePath={() => changeSettings({ zonePath: !settings.zonePath })}
+              style={{ left: (glide.left || GLIDE_LEFT) + (glide.left ? PILES_GAP : 0) }}
+            />
+          )}
           {pile && (
             <PilePanel
               view={display}
@@ -592,7 +618,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
               className={`game__sheet${sheetOf ? ' game__sheet--of' : ''}`}
               style={sheetPlacement(sheetOf, sheetFit)}
             >
-              <HoverSheet sheet={sheet} animated={animated} onOpen={() => setPreview(sheet)} />
+              <HoverSheet sheet={sheet} animated={animated} onOpen={() => setPreview(sheet)} onHoverReach={setSheetReach} />
             </div>
           )}
           <ActionLog entries={log} />
@@ -626,6 +652,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
           onBack={() => setSelection(bubbleBack(bubble) ?? NO_SELECTION)}
           onClose={() => setSelection(NO_SELECTION)}
           onHoverPath={(hoverPath) => setBubblePath(hoverPath ? { selection: activeSelection, path: hoverPath } : null)}
+          onHoverReach={(reach) => setBubbleReach(reach ? { selection: activeSelection, reach } : null)}
         />
       )}
       {cutIn && <CutInOverlay key={cutIn.id} cutIn={cutIn.cutIn} target={cutIn.target} onDone={cutIn.done} />}

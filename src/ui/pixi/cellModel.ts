@@ -6,7 +6,8 @@ import type { PlayerView, Position, UnitId } from '../../engine';
 import { trapLabel } from '../cardText';
 import { FLIP_EDGE, getZoneTiles } from '../contestZones';
 import type { ZoneEdge, ZoneLook } from '../contestZones';
-import type { AttackPreview, Highlight } from '../interaction';
+import type { AttackPreview, Highlight, ZoneView } from '../interaction';
+import type { DangerEdges } from '../zones';
 import { ISO, waterKind } from '../iso/scenery';
 import { getZoneMarks } from '../zoneMarks';
 import type { ZoneMark } from '../zoneMarks';
@@ -52,13 +53,24 @@ export interface CellVisual {
   /** Marques au sol des terrains « Passage » et des cases brûlées. */
   readonly marks: readonly ZoneMark[];
   readonly dim: boolean;
-  readonly move: boolean;
-  /** Numéro du pas sur le chemin prévu. */
-  readonly step: number | null;
+  /**
+   * Zone du monstre sujet (handoff « zones ») : halo cyan (aller), orange (attaquer), rouge vif sur un monstre ennemi
+   * visible qu'il peut attaquer (`target`).
+   */
+  readonly reach: 'move' | 'attack' | 'target' | null;
+  /** Case de zone sur une mana zone : son voile est doré, liseré et halo gardent la couleur de la zone (validé). */
+  readonly reachOnMana: boolean;
+  /** Case survolée dans une zone : voile et anneau de sa couleur. */
+  readonly hover: boolean;
+  /** Case traversée par le chemin prévu (ni le départ, ni l'arrivée) : un petit point. */
+  readonly step: boolean;
+  /** Case d'aller : la mobilité que coûte d'y aller, écrite sur la case (en évidence sur le chemin et la case survolée). */
+  readonly moveCost: number | null;
+  /** Danger adverse : voile violet, et les côtés (affichés) où passe le contour. */
+  readonly danger: DangerEdges | null;
   readonly effect: boolean;
   /** Cible d'une carte posée sur la case, pas sur un jeton : un « + » (case vide, ou terrain seul). */
   readonly target: boolean;
-  readonly reach: 'move' | 'strike' | null;
   /** Piège visible (le sien), sous un monstre absent. */
   readonly trap: string | null;
   /** Cible d'attaque posée sur la case (un terrain seul) : son cadre, et les dégâts annoncés. */
@@ -74,7 +86,8 @@ export interface CellInputs {
   readonly selectedUnitId: UnitId | null;
   readonly focused: boolean;
   readonly path: readonly Position[];
-  readonly reach: ReadonlyMap<string, 'move' | 'strike'>;
+  readonly zones: ZoneView;
+  readonly hovered: Position | null;
   readonly flipped: boolean;
   /** Animations permises : la lueur des mana zones pulse (sinon pas de lueur, comme en CSS). */
   readonly animated: boolean;
@@ -91,11 +104,19 @@ function holderColor(controller: 1 | 2 | null, contested: boolean, neutral: stri
   return controller === 1 ? CELL_COLORS.j1 : controller === 2 ? CELL_COLORS.j2 : neutral;
 }
 
+/** Côtés du contour de danger tels qu'ils s'affichent : plateau retourné, haut et bas, gauche et droite s'échangent. */
+function displayedEdges(edges: DangerEdges | undefined, flipped: boolean): DangerEdges | null {
+  if (!edges) return null;
+  return flipped ? { up: edges.down, down: edges.up, left: edges.right, right: edges.left } : edges;
+}
+
 /** Les cases du plateau à dessiner (les cases hors plateau n'ont rien). */
 export function cellVisuals(inputs: CellInputs): CellVisual[] {
-  const { view, highlights, attacks, selectedUnitId, focused, path, reach, flipped, animated, grid = true } = inputs;
+  const { view, highlights, attacks, selectedUnitId, focused, path, zones, hovered, flipped, animated, grid = true } = inputs;
   const { rows, cols } = view.board;
-  const steps = new Map(path.map((pos, i) => [`${pos.row},${pos.col}`, i + 1]));
+  // Chemin : les cases traversées, sans l'arrivée.
+  const steps = new Set(path.slice(0, -1).map((pos) => `${pos.row},${pos.col}`));
+  const hoveredKey = hovered ? `${hovered.row},${hovered.col}` : null;
   const marksByCell = getZoneMarks(view);
   const tiles = getZoneTiles(view);
   const out: CellVisual[] = [];
@@ -121,11 +142,14 @@ export function cellVisuals(inputs: CellInputs): CellVisual[] {
         glow: null,
         summon: null,
         dim: false,
-        move: false,
-        step: null,
+        reach: null,
+        reachOnMana: false,
+        hover: false,
+        step: false,
+        moveCost: null,
+        danger: displayedEdges(zones.danger.get(key), flipped),
         effect: false,
         target: false,
-        reach: null,
         trap: null,
         attack: null,
         zoneLabel: null,
@@ -141,7 +165,8 @@ export function cellVisuals(inputs: CellInputs): CellVisual[] {
     const contested = status?.contested ?? false;
     const highlight = highlights.get(key);
     const attack = attacks.get(key);
-    const step = steps.get(key) ?? null;
+    const step = steps.has(key);
+    const reach = zones.moves.has(key) ? 'move' : zones.targets.has(key) ? 'target' : zones.attacks.has(key) ? 'attack' : null;
     const selected = (id: UnitId | undefined) => id !== undefined && id === selectedUnitId;
     const trap = view.traps.find((t) => samePos(t.pos, pos));
     // Jetons debout : une cible ou une attaque sur un monstre se dessine sur son jeton.
@@ -156,12 +181,15 @@ export function cellVisuals(inputs: CellInputs): CellVisual[] {
           : null,
       glow: zone && animated ? holderColor(controller, contested, CELL_COLORS.zone) : null,
       summon: cell.summonZoneOf,
-      dim: focused && !highlight && step === null && !selected(monster?.id) && !selected(terrain?.id),
-      move: step === null && highlight === 'move',
+      dim: focused && !highlight && !reach && !step && !selected(monster?.id) && !selected(terrain?.id),
+      reach,
+      reachOnMana: reach !== null && zone !== null,
+      hover: reach !== null && key === hoveredKey,
       step,
+      moveCost: reach === 'move' ? (zones.moveCosts.get(key) ?? null) : null,
+      danger: displayedEdges(zones.danger.get(key), flipped),
       effect: highlight === 'effect',
       target: highlight === 'target' && !onToken,
-      reach: reach.get(key) ?? null,
       trap: trap && !monster ? trapLabel(trap) : null,
       attack: (highlight === 'attack' || attack) && !onToken ? { damage: attack ? `−${attack.damage}${attack.behind ? ' dos' : ''}` : null } : null,
       zoneLabel: zone

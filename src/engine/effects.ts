@@ -1,8 +1,8 @@
 // Effets des cartes (SPEC.md §5.2 à §5.4) : ciblage et résolution, communs aux sorts et aux effets actifs.
 // Un effet complet (`Ability`) vise un monstre, une zone, une case ou sa source, puis applique ses effets dans l'ordre.
 // Invocation et téléportation demandent un second choix : le monstre à invoquer, la case où poser le monstre.
-import { DIRECTION_OFFSETS, DIRECTIONS, squareCells, distance, hasCliff, isInSquare, isPlayable, samePos } from './board';
-import { getLineOfSightCells } from './combat';
+import { DIRECTION_OFFSETS, DIRECTIONS, allPositions, squareCells, distance, hasCliff, isInSquare, isPlayable, samePos } from './board';
+import { getLineCells, getLineOfSightCells } from './combat';
 import { dealDamage } from './damage';
 import { emit } from './events';
 import { isShinyCopy, opponent, shine, takeFromGrimoire } from './players';
@@ -321,6 +321,60 @@ export function getEffectTargets(
       );
     }
   }
+}
+
+/**
+ * Portée d'un effet de `source` (un monstre de `player`) : les cases qu'il peut viser ou toucher, selon son ciblage,
+ * qu'il y ait une cible ou non (pour l'afficher). Zone en ligne : les quatre directions ; ciblage sans portée (n'importe
+ * où, tous les ennemis, une famille) : les cases des monstres concernés.
+ */
+export function getEffectReach(state: BoardState, ability: Ability, player: PlayerId, source: MonsterUnit): Position[] {
+  const { targeting } = ability;
+  const cells = (() => {
+    switch (targeting.type) {
+      case 'self':
+        return [source.pos];
+      case 'emptySquareCell':
+        return squareCells(state.board, source.pos);
+      case 'emptyCell':
+      case 'zone': {
+        const zone = targeting.zone;
+        if (!isDirectionalZone(zone)) return getAreaCells(state, source, zone);
+        return DIRECTIONS.flatMap((facing) => getAreaCells(state, { ...source, facing }, zone));
+      }
+      case 'trail':
+        return getTrailCells(state, source);
+      case 'allies':
+        return alliesOf(state, player, targeting.archetype).map((m) => m.pos);
+      case 'enemies':
+        return getMonsters(state, opponent(player)).map((m) => m.pos);
+      case 'enemiesNearAllies':
+        return Object.values(state.units)
+          .filter((unit) => unit.owner === player)
+          .flatMap((unit) => squareCells(state.board, unit.pos));
+      case 'enemiesAroundAlly':
+        return alliesOf(state, player, targeting.archetype).flatMap((m) => [m.pos, ...squareCells(state.board, m.pos, targeting.square)]);
+      case 'monster': {
+        const { reach } = targeting;
+        switch (reach.type) {
+          case 'square1':
+            return squareCells(state.board, source.pos);
+          case 'line':
+            return getLineCells(state, source.pos, reach.range, source.owner);
+          case 'nearOwnMonster': {
+            const own = getMonsters(state, player);
+            return allPositions(state.board).filter((pos) => isPlayable(state.board, pos) && own.some((o) => distance(o.pos, pos) <= reach.steps));
+          }
+          case 'anywhere':
+            return getMonsters(state, targeting.side === 'ally' ? player : opponent(player))
+              .filter((m) => !targeting.archetype || getMonsterCard(m.cardId).archetype === targeting.archetype)
+              .map((m) => m.pos);
+        }
+      }
+    }
+  })();
+  const unique = new Map(cells.map((pos) => [`${pos.row},${pos.col}`, pos]));
+  return [...unique.values()];
 }
 
 export function sameEffectTarget(a: EffectTarget, b: EffectTarget): boolean {

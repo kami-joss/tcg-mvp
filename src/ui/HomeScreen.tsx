@@ -2,7 +2,7 @@
 // Deux liens ouvrent les pages de consultation : la composition des decks et les règles du jeu.
 import { useState } from 'react';
 import { BOARDS, DECKS } from '../engine';
-import type { Board, GameMode, PlayerId } from '../engine';
+import type { Board, Economy, GameMode, PlayerId } from '../engine';
 import { Icon } from './Icon';
 import type { Page } from './routes';
 import { modeOf } from './session';
@@ -28,6 +28,16 @@ const MODES: readonly (readonly [GameMode, string, string])[] = [
     'contestation',
     'Contestation',
     'Chaque mana zone devient une zone de 9 cases. Seul dedans, on la tient ; à deux, elle est contestée : ni mana ni VP, ni terrain posé. Un terrain la tient tant qu’il n’est pas détruit.',
+  ],
+];
+
+/** Économies du mana (SPEC.md §4.2, §10) : nom et règle en une phrase. */
+const ECONOMIES: readonly (readonly [Economy, string, string])[] = [
+  ['classic', 'Classique', 'Le mana non dépensé est perdu. Mana de base : 3 au premier tour, +1 à chaque tour, jusqu’à 10.'],
+  [
+    'reserve',
+    'Réserve',
+    'Le mana se garde d’un tour à l’autre. Mana de base : 3, 4, 5, puis 6 à chaque tour. Réserve limitée à 10, +1 par terrain posé.',
   ],
 ];
 
@@ -151,6 +161,25 @@ export function HomeScreen({ initial, onStart, onNavigate }: HomeScreenProps) {
             {MODES.find(([id]) => id === mode)![2]}
             {!setup.board.contestation && ` Contestation : sur les cartes ${CONTEST_BOARDS}.`}
           </p>
+        </div>
+      </section>
+
+      <section className="home__section" aria-labelledby="home-economy">
+        <h2 id="home-economy">Économie</h2>
+        <div className="home__mode">
+          <div className="home__switch" role="group" aria-labelledby="home-economy">
+            {ECONOMIES.map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={(setup.economy ?? 'classic') === id}
+                onClick={() => setSetup({ ...setup, economy: id })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="home__mode-details">{ECONOMIES.find(([id]) => id === (setup.economy ?? 'classic'))![2]}</p>
         </div>
       </section>
 

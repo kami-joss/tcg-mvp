@@ -3,7 +3,8 @@ import { BATTLEFIELD_15, allPositions, getCell, getPlayerView } from '../../engi
 import type { Position } from '../../engine';
 import { at, gameWith } from '../../engine/test-utils';
 import type { UnitSpec } from '../../engine/test-utils';
-import type { Highlight } from '../interaction';
+import { NO_ZONE_VIEW } from '../interaction';
+import type { Highlight, ZoneView } from '../interaction';
 import { CELL_COLORS, cellVisuals } from './cellModel';
 import type { CellInputs, CellVisual } from './cellModel';
 
@@ -20,7 +21,8 @@ const visuals = (overrides: Partial<CellInputs> = {}) =>
     selectedUnitId: null,
     focused: false,
     path: [],
-    reach: new Map(),
+    zones: NO_ZONE_VIEW,
+    hovered: null,
     flipped: false,
     animated: true,
     ...overrides,
@@ -87,10 +89,48 @@ describe('cases du plateau PixiJS : fond et repères', () => {
 describe('cases du plateau PixiJS : sélection et surbrillances', () => {
   const hl = (entries: [Position, Highlight][]) => new Map(entries.map(([pos, h]) => [`${pos.row},${pos.col}`, h]));
 
-  it('déplacement : cases atteignables, chemin numéroté sous la souris (le chemin remplace la marque de déplacement)', () => {
-    const list = visuals({ highlights: hl([[at(6, 6), 'move'], [at(6, 7), 'move']]), path: [at(6, 7)] });
-    expect(cellAt(list, at(6, 6))).toMatchObject({ move: true, step: null });
-    expect(cellAt(list, at(6, 7))).toMatchObject({ move: false, step: 1 });
+  const zones = (moves: string[], attacks: string[] = [], danger: ZoneView['danger'] = new Map(), targets: string[] = [], costs: [string, number][] = []): ZoneView => ({
+    unitId: 'u1',
+    moves: new Set(moves),
+    moveCosts: new Map(costs),
+    attacks: new Set(attacks),
+    targets: new Set(targets),
+    danger,
+  });
+
+  it('un ennemi visible à portée : rouge vif (`target`) ; une mana zone dans une zone : voile doré', () => {
+    const list = visuals({ zones: zones(['2,2'], ['6,7', '6,8'], new Map(), ['6,8']) });
+    expect(cellAt(list, at(6, 8)).reach).toBe('target');
+    expect(cellAt(list, at(6, 7))).toMatchObject({ reach: 'attack', reachOnMana: false });
+    expect(cellAt(list, at(2, 2))).toMatchObject({ reach: 'move', reachOnMana: true }); // mana zone du coin
+  });
+
+  it('zones : halo cyan (aller), orange (attaquer) ; anneau sur la case survolée d’une zone seulement', () => {
+    const list = visuals({ zones: zones(['6,6'], ['6,7']), hovered: at(6, 7) });
+    expect(cellAt(list, at(6, 6))).toMatchObject({ reach: 'move', hover: false });
+    expect(cellAt(list, at(6, 7))).toMatchObject({ reach: 'attack', hover: true });
+    expect(cellAt(visuals({ zones: zones(['6,6']), hovered: at(8, 8) }), at(8, 8))).toMatchObject({ reach: null, hover: false });
+  });
+
+  it('chemin : un point sur chaque case traversée, ni le départ ni l’arrivée', () => {
+    const list = visuals({ zones: zones(['6,6', '6,7', '6,8']), path: [at(6, 7), at(6, 8)] });
+    expect(cellAt(list, at(6, 7)).step).toBe(true);
+    expect(cellAt(list, at(6, 8)).step).toBe(false);
+  });
+
+  it('cases d’aller : la mobilité que coûte d’y aller, et seulement sur elles', () => {
+    const list = visuals({ zones: zones(['6,6', '6,7'], ['8,8'], new Map(), [], [['6,6', 1], ['6,7', 2], ['8,8', 4]]) });
+    expect(cellAt(list, at(6, 6)).moveCost).toBe(1);
+    expect(cellAt(list, at(6, 7)).moveCost).toBe(2);
+    expect(cellAt(list, at(8, 8)).moveCost).toBeNull(); // case d'attaque
+    expect(cellAt(list, at(3, 3)).moveCost).toBeNull();
+  });
+
+  it('danger : les côtés du contour, échangés sur un plateau retourné', () => {
+    const danger = new Map([['6,6', { up: true, down: false, left: true, right: false }]]);
+    expect(cellAt(visuals({ zones: zones([], [], danger) }), at(6, 6)).danger).toEqual({ up: true, down: false, left: true, right: false });
+    expect(cellAt(visuals({ zones: zones([], [], danger), flipped: true }), at(6, 6)).danger).toEqual({ up: false, down: true, left: false, right: true });
+    expect(cellAt(visuals(), at(6, 6)).danger).toBeNull();
   });
 
   it('atténuation : les cases qui ne sont pas des cibles, sauf le monstre sélectionné', () => {
@@ -121,12 +161,6 @@ describe('cases du plateau PixiJS : sélection et surbrillances', () => {
     expect(cellAt(list, at(8, 8)).attack).toEqual({ damage: '−3' });
     expect(cellAt(list, at(6, 8)).attack).toBeNull();
     expect(cellAt(visuals({ view: view(units), highlights: hl([[at(8, 8), 'attack']]) }), at(8, 8)).attack).toEqual({ damage: null });
-  });
-
-  it('menace d’un ennemi survolé : cases où il ira, cases qu’il frappera', () => {
-    const list = visuals({ reach: new Map([['6,6', 'move'], ['6,7', 'strike']]) });
-    expect(cellAt(list, at(6, 6)).reach).toBe('move');
-    expect(cellAt(list, at(6, 7)).reach).toBe('strike');
   });
 
   it('piège : visible sur sa case vide, avec son nom court', () => {

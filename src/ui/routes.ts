@@ -27,6 +27,7 @@ export function boardSlug(board: Board): string {
 export function setupToQuery(setup: Setup): string {
   const params = new URLSearchParams({ carte: boardSlug(setup.board) });
   if (modeOf(setup) === 'contestation') params.set('mode', 'contestation');
+  if (setup.economy === 'reserve') params.set('eco', 'reserve');
   params.set('j1', setup.decks[1].id);
   params.set('j2', setup.decks[2].id);
   if (setup.ai) params.set('ia', String(setup.ai));
@@ -39,7 +40,9 @@ export function setupFromQuery(search: string): Setup {
   const board = BOARDS.find((b) => boardSlug(b) === params.get('carte')) ?? DEFAULT_SETUP.board;
   const deck = (player: PlayerId): Deck => DECKS.find((d) => d.id === params.get(`j${player}`)) ?? DEFAULT_SETUP.decks[player];
   const mode = modeOf({ board, mode: params.get('mode') === 'contestation' ? 'contestation' : 'normal' });
-  return { board, mode, decks: { 1: deck(1), 2: deck(2) }, ai: params.get('ia') === '2' ? 2 : null };
+  // Économie classique : le champ reste absent, comme dans les réglages par défaut.
+  const economy = params.get('eco') === 'reserve' ? { economy: 'reserve' as const } : {};
+  return { board, mode, ...economy, decks: { 1: deck(1), 2: deck(2) }, ai: params.get('ia') === '2' ? 2 : null };
 }
 
 /** Page affichée pour un chemin, sous la base de l'application (`import.meta.env.BASE_URL`). */

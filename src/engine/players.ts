@@ -1,8 +1,9 @@
 // Mise à jour immuable de l'état d'un joueur.
 import { getCard } from './cards';
-import { VICTORY_VP } from './config';
+import { RESERVE_LIMIT_PER_TERRAIN, RESERVE_MANA_LIMIT, VICTORY_VP } from './config';
 import { emit } from './events';
 import type { CardCopy, CardId, GameState, PlayerId, PlayerState, Position, Unit } from './types';
+import type { Economy } from './types';
 
 export function opponent(player: PlayerId): PlayerId {
   return player === 1 ? 2 : 1;
@@ -20,10 +21,33 @@ export function addVp(state: GameState, id: PlayerId, amount: number, pos: Posit
   return next.winner === null && vp >= VICTORY_VP ? { ...next, winner: id } : next;
 }
 
-/** Ajoute (ou retire, si négatif) du mana. */
+/**
+ * Limite de la réserve de mana (économie « Réserve ») : 10, plus 1 par terrain du joueur sur le plateau ; `null` en
+ * économie classique (pas de limite).
+ */
+export function getManaLimit(state: { readonly economy: Economy; readonly units: GameState['units'] }, id: PlayerId): number | null {
+  if (state.economy !== 'reserve') return null;
+  const terrains = Object.values(state.units).filter((unit) => unit.kind === 'terrain' && unit.owner === id).length;
+  return RESERVE_MANA_LIMIT + RESERVE_LIMIT_PER_TERRAIN * terrains;
+}
+
+/**
+ * Ajoute (ou retire, si négatif) du mana. Économie « Réserve » : un gain s'arrête à la limite (revenus comme gains en
+ * cours de tour, validé le 2026-11-08).
+ */
 export function addMana(state: GameState, id: PlayerId, amount: number, pos: Position | null = null): GameState {
-  if (amount === 0) return state;
-  return updatePlayer(emit(state, { type: 'mana', player: id, amount, pos }), id, { mana: state.players[id].mana + amount });
+  const limit = getManaLimit(state, id);
+  const mana = state.players[id].mana;
+  const gain = amount > 0 && limit !== null ? Math.min(amount, Math.max(0, limit - mana)) : amount;
+  if (gain === 0) return state;
+  return updatePlayer(emit(state, { type: 'mana', player: id, amount: gain, pos }), id, { mana: mana + gain });
+}
+
+/** Économie « Réserve » : la réserve qui dépasse la limite (un terrain détruit l'a baissée) y est ramenée tout de suite. */
+export function clampMana(state: GameState, id: PlayerId): GameState {
+  const limit = getManaLimit(state, id);
+  const mana = state.players[id].mana;
+  return limit !== null && mana > limit ? addMana(state, id, limit - mana) : state;
 }
 
 /** Sans le premier `cardId` de la liste. */

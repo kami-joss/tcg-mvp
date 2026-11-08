@@ -71,11 +71,13 @@ interface ManaOrbProps {
   /** C'est à ce joueur de jouer : halo qui respire, brume plus dense. */
   active: boolean;
   animated: boolean;
+  /** Économie « Réserve » : la limite de sa réserve, l'orbe est pleine à cette valeur (sinon à `ORB_FULL_MANA`). */
+  limit?: number | null;
 }
 
-export function ManaOrb({ player, mana, active, animated }: ManaOrbProps) {
+export function ManaOrb({ player, mana, active, animated, limit = null }: ManaOrbProps) {
   const { mist, bubbles } = useMemo(() => orbDecor(player), [player]);
-  const level = Math.min(100, (Math.max(0, mana) / ORB_FULL_MANA) * 100);
+  const level = Math.min(100, (Math.max(0, mana) / (limit ?? ORB_FULL_MANA)) * 100);
   const mistOpacity = mana > 0 ? (active ? 0.75 : 0.22) : 0;
   return (
     <div className={`orb${animated ? ' orb--anim' : ''}${active ? ' is-active' : ''}`}>

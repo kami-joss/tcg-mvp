@@ -22,6 +22,13 @@ export type ManaZoneId = 'ecurie' | 'ferme' | 'forge' | 'scierie' | 'mine';
  */
 export type GameMode = 'normal' | 'contestation';
 
+/**
+ * Économie du mana, choisie à l'accueil (SPEC.md §4.2, §10, 2026-11-08) : `classic`, la règle d'origine (le mana non
+ * dépensé est perdu, mana de base jusqu'à 10) ; `reserve`, le mana se garde d'un tour à l'autre, mana de base 3, 4, 5
+ * puis 6, réserve limitée à 10 + 1 par terrain du joueur.
+ */
+export type Economy = 'classic' | 'reserve';
+
 export type Cell =
   /** `.` : la case n'existe pas. */
   | { readonly kind: 'offBoard' }
@@ -723,6 +730,7 @@ export interface PlayerState {
 export interface GameState {
   readonly board: Board;
   readonly mode: GameMode;
+  readonly economy: Economy;
   readonly players: Readonly<Record<PlayerId, PlayerState>>;
   readonly activePlayer: PlayerId;
   /** Numéro du tour : 1 = premier tour de J1, 2 = premier tour de J2, etc. */
@@ -919,6 +927,7 @@ export interface PlayerView {
   readonly viewer: PlayerId;
   readonly board: Board;
   readonly mode: GameMode;
+  readonly economy: Economy;
   readonly units: Readonly<Record<UnitId, Unit>>;
   readonly activePlayer: PlayerId;
   readonly turn: number;

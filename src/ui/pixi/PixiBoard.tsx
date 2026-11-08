@@ -135,10 +135,10 @@ export function PixiBoard(props: PixiBoardProps) {
   }, [renderer, camera.k, camera.width, camera.centerY, plan]);
 
   // Cases : redessinées quand la vue, la sélection ou le survol changent.
-  const { view, highlights, attacks, selectedUnitId, focused, path, reach, grid } = cells;
+  const { view, highlights, attacks, selectedUnitId, focused, path, zones, hovered, grid } = cells;
   useEffect(() => {
-    renderer?.setCells({ view, highlights, attacks, selectedUnitId, focused, path, reach, flipped, animated, grid });
-  }, [renderer, view, highlights, attacks, selectedUnitId, focused, path, reach, flipped, animated, grid]);
+    renderer?.setCells({ view, highlights, attacks, selectedUnitId, focused, path, zones, hovered, flipped, animated, grid });
+  }, [renderer, view, highlights, attacks, selectedUnitId, focused, path, zones, hovered, flipped, animated, grid]);
 
   // Unités : redessinées quand la vue, la sélection, les cibles ou les stats affichées changent.
   useEffect(() => {

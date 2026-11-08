@@ -24,7 +24,6 @@ const renderBoard = (state: GameState) =>
       selectedUnitId={null}
       focused={false}
       path={[]}
-      reach={new Map()}
       showArt
       mode="tilt"
       zoom={1}

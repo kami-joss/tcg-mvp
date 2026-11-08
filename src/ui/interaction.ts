@@ -5,12 +5,7 @@ import {
   getAreaCells,
   getCard,
   getMonsterCard,
-  getMoveDestinations,
   getMovePath,
-  getNextTurnMobility,
-  getNextTurnOnMoveBonus,
-  getStrikeCells,
-  ownerNextTurn,
   getPushDestination,
   getUnitsAt,
   hitsFromBehind,
@@ -18,7 +13,9 @@ import {
   isInSquare,
   samePos,
 } from '../engine';
-import type { Action, CardId, Direction, MonsterUnit, PlayerView, Position, UnitId } from '../engine';
+import type { Action, CardId, Direction, PlayerView, Position, UnitId } from '../engine';
+import { getDangerEdges, getDangerZone, getMoveCosts, getUnitZones } from './zones';
+import type { DangerEdges } from './zones';
 
 export type Selection =
   | { readonly kind: 'none' }
@@ -224,6 +221,13 @@ export function getHighlights(view: PlayerView, selection: Selection): Map<strin
   return highlights;
 }
 
+/** Portée d'un effet survolé (bulle, fiche) : ses cases en violet, par-dessus les autres surbrillances le temps du survol. */
+export function withReach(highlights: ReadonlyMap<string, Highlight>, reach: readonly Position[]): Map<string, Highlight> {
+  const out = new Map(highlights);
+  for (const pos of reach) out.set(posKey(pos), 'effect');
+  return out;
+}
+
 /** Cible que `unitId` peut attaquer sur cette case. */
 function attackTargetAt(view: PlayerView, unitId: UnitId, pos: Position): UnitId | undefined {
   return actionsOf(view, 'attack').find((a) => a.unitId === unitId && samePos(unitPos(view, a.targetId) ?? { row: -1, col: -1 }, pos))
@@ -394,69 +398,57 @@ export function getPathPreview(view: PlayerView, selection: Selection, hovered: 
 }
 
 /**
- * Menace d'un monstre adverse à son prochain tour, sur le plateau tel qu'il est maintenant (hachures au survol) :
- * `moves`, les cases où il pourra aller (mobilité de ce tour-là, statuts compris), en orange ; `strikes`, les autres
- * cases qu'il pourra frapper depuis sa case ou l'une d'elles (portée et ligne de vue de son attaque), en rouge — dont
- * celles de tes monstres. Rien s'il sera stun ; rien pour une autre unité.
+ * Zones à montrer (handoff « zones », SPEC.md §10), relatives au monstre sujet : `moves`, où il peut aller (halos cyan) ;
+ * `attacks`, ce qu'il peut attaquer (halos orange) ; `danger`, les cases que l'équipe adverse peut atteindre (contour
+ * violet), avec les côtés du contour ; vide sans sujet.
  */
-export interface Threat {
-  readonly moves: readonly Position[];
-  readonly strikes: readonly Position[];
+export interface ZoneView {
+  readonly unitId: UnitId | null;
+  readonly moves: ReadonlySet<string>;
+  /** Mobilité que coûte chaque case d'aller, écrite sur la case. */
+  readonly moveCosts: ReadonlyMap<string, number>;
+  readonly attacks: ReadonlySet<string>;
+  /** Cases d'attaque occupées par un monstre ennemi visible : en rouge vif (validé le 2026-11-08). */
+  readonly targets: ReadonlySet<string>;
+  readonly danger: ReadonlyMap<string, DangerEdges>;
 }
 
-export const NO_THREAT: Threat = { moves: [], strikes: [] };
+export const NO_ZONE_VIEW: ZoneView = { unitId: null, moves: new Set(), moveCosts: new Map(), attacks: new Set(), targets: new Set(), danger: new Map() };
 
-export function getEnemyReach(view: PlayerView, unitId: UnitId): Threat {
-  const unit = view.units[unitId];
-  if (unit?.kind !== 'monster' || unit.owner === view.viewer) return NO_THREAT;
-  return nextTurnReach(view, unit);
+/** Zones d'un monstre, en clés de cases ; ses cibles : les cases d'attaque d'un monstre ennemi que voit le joueur. */
+function zoneSets(view: PlayerView, unitId: UnitId): Pick<ZoneView, 'moves' | 'moveCosts' | 'attacks' | 'targets'> {
+  const owner = view.units[unitId]?.owner;
+  const zones = getUnitZones(view, unitId);
+  const enemyAt = (pos: Position) => getUnitsAt(view, pos).some((u) => u.kind === 'monster' && u.owner !== owner);
+  return {
+    moves: new Set(zones.moves.map(posKey)),
+    moveCosts: getMoveCosts(view, unitId),
+    attacks: new Set(zones.attacks.map(posKey)),
+    targets: new Set(zones.attacks.filter(enemyAt).map(posKey)),
+  };
 }
 
 /**
- * Cases où l'un de tes monstres peut aller (hachures au survol) : à ton tour, ses déplacements légaux maintenant (rien
- * s'il a fini) ; sinon sa menace à son prochain tour, comme pour un monstre adverse. Rien pour une autre unité.
+ * Le sujet des zones : le monstre sélectionné pour agir, ou le monstre consulté (un monstre adverse cliqué, ou le sien
+ * hors de son tour) ; sans sélection d'un monstre, le monstre survolé. Le danger ne s'affiche que pour un monstre
+ * sélectionné (validé), et seulement si `danger` (bouton « Menace ennemie »).
  */
-export function getOwnReach(view: PlayerView, unitId: UnitId): Threat {
-  const unit = view.units[unitId];
-  if (unit?.kind !== 'monster' || unit.owner !== view.viewer) return NO_THREAT;
-  if (view.activePlayer !== view.viewer) return nextTurnReach(view, unit);
-  const moves = new Map<string, Position>();
-  for (const a of actionsOf(view, 'move')) if (a.unitId === unitId) moves.set(posKey(a.to), a.to);
-  return { moves: [...moves.values()], strikes: [] };
-}
-
-function nextTurnReach(view: PlayerView, unit: MonsterUnit): Threat {
-  const unitId = unit.id;
-  const next = ownerNextTurn(view.turn, view.activePlayer, unit.owner);
-  if (unit.statuses.some((s) => s.kind === 'stun' && s.expiresAtTurn > next)) return NO_THREAT;
-  // Avec le +1 d'un Terrain de chasse s'il part de sa zone (déjà compté : pas une deuxième fois).
-  const nextMobility =
-    getNextTurnMobility(unit, view.turn, view.activePlayer) +
-    getNextTurnOnMoveBonus(view, unit, view.turn, view.activePlayer);
-  const moves = getMoveDestinations(view, { ...unit, mobilityLeft: nextMobility, onMoveTaken: true }).map((d) => d.pos);
-  // Il ne se gêne pas lui-même : son tir part de chaque case possible comme si la sienne était libre.
-  const { [unitId]: _self, ...others } = view.units;
-  const board = { board: view.board, units: others };
-  const { range } = getMonsterCard(unit.cardId);
-  const taken = new Set([unit.pos, ...moves].map(posKey));
-  const strikes = new Map<string, Position>();
-  for (const pos of [unit.pos, ...moves].flatMap((from) => getStrikeCells(board, from, range, unit.owner))) {
-    if (!taken.has(posKey(pos))) strikes.set(posKey(pos), pos);
+export function getZoneView(view: PlayerView, selection: Selection, hovered: Position | null, danger = true): ZoneView {
+  const monsterAt = (pos: Position | null) => (pos ? getUnitsAt(view, pos).find((u) => u.kind === 'monster') : undefined);
+  const selected =
+    (selection.kind === 'unit' && selection.mode === 'act') || selection.kind === 'inspect' ? view.units[selection.unitId] : undefined;
+  if (selected?.kind === 'monster') {
+    return {
+      unitId: selected.id,
+      ...zoneSets(view, selected.id),
+      danger: danger ? getDangerEdges(getDangerZone(view, selected.owner)) : new Map(),
+    };
   }
-  return { moves, strikes: [...strikes.values()] };
-}
-
-/**
- * Portée à montrer, sur des calques à part des surbrillances : celle du monstre survolé, quelle que soit la sélection (on
- * peut la consulter en préparant un déplacement) — la menace d'un monstre adverse, les déplacements d'un des tiens (sauf
- * celui qu'on a sélectionné, déjà en surbrillance) —, sinon celle du monstre adverse consulté.
- */
-export function getReach(view: PlayerView, selection: Selection, hovered: Position | null): Threat {
-  const hoveredMonster = hovered ? getUnitsAt(view, hovered).find((u) => u.kind === 'monster') : undefined;
-  const selectedHere = hoveredMonster !== undefined && selection.kind === 'unit' && selection.unitId === hoveredMonster.id;
-  const hoverReach = !hoveredMonster || selectedHere ? NO_THREAT : hoveredMonster.owner === view.viewer ? getOwnReach(view, hoveredMonster.id) : getEnemyReach(view, hoveredMonster.id);
-  if (hoverReach.moves.length + hoverReach.strikes.length > 0) return hoverReach;
-  return selection.kind === 'inspect' ? getEnemyReach(view, selection.unitId) : NO_THREAT;
+  // Un effet en préparation montre ses propres cibles : pas de zones.
+  if (selection.kind === 'unit') return NO_ZONE_VIEW;
+  const hover = monsterAt(hovered);
+  if (!hover) return NO_ZONE_VIEW;
+  return { unitId: hover.id, ...zoneSets(view, hover.id), danger: new Map() };
 }
 
 /** Dégâts prévus sur chaque cible d'attaque mise en surbrillance ; `behind` : bonus par derrière (`assassin`, `sournois`). */

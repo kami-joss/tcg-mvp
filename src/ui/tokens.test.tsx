@@ -24,7 +24,6 @@ const render = (view: PlayerView, { mode = 'top', stats = DEFAULT_TOKEN_STATS, f
       selectedUnitId={null}
       focused={false}
       path={[]}
-      reach={new Map()}
       showArt
       mode={mode}
       zoom={1}
