@@ -9,7 +9,7 @@ import {
   attackAvailability,
   attackLimit,
   auraAtk,
-  auraCamouflage,
+  auraStealth,
   auraRange,
   auraHp,
   auraMobility,
@@ -67,7 +67,7 @@ import type { IconName } from './Icon';
 import { waterKind } from './iso/scenery';
 import { pileOf } from './piles';
 import type { PileKind } from './piles';
-import { STATUS_ICONS } from './zoneMarks';
+import { isBonus, statusEffect, statusIcon, statusLabel } from './statusInfo';
 import { abilityRules, passiveRules } from './rulesText';
 
 /**
@@ -241,6 +241,8 @@ export function reasonStatus(reason: UnavailableReason, used: string): SheetStat
       return { text: 'Stun : aucune action ce tour', tone: 'off' };
     case 'silenced':
       return { text: 'Silence : plus d’effet actif', tone: 'off' };
+    case 'exhausted':
+      return { text: 'Épuisé : ne peut pas attaquer', tone: 'off' };
     case 'armed':
       return { text: 'Déjà armé : attaque d’abord', tone: 'off' };
     case 'noAttack':
@@ -568,23 +570,23 @@ function monsterChips(view: PlayerView, monster: MonsterUnit, terrain: TerrainUn
     mobility: auraMobility(view, monster),
     range: auraRange(view, monster),
     attacks: limit > 1 ? limit : 0,
-    camouflage: auraCamouflage(view, monster),
+    stealth: auraStealth(view, monster) >= 2 ? ('camouflage' as const) : auraStealth(view, monster) === 1 ? ('invisible' as const) : undefined,
   };
   if (monster.armed) {
     const { atk, splash, source } = monster.armed;
     const bonus = [atk ? `+${atk} ATK` : null, splash ? `${splash} dégât aux ennemis du carré de 1 de la cible` : null].filter(Boolean).join(', ');
     chips.push(effect('crosshair', 'Armé', `Sa prochaine attaque de ce tour : ${bonus}${sourceCard(source)}`, 'boost'));
   }
-  if (aura.atk > 0 || aura.hp > 0 || aura.mobility > 0 || aura.range > 0 || aura.attacks > 0 || aura.camouflage > 0) {
+  if (aura.atk > 0 || aura.hp > 0 || aura.mobility > 0 || aura.range > 0 || aura.attacks > 0 || aura.stealth !== undefined) {
     const sources = auraSources(view, monster).map((other) => getCard(other.cardId).name);
     chips.push(effect('aura', 'Aura', `${auraBonusText(aura)} (${sources.join(', ')})`, 'boost'));
   }
   // Camouflage par mot-clé (Pénombre le donne en statut, avec sa puce) : caché ou repéré, vu par son joueur.
   const mine = monster.owner === view.viewer;
   const camouflage = card.keywords.find((spec) => spec.keyword === 'camouflage');
-  const auraRadius = auraCamouflage(view, monster);
-  if (mine && (camouflage || auraRadius > 0) && !monster.statuses.some((s) => s.kind === 'camouflage')) {
-    const radius = Math.max(camouflage ? ('amount' in camouflage ? camouflage.amount : 2) : 0, auraRadius);
+  const auraRadius = auraStealth(view, monster);
+  if (mine && (camouflage || auraRadius > 0) && !monster.statuses.some((s) => s.kind === 'camouflage' || s.kind === 'invisible')) {
+    const radius = Math.max(camouflage ? 2 : 0, auraRadius);
     chips.push(
       view.hiddenFromOpponent.includes(monster.id)
         ? effect('eye-slash', 'Camouflé', `Invisible pour l’adversaire : aucun de ses monstres ni terrains dans un carré de ${radius}`, 'info')
@@ -663,47 +665,21 @@ function remainingText(view: PlayerView, unit: Unit, status: Status): string {
   return `jusqu’à la fin de ce tour et de ${left === 2 ? 'son prochain' : `ses ${left - 1} prochains`}`;
 }
 
-/** Couleur de la puce de chaque statut : givre pour le slow, braise pour le burn, information pour l'invisibilité. */
-const STATUS_CHIP_KINDS: Readonly<Record<Status['kind'], ChipKind>> = {
-  stun: 'warn',
-  immobilise: 'warn',
-  slow: 'frost',
-  burn: 'burn',
-  requiem: 'warn',
-  camouflage: 'info',
-  carapace: 'info',
-  silence: 'warn',
-};
-
-/** Nom d'un statut, tel qu'au lexique (§5 bis). */
-function statusName(status: Status): string {
-  switch (status.kind) {
-    case 'stun':
-      return 'Stun';
-    case 'immobilise':
-      return 'Immobilisé';
-    case 'slow':
-      return `Slow ${status.amount}`;
-    case 'burn':
-      return `Burn ${status.amount}`;
-    case 'requiem':
-      return 'Requiem';
-    case 'camouflage':
-      return 'Camouflé';
-    case 'carapace':
-      return 'Carapace';
-    case 'silence':
-      return 'Silence';
-  }
+/** Couleur de la puce : bonus en vert, malus selon leur nature (givre pour le slow, braise pour le burn), alerte sinon. */
+function statusChipKind(status: Status): ChipKind {
+  if (status.kind === 'slow') return 'frost';
+  if (status.kind === 'burn') return 'burn';
+  if (status.kind === 'camouflage' || status.kind === 'invisible' || status.kind === 'carapace') return 'info';
+  return isBonus(status) ? 'boost' : 'warn';
 }
 
 /** Une puce par statut en cours sur `unit` : son nom ; au survol, son effet et ce qu'il lui reste à durer (§5 bis, §5.5). */
 export function statusChips(view: PlayerView, unit: Unit): SheetChip[] {
   return unit.statuses.map((status) => ({
-    icon: STATUS_ICONS[status.kind],
-    text: statusName(status),
+    icon: statusIcon(status),
+    text: statusLabel(status),
     detail: statusText(view, unit, status),
-    kind: STATUS_CHIP_KINDS[status.kind],
+    kind: statusChipKind(status),
     group: 'status',
   }));
 }
@@ -711,27 +687,21 @@ export function statusChips(view: PlayerView, unit: Unit): SheetChip[] {
 function statusText(view: PlayerView, unit: Unit, status: Status): string {
   const until = remainingText(view, unit, status);
   switch (status.kind) {
-    case 'stun':
-      return `Stun : aucune action ${until}`;
-    case 'immobilise':
-      return `Immobilisé : ne peut plus bouger ${until}`;
-    case 'slow':
-      return `Slow ${status.amount} : −${status.amount} mobilité ${until}`;
-    case 'burn':
-      return `Burn ${status.amount} : −${status.amount} PV au début de chacun de ses tours, ${until}`;
     case 'requiem': {
       const left = Math.max(1, (status.expiresAtTurn - ownerNextTurn(view.turn, view.activePlayer, unit.owner)) / 2 + 1);
       const when = left === 1 ? 'son prochain tour' : `son ${left}e prochain tour`;
       return `Requiem : meurt au début de ${when}, sans VP pour personne`;
     }
     case 'carapace':
-      return `Carapace : la prochaine attaque subie n’inflige que 1 PV, puis elle disparaît ; sinon ${until}`;
-    case 'silence':
-      return `Silence : ne peut plus activer ses effets actifs ${until}`;
-    case 'camouflage': {
+      return `Carapace : ${statusEffect(status)} ; sinon ${until}`;
+    case 'camouflage':
+    case 'invisible': {
+      const radius = status.kind === 'invisible' ? 1 : 2;
       const seen = unit.owner === view.viewer && !view.hiddenFromOpponent.includes(unit.id);
-      return `Camouflé ${until} : invisible pour l’adversaire sans monstre ni terrain à lui dans un carré de ${status.amount}${seen ? ' (repéré en ce moment)' : ''}`;
+      return `${statusLabel(status)} ${until} : invisible pour l’adversaire sans monstre ni terrain à lui dans un carré de ${radius}${seen ? ' (repéré en ce moment)' : ''}`;
     }
+    default:
+      return `${statusLabel(status)} : ${statusEffect(status)} ${until}`;
   }
 }
 

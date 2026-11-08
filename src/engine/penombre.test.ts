@@ -37,8 +37,8 @@ describe('Pénombre', () => {
   it('tous ses monstres piège deviennent invisibles (Invisible 2), les autres non', () => {
     const after = applyAction(state, PENOMBRE);
     expect(after.players[1].mana).toBe(5);
-    expect(after.units.u1?.statuses).toMatchObject([{ kind: 'camouflage', amount: 2, turns: 1 }]);
-    expect(after.units.u2?.statuses).toMatchObject([{ kind: 'camouflage', amount: 2, turns: 1 }]);
+    expect(after.units.u1?.statuses).toMatchObject([{ kind: 'camouflage', turns: 1 }]);
+    expect(after.units.u2?.statuses).toMatchObject([{ kind: 'camouflage', turns: 1 }]);
     expect(after.units.u3?.statuses).toEqual([]);
     expect(Object.keys(getPlayerView(after, 2).units).sort()).toEqual(['u3', 'u4']);
     expect(Object.keys(getPlayerView(after, 1).units).sort()).toEqual(['u1', 'u2', 'u3', 'u4']);

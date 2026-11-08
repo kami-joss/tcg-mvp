@@ -16,6 +16,13 @@ export const STATUS_ICONS: Readonly<Record<StatusKind, IconName>> = {
   camouflage: 'eye-slash',
   carapace: 'shield',
   silence: 'speaker-off',
+  invisible: 'eye',
+  epuise: 'anvil',
+  vol: 'dragon-head',
+  absorbe: 'water-drop',
+  absorbation: 'hearts',
+  recuperation: 'laurels',
+  stat: 'aura',
 };
 
 /** Marque au sol : un effet d'une unité « Passage » sur une case de sa zone, ou une case brûlée. */

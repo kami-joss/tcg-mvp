@@ -197,7 +197,10 @@ export function getStrikers(
     if (monster.kind !== 'monster' || monster.owner !== attacker) continue;
     const mobility = mobilityOf(monster);
     if (mobility < 0) continue; // Ne pourra pas agir.
-    const { range, flying, siege, sournois, assassin } = profileOf(monster);
+    const profile = profileOf(monster);
+    const { range, siege, sournois, assassin } = profile;
+    // Le profil est gardé par carte : le statut Vol, lui, est propre au monstre.
+    const flying = profile.flying || monster.statuses.some((s) => s.kind === 'vol');
     const start = monster.pos.row * grid.cols + monster.pos.col;
     // Les cases où il peut aller : traverser ses alliés (sauf stun ou immobilisé), jamais un ennemi ; plus court chemin
     // en mobilité (une case ralentie coûte plus), une case pouvant être revue avec un coût plus bas.

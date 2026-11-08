@@ -54,8 +54,8 @@ describe('fiche (lot 9)', () => {
     const burning = withStatus(withStatus(state, 'u2', 'burn', 1, 2), 'u2', 'immobilise', 0, 0);
     expect(cellSheet(burning, 1, 8, 2)?.status).toEqual(
       expect.arrayContaining([
-        { icon: 'flame', text: 'Burn 1', detail: 'Burn 1 : −1 PV au début de chacun de ses tours, pendant ses 2 prochains tours', kind: 'burn', group: 'status' },
-        { icon: 'fishing-net', text: 'Immobilisé', detail: 'Immobilisé : ne peut plus bouger jusqu’à son prochain tour', kind: 'warn', group: 'status' },
+        { icon: 'flame', text: 'Burn 1', detail: 'Burn 1 : perd 1 PV au début de chacun de ses tours pendant ses 2 prochains tours', kind: 'burn', group: 'status' },
+        { icon: 'fishing-net', text: 'Immobilisé', detail: 'Immobilisé : ne peut plus se déplacer jusqu’à son prochain tour', kind: 'warn', group: 'status' },
       ]),
     );
   });

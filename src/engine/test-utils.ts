@@ -73,6 +73,14 @@ export function deepFreeze<T>(value: T): T {
  */
 export function withStatus(state: GameState, unitId: string, kind: StatusKind, amount = 0, turns = 1): GameState {
   const spec: StatusSpec =
-    kind === 'slow' || kind === 'burn' || kind === 'camouflage' ? { kind, amount, turns } : { kind, turns };
+    kind === 'requiem'
+      ? { kind }
+      : kind === 'slow' || kind === 'burn' || kind === 'absorbation' || kind === 'recuperation'
+        ? { kind, amount, turns }
+        : kind === 'absorbe'
+          ? { kind, amount, turns }
+          : kind === 'stat'
+            ? { kind, stat: 'atk', amount, turns }
+            : { kind, turns };
   return { ...addStatus(state, unitId, spec), events: state.events };
 }

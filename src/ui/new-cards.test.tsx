@@ -71,7 +71,7 @@ describe('Pénombre', () => {
   const selection: Selection = { kind: 'card', cardId: 'penombre' };
 
   it('texte de la carte', () => {
-    expect(describeCard(getCard('penombre'))).toEqual(['Tous les maîtres des pièges alliés · camouflage 2 pendant 1 tour']);
+    expect(describeCard(getCard('penombre'))).toEqual(['Tous les maîtres des pièges alliés · camouflage pendant 1 tour']);
   });
 
   it('sans cible à choisir : ses monstres piège en doré, un clic sur l’un d’eux la lance', () => {
@@ -89,8 +89,8 @@ describe('Pénombre', () => {
     expect(chips).toEqual([
       {
         icon: 'eye-slash',
-        text: 'Camouflé',
-        detail: 'Camouflé jusqu’à la fin de ce tour et de son prochain : invisible pour l’adversaire sans monstre ni terrain à lui dans un carré de 2',
+        text: 'Camouflage',
+        detail: 'Camouflage jusqu’à la fin de ce tour et de son prochain : invisible pour l’adversaire sans monstre ni terrain à lui dans un carré de 2',
         kind: 'info',
         group: 'status',
       },

@@ -222,7 +222,7 @@ function describeUnitChanges(before: PlayerView, action: Action, after: PlayerVi
     const requiems = (u: Unit) => u.statuses.filter((status) => status.kind === 'requiem');
     const requiem = requiems(next).at(-1);
     if (requiem && requiems(next).length > requiems(unit).length) {
-      lines.push(item('death-skull', `${unitName(unit)} : requiem ${requiem.turns}.`, 'hurt'));
+      lines.push(item('death-skull', `${unitName(unit)} : requiem.`, 'hurt'));
     }
     if (action.type === 'playCard' && next.mobilityLeft > unit.mobilityLeft) {
       lines.push(item('walking-boot', `${unitName(unit)} : +${next.mobilityLeft - unit.mobilityLeft} mobilité ce tour.`, 'good'));

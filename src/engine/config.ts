@@ -12,6 +12,13 @@ export const BASE_MANA_FIRST_TURN = 3;
 export const MANA_GROWTH_PER_TURN = 1;
 export const BASE_MANA_CAP = 10;
 
+/** Requiem : meurt au début de son deuxième tour après affectation (SPEC.md §5 bis), sans paramètre. */
+export const REQUIEM_TURNS = 2;
+
+/** Rayon de révélation d'un camouflage (carré de 2) et d'un état invisible (carré de 1), SPEC.md §5 bis. */
+export const CAMOUFLAGE_RADIUS = 2;
+export const INVISIBLE_RADIUS = 1;
+
 /**
  * VP rapportés au début du tour par chaque mana zone contrôlée, et mana rapporté par celle où l'on a un terrain : un monstre
  * seul ne génère pas de mana (SPEC.md §4.2).

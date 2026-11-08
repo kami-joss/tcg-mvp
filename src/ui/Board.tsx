@@ -24,7 +24,6 @@ import {
   getViewZoneStatus,
   requiemCountdown,
   samePos,
-  statusAmount,
 } from '../engine';
 import type { Board as BoardData, Direction, MonsterUnit, PlayerView, Position, Status, StatusKind, TerrainUnit, Trap, Unit, UnitId } from '../engine';
 import { CARD_ART, boardArt, fitBackground, shortName, tokenFit } from './art';
@@ -41,7 +40,8 @@ import { DEFAULT_TOKEN_STATS } from './settings';
 import type { BoardView, TokenStats } from './settings';
 import { FLIP_EDGE, getZoneTiles } from './contestZones';
 import type { ZoneTile } from './contestZones';
-import { STATUS_ICONS, diceLayout, getZoneMarks } from './zoneMarks';
+import { diceLayout, getZoneMarks } from './zoneMarks';
+import { groupStatuses, signed, statusEffect, statusIcon, statusLabel } from './statusInfo';
 import type { ZoneMark } from './zoneMarks';
 
 interface BoardProps {
@@ -1064,25 +1064,39 @@ function TerrainCrest(props: { terrain: TerrainUnit; small: boolean; standScale:
   );
 }
 
-const STATUS_ORDER: readonly StatusKind[] = ['requiem', 'stun', 'silence', 'immobilise', 'slow', 'burn', 'camouflage', 'carapace'];
+const STATUS_ORDER: readonly StatusKind[] = [
+  'requiem',
+  'stun',
+  'silence',
+  'epuise',
+  'vol',
+  'immobilise',
+  'slow',
+  'burn',
+  'absorbe',
+  'stat',
+  'camouflage',
+  'invisible',
+  'carapace',
+  'absorbation',
+  'recuperation',
+];
 
 /**
- * Statuts en pastilles : requiem N (tours avant sa mort), stun, immobilisé, slow X, burn X (les statuts du même type
- * se cumulent).
+ * Statuts en pastilles : un par type (et par stat pour ATK ±X, mobilité ±X…), cumulés (les statuts du même type se
+ * cumulent) ; requiem : tours avant sa mort.
  */
 function Statuses({ statuses, requiem = null }: { statuses: readonly Status[]; requiem?: number | null }) {
   if (statuses.length === 0) return null;
   return (
     <span className="statuses">
-      {STATUS_ORDER.filter((kind) => statuses.some((s) => s.kind === kind)).map((kind) => {
-        const amount =
-          kind === 'requiem'
-            ? (requiem ?? 1)
-            : statuses.filter((s) => s.kind === kind).reduce((total, s) => total + statusAmount(s), 0);
+      {STATUS_ORDER.flatMap((kind) => groupStatuses(statuses).filter((g) => g.status.kind === kind)).map(({ key, status, total }) => {
+        const amount = status.kind === 'requiem' ? (requiem ?? 1) : total;
+        const showAmount = status.kind === 'stat' || ((amount > 1 || status.kind === 'requiem') && !['camouflage', 'invisible', 'carapace'].includes(status.kind));
         return (
-          <span key={kind} className={`status status--${kind}`} title={statusTitle(kind, amount)}>
-            <Icon name={STATUS_ICONS[kind]} />
-            {(amount > 1 || kind === 'requiem') && kind !== 'camouflage' && kind !== 'carapace' && amount}
+          <span key={key} className={`status status--${status.kind}`} title={statusTitle(status, amount)}>
+            <Icon name={statusIcon(status)} />
+            {showAmount && (status.kind === 'stat' ? signed(total) : amount)}
           </span>
         );
       })}
@@ -1090,27 +1104,12 @@ function Statuses({ statuses, requiem = null }: { statuses: readonly Status[]; r
   );
 }
 
-function statusTitle(kind: StatusKind, amount: number): string {
-  switch (kind) {
-    case 'requiem':
-      return amount > 1
-        ? `Requiem : meurt au début du ${amount}e prochain tour de son camp`
-        : 'Requiem : meurt au début du prochain tour de son camp';
-    case 'stun':
-      return 'Stun : aucune action';
-    case 'immobilise':
-      return 'Immobilisé : ne peut plus bouger';
-    case 'slow':
-      return `Slow ${amount} : −${amount} mobilité`;
-    case 'burn':
-      return `Burn ${amount} : −${amount} PV par tour`;
-    case 'camouflage':
-      return 'Invisible (Pénombre) : caché à l’adversaire tant qu’il ne s’approche pas';
-    case 'carapace':
-      return 'Carapace : la prochaine attaque subie n’inflige que 1 PV';
-    case 'silence':
-      return 'Silence : ne peut plus activer ses effets actifs';
+function statusTitle(status: Status, amount: number): string {
+  if (status.kind === 'requiem') {
+    return amount > 1 ? `Requiem : meurt au début du ${amount}e prochain tour de son camp` : 'Requiem : meurt au début du prochain tour de son camp';
   }
+  const shown = 'amount' in status && status.kind !== 'stat' ? { ...status, amount } : status;
+  return `${statusLabel(shown)} : ${statusEffect(shown)}`;
 }
 
 /** Un de ses propres pièges : l'adversaire ne le voit pas. */

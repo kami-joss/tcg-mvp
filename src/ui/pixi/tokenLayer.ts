@@ -11,7 +11,7 @@ import type { ColorMatrixFilter, Container as PixiContainer, Graphics, Sprite, T
 import { CARD_ART, tokenFit } from '../art';
 import type { IconName } from '../Icon';
 import type { IsoCamera } from '../iso/scenery';
-import { STATUS_ICONS } from '../zoneMarks';
+import { statusIcon } from '../statusInfo';
 import { CELL_COLORS, CELL_SIZE } from './cellModel';
 import { cssColor, hatch, iconTexture, mix } from './cellLayer';
 import { painted } from './groundFx';
@@ -40,6 +40,13 @@ const STATUS_COLORS: Readonly<Record<StatusPill['kind'], readonly [string, strin
   camouflage: ['oklch(0.45 0.06 270)', 'oklch(0.92 0.03 270)'],
   carapace: ['oklch(0.62 0.1 150)', 'oklch(0.2 0.06 150)'],
   silence: ['oklch(0.78 0.08 20)', 'oklch(0.3 0.1 20)'],
+  invisible: ['oklch(0.55 0.07 250)', 'oklch(0.95 0.02 250)'],
+  epuise: ['oklch(0.7 0.05 60)', 'oklch(0.3 0.05 60)'],
+  vol: ['oklch(0.82 0.08 230)', 'oklch(0.28 0.08 240)'],
+  absorbe: ['oklch(0.45 0.12 340)', 'oklch(0.95 0.03 340)'],
+  absorbation: ['oklch(0.8 0.12 150)', 'oklch(0.28 0.08 150)'],
+  recuperation: ['oklch(0.8 0.12 150)', 'oklch(0.28 0.08 150)'],
+  stat: ['oklch(0.85 0.1 90)', 'oklch(0.3 0.08 80)'],
 };
 const player = (owner: 1 | 2) => (owner === 1 ? CELL_COLORS.j1 : CELL_COLORS.j2);
 
@@ -143,7 +150,7 @@ function statChip(pixi: Pixi, stat: StatPill): { node: PixiContainer; width: num
 function statusChip(pixi: Pixi, status: StatusPill, h = S * 0.206): PixiContainer {
   const [fill, color] = STATUS_COLORS[status.kind];
   return chip(pixi, {
-    icon: STATUS_ICONS[status.kind],
+    icon: statusIcon(status.status),
     iconColor: color,
     value: status.text,
     text: color,

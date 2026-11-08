@@ -225,7 +225,7 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   farceur: inArchetype(
     'piege',
     monster('farceur', 'Farceur - Maîtres des pièges', { cost: 3, atk: 2, hp: 1, mobility: 7, range: 1 }, [
-      { keyword: 'camouflage', amount: 2 },
+      { keyword: 'camouflage' },
       { keyword: 'assassin', multiplier: 2 },
     ]),
   ),
@@ -246,7 +246,7 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   ),
   penombre: spell('penombre', 'Pénombre - Maîtres des pièges', 5, {
     targeting: { type: 'allies', archetype: 'piege' },
-    effects: [{ type: 'status', kind: 'camouflage', amount: 2, turns: 1 }],
+    effects: [{ type: 'status', kind: 'camouflage', turns: 1 }],
   }),
 
   // Deck Dragons : famille Dragon élémentaire, Jeune dragon compris (§10).
@@ -365,7 +365,7 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
       'temps',
       monster('maitre-du-temps', 'Maître du temps - Explorateur du temps', { cost: 6, atk: 5, hp: 5, mobility: 7, range: 1 }, [], [
         RETURN,
-        { name: 'Requiem', manaCost: 2, targeting: SQUARE_ENEMY, effects: [{ type: 'status', kind: 'requiem', turns: 2 }] },
+        { name: 'Requiem', manaCost: 2, targeting: SQUARE_ENEMY, effects: [{ type: 'status', kind: 'requiem' }] },
       ]),
     ),
     flavor: 'Un ancien explorateur, qui s’est perdu entre les époques. Physiquement jeune, mais très vieux dans les faits.',
@@ -457,13 +457,13 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   }),
   // Terrain de jeu (Maîtres des pièges, 2026-11-08) : Camouflage 1 pour ses maîtres des pièges alliés, sur sa case et dans son carré de 1.
   'terrain-de-jeu': terrain('terrain-de-jeu', 'Terrain de jeu - Maîtres des pièges', { cost: 3, hp: 5 }, {
-    aura: { zone: 'cellAndSquare', archetype: 'piege', atk: 0, hp: 0, mobility: 0, camouflage: 1 },
+    aura: { zone: 'cellAndSquare', archetype: 'piege', atk: 0, hp: 0, mobility: 0, stealth: 'invisible' },
   }),
   seringue: spell('seringue', 'Seringue - Bodybuilder', 2, {
     targeting: { type: 'monster', side: 'ally', reach: { type: 'anywhere' }, archetype: 'bodybuilder' },
     effects: [
       { type: 'multiplyAtkThisTurn', multiplier: 2 },
-      { type: 'status', kind: 'requiem', turns: 2 },
+      { type: 'status', kind: 'requiem' },
     ],
   }),
 

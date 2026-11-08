@@ -3,7 +3,7 @@ import { applyAction } from './actions';
 import { DECKS, getTerrainCard } from './cards';
 import { at, gameWith } from './test-utils';
 import { getHiddenUnitIds, isHiddenFrom } from './stealth';
-import { auraCamouflage } from './units';
+import { auraStealth } from './units';
 import { getPlayerView } from './view';
 import type { MonsterUnit } from './types';
 
@@ -18,7 +18,7 @@ describe('Terrain de jeu : carte et deck', () => {
       name: 'Terrain de jeu - Maîtres des pièges',
       cost: 3,
       hp: 5,
-      aura: { zone: 'cellAndSquare', archetype: 'piege', camouflage: 1 },
+      aura: { zone: 'cellAndSquare', archetype: 'piege', stealth: 'invisible' },
     });
   });
 
@@ -47,9 +47,9 @@ describe('Terrain de jeu : camouflage 1 tant qu’ils sont dans la zone', () => 
 
   it('cachés pour l’adversaire : sur le terrain et dans son carré de 1, pas hors zone ni un autre monstre', () => {
     const state = scene();
-    expect(auraCamouflage(state, monster(state, 'u2'))).toBe(1);
-    expect(auraCamouflage(state, monster(state, 'u3'))).toBe(1);
-    expect(auraCamouflage(state, monster(state, 'u4'))).toBe(0);
+    expect(auraStealth(state, monster(state, 'u2'))).toBe(1);
+    expect(auraStealth(state, monster(state, 'u3'))).toBe(1);
+    expect(auraStealth(state, monster(state, 'u4'))).toBe(0);
     expect(getHiddenUnitIds(state, 2).sort()).toEqual(['u2', 'u3']);
     expect(getHiddenUnitIds(state, 1)).toEqual([]); // son propre camp les voit
   });

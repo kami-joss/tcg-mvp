@@ -34,7 +34,7 @@ describe('textes des cartes, façon Hearthstone', () => {
   it('un recul s’écrit « repousse », et les effets s’enchaînent en une phrase', () => {
     expect(plain(abilityRules(spell('bourrasque').ability))).toBe('Repousse de 2 cases un ennemi, dans la direction de ton choix.');
     expect(plain(abilityRules(monster('jean-bon').activated[0]!))).toBe('Donne +2 ATK à ce monstre ce tour et lui inflige burn 1 pendant 2 tours.');
-    expect(plain(abilityRules(spell('seringue').ability))).toBe('Double l’ATK d’un allié bodybuilder ce tour et lui inflige requiem 2.');
+    expect(plain(abilityRules(spell('seringue').ability))).toBe('Double l’ATK d’un allié bodybuilder ce tour et lui inflige requiem.');
     expect(plain(abilityRules(spell('fleche-divine').ability))).toBe('Donne +1 ATK et +1 portée à un allié archer impérial ce tour.');
   });
 

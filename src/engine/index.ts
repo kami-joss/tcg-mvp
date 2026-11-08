@@ -22,9 +22,9 @@ export { getEmptySquareCells, getTrapCells } from './effects';
 export { COMMON_CARDS } from './cards';
 export { getPassage, getPassageSources } from './traps';
 export { INITIAL_FACING } from './units';
-export { canMove, getNextTurnMobility, hasStatus, isSilenced, isStunned, ownerNextTurn, requiemCountdown, statusAmount, statusTotal, statusTurnsLeft } from './statuses';
+export { canMove, getNextTurnMobility, hasStatus, isExhausted, isSilenced, isStunned, ownerNextTurn, requiemCountdown, statusAmount, statusTotal, statusTurnsLeft } from './statuses';
 export { getFreeSummonCells, getTerrainCells } from './play-card';
-export { attackLimit, auraAtk, auraCamouflage, auraHp, auraMobility, auraRange, auraSources, canAttack, getAtk, getKeyword, getRange, getMonsterAt, getMonsters, getUnitsAt, hasKeyword } from './units';
+export { attackLimit, auraAtk, auraStealth, auraHp, auraMobility, auraRange, auraSources, canAttack, canFly, getAtk, getKeyword, getRange, getMonsterAt, getMonsters, getUnitsAt, hasKeyword } from './units';
 export { getControlledZones, getZoneCells, getZoneController, getZoneMana, getZoneOf, getZoneStatus } from './zones';
 export { getHiddenUnitIds, isHiddenFrom } from './stealth';
 export {

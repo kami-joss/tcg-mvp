@@ -78,6 +78,13 @@ const STATUS_SOUNDS: Readonly<Record<StatusKind, SoundName | null>> = {
   camouflage: null,
   carapace: null,
   silence: null,
+  invisible: null,
+  epuise: null,
+  vol: null,
+  absorbe: null,
+  absorbation: null,
+  recuperation: null,
+  stat: null,
 };
 
 /** Projectile d'un tireur, selon sa carte. */
@@ -473,10 +480,10 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
           float(stage, event.pos, `Burn ${amount}`, 'oklch(0.8 0.16 55)', 380);
         } else if (kind === 'requiem') {
           rise(stage, event.pos, REQUIEM);
-          float(stage, event.pos, `Requiem ${event.status.turns}`, REQUIEM, 380);
-        } else if (kind === 'camouflage') {
+          float(stage, event.pos, 'Requiem', REQUIEM, 380);
+        } else if (kind === 'camouflage' || kind === 'invisible') {
           rise(stage, event.pos, 'oklch(0.7 0.05 280)');
-          float(stage, event.pos, 'Invisible', 'oklch(0.8 0.06 280)', 380);
+          float(stage, event.pos, kind === 'invisible' ? 'Invisible' : 'Camouflage', 'oklch(0.8 0.06 280)', 380);
         } else if (kind === 'immobilise') {
           shakeUnit(stage, event.unitId, false);
           float(stage, event.pos, 'Immobilisé', 'oklch(0.85 0.1 300)');

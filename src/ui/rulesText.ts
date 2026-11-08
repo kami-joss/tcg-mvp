@@ -19,6 +19,7 @@ import type {
 } from '../engine';
 import { getMonsterCard } from '../engine';
 import { ARCHETYPE_NAMES, cardTitle } from './cardText';
+import { STAT_NAMES, signed } from './statusInfo';
 
 /** Mots du lexique qu'un texte de carte met en gras, et leur définition (survol). */
 export const GLOSSARY = {
@@ -42,12 +43,18 @@ export const GLOSSARY = {
   slow: 'Slow N : −N mobilité. Les slow se cumulent.',
   burn: 'Burn N : perd N PV au début de chacun de ses tours touchés. Les burn se cumulent.',
   immobilise: 'Immobilisé : ne peut plus bouger (ni avancer après une attaque), mais peut attaquer et activer ses effets.',
-  requiem: 'Requiem N : meurt au début de son N-ième prochain tour. Personne ne gagne de VP.',
+  requiem: 'Requiem : meurt au début de son deuxième tour après affectation. Personne ne gagne de VP.',
+  invisible: 'Invisible : caché à l’adversaire à plus de 1 case (tant qu’aucun de ses monstres ni terrains n’est dans un carré de 1).',
+  vol: 'Vol : peut survoler les cases X (et les falaises de la Scierie), mais pas les ennemis ; ne termine jamais sur une case X.',
+  epuise: 'Épuisé : le monstre ne peut pas attaquer. Il peut encore se déplacer et activer ses effets.',
+  absorbe: 'Absorbé : le monstre perd 1 PV par instance au début du tour adverse ; le monstre qui l’absorbe gagne ces PV.',
+  absorbation: 'Absorbation : le monstre gagne 1 PV par instance au début de son tour, jusqu’à ses PV max.',
+  recuperation: 'Récupération X : le monstre gagne X PV au début de son tour, jusqu’à ses PV max.',
   contreCoup: 'Contre-coup : ce que le monstre subit en retour de son effet, une fois l’effet joué, même si sa cible n’a rien subi.',
   arme: 'Armé : la prochaine attaque de ce monstre ce tour porte l’effet noté, puis il n’est plus armé. Un seul effet armé à la fois, et seulement s’il lui reste une attaque ; si l’attaque n’a pas lieu, le bonus est perdu à la fin du tour.',
   silence: 'Silence : le monstre ne peut plus activer ses effets actifs. Il peut encore attaquer, se déplacer, et ses mots-clés et passifs agissent.',
   carapace: 'Carapace : la prochaine attaque (ou riposte) subie n’inflige que 1 PV au monstre, puis la carapace disparaît. Les autres dégâts (sorts, effets, pièges, burn) ne sont pas touchés.',
-  camouflage: 'Camouflage N : caché à l’adversaire tant qu’aucun de ses monstres ni terrains n’est dans un carré de N.',
+  camouflage: 'Camouflage : caché à l’adversaire à plus de 2 cases (tant qu’aucun de ses monstres ni terrains n’est dans un carré de 2).',
   absorber: 'Absorber : retirer des PV au monstre visé ; ce monstre-ci récupère les PV retirés, sans dépasser ses PV max. Ce n’est pas une attaque.',
   deplacement: 'Déplacement : le monstre marche de case en case, 1 mobilité par case ; il peut en faire plusieurs par tour avec sa mobilité restante. Un recul, une avancée ou une téléportation n’en est pas un.',
   transformer: 'Se transformer : prendre son autre forme (stats, mots-clés, effets) en restant le même monstre : même case, mêmes statuts et bonus, une seule attaque par tour. Chaque forme garde ses PV perdus ; la mobilité déjà dépensée ce tour compte.',
@@ -167,9 +174,23 @@ function statusWord(spec: StatusSpec): string {
     case 'burn':
       return t(spec.kind, `${spec.kind} ${spec.amount}`);
     case 'camouflage':
-      return t('camouflage', `camouflage ${spec.amount}`);
+      return t('camouflage', 'camouflage');
+    case 'invisible':
+      return t('invisible', 'invisible');
     case 'requiem':
-      return t('requiem', `requiem ${spec.turns}`);
+      return t('requiem', 'requiem');
+    case 'epuise':
+      return t('epuise', 'épuisé');
+    case 'vol':
+      return t('vol', 'vol');
+    case 'absorbe':
+      return t('absorbe', spec.amount > 1 ? `absorbé ${spec.amount}` : 'absorbé');
+    case 'absorbation':
+      return t('absorbation', spec.amount > 1 ? `absorbation ${spec.amount}` : 'absorbation');
+    case 'recuperation':
+      return t('recuperation', `récupération ${spec.amount}`);
+    case 'stat':
+      return `${signed(spec.amount)} ${STAT_NAMES[spec.stat]}`;
     case 'stun':
       return t('stun', 'stun');
     case 'immobilise':
@@ -201,7 +222,7 @@ function clause(effect: Effect, next: Effect | undefined, target: Target, first:
     case 'heal':
       return [first ? `rend ${effect.amount} PV ${to}` : `${target.them} rend ${effect.amount} PV`, 1];
     case 'status': {
-      if (effect.kind === 'camouflage' || effect.kind === 'carapace') {
+      if (effect.kind === 'camouflage' || effect.kind === 'invisible' || effect.kind === 'carapace' || effect.kind === 'vol' || effect.kind === 'absorbation' || effect.kind === 'recuperation' || (effect.kind === 'stat' && effect.amount > 0)) {
         const what = `${statusWord(effect)}${duration(effect, target.its)}`;
         return [first ? `donne ${what} ${target.to}` : `${target.them} donne ${what}`, 1];
       }
@@ -403,7 +424,7 @@ export function keywordRules(spec: KeywordSpec): string {
     case 'assassin':
       return `En attaquant ${t('parDerriere', 'par derrière')} : dégâts ×${spec.multiplier}.`;
     case 'camouflage':
-      return `Caché à l’adversaire tant qu’aucun de ses monstres ni terrains n’est dans un ${t('carre', `carré de ${spec.amount}`)}.`;
+      return `Caché à l’adversaire tant qu’aucun de ses monstres ni terrains n’est dans un ${t('carre', 'carré de 2')}.`;
     case 'soif':
       return `À l’attaque, il récupère ${spec.amount} PV.`;
   }
@@ -419,13 +440,13 @@ const alliesAround = ({ archetype, zone }: AllyZoneEffect | StatAura) => {
   return `tes ${ARCHETYPE_NAMES[archetype].many} ${where}`;
 };
 
-const statBonus = ({ atk, hp, mobility, range, camouflage }: Pick<StatAura, 'atk' | 'hp' | 'mobility'> & { range?: number; camouflage?: number }) => {
+const statBonus = ({ atk, hp, mobility, range, stealth }: Pick<StatAura, 'atk' | 'hp' | 'mobility'> & { range?: number; stealth?: 'camouflage' | 'invisible' }) => {
   const parts = [
     atk ? `+${atk} ATK` : null,
     hp ? `+${hp} PV` : null,
     mobility ? `+${mobility} mobilité` : null,
     range ? `+${range} portée` : null,
-    camouflage ? t('camouflage', `camouflage ${camouflage}`) : null,
+    stealth ? t(stealth, stealth) : null,
   ].filter(Boolean);
   return parts.length <= 1 ? parts.join('') : `${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}`;
 };
@@ -517,6 +538,7 @@ function keywordName(spec: KeywordSpec): string {
   switch (spec.keyword) {
     case 'riposte':
     case 'vol':
+    case 'camouflage':
       return name;
     case 'siege':
     case 'assassin':

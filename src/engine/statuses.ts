@@ -2,8 +2,9 @@
 // touchée (§5.5), et disparaît au début du tour qui suit son échéance ; requiem tue le monstre au début de son N-ième
 // prochain tour.
 import { getMonsterCard } from './cards';
+import { REQUIEM_TURNS } from './config';
 import { emit } from './events';
-import { setUnit } from './units';
+import { setUnit, statTotal } from './units';
 import type { GameState, MonsterUnit, PlayerId, Status, StatusKind, StatusSpec, Unit, UnitId } from './types';
 
 export function hasStatus(unit: Unit, kind: StatusKind): boolean {
@@ -22,6 +23,9 @@ export function statusTotal(unit: Unit, kind: StatusKind): number {
 
 /** Stun : plus aucune action (ni déplacement, ni attaque, ni effet, ni riposte). */
 export const isStunned = (unit: Unit) => hasStatus(unit, 'stun');
+
+/** Épuisé : ne peut pas attaquer (déplacement et effets restent possibles). */
+export const isExhausted = (unit: Unit) => hasStatus(unit, 'epuise');
 
 /** Silence : plus d'effet actif (l'attaque, le déplacement, les mots-clés et les passifs ne changent pas). */
 export const isSilenced = (unit: Unit) => hasStatus(unit, 'silence');
@@ -74,22 +78,34 @@ export function statusTurnsLeft(status: Status, owner: PlayerId, turn: number, a
  */
 export function addStatus(state: GameState, unitId: UnitId, spec: StatusSpec): GameState {
   const unit = state.units[unitId];
-  const { kind, turns } = spec;
+  const { kind } = spec;
   if (!unit || (unit.kind === 'terrain' && kind !== 'burn')) return state;
   const expiresAtTurn =
-    kind === 'requiem'
-      ? requiemTurn(turns, state.turn, state.activePlayer, unit.owner)
-      : statusExpiry(turns, state.turn, state.activePlayer, unit.owner);
-  const status: Status =
-    spec.kind === 'slow' || spec.kind === 'burn' || spec.kind === 'camouflage'
-      ? { kind: spec.kind, amount: spec.amount, turns, expiresAtTurn }
-      : { kind: spec.kind, turns, expiresAtTurn };
-  const statuses = [...unit.statuses, status];
-  let updated: Unit = { ...unit, statuses };
+    spec.kind === 'requiem'
+      ? requiemTurn(REQUIEM_TURNS, state.turn, state.activePlayer, unit.owner)
+      : statusExpiry(spec.turns, state.turn, state.activePlayer, unit.owner);
+  // L'effet qui pose le statut porte aussi son `type: 'status'` : il n'entre pas dans le statut.
+  const { type: _type, ...bare } = spec as StatusSpec & { type?: 'status' };
+  let status = { ...bare, expiresAtTurn } as Status;
+  let updated: Unit = { ...unit, statuses: [...unit.statuses, status] };
   if (updated.kind === 'monster') {
+    const mine = unit.owner === state.activePlayer;
     if (kind === 'stun' || kind === 'immobilise') updated = { ...updated, mobilityLeft: 0 };
-    else if (spec.kind === 'slow' && unit.owner === state.activePlayer) {
+    else if (spec.kind === 'slow' && mine) {
       updated = { ...updated, mobilityLeft: Math.max(0, updated.mobilityLeft - spec.amount), froze: updated.froze + spec.amount };
+    } else if (spec.kind === 'stat' && spec.stat === 'mobility' && mine) {
+      // Mobilité +X / −X pendant son tour : elle compte aussitôt (sans descendre sous 0).
+      updated = {
+        ...updated,
+        mobilityLeft: Math.max(0, updated.mobilityLeft + spec.amount),
+        boost: updated.boost + Math.max(0, spec.amount),
+        froze: updated.froze + Math.max(0, -spec.amount),
+      };
+    } else if (spec.kind === 'stat' && spec.stat === 'maxHp') {
+      // PV max +X / −X : les PV suivent, sans descendre sous 1 (comme une aura de PV).
+      const maxHp = Math.max(1, updated.maxHp + spec.amount);
+      status = { ...status, applied: maxHp - updated.maxHp } as Status;
+      updated = { ...updated, statuses: [...unit.statuses, status], maxHp, hp: Math.max(1, updated.hp + spec.amount) };
     }
   }
   return setUnit(emit(state, { type: 'status', unitId, pos: unit.pos, status }), updated);
@@ -100,7 +116,18 @@ export function expireStatuses(state: GameState, turn: number): GameState {
   let next = state;
   for (const unit of Object.values(state.units)) {
     const statuses = unit.statuses.filter((status) => status.expiresAtTurn > turn);
-    if (statuses.length !== unit.statuses.length) next = setUnit(next, { ...unit, statuses });
+    if (statuses.length === unit.statuses.length) continue;
+    let updated: Unit = { ...unit, statuses };
+    if (updated.kind === 'monster') {
+      // PV max +X / −X qui prend fin : les PV max reviennent, les PV sont plafonnés (sans jamais tuer).
+      const lost = unit.statuses.filter((s) => s.expiresAtTurn <= turn && s.kind === 'stat' && s.stat === 'maxHp');
+      for (const status of lost) {
+        const given = status.kind === 'stat' ? (status.applied ?? status.amount) : 0;
+        const maxHp = Math.max(1, updated.maxHp - given);
+        updated = { ...updated, maxHp, hp: Math.max(1, Math.min(updated.hp, maxHp)) };
+      }
+    }
+    next = setUnit(next, updated);
   }
   return next;
 }
@@ -112,7 +139,8 @@ export function expireStatuses(state: GameState, turn: number): GameState {
 function mobilityWith(monster: MonsterUnit, statuses: readonly Status[], bonus: number): number {
   if (statuses.some((s) => s.kind === 'stun' || s.kind === 'immobilise')) return 0;
   const slow = statuses.filter((s) => s.kind === 'slow').reduce((total, s) => total + statusAmount(s), 0);
-  return Math.max(0, getMonsterCard(monster.cardId).mobility + bonus - slow);
+  const stat = statTotal({ statuses }, 'mobility'); // mobilité +X / −X
+  return Math.max(0, getMonsterCard(monster.cardId).mobility + bonus + stat - slow);
 }
 
 /** Mobilité retrouvée au début du tour en cours (les statuts échus ont déjà disparu) ; `bonus` : aura. */

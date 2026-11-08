@@ -58,8 +58,8 @@ describe('textes des cartes Bodybuilder', () => {
     expect(describeCard(getCard('jean-bon'))[2]).toBe(
       'Actif (2 mana) · Dopage · lui-même · +2 ATK (pour ce tour) + burn 1 pendant 2 tours',
     );
-    expect(describeCard(getCard('seringue'))).toEqual(['Un allié bodybuilder · ATK ×2 (pour ce tour) + requiem 2']);
-    expect(statusText({ kind: 'requiem', turns: 2 })).toBe('requiem 2');
+    expect(describeCard(getCard('seringue'))).toEqual(['Un allié bodybuilder · ATK ×2 (pour ce tour) + requiem']);
+    expect(statusText({ kind: 'requiem' })).toBe('requiem');
     // L'évolution reste écrite seule.
     expect(describeCard(getCard('jeune-dragon')).at(-1)).toBe('Actif (2 mana) · Évolution');
   });
@@ -144,11 +144,11 @@ describe('Seringue et requiem', () => {
   );
   const injected = applyAction(state, INJECT);
 
-  it('journal : ATK doublée pour ce tour, requiem 2', () => {
+  it('journal : ATK doublée pour ce tour, requiem', () => {
     expect(logOf(state, INJECT)).toEqual([
       'J1 lance Seringue - Bodybuilder sur Jean Bon - Bodybuilder de J1.',
       'Jean Bon - Bodybuilder de J1 : +5 ATK ce tour.',
-      'Jean Bon - Bodybuilder de J1 : requiem 2.',
+      'Jean Bon - Bodybuilder de J1 : requiem.',
     ]);
   });
 

@@ -3,7 +3,8 @@
 // son orientation, avec ses stats, ses statuts, une cible ou des dégâts annoncés ; au sol, son ombre et la flèche
 // d'orientation au bord de sa case. Un terrain est un socle au sol et un blason debout (petit sous un monstre). Pur et
 // testé ; le dessin est dans `tokenLayer.ts`.
-import { canAttack, getAtk, getCard, getMonsterCard, getOnMoveBonus, getUnitsAt, requiemCountdown, statusAmount } from '../../engine';
+import { groupStatuses, signed } from '../statusInfo';
+import { canAttack, getAtk, getCard, getMonsterCard, getOnMoveBonus, getUnitsAt, requiemCountdown } from '../../engine';
 import type { CardId, Direction, PlayerId, PlayerView, Position, Status, StatusKind, UnitId } from '../../engine';
 import { shortName } from '../art';
 import { isExhausted } from '../interaction';
@@ -25,7 +26,23 @@ export const TOKEN_FOOT = 34 + 19;
 export const TOKEN_DZ = 10;
 export const CREST_DZ = 12;
 
-const STATUS_ORDER: readonly StatusKind[] = ['requiem', 'stun', 'silence', 'immobilise', 'slow', 'burn', 'camouflage', 'carapace'];
+const STATUS_ORDER: readonly StatusKind[] = [
+  'requiem',
+  'stun',
+  'silence',
+  'epuise',
+  'vol',
+  'immobilise',
+  'slow',
+  'burn',
+  'absorbe',
+  'stat',
+  'camouflage',
+  'invisible',
+  'carapace',
+  'absorbation',
+  'recuperation',
+];
 
 export interface StatPill {
   readonly kind: 'mob' | 'hp' | 'atk';
@@ -41,15 +58,23 @@ export interface StatPill {
 
 export interface StatusPill {
   readonly kind: StatusKind;
+  /** Le statut (le premier du groupe), pour l'icône d'un statut de stat. */
+  readonly status: Status;
   /** Valeur affichée (cumul, ou tours avant la mort pour requiem) ; rien pour une seule unité de statut. */
   readonly text: string | null;
 }
 
-/** Statuts en pastilles, dans l'ordre du CSS : requiem N, stun, immobilisé, slow X, burn X, camouflage. */
+/** Statuts en pastilles, dans l'ordre du CSS : un par type (et par stat), cumulés ; requiem : tours avant sa mort. */
 export function statusPills(statuses: readonly Status[], requiem: number | null = null): StatusPill[] {
-  return STATUS_ORDER.filter((kind) => statuses.some((s) => s.kind === kind)).map((kind) => {
-    const amount = kind === 'requiem' ? (requiem ?? 1) : statuses.filter((s) => s.kind === kind).reduce((total, s) => total + statusAmount(s), 0);
-    return { kind, text: (amount > 1 || kind === 'requiem') && kind !== 'camouflage' && kind !== 'carapace' ? String(amount) : null };
+  return STATUS_ORDER.flatMap((kind) => groupStatuses(statuses).filter((g) => g.status.kind === kind)).map(({ status, total }) => {
+    const amount = status.kind === 'requiem' ? (requiem ?? 1) : total;
+    const text =
+      status.kind === 'stat'
+        ? signed(total)
+        : (amount > 1 || status.kind === 'requiem') && !['camouflage', 'invisible', 'carapace'].includes(status.kind)
+          ? String(amount)
+          : null;
+    return { kind: status.kind, text, status };
   });
 }
 

@@ -483,8 +483,11 @@ function applyEffect(state: GameState, effect: Effect, monster: MonsterUnit, con
     }
     case 'transform':
       return transform(state, monster, effect.into);
-    case 'status':
-      return addStatus(state, unitId, effect);
+    case 'status': {
+      // Absorbé : le monstre qui absorbe est la source de l'effet.
+      const spec = effect.kind === 'absorbe' && !effect.by ? { ...effect, by: context.source?.id } : effect;
+      return addStatus(state, unitId, spec);
+    }
     case 'addMobility':
       return setUnit(emit(state, { type: 'mobility', unitId, pos, amount: effect.amount }), {
         ...monster,

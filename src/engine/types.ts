@@ -206,8 +206,8 @@ interface KeywordParams {
   readonly sournois: { readonly amount: number };
   /** Par derrière, contre un monstre : dégâts ×`multiplier` (Clown assassin). */
   readonly assassin: { readonly multiplier: number };
-  /** Camouflage : caché à l'adversaire tant qu'aucun monstre ni terrain adverse n'est dans un carré de `amount` (§10). */
-  readonly camouflage: { readonly amount: number };
+  /** Camouflage : caché à l'adversaire tant qu'aucun monstre ni terrain adverse n'est dans un carré de 2 (§10), sans valeur. */
+  readonly camouflage: object;
   /** À l'attaque : il récupère `amount` PV, après les dégâts et avant la riposte (Vampire, §10). */
   readonly soif: { readonly amount: number };
 }
@@ -230,22 +230,53 @@ export type StatusKind =
   | 'immobilise'
   /** Perd `amount` PV au début de chaque tour affecté. */
   | 'burn'
-  /** Meurt au début du `turns`-ième prochain tour de son camp, sans VP pour personne. */
+  /** Meurt au début du deuxième tour de son camp après affectation, sans VP pour personne (sans paramètre). */
   | 'requiem'
-  /** Invisible pour l'adversaire comme avec le mot-clé `invisible` de valeur `amount` (Pénombre). */
+  /** Invisible pour l'adversaire tant qu'aucun de ses monstres ni terrains n'est dans un carré de 2 (Farceur, Pénombre). */
   | 'camouflage'
+  /** Comme camouflage, mais seulement à plus de 1 case : un carré de 1 le révèle (Terrain de jeu). */
+  | 'invisible'
   /** La prochaine attaque (ou riposte) subie n'inflige que 1 PV (Tibo, TORTANK) ; elle consomme le statut. */
   | 'carapace'
   /** Ne peut plus activer ses effets actifs ; attaque, déplacement, mots-clés et passifs restent possibles (Dragonnet). */
-  | 'silence';
+  | 'silence'
+  /** Épuisé : ne peut pas attaquer ; déplacement et effets restent possibles. */
+  | 'epuise'
+  /** Vol : peut survoler les cases X, comme le mot-clé Vol (§5.6) ; un bonus de durée. */
+  | 'vol'
+  /** Absorbé : perd `amount` PV au début du tour de l'adversaire de son porteur ; le monstre qui l'a posé (`by`) les gagne. */
+  | 'absorbe'
+  /** Absorbation : gagne `amount` PV au début de son tour, jusqu'à ses PV max (un par instance). */
+  | 'absorbation'
+  /** Récupération : gagne `amount` PV au début de son tour, jusqu'à ses PV max. */
+  | 'recuperation'
+  /** Bonus ou malus de stat, `amount` signé : ATK, mobilité, portée ou PV max (pendant la durée). */
+  | 'stat';
+
+/** Les stats que peut changer un statut `stat` (SPEC §5 bis). */
+export type StatKey = 'atk' | 'mobility' | 'range' | 'maxHp';
 
 /**
  * Statut posé par un effet (SPEC.md §5 bis, §5.5). `turns` : sa durée, en tours du camp de l'unité touchée (le tour en
  * cours ne compte pas) ; 0 = jusqu'à son prochain tour (il dure le reste du tour en cours).
  */
 export type StatusSpec =
-  | { readonly kind: 'stun' | 'immobilise' | 'requiem' | 'carapace' | 'silence'; readonly turns: number }
-  | { readonly kind: 'slow' | 'burn' | 'camouflage'; readonly amount: number; readonly turns: number };
+  | { readonly kind: 'requiem' }
+  | {
+      readonly kind: 'stun' | 'immobilise' | 'camouflage' | 'invisible' | 'carapace' | 'silence' | 'epuise' | 'vol';
+      readonly turns: number;
+    }
+  | { readonly kind: 'slow' | 'burn' | 'absorbation' | 'recuperation'; readonly amount: number; readonly turns: number }
+  /** `by` : le monstre qui absorbe ; absent dans une carte, il est complété par la source de l'effet. */
+  | { readonly kind: 'absorbe'; readonly amount: number; readonly turns: number; readonly by?: UnitId }
+  | {
+      readonly kind: 'stat';
+      readonly stat: StatKey;
+      readonly amount: number;
+      readonly turns: number;
+      /** PV max réellement changés (PV max ±X, plafonné à 1 au plus bas) : ce que la fin du statut rend. */
+      readonly applied?: number;
+    };
 
 /** Statut en cours sur une unité. */
 export type Status = StatusSpec & {
@@ -498,8 +529,8 @@ export interface StatAura {
   readonly range?: number;
   /** Nombre total d'attaques par tour (Carquois prêt ! : 2) ; plusieurs auras ne s'additionnent pas. */
   readonly attacks?: number;
-  /** Camouflage N tant qu'ils sont dans la zone (Terrain de jeu : 1) ; avec d'autres camouflages, la plus grande valeur compte. */
-  readonly camouflage?: number;
+  /** Camouflage (carré de 2) ou Invisible (carré de 1) tant qu'ils sont dans la zone (Terrain de jeu : invisible) ; la plus grande portée compte. */
+  readonly stealth?: 'camouflage' | 'invisible';
 }
 
 export interface MonsterCard extends CardBase {

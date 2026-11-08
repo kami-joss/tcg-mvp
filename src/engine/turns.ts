@@ -7,6 +7,7 @@ import { expireBurningCells, expireTraps, sweepZonesAtTurnStart } from './traps'
 import { getMonsterCard } from './cards';
 import { applyTriggeredEffects } from './effects';
 import { expireStatuses, statusTotal, turnMobility } from './statuses';
+import { statTotal } from './units';
 import { auraMobility, getMonsters, removeUnit, setUnit } from './units';
 import { isInZone } from './board';
 import { getControlledZones, getZoneMana } from './zones';
@@ -57,6 +58,12 @@ export function startTurn(state: GameState): GameState {
   // 2 bis. Zones (Golem de lave) : chaque ennemi resté dans la zone est de nouveau touché (§10).
   next = sweepZonesAtTurnStart(next, player);
 
+  // 2 ter. Récupération et absorbation : +X PV au début de son tour, jusqu'à ses PV max (§5 bis).
+  for (const monster of getMonsters(next, player)) {
+    const gain = statusTotal(monster, 'recuperation') + statusTotal(monster, 'absorbation');
+    if (gain > 0) next = healBy(next, monster.id, gain);
+  }
+
   // 3. Statuts : requiem (il meurt, sans VP pour personne), puis burn (une destruction profite à l'adversaire).
   for (const id of doomed) {
     const monster = next.units[id];
@@ -66,6 +73,19 @@ export function startTurn(state: GameState): GameState {
     const burn = statusTotal(unit, 'burn');
     if (unit.owner !== player || burn === 0) continue;
     next = dealDamage(next, unit.id, burn, opponent(player), 'burn');
+  }
+  // Absorbé : au début du tour de l'adversaire de son porteur, il perd N PV par instance, et le monstre qui l'a posé
+  // (`by`, s'il est encore là) gagne les PV réellement perdus ; une destruction profite à l'absorbeur comme pour burn.
+  for (const unit of Object.values(next.units)) {
+    if (unit.owner === player) continue;
+    for (const status of unit.statuses) {
+      if (status.kind !== 'absorbe') continue;
+      const target = next.units[unit.id];
+      if (!target) break;
+      const lost = Math.min(status.amount, target.hp);
+      next = dealDamage(next, unit.id, status.amount, player, 'burn');
+      if (status.by && lost > 0) next = healBy(next, status.by, lost);
+    }
   }
 
   for (const current of [...getMonsters(next, 1), ...getMonsters(next, 2)]) {
@@ -80,8 +100,9 @@ export function startTurn(state: GameState): GameState {
       monster.owner === player
         ? {
             mobilityLeft: turnMobility(monster, auraMobility(next, monster)),
-            froze: statusTotal(monster, 'slow'),
-            boost: 0,
+            // Slow et mobilité −X retirent des pas, mobilité +X en ajoute (affichage « pas restants »).
+            froze: statusTotal(monster, 'slow') + Math.max(0, -statTotal(monster, 'mobility')),
+            boost: Math.max(0, statTotal(monster, 'mobility')),
             turnBonuses: [],
             hasAttacked: false,
             attacksMade: 0,
@@ -97,6 +118,15 @@ export function startTurn(state: GameState): GameState {
     next = setUnit(next, { ...monster, ...refreshed, atkBonus: 0, rangeBonus: 0, hasRiposted: false, revealed: false });
   }
   return next;
+}
+
+/** Rend `amount` PV à l'unité `unitId` si c'est un monstre encore sur le plateau, sans dépasser ses PV max. */
+function healBy(state: GameState, unitId: string, amount: number): GameState {
+  const unit = state.units[unitId];
+  if (unit?.kind !== 'monster') return state;
+  const hp = Math.min(unit.maxHp, unit.hp + amount);
+  if (hp === unit.hp) return state;
+  return setUnit(emit(state, { type: 'heal', unitId, pos: unit.pos, amount: hp - unit.hp }), { ...unit, hp });
 }
 
 /** « Fin du tour » : la main passe à l'adversaire, dont le tour commence. Le mana non dépensé est perdu au début de son prochain tour. */

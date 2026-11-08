@@ -26,7 +26,7 @@ import {
   getZoneCells,
   getZoneController,
   getZoneMana,
-  hasKeyword,
+  canFly,
   isHiddenFrom,
   isPlayable,
   isStunned,
@@ -415,7 +415,7 @@ export function evaluate(state: GameState, me: PlayerId): number {
   const enemies = monstersOf(state, other);
   // Où les ennemis peuvent aller à leur prochain tour : calculé une fois, s'il le faut.
   let enemyWalkers: Walker[] | null = null;
-  const walkers = () => (enemyWalkers ??= enemies.map((monster) => ({ monster, mobility: nextMobility(state, monster), flying: hasKeyword(monster, 'vol') })));
+  const walkers = () => (enemyWalkers ??= enemies.map((monster) => ({ monster, mobility: nextMobility(state, monster), flying: canFly(monster) })));
   // Mana zones, quand l'IA finit son tour : l'adversaire touche aussitôt, au début du sien, le VP et le mana de celles
   // qu'il tient ; celles de l'IA ne lui rapportent qu'au début de son tour suivant, si l'adversaire ne vient pas les
   // contester d'ici là. Une zone contestée ne rapporte rien à personne : y entrer prive l'adversaire de son revenu.
@@ -444,7 +444,7 @@ export function evaluate(state: GameState, me: PlayerId): number {
       continue;
     }
     if (open.length > 0) {
-      const flying = hasKeyword(monster, 'vol');
+      const flying = canFly(monster);
       score -= W.approach * Math.min(...open.map(({ pos }) => zoneDistances(state.board, state.mode, pos, flying)[here]!));
     } else if (enemies.length > 0) {
       hunt ??= walkDistances(state.board, enemies.map((e) => e.pos), false);
@@ -716,7 +716,7 @@ function revenge(state: GameState, target: Unit, team: readonly Striker[], lossO
     const mobility = nextMobility(state, avenger);
     if (mobility < 0) continue;
     const atk = getAtk(state, avenger) - avenger.atkBonus;
-    const distance = cellDistances(state.board, target.pos, hasKeyword(avenger, 'vol'))[index(state.board, avenger.pos)]!;
+    const distance = cellDistances(state.board, target.pos, canFly(avenger))[index(state.board, avenger.pos)]!;
     const reach = mobility + getMonsterCard(avenger.cardId).range;
     for (const { monster: killer } of team) {
       if (atk < killer.hp || distance + getMonsterCard(killer.cardId).range > reach) continue;

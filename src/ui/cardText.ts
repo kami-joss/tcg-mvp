@@ -2,6 +2,7 @@
 // tableaux de cartes de SPEC.md (§6, §6 bis), qu'un test compare aux données. C'est la référence interne ; les joueurs
 // lisent les phrases de `rulesText.ts`. Noms (`splitCardName`, `cardTitle`), noms d'effets et journal s'en servent aussi.
 import { getCard } from '../engine';
+import { statusLabel } from './statusInfo';
 import type {
   Ability,
   ActivatedAbility,
@@ -64,9 +65,10 @@ export function keywordLabel(spec: KeywordSpec): string {
     case 'trophee':
     case 'pillage':
     case 'etendard':
-    case 'camouflage':
     case 'soif':
       return `${name} ${spec.amount}`;
+    case 'camouflage':
+      return name;
   }
 }
 
@@ -96,7 +98,7 @@ export function keywordText(spec: KeywordSpec): string {
     case 'assassin':
       return `en attaquant un monstre par derrière, dégâts ×${spec.multiplier}.`;
     case 'camouflage':
-      return `invisible pour l’adversaire tant qu’aucun monstre ni terrain adverse n’est dans un carré de ${spec.amount} autour de lui.`;
+      return 'invisible pour l’adversaire à plus de 2 cases : tant qu’aucun monstre ni terrain adverse n’est dans un carré de 2 autour de lui.';
     case 'soif':
       return `à l’attaque, il récupère ${spec.amount} PV (soin sur lui-même, sans dépasser ses PV max), après les dégâts et avant une riposte.`;
   }
@@ -177,14 +179,12 @@ function allyZoneText({ zone, archetype }: AllyZoneEffect | StatAura): string {
   return `${ARCHETYPE_NAMES[archetype].many} alliés, ${where}`;
 }
 
-/** Statut avec sa durée : « burn 1 pendant 1 tour », « immobilisé jusqu’à son prochain tour », « requiem 2 ». */
+/** Statut avec sa durée : « burn 1 pendant 1 tour », « immobilisé jusqu’à son prochain tour », « requiem ». */
 export function statusText(spec: StatusSpec): string {
-  if (spec.kind === 'requiem') return `requiem ${spec.turns}`;
-  if (spec.kind === 'camouflage') return `camouflage ${spec.amount} ${durationText(spec.turns)}`;
-  if (spec.kind === 'carapace') return `carapace ${durationText(spec.turns)}`;
-  const name =
-    spec.kind === 'slow' || spec.kind === 'burn' ? `${spec.kind} ${spec.amount}` : spec.kind === 'stun' ? 'stun' : spec.kind === 'silence' ? 'silence' : 'immobilisé';
-  return `${name} ${durationText(spec.turns)}`;
+  if (spec.kind === 'requiem') return 'requiem';
+  // « slow 1 », « stun », « récupération 2 », « ATK +2 » : le nom du lexique (§5 bis), en minuscules sauf une stat.
+  const label = statusLabel(spec);
+  return `${spec.kind === 'stat' ? label : label.toLowerCase()} ${durationText(spec.turns)}`;
 }
 
 /** Un effet (§5.4) : « 2 dégâts », « soin 2 », « recul de 1 à 3 au choix, vers l’avant ». Vide pour l'évolution. */
@@ -337,14 +337,14 @@ export function onKillText(card: MonsterCard): string | null {
 }
 
 /** Bonus d'une aura : « +2 ATK », « +1 ATK +1 PV +1 mobilité ». */
-export function auraBonusText({ atk, hp, mobility, range, attacks, camouflage }: Pick<StatAura, 'atk' | 'hp' | 'mobility' | 'range' | 'attacks' | 'camouflage'>): string {
+export function auraBonusText({ atk, hp, mobility, range, attacks, stealth }: Pick<StatAura, 'atk' | 'hp' | 'mobility' | 'range' | 'attacks' | 'stealth'>): string {
   return [
     atk ? `+${atk} ATK` : null,
     hp ? `+${hp} PV` : null,
     mobility ? `+${mobility} mobilité` : null,
     range ? `+${range} portée` : null,
     attacks ? `${attacks} attaques par tour` : null,
-    camouflage ? `camouflage ${camouflage}` : null,
+    stealth ?? null,
   ]
     .filter(Boolean)
     .join(' ');

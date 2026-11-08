@@ -58,7 +58,7 @@ describe('jetons du plateau PixiJS', () => {
     expect(statusPills([])).toEqual([]);
     const state = withStatus(withStatus(gameWith([{ monster: 'chevalier', owner: 1, at: at(6, 6) }], { board: BATTLEFIELD_15 }), 'u1', 'slow', 2), 'u1', 'stun');
     const [token] = visuals([], { stats: ALL }, state).tokens;
-    expect(token!.statuses).toEqual([
+    expect(token!.statuses.map(({ kind, text }) => ({ kind, text }))).toEqual([
       { kind: 'stun', text: null },
       { kind: 'slow', text: '2' },
     ]);

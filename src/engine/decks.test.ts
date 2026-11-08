@@ -182,7 +182,7 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
     expect(ability('farceur')).toBeNull();
     expect(CARDS.farceur).toMatchObject({
       keywords: [
-        { keyword: 'camouflage', amount: 2 },
+        { keyword: 'camouflage' },
         { keyword: 'assassin', multiplier: 2 },
       ],
     });

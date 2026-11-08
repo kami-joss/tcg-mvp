@@ -21,7 +21,7 @@ import { emit } from './events';
 import { canMove, ownerNextTurn } from './statuses';
 import { perceived, reveal } from './stealth';
 import { NEW_MOVEMENT, enterCell } from './traps';
-import { getActiveMonster, getMonsters, getUnitsAt, hasKeyword, setUnit } from './units';
+import { canFly, getActiveMonster, getMonsters, getUnitsAt, setUnit } from './units';
 import type { Action, BoardState, GameState, MonsterUnit, PlayerId, Position, TerrainOnMove, TerrainUnit } from './types';
 
 type MoveAction = Extract<Action, { type: 'move' }>;
@@ -97,7 +97,7 @@ interface Reached extends Destination {
  * aucun rôle : ils sont cachés, et le calcul ne doit rien en révéler.
  */
 function explore(state: BoardState, monster: MonsterUnit): { reached: Reached[]; best: Map<string, number> } {
-  const flying = hasKeyword(monster, 'vol');
+  const flying = canFly(monster);
   const zones = getSlowZones(state, monster);
   const key = (pos: Position, crossed: number) => `${pos.row},${pos.col},${crossed}`;
   const reached: Reached[] = [{ pos: monster.pos, cost: 0, crossed: 0, from: -1 }];
@@ -276,7 +276,7 @@ function resolvePath(state: GameState, monster: MonsterUnit, action: MoveAction)
   const path = action.path.map(({ row, col }) => ({ row, col }));
   const last = path.at(-1);
   if (!last || !samePos(last, action.to) || pathCost(state, monster, path) > setOff(state, monster).mobilityLeft) throw refuse();
-  const flying = hasKeyword(monster, 'vol');
+  const flying = canFly(monster);
   path.forEach((pos, i) => {
     if (!canStep(state, monster, flying, i === 0 ? monster.pos : path[i - 1]!, pos)) throw refuse();
   });

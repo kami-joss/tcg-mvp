@@ -1,6 +1,7 @@
 // Unités sur le plateau : création, recherche et mise à jour immuable.
 import { isInZone } from './board';
 import { getMonsterCard, getTerrainCard } from './cards';
+import { CAMOUFLAGE_RADIUS, INVISIBLE_RADIUS } from './config';
 import { IllegalActionError } from './errors';
 import type {
   BoardState,
@@ -15,6 +16,8 @@ import type {
   PlayerId,
   Position,
   StatAura,
+  StatKey,
+  Status,
   TerrainCard,
   TerrainUnit,
   Unit,
@@ -181,9 +184,19 @@ export function auraSources(state: BoardState, monster: MonsterUnit): Unit[] {
   });
 }
 
-/** ATK actuelle d'un monstre : la sienne, plus le bonus du tour, les auras et son bonus d'armé. C'est elle qui frappe et qui riposte. */
+/** Le monstre survole les cases X : mot-clé Vol de sa carte, ou statut Vol (§5.6, §5 bis). */
+export function canFly(monster: MonsterUnit): boolean {
+  return hasKeyword(monster, 'vol') || monster.statuses.some((status) => status.kind === 'vol');
+}
+
+/** Somme des statuts `stat` (ATK, mobilité, portée ou PV max) de `unit`, signés : +X compte, −X retire. */
+export function statTotal(unit: { readonly statuses: readonly Status[] }, stat: StatKey): number {
+  return unit.statuses.reduce((total, status) => (status.kind === 'stat' && status.stat === stat ? total + status.amount : total), 0);
+}
+
+/** ATK actuelle d'un monstre : la sienne, plus le bonus du tour, les auras, son bonus d'armé et ses statuts d'ATK. C'est elle qui frappe et qui riposte. */
 export function getAtk(state: BoardState, monster: MonsterUnit): number {
-  return monster.atk + monster.atkBonus + auraAtk(state, monster) + (monster.armed?.atk ?? 0);
+  return Math.max(0, monster.atk + monster.atkBonus + auraAtk(state, monster) + (monster.armed?.atk ?? 0) + statTotal(monster, 'atk'));
 }
 
 /** PV qu'apportent les auras à `monster` (Origine : +1 par Origine alliée dans son carré de 1). */
@@ -201,14 +214,20 @@ export function auraRange(state: BoardState, monster: MonsterUnit): number {
   return auraSources(state, monster).reduce((total, other) => total + (auraOf(other)?.range ?? 0), 0);
 }
 
-/** Camouflage qu'apportent les auras à `monster` (Terrain de jeu) : la plus grande valeur des sources qui le couvrent ; 0 sinon. */
-export function auraCamouflage(state: BoardState, monster: MonsterUnit): number {
-  return Math.max(0, ...auraSources(state, monster).map((other) => auraOf(other)?.camouflage ?? 0));
+/** Rayon de révélation qu'apportent les auras à `monster` (Terrain de jeu : invisible, 1) : le plus grand des sources qui le couvrent ; 0 sinon. */
+export function auraStealth(state: BoardState, monster: MonsterUnit): number {
+  return Math.max(
+    0,
+    ...auraSources(state, monster).map((other) => {
+      const stealth = auraOf(other)?.stealth;
+      return stealth === 'camouflage' ? CAMOUFLAGE_RADIUS : stealth === 'invisible' ? INVISIBLE_RADIUS : 0;
+    }),
+  );
 }
 
 /** Portée actuelle d'un monstre : celle de sa carte, plus le bonus du tour (Flèche divine) et les auras. C'est elle qui sert à attaquer. */
 export function getRange(state: BoardState, monster: MonsterUnit): number {
-  return getMonsterCard(monster.cardId).range + monster.rangeBonus + auraRange(state, monster);
+  return Math.max(0, getMonsterCard(monster.cardId).range + monster.rangeBonus + auraRange(state, monster) + statTotal(monster, 'range'));
 }
 
 /**
@@ -221,7 +240,7 @@ export function attackLimit(state: BoardState, monster: MonsterUnit): number {
 
 /** Il lui reste une attaque ce tour : ni stun, ni « plus d'attaque ce tour », et moins d'attaques faites que sa limite du moment. */
 export function canAttack(state: BoardState, monster: MonsterUnit): boolean {
-  if (monster.statuses.some((status) => status.kind === 'stun')) return false;
+  if (monster.statuses.some((status) => status.kind === 'stun' || status.kind === 'epuise')) return false;
   if (monster.hasAttacked && monster.attacksMade === 0) return false;
   return monster.attacksMade < attackLimit(state, monster);
 }
