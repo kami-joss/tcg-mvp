@@ -28,16 +28,17 @@ function shotStep(state: BoardState, previous: Position, pos: Position, range: n
 }
 
 /**
- * Une case que les monstres alliés de `owner` occupent seuls : ils ne gênent pas le tir (§4.7, §10). Un terrain, le sien
- * compris, ou un monstre ennemi, l'arrête.
+ * Une case que seules des unités alliées de `owner` occupent, monstres et terrains : elles ne gênent pas le tir (§4.7,
+ * §10). Une unité ennemie, monstre ou terrain, l'arrête.
  */
 function isAllyTransparent(units: readonly Unit[], owner: PlayerId | undefined): boolean {
-  return owner !== undefined && units.length > 0 && units.every((unit) => unit.kind === 'monster' && unit.owner === owner);
+  return owner !== undefined && units.length > 0 && units.every((unit) => unit.owner === owner);
 }
 
 /**
  * Ligne de vue depuis `from` : dans chaque direction orthogonale, la première case occupée à `range`
- * cases au plus. Les cases traversées doivent être vides ; le tir s'arrête avant une case X, sauf une X basse pour une
+ * cases au plus. Les cases traversées doivent être vides, ou n'avoir que des unités alliées de `owner` (monstres et
+ * terrains : elles ne gênent pas le tir) ; le tir s'arrête avant une case X, sauf une X basse pour une
  * portée de 2 ou plus, et avant une falaise qu'il ne franchit pas (`shotStep`).
  */
 export function getLineOfSightCells(state: BoardState, from: Position, range: number, owner?: PlayerId): Position[] {

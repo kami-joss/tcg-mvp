@@ -154,7 +154,7 @@ describe('attaque en diagonale (§10)', () => {
     expect(targetIds(state, 'u1')).toEqual([]);
   });
 
-  it('un allié sur la diagonale ne gêne pas ; un ennemi ou un terrain la bloque, comme en ligne droite', () => {
+  it('un allié (monstre ou terrain) sur la diagonale ne gêne pas ; un ennemi ou un terrain ennemi la bloque, comme en ligne droite', () => {
     const state = gameWith([
       { monster: 'archer-imperial', owner: 1, at: at(9, 0) },
       { monster: 'milicien', owner: 1, at: at(8, 1) }, // allié sur la diagonale
@@ -163,10 +163,16 @@ describe('attaque en diagonale (§10)', () => {
     expect(targetIds(state, 'u1')).toEqual(['u3']);
     const wall = gameWith([
       { monster: 'archer-imperial', owner: 1, at: at(9, 0) },
-      { terrain: 'bastion', owner: 1, at: at(8, 1) }, // terrain allié : il arrête le tir
+      { terrain: 'bastion', owner: 1, at: at(8, 1) }, // terrain allié : il ne gêne pas
       { monster: 'golem', owner: 2, at: at(7, 2) },
     ]);
-    expect(targetIds(wall, 'u1')).toEqual([]);
+    expect(targetIds(wall, 'u1')).toEqual(['u3']);
+    const enemyWall = gameWith([
+      { monster: 'archer-imperial', owner: 1, at: at(9, 0) },
+      { terrain: 'bastion', owner: 2, at: at(8, 1) }, // terrain ennemi : il arrête le tir, et se vise
+      { monster: 'golem', owner: 2, at: at(7, 2) },
+    ]);
+    expect(targetIds(enemyWall, 'u1')).toEqual(['u2']);
     const enemyFirst = gameWith([
       { monster: 'archer-imperial', owner: 1, at: at(9, 0) },
       { monster: 'milicien', owner: 2, at: at(8, 1) },

@@ -147,20 +147,20 @@ describe('attaque (SPEC.md §4.7)', () => {
       expect(targetIds(two, 'u1')).toEqual([]); // portée 2 : le golem est à 3 cases
     });
 
-    it('un terrain allié, lui, bloque le tir ; un monstre allié sur le même terrain aussi', () => {
+    it('un terrain allié ne gêne pas non plus le tir, ni un monstre allié posé dessus (validé le 2026-11-08)', () => {
       const wall = gameWith([
         { monster: 'archer', owner: 1, at: at(8, 1) },
         { terrain: 'bastion', owner: 1, at: at(8, 2) },
         { monster: 'golem', owner: 2, at: at(8, 3) },
       ]);
-      expect(targetIds(wall, 'u1')).toEqual([]);
+      expect(targetIds(wall, 'u1')).toEqual(['u3']);
       const both = gameWith([
         { monster: 'archer', owner: 1, at: at(8, 1) },
         { terrain: 'bastion', owner: 1, at: at(8, 2) },
         { monster: 'milicien', owner: 1, at: at(8, 2) },
         { monster: 'golem', owner: 2, at: at(8, 3) },
       ]);
-      expect(targetIds(both, 'u1')).toEqual([]);
+      expect(targetIds(both, 'u1')).toEqual(['u4']);
     });
 
     it('la menace d’un archer passe aussi par-dessus ses alliés, mais pas ses ennemis ni un terrain', () => {
@@ -193,13 +193,13 @@ describe('attaque (SPEC.md §4.7)', () => {
       expect(targetIds(state, 'u1')).toEqual(['u2']);
     });
 
-    it('une case intermédiaire avec un terrain allié bloque', () => {
+    it('une case intermédiaire avec un terrain allié ne bloque pas', () => {
       const state = gameWith([
         { monster: 'archer', owner: 1, at: at(5, 3) },
         { terrain: 'bastion', owner: 1, at: at(5, 4) },
         { monster: 'golem', owner: 2, at: at(5, 5) },
       ]);
-      expect(targetIds(state, 'u1')).toEqual([]);
+      expect(targetIds(state, 'u1')).toEqual(['u3']);
     });
 
     it('une case intermédiaire avec un terrain ennemi bloque : le terrain reste ciblable', () => {

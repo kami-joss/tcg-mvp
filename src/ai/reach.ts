@@ -246,7 +246,7 @@ export function getStrikers(
           if (kind === LOW_X && range >= 2) continue;
           if (kind !== PLAIN) break;
           if (cell === start || owner[cell] === 0) continue;
-          if (monsterAt[cell] && owner[cell] === attacker) continue; // Un monstre allié ne gêne pas le tir (§4.7).
+          if (owner[cell] === attacker) continue; // Une unité alliée (monstre ou terrain) ne gêne pas le tir (§4.7).
           const target = targetAt.get(cell);
           if (target) {
             let damage = atk;
@@ -266,7 +266,7 @@ export function getStrikers(
           cell = grid.diagonal[cell * 4 + k]!;
           if (cell < 0) break;
           if (cell === start || owner[cell] === 0) continue;
-          if (monsterAt[cell] && owner[cell] === attacker) continue; // Un monstre allié ne gêne pas le tir.
+          if (owner[cell] === attacker) continue; // Une unité alliée ne gêne pas le tir.
           const target = targetAt.get(cell);
           if (target) {
             const damage = target.kind === 'terrain' ? atk * siege : atk;
