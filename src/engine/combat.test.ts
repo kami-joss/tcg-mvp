@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getLegalActions } from './actions';
-import { getAttackTargets } from './combat';
+import { getAttackTargets, getStrikeCells } from './combat';
 import { IllegalActionError } from './errors';
 import { at, deepFreeze, gameWith } from './test-utils';
 import { getUnitsAt } from './units';
@@ -62,7 +62,7 @@ describe('attaque (SPEC.md §4.7)', () => {
         ]),
         attack('u1', 'u2'),
       );
-      expect(() => applyAction(state, attack('u1', 'u2'))).toThrow(/déjà attaqué/);
+      expect(() => applyAction(state, attack('u1', 'u2'))).toThrow(/ne peut plus attaquer/);
       expect(getLegalActions(state).filter((a) => a.type === 'attack')).toEqual([]);
     });
 
@@ -129,13 +129,59 @@ describe('attaque (SPEC.md §4.7)', () => {
   });
 
   describe('ligne de vue', () => {
-    it('une case intermédiaire occupée par un allié bloque', () => {
+    it('un monstre allié sur la ligne ne gêne pas le tir (validé le 2026-11-08)', () => {
       const state = gameWith([
         { monster: 'archer', owner: 1, at: at(8, 1) },
         { monster: 'milicien', owner: 1, at: at(8, 2) },
         { monster: 'golem', owner: 2, at: at(8, 3) },
       ]);
-      expect(targetIds(state, 'u1')).toEqual([]);
+      expect(targetIds(state, 'u1')).toEqual(['u3']);
+      expect(applyAction(state, attack('u1', 'u3')).units.u3?.hp).toBe(5);
+      // Deux alliés à la suite : toujours transparents.
+      const two = gameWith([
+        { monster: 'archer', owner: 1, at: at(9, 0) },
+        { monster: 'milicien', owner: 1, at: at(9, 1) },
+        { monster: 'milicien', owner: 1, at: at(9, 2) },
+        { monster: 'golem', owner: 2, at: at(9, 3) },
+      ]);
+      expect(targetIds(two, 'u1')).toEqual([]); // portée 2 : le golem est à 3 cases
+    });
+
+    it('un terrain allié, lui, bloque le tir ; un monstre allié sur le même terrain aussi', () => {
+      const wall = gameWith([
+        { monster: 'archer', owner: 1, at: at(8, 1) },
+        { terrain: 'bastion', owner: 1, at: at(8, 2) },
+        { monster: 'golem', owner: 2, at: at(8, 3) },
+      ]);
+      expect(targetIds(wall, 'u1')).toEqual([]);
+      const both = gameWith([
+        { monster: 'archer', owner: 1, at: at(8, 1) },
+        { terrain: 'bastion', owner: 1, at: at(8, 2) },
+        { monster: 'milicien', owner: 1, at: at(8, 2) },
+        { monster: 'golem', owner: 2, at: at(8, 3) },
+      ]);
+      expect(targetIds(both, 'u1')).toEqual([]);
+    });
+
+    it('la menace d’un archer passe aussi par-dessus ses alliés, mais pas ses ennemis ni un terrain', () => {
+      const state = gameWith([
+        { monster: 'milicien', owner: 1, at: at(8, 2) },
+        { monster: 'golem', owner: 2, at: at(9, 2) },
+        { terrain: 'bastion', owner: 2, at: at(7, 5) },
+      ]);
+      const board = { board: state.board, units: state.units };
+      expect(getStrikeCells(board, at(8, 1), 3, 1)).toContainEqual(at(8, 3)); // derrière son allié
+      expect(getStrikeCells(board, at(8, 1), 3)).not.toContainEqual(at(8, 3)); // sans propriétaire : tout bloque
+      expect(getStrikeCells(board, at(9, 1), 3, 1)).not.toContainEqual(at(9, 3)); // derrière un ennemi
+    });
+
+    it('un allié invisible (camouflé) sur la ligne ne gêne pas non plus son propre tireur', () => {
+      const state = gameWith([
+        { monster: 'archer-imperial', owner: 1, at: at(9, 0) },
+        { monster: 'farceur', owner: 1, at: at(9, 2) }, // camouflé, de son camp
+        { monster: 'golem', owner: 2, at: at(9, 4) },
+      ]);
+      expect(applyAction(state, attack('u1', 'u3')).units.u3?.hp).toBe(5);
     });
 
     it('une case intermédiaire occupée par un ennemi bloque : seul le plus proche est ciblable', () => {

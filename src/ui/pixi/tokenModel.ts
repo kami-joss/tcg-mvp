@@ -3,7 +3,7 @@
 // son orientation, avec ses stats, ses statuts, une cible ou des dégâts annoncés ; au sol, son ombre et la flèche
 // d'orientation au bord de sa case. Un terrain est un socle au sol et un blason debout (petit sous un monstre). Pur et
 // testé ; le dessin est dans `tokenLayer.ts`.
-import { getAtk, getCard, getMonsterCard, getOnMoveBonus, getUnitsAt, requiemCountdown, statusAmount } from '../../engine';
+import { canAttack, getAtk, getCard, getMonsterCard, getOnMoveBonus, getUnitsAt, requiemCountdown, statusAmount } from '../../engine';
 import type { CardId, Direction, PlayerId, PlayerView, Position, Status, StatusKind, UnitId } from '../../engine';
 import { shortName } from '../art';
 import { isExhausted } from '../interaction';
@@ -157,7 +157,7 @@ export function unitVisuals(inputs: TokenInputs): { tokens: TokenVisual[]; terra
     const pills: StatPill[] = [];
     if (showMobility) pills.push({ kind: 'mob', value: mobility, mine: active, empty: active && mobility === 0 });
     if (stats.hp) pills.push({ kind: 'hp', value: unit.hp, hurt: unit.hp < unit.maxHp });
-    if (stats.atk) pills.push({ kind: 'atk', value: atk, spent: active && unit.hasAttacked, boosted: atk > unit.atk });
+    if (stats.atk) pills.push({ kind: 'atk', value: atk, spent: active && unit.hasAttacked && !canAttack(view, unit), boosted: atk > unit.atk });
     const attack = attacks.get(key);
     tokens.push({
       id: unit.id,

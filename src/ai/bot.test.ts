@@ -110,7 +110,8 @@ describe('IA : mode contestation (SPEC.md §4.4 bis)', () => {
     }
     expect(state.turn).toBeGreaterThan(10);
     expect(state.players[1].vp + state.players[2].vp).toBeGreaterThan(0);
-  }, 60_000);
+    // Le deck Archers impériaux (2 attaques par tour, effets sans limite, diagonales longues) est plus long à jouer.
+  }, 150_000);
 });
 
 describe('IA : deux coups d’avance pour un même monstre', () => {

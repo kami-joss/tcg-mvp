@@ -112,7 +112,7 @@ const ZONE_TEXT: Readonly<Record<AreaZone, string>> = {
 /** Familles (§5.1) : nom sur la carte, puis au singulier et au pluriel dans un effet (« un allié bodybuilder »). */
 export const ARCHETYPE_NAMES: Readonly<Record<Archetype, { readonly title: string; readonly one: string; readonly many: string }>> = {
   bodybuilder: { title: 'Bodybuilder', one: 'bodybuilder', many: 'bodybuilders' },
-  archer: { title: 'Archers', one: 'archer', many: 'archers' },
+  archer: { title: 'Archers impériaux', one: 'archer impérial', many: 'archers impériaux' },
   dragon: { title: 'Dragons', one: 'dragon élémentaire', many: 'dragons élémentaires' },
   piege: { title: 'Pièges', one: 'monstre piège', many: 'monstres piège' },
   sorcier: { title: 'Sorciers du feu', one: 'sorcier du feu', many: 'sorciers du feu' },
@@ -206,6 +206,10 @@ export function effectText(effect: Effect): string {
       return `+${effect.amount} ATK${effect.perHpLost ? ' par PV perdu' : ''} (pour ce tour)`;
     case 'addRangeThisTurn':
       return `+${effect.amount} portée (pour ce tour)`;
+    case 'arm': {
+      const bonus = [effect.atk ? `+${effect.atk} ATK` : null, effect.splash ? `${effect.splash} dégât${effect.splash > 1 ? 's' : ''} aux ennemis, carré de 1 de la cible` : null];
+      return `armé : prochaine attaque, ${bonus.filter(Boolean).join(' + ')}`;
+    }
     case 'multiplyAtkThisTurn':
       return `ATK ×${effect.multiplier} (pour ce tour)`;
     case 'addStats': {
@@ -267,7 +271,7 @@ function trapQualifiers(ability: Ability): string {
 export function abilityText(ability: Ability, named = true): string {
   // L'évolution, le retour et la transformation s'écrivent seuls (« Actif (2 mana) · Évolution », « Actif (1 mana) ·
   // retour ») : leur cible va de soi.
-  const alone = ability.effects.some((effect) => effect.type === 'evolve' || effect.type === 'returnOnTrail' || effect.type === 'transform');
+  const alone = ability.effects.some((effect) => ['evolve', 'returnOnTrail', 'transform', 'arm'].includes(effect.type));
   const target = alone ? '' : targetText(ability.targeting);
   const trap = ability.effects.some((effect) => effect.type === 'placeTrap');
   const { backlash }: Partial<ActivatedAbility> = ability;
@@ -333,14 +337,25 @@ export function onKillText(card: MonsterCard): string | null {
 }
 
 /** Bonus d'une aura : « +2 ATK », « +1 ATK +1 PV +1 mobilité ». */
-export function auraBonusText({ atk, hp, mobility }: Pick<StatAura, 'atk' | 'hp' | 'mobility'>): string {
-  return [atk ? `+${atk} ATK` : null, hp ? `+${hp} PV` : null, mobility ? `+${mobility} mobilité` : null].filter(Boolean).join(' ');
+export function auraBonusText({ atk, hp, mobility, range, attacks }: Pick<StatAura, 'atk' | 'hp' | 'mobility' | 'range' | 'attacks'>): string {
+  return [
+    atk ? `+${atk} ATK` : null,
+    hp ? `+${hp} PV` : null,
+    mobility ? `+${mobility} mobilité` : null,
+    range ? `+${range} portée` : null,
+    attacks ? `${attacks} attaques par tour` : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
 }
 
 /** Aura (§5.2) : « Aura · bodybuilders alliés, carré de 1 · +2 ATK ». */
 export function auraText(card: MonsterCard | TerrainCard): string | null {
-  return card.aura ? `Aura · ${allyZoneText(card.aura)} · ${auraBonusText(card.aura)}` : null;
+  return card.aura ? `Aura · ${card.aura.name ? `${card.aura.name} · ` : ''}${allyZoneText(card.aura)} · ${auraBonusText(card.aura)}` : null;
 }
+
+/** `no_cac` (Trébuchet des archers) : « ne peut pas attaquer au contact » ; null pour les autres cartes. */
+export const noContactText = (card: MonsterCard): string | null => (card.noContact ? 'ne peut pas attaquer au contact' : null);
 
 /** Déclencheur « Début de tour » (§5.2) : « Début de tour · bodybuilders alliés, carré de 2 · soin 1 ». */
 export function turnStartText(card: MonsterCard): string | null {
@@ -370,12 +385,13 @@ export function passiveLines(card: MonsterCard): PassiveLine[] {
   }
   if (card.aura) {
     lines.push({
-      name: 'Aura',
+      name: card.aura.name ? `Aura · ${card.aura.name}` : 'Aura',
       rule: `${allyZoneText(card.aura)} · ${auraBonusText(card.aura)}`,
       explain: [
         `${card.aura.zone === 'square2' ? 'dans un carré de 2 autour de lui (falaises et cases X coupent la zone)' : 'dans un carré de 1 autour de lui'}, pas lui-même ; plusieurs auras se cumulent.`,
         card.aura.hp ? 'Les PV (et PV max) se gagnent en entrant dans l’aura et se perdent en la quittant, sans descendre sous 1 PV.' : null,
         card.aura.mobility ? 'La mobilité compte au début de leur tour.' : null,
+        card.aura.attacks ? 'Le total est de 2 attaques par tour quel que soit le nombre d’auras ; la zone est vérifiée au moment de chaque attaque.' : null,
       ]
         .filter(Boolean)
         .join(' '),
@@ -410,6 +426,7 @@ export function cardEffectLine(card: Card): string {
     case 'monster': {
       const parts = [
         ...card.keywords.map(keywordLabel),
+        noContactText(card),
         onKillText(card),
         auraText(card),
         turnStartText(card),
@@ -478,6 +495,7 @@ export function describeCard(card: Card): string[] {
         ...(card.archetype ? [`Archétype ${ARCHETYPE_NAMES[card.archetype].title}.`] : []),
         ...(card.evolvesFrom ? [`Peut aussi apparaître par l’évolution d’un ${cardTitle(card.evolvesFrom)}.`] : []),
         ...card.keywords.map((spec) => `Passif · ${keywordLabel(spec)} : ${keywordText(spec)}`),
+        ...(card.noContact ? ['Passif · ne peut pas attaquer au contact : il ne frappe jamais une cible à 1 case en ligne droite (une cible en diagonale reste possible).'] : []),
         ...passiveLines(card).map((line) => `Passif · ${line.name} · ${line.rule} : ${line.explain}`),
         ...activatedTexts(card),
       ];
@@ -493,7 +511,7 @@ export function describeCard(card: Card): string[] {
           ? [`Passif · ${passage} : chaque monstre ennemi qui entre dans un carré de 1 autour le subit, à chaque case où il entre (une fois par recul).`]
           : []),
         ...(card.aura
-          ? [`Passif · ${auraText(card)} : sur la case du terrain et dans un carré de 1 ; plusieurs auras se cumulent. Les PV (et PV max) se gagnent en entrant dans l’aura et se perdent en la quittant, sans descendre sous 1 PV.`]
+          ? [`Passif · ${auraText(card)} : sur la case du terrain et dans un carré de 1 ; plusieurs auras se cumulent.${card.aura.hp ? ' Les PV (et PV max) se gagnent en entrant dans l’aura et se perdent en la quittant, sans descendre sous 1 PV.' : ''}`]
           : []),
         ...(card.summonPoint
           ? [`Passif · ${SUMMON_POINT} : sa case est une case d’invocation pour vous, tant qu’aucun monstre ne s’y trouve.`]

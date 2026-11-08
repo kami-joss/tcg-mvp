@@ -24,15 +24,15 @@ const view = (s: GameState) => getPlayerView(s, 1);
 
 describe('Flèche divine et famille Archer', () => {
   it('textes : « un allié archer », bonus d’un bloc ; famille sur les 4 archers, pas sur le Trébuchet', () => {
-    expect(describeCard(getCard('fleche-divine'))).toEqual(['Un allié archer · +1 ATK +1 portée (pour ce tour)']);
-    expect(cardEffectLine(getCard('fleche-divine'))).toBe('Un allié archer · +1 ATK +1 portée (pour ce tour)');
-    expect(describeCard(getCard('archer-leger'))[1]).toBe('Archétype Archers.');
-    expect(describeCard(getCard('trebuchet'))).not.toContain('Archétype Archers.');
+    expect(describeCard(getCard('fleche-divine'))).toEqual(['Un allié archer impérial · +1 ATK +1 portée (pour ce tour)']);
+    expect(cardEffectLine(getCard('fleche-divine'))).toBe('Un allié archer impérial · +1 ATK +1 portée (pour ce tour)');
+    expect(describeCard(getCard('archer-leger'))[1]).toBe('Archétype Archers impériaux.');
+    expect(describeCard(getCard('trebuchet'))).not.toContain('Archétype Archers impériaux.');
   });
 
   it('journal : +1 ATK et +1 portée ce tour', () => {
     expect(describeAction(view(state), ARROW, view(after))).toEqual([
-      'J1 lance Flèche divine - Archers sur Archer léger - Archers de J1.',
+      'J1 lance Flèche divine - Archers impériaux sur Archer léger - Archers de J1.',
       'Archer léger - Archers de J1 : +1 ATK ce tour.',
       'Archer léger - Archers de J1 : +1 portée ce tour.',
     ]);

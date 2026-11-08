@@ -354,6 +354,19 @@ export function orthogonalNeighbors(pos: Position): Position[] {
  * une case orthogonale derrière une falaise n'en fait pas partie ; une case en diagonale en fait partie si au moins un
  * des deux chemins en L qui y mènent passe (case de coin jouable, aucune falaise sur le chemin).
  */
+/**
+ * La case en diagonale `to` est dans le carré de 1 de `from` : jouable, et au moins un des deux chemins en L qui y mènent
+ * passe (case de coin jouable, aucune falaise sur le chemin). `to` est à 1 ligne et 1 colonne de `from`.
+ */
+export function isDiagonalOpen(board: Board, from: Position, to: Position): boolean {
+  if (!isPlayable(board, to)) return false;
+  // Les deux chemins en L, sans tableau (appelé très souvent par l'IA).
+  const a = { row: to.row, col: from.col };
+  if (isPlayable(board, a) && !hasCliff(board, from, a) && !hasCliff(board, a, to)) return true;
+  const b = { row: from.row, col: to.col };
+  return isPlayable(board, b) && !hasCliff(board, from, b) && !hasCliff(board, b, to);
+}
+
 function aroundCells(board: Board, from: Position): Position[] {
   const cells: Position[] = [];
   for (const dr of [-1, 0, 1]) {
@@ -365,14 +378,7 @@ function aroundCells(board: Board, from: Position): Position[] {
         if (!hasCliff(board, from, pos)) cells.push(pos);
         continue;
       }
-      const corners = [
-        { row: from.row + dr, col: from.col },
-        { row: from.row, col: from.col + dc },
-      ];
-      const open = corners.some(
-        (corner) => isPlayable(board, corner) && !hasCliff(board, from, corner) && !hasCliff(board, corner, pos),
-      );
-      if (open) cells.push(pos);
+      if (isDiagonalOpen(board, from, pos)) cells.push(pos);
     }
   }
   return cells;

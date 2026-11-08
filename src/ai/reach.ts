@@ -29,7 +29,7 @@ interface Grid {
   readonly noFly: Uint8Array;
   /** Une falaise qui arrête aussi les tirs de portée 2 ou plus (Mine). */
   readonly noShot: Uint8Array;
-  /** Les cases en diagonale que `squareCells` donne (§10), -1 sinon : `index * 4 + (haut-gauche, haut-droite, bas-gauche, bas-droite)`. */
+  /** La case en diagonale que `squareCells` donne (§10), -1 sinon : `index * 4 + (haut-gauche, haut-droite, bas-gauche, bas-droite)`. */
   readonly diagonal: Int16Array;
 }
 
@@ -246,6 +246,7 @@ export function getStrikers(
           if (kind === LOW_X && range >= 2) continue;
           if (kind !== PLAIN) break;
           if (cell === start || owner[cell] === 0) continue;
+          if (monsterAt[cell] && owner[cell] === attacker) continue; // Un monstre allié ne gêne pas le tir (§4.7).
           const target = targetAt.get(cell);
           if (target) {
             let damage = atk;
@@ -257,16 +258,23 @@ export function getStrikers(
           break;
         }
       }
-      // Attaque en diagonale (§10) : à 1 case, sans bonus de dos.
-      if (range < 2) continue;
+      // Attaque en diagonale (§4.7, §10) : jusqu'à portée ÷ 2 cases, la première case occupée arrête le tir, sans bonus de dos.
+      const diagonalSteps = Math.floor(range / 2);
       for (let k = 0; k < 4; k++) {
-        const cell = grid.diagonal[from * 4 + k]!;
-        if (cell < 0 || cell === start || owner[cell] === 0) continue;
-        const target = targetAt.get(cell);
-        if (!target) continue;
-        const damage = target.kind === 'terrain' ? atk * siege : atk;
-        best ??= new Map();
-        if (damage > (best.get(target) ?? 0)) best.set(target, damage);
+        let cell = from;
+        for (let step = 1; step <= diagonalSteps; step++) {
+          cell = grid.diagonal[cell * 4 + k]!;
+          if (cell < 0) break;
+          if (cell === start || owner[cell] === 0) continue;
+          if (monsterAt[cell] && owner[cell] === attacker) continue; // Un monstre allié ne gêne pas le tir.
+          const target = targetAt.get(cell);
+          if (target) {
+            const damage = target.kind === 'terrain' ? atk * siege : atk;
+            best ??= new Map();
+            if (damage > (best.get(target) ?? 0)) best.set(target, damage);
+          }
+          break;
+        }
       }
     }
     if (best) strikers.push({ monster, hits: [...best].map(([target, damage]) => ({ target, damage })) });

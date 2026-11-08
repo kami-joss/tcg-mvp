@@ -500,7 +500,10 @@ function zoneThreatened(state: GameState, pos: Position, walkers: readonly Walke
   let theirs = 0;
   for (const cell of getZoneCells(state.board, state.mode, pos)) {
     for (const unit of getUnitsAt(state, cell)) {
-      if (unit.owner === me) mine++;
+      // Un de mes terrains tient la zone quoi qu'il arrive (§4.4 bis) ; seuls les monstres se comptent.
+      if (unit.kind === 'terrain') {
+        if (unit.owner === me) return false;
+      } else if (unit.owner === me) mine++;
       else theirs++;
     }
   }

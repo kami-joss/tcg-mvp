@@ -44,7 +44,7 @@ describe('textes des cartes', () => {
   it('monstre : caractéristiques, mots-clés expliqués, puis effet actif et son coût', () => {
     expect(describeCard(getCard('chaman'))).toEqual(['ATK 1 · PV 3 · Mob. 2 · Portée 1', 'Actif (1 mana) · un allié dans un carré de 1 · soin 2']);
     expect(describeCard(getCard('gardien'))[1]).toMatch(/^Passif · Riposte : .*\(une fois par tour\/carte\)\.$/);
-    expect(describeCard(getCard('archer-de-glace'))[1]).toBe('Archétype Archers.');
+    expect(describeCard(getCard('archer-de-glace'))[1]).toBe('Archétype Archers impériaux.');
     expect(describeCard(getCard('archer-de-glace'))[2]).toBe(
       'Passif · Givre 1 : à l’attaque, sa cible est slow 1 (−1 mobilité) pendant 1 tour.',
     );

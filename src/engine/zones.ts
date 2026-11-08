@@ -28,9 +28,10 @@ export function getZoneOf(board: Board, mode: GameMode, pos: Position): { zone: 
 
 /**
  * Qui tient la mana zone en `pos`. Mode Normal : le joueur dont un monstre l'occupe, sinon celui dont un terrain
- * l'occupe, sinon personne (§4.4). Mode contestation : on compte les unités de chaque joueur dans la zone, monstres et
- * terrain (1 chacun) ; le plus nombreux la tient (supériorité numérique), à égalité avec des unités des deux camps elle
- * est **contestée**, sans unité elle est neutre (§4.4 bis). Personne aussi si `pos` n'est pas une mana zone.
+ * l'occupe, sinon personne (§4.4). Mode contestation : un terrain dans la zone la tient pour son propriétaire, quel que
+ * soit le nombre de monstres ennemis ; sinon on compte les **monstres** de chaque joueur (1 chacun, camouflés compris) : le
+ * plus nombreux la tient (supériorité numérique), à égalité avec des monstres des deux camps elle est **contestée**, sans
+ * monstre elle est neutre (§4.4 bis). Personne aussi si `pos` n'est pas une mana zone.
  */
 export function getZoneStatus(state: ZoneState, pos: Position): ZoneStatus {
   const cell = getCell(state.board, pos);
@@ -40,9 +41,16 @@ export function getZoneStatus(state: ZoneState, pos: Position): ZoneStatus {
     return { pos, controller: occupant?.owner ?? null, contested: false };
   }
   const count: Record<PlayerId, number> = { 1: 0, 2: 0 };
+  const terrainOwners = new Set<PlayerId>();
   for (const zoneCell of getZoneCells(state.board, state.mode, pos)) {
-    for (const unit of getUnitsAt(state, zoneCell)) count[unit.owner]++;
+    for (const unit of getUnitsAt(state, zoneCell)) {
+      if (unit.kind === 'terrain') terrainOwners.add(unit.owner);
+      else count[unit.owner]++;
+    }
   }
+  // Un terrain tient la zone : jamais pris par le nombre de monstres (deux terrains adverses, cas rare : contestée).
+  if (terrainOwners.size === 1) return { pos, controller: [...terrainOwners][0]!, contested: false };
+  if (terrainOwners.size === 2) return { pos, controller: null, contested: true };
   if (count[1] === count[2]) return { pos, controller: null, contested: count[1] > 0 };
   return { pos, controller: count[1] > count[2] ? 1 : 2, contested: false };
 }

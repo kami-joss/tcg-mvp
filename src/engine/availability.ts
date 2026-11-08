@@ -3,6 +3,7 @@
 // joueur (ses actions légales y sont déjà) : elle ne révèle rien de caché.
 import { getCard, getMonsterCard } from './cards';
 import { isSilenced, isStunned } from './statuses';
+import { canAttack } from './units';
 import type { CardId, PlayerView, UnitId } from './types';
 
 /**
@@ -24,6 +25,10 @@ export type UnavailableReason =
   | { readonly kind: 'stunned' }
   /** Silence : plus d'effet actif. */
   | { readonly kind: 'silenced' }
+  /** Déjà armé : une seule attaque armée à la fois (Flèche explosive, Carreau perforant). */
+  | { readonly kind: 'armed' }
+  /** Plus d'attaque ce tour : rien à armer. */
+  | { readonly kind: 'noAttack' }
   /** Arrivé ce tour-ci : l'évolution attend le tour suivant. */
   | { readonly kind: 'justSummoned' }
   | { readonly kind: 'noTarget'; readonly target: MissingTarget };
@@ -50,7 +55,7 @@ export function attackAvailability(view: PlayerView, unitId: UnitId): Availabili
   const unit = view.units[unitId];
   if (!myTurn(view) || unit?.kind !== 'monster' || unit.owner !== view.viewer) return no({ kind: 'notYourTurn' });
   if (isStunned(unit)) return no({ kind: 'stunned' });
-  if (unit.hasAttacked) return no({ kind: 'alreadyUsed' });
+  if (!canAttack(view, unit)) return no({ kind: 'alreadyUsed' });
   if (view.legalActions.some((a) => a.type === 'attack' && a.unitId === unitId)) return OK;
   return no({ kind: 'noTarget', target: 'monster' });
 }
@@ -69,6 +74,10 @@ export function effectAvailability(view: PlayerView, unitId: UnitId, effect = 0)
   if (isSilenced(unit)) return no({ kind: 'silenced' });
   if (!ability.unlimited && unit.usedEffects.includes(effect)) return no({ kind: 'alreadyUsed' });
   if (view.me.mana < ability.manaCost) return no({ kind: 'mana', missing: ability.manaCost - view.me.mana });
+  if (ability.effects.some((e) => e.type === 'arm')) {
+    if (unit.armed) return no({ kind: 'armed' });
+    if (!canAttack(view, unit)) return no({ kind: 'noAttack' });
+  }
   if (view.legalActions.some((a) => a.type === 'activateEffect' && a.unitId === unitId && (a.effect ?? 0) === effect)) return OK;
   const { targeting, effects } = ability;
   if (effects.some((e) => e.type === 'evolve')) {

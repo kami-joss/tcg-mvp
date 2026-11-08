@@ -114,6 +114,12 @@ export type CardId =
   | 'trebuchet'
   | 'monstre-de-test'
   | 'fleche-divine'
+  // Deck Archers impériaux
+  | 'ecuyer-archers'
+  | 'archer-imperial'
+  | 'arbaletrier-imperial'
+  | 'trebuchet-archers'
+  | 'camps-de-tir'
   // Deck piège
   | 'poseur-de-piege'
   | 'farceur'
@@ -331,6 +337,11 @@ export type Effect =
   | { readonly type: 'addAtkThisTurn'; readonly amount: number; readonly perHpLost?: true }
   /** Portée supplémentaire, pour ce tour (Flèche divine). */
   | { readonly type: 'addRangeThisTurn'; readonly amount: number }
+  /**
+   * Armé (Archers impériaux) : sa prochaine attaque de ce tour a +`atk` ATK et/ou inflige `splash` dégâts aux ennemis du
+   * carré de 1 de sa cible. Un seul à la fois ; consommé par l'attaque, perdu à la fin du tour.
+   */
+  | { readonly type: 'arm'; readonly atk?: number; readonly splash?: number }
   /** ATK du moment (bonus du tour compris, auras non comprises) multipliée, pour ce tour (Seringue). */
   | { readonly type: 'multiplyAtkThisTurn'; readonly multiplier: number }
   /** Bonus définitif ; `hp` augmente à la fois les PV actuels et les PV max. */
@@ -427,6 +438,13 @@ export interface Ability {
   readonly effects: readonly Effect[];
 }
 
+/** Armé (effet `arm`) : le bonus que porte la prochaine attaque, et d'où il vient. */
+export interface Armed {
+  readonly source: EffectSource;
+  readonly atk: number;
+  readonly splash: number;
+}
+
 /** Effet actif d'un monstre : chacun une fois par tour, en payant `manaCost`. */
 export interface ActivatedAbility extends Ability {
   readonly manaCost: number;
@@ -468,11 +486,17 @@ export interface AllyZoneEffect {
  * tant qu'ils y sont (§10 pour les PV et la mobilité).
  */
 export interface StatAura {
+  /** Nom de l'effet, s'il en a un (« Carquois prêt ! »). */
+  readonly name?: string;
   readonly zone: AllyZone;
   readonly archetype: Archetype;
   readonly atk: number;
   readonly hp: number;
   readonly mobility: number;
+  /** +N portée (Camps de tir). */
+  readonly range?: number;
+  /** Nombre total d'attaques par tour (Carquois prêt ! : 2) ; plusieurs auras ne s'additionnent pas. */
+  readonly attacks?: number;
 }
 
 export interface MonsterCard extends CardBase {
@@ -500,6 +524,8 @@ export interface MonsterCard extends CardBase {
    * cette carte-là qui va au cimetière.
    */
   readonly formOf: CardId | null;
+  /** Ne peut pas attaquer une cible au contact (Trébuchet des archers) : `no_cac`, sans statut ni mot-clé. */
+  readonly noContact?: true;
 }
 
 export interface SpellCard extends CardBase {
@@ -566,6 +592,13 @@ export interface MonsterUnit extends UnitBase {
   /** Les bonus du tour (`atkBonus`, `rangeBonus`, `boost`), par source : pour dire d'où ils viennent. */
   readonly turnBonuses: readonly TurnBonus[];
   readonly hasAttacked: boolean;
+  /**
+   * Attaques faites ce tour (§4.7) : une seule, ou deux avec Carquois prêt ! (`attackLimit`). `hasAttacked` vrai avec 0
+   * attaque faite : plus d'attaque ce tour (effet « puis plus d'attaque », nouveau monstre évolué).
+   */
+  readonly attacksMade: number;
+  /** Armé : sa prochaine attaque de ce tour porte un bonus (Flèche explosive, Carreau perforant) ; absent sinon. */
+  readonly armed?: Armed;
   /** Effets actifs déjà utilisés ce tour, par leur rang sur la carte (0 : le premier). */
   readonly usedEffects: readonly number[];
   /**

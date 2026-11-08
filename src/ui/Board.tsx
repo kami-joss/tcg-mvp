@@ -13,6 +13,7 @@ import type { CSSProperties, MouseEvent } from 'react';
 import {
   MANA_ZONE_NAMES,
   allPositions,
+  canAttack,
   getAtk,
   getCard,
   getCell,
@@ -782,6 +783,7 @@ function BoardCell({
             <MonsterToken
               monster={monster}
               atk={getAtk(view, monster)}
+              attackSpent={monster.hasAttacked && !canAttack(view, monster)}
               requiem={requiemCountdown(monster, view.turn, view.activePlayer)}
               active={monster.owner === view.activePlayer}
               selected={isSelected(monster)}
@@ -882,6 +884,8 @@ interface MonsterTokenProps {
   monster: MonsterUnit;
   /** ATK effective : ATK du monstre + bonus du tour + auras (Arnold). */
   atk: number;
+  /** Il a attaqué et ne peut plus attaquer ce tour (Carquois prêt ! : après sa 2e attaque). */
+  attackSpent: boolean;
   /** Compte à rebours de son requiem, ou `null`. */
   requiem: number | null;
   /** Monstre du joueur dont c'est le tour : sa mobilité restante est affichée. */
@@ -913,7 +917,7 @@ interface MonsterTokenProps {
  * jeton : le support et le corps sont plus grands que lui, pour que rien de ce qui dépasse ne soit rogné en 3D.
  */
 function MonsterToken(props: MonsterTokenProps) {
-  const { monster, atk, requiem, active, selected, exhausted, hidden, onZone, angle, stats, onMoveBonus, standScale } = props;
+  const { monster, atk, attackSpent, requiem, active, selected, exhausted, hidden, onZone, angle, stats, onMoveBonus, standScale } = props;
   const { bobDelay, target, damage } = props;
   const card = getCard(monster.cardId);
   const art = CARD_ART[monster.cardId];
@@ -984,7 +988,7 @@ function MonsterToken(props: MonsterTokenProps) {
                 )}
                 {stats.atk && (
                   <span
-                    className={`stat stat--atk${active && monster.hasAttacked ? ' is-spent' : ''}${atk > monster.atk ? ' is-boosted' : ''}`}
+                    className={`stat stat--atk${active && attackSpent ? ' is-spent' : ''}${atk > monster.atk ? ' is-boosted' : ''}`}
                     title={atk > monster.atk ? `ATK ${atk} (${monster.atk} + ${atk - monster.atk})` : 'ATK'}
                   >
                     <Icon name="broadsword" />

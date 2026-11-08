@@ -48,7 +48,7 @@ describe('Flèche divine', () => {
     const after = applyAction(state, arrow('u1'));
     expect(after.players[1].mana).toBe(8);
     expect(getAtk(after, monster(after, 'u1'))).toBe(2);
-    expect(getRange(monster(after, 'u1'))).toBe(3);
+    expect(getRange(after, monster(after, 'u1'))).toBe(3);
     expect(after.events).toContainEqual({ type: 'boost', unitId: 'u1', pos: at(9, 0), atk: 1 });
     expect(after.events).toContainEqual({ type: 'reach', unitId: 'u1', pos: at(9, 0), amount: 1 });
     expect(canAttack(after, 'u1', 'u2')).toBe(true);
@@ -68,7 +68,7 @@ describe('Flèche divine', () => {
     );
     const later = applyAction(applyAction(applyAction(state, arrow('u1')), END_TURN), END_TURN);
     expect(monster(later, 'u1')).toMatchObject({ atkBonus: 0, rangeBonus: 0 });
-    expect(getRange(monster(later, 'u1'))).toBe(2);
+    expect(getRange(later, monster(later, 'u1'))).toBe(2);
     expect(canAttack(later, 'u1', 'u2')).toBe(false);
   });
 });

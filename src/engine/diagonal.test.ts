@@ -5,7 +5,8 @@ import { BOARD } from './board';
 import { at, gameWith } from './test-utils';
 import type { Action, GameState, UnitId } from './types';
 
-// Attaque en diagonale (SPEC.md §10) : un monstre de portée effective 2 ou plus frappe aussi à 1 case en diagonale.
+// Attaque en diagonale (SPEC.md §4.7, §10) : une case de diagonale compte pour 2 de portée, donc jusqu'à portée ÷ 2 cases
+// (portée 2-3 : 1 case, 4-5 : 2, 6 : 3), les cases entre les deux libres.
 
 const attack = (unitId: UnitId, targetId: UnitId, advance = false): Action => ({ type: 'attack', unitId, targetId, advance });
 
@@ -36,7 +37,7 @@ describe('attaque en diagonale (§10)', () => {
     expect(targetIds(state, 'u1').sort()).toEqual(['u2', 'u3', 'u4', 'u5']);
   });
 
-  it('pas en diagonale à 2 cases, ni avec une portée de 1', () => {
+  it('une portée de 2 ou 3 ne frappe pas à 2 cases en diagonale, une portée de 1 pas du tout', () => {
     const far = gameWith([
       { monster: 'archer', owner: 1, at: at(8, 2) },
       { monster: 'golem', owner: 2, at: at(6, 4) },
@@ -121,5 +122,71 @@ describe('attaque en diagonale (§10)', () => {
     );
     expect(getLegalActions(state).filter((a) => a.type === 'activateEffect')).toEqual([]);
     expect(targetIds(state, 'u1')).toEqual(['u2']); // mais son attaque, oui
+  });
+
+  it('portée 4 : un ennemi à 2 cases en diagonale est attaquable ; portée 6 : à 3 cases (distance orthogonale ≤ portée)', () => {
+    const two = gameWith([
+      { monster: 'archer-imperial', owner: 1, at: at(9, 0) }, // portée 4
+      { monster: 'golem', owner: 2, at: at(7, 2) },
+    ]);
+    expect(targetIds(two, 'u1')).toEqual(['u2']);
+    expect(applyAction(two, attack('u1', 'u2')).units.u2?.hp).toBe(5);
+    expect(getDiagonalCells(two, at(9, 0), 4)).toContainEqual(at(7, 2));
+    expect(getDiagonalCells(two, at(9, 0), 3)).not.toContainEqual(at(7, 2));
+    const three = gameWith([
+      { monster: 'trebuchet-archers', owner: 1, at: at(10, 3) }, // portée 6
+      { monster: 'golem', owner: 2, at: at(7, 6) },
+    ]);
+    expect(targetIds(three, 'u1')).toEqual(['u2']);
+    // Une case de plus : hors de portée.
+    const four = gameWith([
+      { monster: 'trebuchet-archers', owner: 1, at: at(10, 3) },
+      { monster: 'golem', owner: 2, at: at(6, 7) },
+    ]);
+    expect(targetIds(four, 'u1')).toEqual([]);
+  });
+
+  it('seules les diagonales pures comptent, pas les cases en L (1, 2)', () => {
+    const state = gameWith([
+      { monster: 'archer-imperial', owner: 1, at: at(9, 0) },
+      { monster: 'golem', owner: 2, at: at(8, 2) },
+    ]);
+    expect(targetIds(state, 'u1')).toEqual([]);
+  });
+
+  it('un allié sur la diagonale ne gêne pas ; un ennemi ou un terrain la bloque, comme en ligne droite', () => {
+    const state = gameWith([
+      { monster: 'archer-imperial', owner: 1, at: at(9, 0) },
+      { monster: 'milicien', owner: 1, at: at(8, 1) }, // allié sur la diagonale
+      { monster: 'golem', owner: 2, at: at(7, 2) },
+    ]);
+    expect(targetIds(state, 'u1')).toEqual(['u3']);
+    const wall = gameWith([
+      { monster: 'archer-imperial', owner: 1, at: at(9, 0) },
+      { terrain: 'bastion', owner: 1, at: at(8, 1) }, // terrain allié : il arrête le tir
+      { monster: 'golem', owner: 2, at: at(7, 2) },
+    ]);
+    expect(targetIds(wall, 'u1')).toEqual([]);
+    const enemyFirst = gameWith([
+      { monster: 'archer-imperial', owner: 1, at: at(9, 0) },
+      { monster: 'milicien', owner: 2, at: at(8, 1) },
+      { monster: 'golem', owner: 2, at: at(7, 2) },
+    ]);
+    expect(targetIds(enemyFirst, 'u1')).toEqual(['u2']); // le plus proche seulement
+  });
+
+  it('une falaise ou une case X coupe la diagonale longue (chaque pas doit être dans le carré de 1)', () => {
+    // Le mur de la Scierie : de (5, 3), la diagonale vers (4, 2) puis (3, 1) est coupée dès le premier pas.
+    const state = gameWith([
+      { monster: 'archer-imperial', owner: 1, at: at(5, 3) },
+      { monster: 'golem', owner: 2, at: at(3, 1) },
+    ]);
+    expect(targetIds(state, 'u1')).toEqual([]);
+  });
+
+  it('la menace montre les diagonales jusqu’à portée ÷ 2 (portée 4 : 2 cases)', () => {
+    const board = { board: BOARD, units: {} };
+    expect(getStrikeCells(board, at(9, 0), 4)).toContainEqual(at(7, 2));
+    expect(getStrikeCells(board, at(9, 0), 3)).not.toContainEqual(at(7, 2));
   });
 });

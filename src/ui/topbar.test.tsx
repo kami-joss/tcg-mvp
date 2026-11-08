@@ -56,7 +56,7 @@ describe('barre du haut', () => {
     expect(html).toMatch(/data-mana="1"[^>]*>4</);
     expect(html).toMatch(/data-mana="2"[^>]*>7</);
     expect(html).toContain('<span data-vp="1">12</span><small>/30 VP</small>');
-    expect(html).toContain('<span class="score__deck">Archers</span>');
+    expect(html).toContain('<span class="score__deck">Archers impériaux</span>');
     expect(html).toContain('<span class="score__deck">Pièges</span>');
   });
 

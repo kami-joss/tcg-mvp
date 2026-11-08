@@ -198,8 +198,17 @@ describe('Mage : 2 dégâts à un ennemi à portée 2 (SPEC.md §6)', () => {
     expect(() => applyAction(state, activate('u1', 'u3'))).toThrow(IllegalActionError);
   });
 
-  it('même ligne de vue qu’une attaque : bloquée par une unité ou une case X', () => {
+  it('même ligne de vue qu’une attaque : un monstre ennemi, un terrain ou une case X l’arrête, un allié non', () => {
     const blockedByUnit = gameWith(
+      [
+        { monster: 'mage', owner: 1, at: at(8, 1) },
+        { monster: 'milicien', owner: 2, at: at(8, 2) },
+        { monster: 'golem', owner: 2, at: at(8, 3) },
+      ],
+      MANA,
+    );
+    expect(() => applyAction(blockedByUnit, activate('u1', 'u3'))).toThrow(IllegalActionError);
+    const throughAlly = gameWith(
       [
         { monster: 'mage', owner: 1, at: at(8, 1) },
         { monster: 'milicien', owner: 1, at: at(8, 2) },
@@ -207,7 +216,7 @@ describe('Mage : 2 dégâts à un ennemi à portée 2 (SPEC.md §6)', () => {
       ],
       MANA,
     );
-    expect(() => applyAction(blockedByUnit, activate('u1', 'u3'))).toThrow(IllegalActionError);
+    expect(applyAction(throughAlly, activate('u1', 'u3')).units.u3?.hp).toBe(5);
 
     // (3,3) → (3,5) : la case intermédiaire (3,4) est un X.
     const blockedByX = gameWith(

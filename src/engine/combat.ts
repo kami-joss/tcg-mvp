@@ -1,5 +1,5 @@
 // Attaque (SPEC.md §4.7), avec les mots-clés `riposte`, `prime` (§5) et ceux des decks archer et piège (§6 bis).
-import { DIRECTION_OFFSETS, squareCells, directionBetween, distance, getCell, getCliff } from './board';
+import { DIRECTION_OFFSETS, directionBetween, distance, getCell, getCliff, isDiagonalOpen, isInSquare } from './board';
 import { getMonsterCard } from './cards';
 import { dealDamage } from './damage';
 import { IllegalActionError } from './errors';
@@ -9,8 +9,8 @@ import { addStatus, canMove, isStunned } from './statuses';
 import { perceived, reveal } from './stealth';
 import { enterCell } from './traps';
 import { applyTriggeredEffects } from './effects';
-import { getActiveMonster, getAtk, getKeyword, getMonsters, getRange, getUnitsAt, hasKeyword, setUnit } from './units';
-import type { Action, BoardState, GameState, MonsterUnit, Position, StatusSpec, Unit } from './types';
+import { canAttack, getActiveMonster, getAtk, getKeyword, getMonsters, getRange, getUnitsAt, hasKeyword, setUnit } from './units';
+import type { Action, BoardState, GameState, MonsterUnit, PlayerId, Position, StatusSpec, Unit } from './types';
 
 type AttackAction = Extract<Action, { type: 'attack' }>;
 
@@ -28,11 +28,19 @@ function shotStep(state: BoardState, previous: Position, pos: Position, range: n
 }
 
 /**
+ * Une case que les monstres alliés de `owner` occupent seuls : ils ne gênent pas le tir (§4.7, §10). Un terrain, le sien
+ * compris, ou un monstre ennemi, l'arrête.
+ */
+function isAllyTransparent(units: readonly Unit[], owner: PlayerId | undefined): boolean {
+  return owner !== undefined && units.length > 0 && units.every((unit) => unit.kind === 'monster' && unit.owner === owner);
+}
+
+/**
  * Ligne de vue depuis `from` : dans chaque direction orthogonale, la première case occupée à `range`
  * cases au plus. Les cases traversées doivent être vides ; le tir s'arrête avant une case X, sauf une X basse pour une
  * portée de 2 ou plus, et avant une falaise qu'il ne franchit pas (`shotStep`).
  */
-export function getLineOfSightCells(state: BoardState, from: Position, range: number): Position[] {
+export function getLineOfSightCells(state: BoardState, from: Position, range: number, owner?: PlayerId): Position[] {
   const cells: Position[] = [];
   for (const step of Object.values(DIRECTION_OFFSETS)) {
     for (let d = 1; d <= range; d++) {
@@ -41,7 +49,9 @@ export function getLineOfSightCells(state: BoardState, from: Position, range: nu
       const shot = shotStep(state, previous, pos, range);
       if (shot === 'stop') break;
       if (shot === 'over') continue;
-      if (getUnitsAt(state, pos).length > 0) {
+      const units = getUnitsAt(state, pos);
+      if (units.length > 0) {
+        if (isAllyTransparent(units, owner)) continue;
         cells.push(pos);
         break;
       }
@@ -50,21 +60,47 @@ export function getLineOfSightCells(state: BoardState, from: Position, range: nu
   return cells;
 }
 
+/** Les 4 diagonales : un pas change la ligne et la colonne de 1. */
+const DIAGONAL_STEPS = [
+  { row: -1, col: -1 },
+  { row: -1, col: 1 },
+  { row: 1, col: -1 },
+  { row: 1, col: 1 },
+] as const;
+
 /**
- * Attaque en diagonale (§10) : un monstre de portée 2 ou plus frappe aussi les 4 cases en diagonale, à 1 case, si elles
- * sont dans le carré de 1 au sens du §10 (jouables, un chemin en L sans falaise ni case X). Ni les monstres ni les terrains du
- * coin ne gênent. Ce n'est pas un contact : ni riposte, ni avancée, ni bonus de dos.
+ * Attaque en diagonale (§4.7, §10) : une case de diagonale compte pour 2 de portée (distance orthogonale), donc un
+ * monstre frappe en diagonale jusqu'à `range ÷ 2` cases (portée 2-3 : 1 case, 4-5 : 2, 6 : 3). Chaque pas doit être dans le
+ * carré de 1 de la case d'avant au sens du §10 (jouable, un chemin en L sans falaise ni case X ; les monstres et terrains du
+ * coin ne gênent pas) et les cases traversées doivent être vides : la première occupée arrête le tir, comme en ligne.
+ * Ce n'est pas un contact : ni riposte, ni avancée, ni bonus de dos.
  */
-export function getDiagonalCells(state: BoardState, from: Position, range: number): Position[] {
-  if (range < 2) return [];
-  return squareCells(state.board, from).filter((pos) => pos.row !== from.row && pos.col !== from.col);
+export function getDiagonalCells(state: BoardState, from: Position, range: number, owner?: PlayerId): Position[] {
+  const steps = Math.floor(range / 2);
+  const cells: Position[] = [];
+  for (const step of DIAGONAL_STEPS) {
+    let previous = from;
+    for (let k = 1; k <= steps; k++) {
+      const pos = { row: previous.row + step.row, col: previous.col + step.col };
+      if (!isDiagonalOpen(state.board, previous, pos)) break;
+      const units = getUnitsAt(state, pos);
+      if (isAllyTransparent(units, owner)) {
+        previous = pos; // Un allié sur la diagonale ne gêne pas, mais on ne le vise pas.
+        continue;
+      }
+      cells.push(pos);
+      if (units.length > 0) break;
+      previous = pos;
+    }
+  }
+  return cells;
 }
 
 /**
  * Cases qu'un monstre de portée `range` peut frapper depuis `from` : dans chaque direction, les cases traversées par
  * son tir, jusqu'à la première occupée comprise (mêmes règles que la ligne de vue). Sert à montrer la menace adverse.
  */
-export function getStrikeCells(state: BoardState, from: Position, range: number): Position[] {
+export function getStrikeCells(state: BoardState, from: Position, range: number, owner?: PlayerId): Position[] {
   const cells: Position[] = [];
   for (const step of Object.values(DIRECTION_OFFSETS)) {
     for (let d = 1; d <= range; d++) {
@@ -73,11 +109,12 @@ export function getStrikeCells(state: BoardState, from: Position, range: number)
       const shot = shotStep(state, previous, pos, range);
       if (shot === 'stop') break;
       if (shot === 'over') continue;
+      const units = getUnitsAt(state, pos);
       cells.push(pos);
-      if (getUnitsAt(state, pos).length > 0) break;
+      if (units.length > 0 && !isAllyTransparent(units, owner)) break;
     }
   }
-  return [...cells, ...getDiagonalCells(state, from, range)];
+  return [...cells, ...getDiagonalCells(state, from, range, owner)];
 }
 
 /**
@@ -85,13 +122,16 @@ export function getStrikeCells(state: BoardState, from: Position, range: number)
  * Sur une case avec un monstre et un terrain, seul le monstre est attaquable.
  */
 export function getAttackTargets(state: GameState, attacker: MonsterUnit): Unit[] {
-  if (attacker.hasAttacked || isStunned(attacker)) return [];
-  const range = getRange(attacker);
+  if (!canAttack(state, attacker)) return [];
+  const range = getRange(state, attacker);
   const cells = [
-    ...getLineOfSightCells(state, attacker.pos, range),
-    ...getDiagonalCells(state, attacker.pos, range).filter((pos) => getUnitsAt(state, pos).length > 0),
+    ...getLineOfSightCells(state, attacker.pos, range, attacker.owner),
+    ...getDiagonalCells(state, attacker.pos, range, attacker.owner).filter((pos) => getUnitsAt(state, pos).length > 0),
   ];
+  // `no_cac` (Trébuchet des archers) : jamais une cible au contact (1 case en ligne droite) ; la diagonale n'en est pas un.
+  const noContact = getMonsterCard(attacker.cardId).noContact === true;
   return cells.flatMap((pos) => {
+    if (noContact && distance(attacker.pos, pos) === 1) return [];
     const units = getUnitsAt(state, pos);
     const target = units.find((u) => u.kind === 'monster') ?? units[0];
     return target && target.owner !== attacker.owner ? [target] : [];
@@ -225,7 +265,7 @@ export function getAttackActions(state: GameState): Action[] {
 
 export function applyAttack(state: GameState, action: AttackAction): GameState {
   const attacker = getActiveMonster(state, action.unitId);
-  if (attacker.hasAttacked) throw new IllegalActionError(`${attacker.id} a déjà attaqué ce tour`);
+  if (!canAttack(state, attacker)) throw new IllegalActionError(`${attacker.id} ne peut plus attaquer ce tour`);
   const seen = perceived(state);
   const target = getAttackTargets(seen, attacker).find((t) => t.id === action.targetId);
   if (!target) throw new IllegalActionError(`${attacker.id} ne peut pas attaquer ${action.targetId}`);
@@ -233,9 +273,11 @@ export function applyAttack(state: GameState, action: AttackAction): GameState {
     throw new IllegalActionError(`Avancée impossible pour ${attacker.id} sur ${target.id}`);
   }
 
-  const attacked: MonsterUnit = { ...attacker, hasAttacked: true };
+  // Armé : l'attaque consomme son bonus (l'ATK et la zone sont lus sur `attacker`, avant ce retrait).
+  const { armed, ...unarmed } = attacker;
+  const attacked: MonsterUnit = { ...unarmed, hasAttacked: true, attacksMade: attacker.attacksMade + 1 };
   // Un monstre invisible sur la ligne de tir l'arrête : l'attaque est utilisée, sans dégâts, et il se révèle (§10).
-  const blocker = getShotBlocker(state, attacker.pos, target.pos);
+  const blocker = getShotBlocker(state, attacker.pos, target.pos, attacker.owner);
   if (blocker) {
     const shot = emit(state, { type: 'shotBlocked', unitId: attacker.id, from: attacker.pos, pos: blocker.pos });
     return reveal(setUnit(shot, attacked), blocker.id);
@@ -252,6 +294,8 @@ export function applyAttack(state: GameState, action: AttackAction): GameState {
     behind,
   });
   let next = dealDamage(setUnit(declared, attacked), target.id, attackDamage(state, attacker, target), attacker.owner, 'attack');
+  // Armé (Flèche explosive) : 1 dégât aux ennemis du carré de 1 de la cible, cible exclue, que celle-ci survive ou non.
+  if (armed && armed.splash > 0) next = splashDamage(next, seen, attacker, target, armed.splash);
   // Soif (Vampire) : il récupère ses PV après les dégâts, avant la riposte et l'avancée, même si la cible est détruite (§10).
   const soif = getKeyword(attacker, 'soif');
   if (soif) next = applyTriggeredEffects(next, [{ type: 'heal', amount: soif.amount }], attacker.id, attacked);
@@ -295,19 +339,37 @@ export function applyAttack(state: GameState, action: AttackAction): GameState {
   return next;
 }
 
+/**
+ * Éclats d'une attaque armée (Flèche explosive) : `amount` dégâts d'effet à chaque monstre ennemi que voit l'attaquant dans
+ * le carré de 1 de la case de la cible (la cible n'en fait pas partie : elle subit déjà l'attaque). Falaises et cases X
+ * coupent la zone ; un monstre détruit rapporte son VP.
+ */
+function splashDamage(state: GameState, seen: BoardState, attacker: MonsterUnit, target: Unit, amount: number): GameState {
+  const hit = Object.values(seen.units).filter(
+    (unit) => unit.kind === 'monster' && unit.owner !== attacker.owner && unit.id !== target.id && isInSquare(seen.board, target.pos, unit.pos),
+  );
+  return hit.reduce((next, unit) => (next.units[unit.id] ? dealDamage(next, unit.id, amount, attacker.owner, 'effect') : next), state);
+}
+
 /** PV que l'attaquant récupérera avec `soif`, sans dépasser ses PV max. */
 function soifHeal(attacker: MonsterUnit): number {
   return Math.min(getKeyword(attacker, 'soif')?.amount ?? 0, attacker.maxHp - attacker.hp);
 }
 
-/** Première unité entre `from` et `to` (alignés), exclus : sur l'état réel, c'est un monstre invisible pour le tireur. */
-function getShotBlocker(state: GameState, from: Position, to: Position): Unit | undefined {
-  if (from.row !== to.row && from.col !== to.col) return undefined; // Diagonale : à 1 case, rien entre les deux.
-  const d = distance(from, to);
-  const step = { row: Math.sign(to.row - from.row), col: Math.sign(to.col - from.col) };
+/**
+ * Première unité entre `from` et `to` (alignés), exclus, qui arrête le tir : sur l'état réel, c'est un monstre invisible
+ * pour le tireur (ses alliés ne gênent pas).
+ */
+function getShotBlocker(state: GameState, from: Position, to: Position, owner: PlayerId): Unit | undefined {
+  const dr = to.row - from.row;
+  const dc = to.col - from.col;
+  const diagonal = dr !== 0 && dc !== 0;
+  if (diagonal && Math.abs(dr) !== Math.abs(dc)) return undefined;
+  const d = diagonal ? Math.abs(dr) : distance(from, to);
+  const step = { row: Math.sign(dr), col: Math.sign(dc) };
   for (let i = 1; i < d; i++) {
-    const unit = getUnitsAt(state, { row: from.row + step.row * i, col: from.col + step.col * i })[0];
-    if (unit) return unit;
+    const units = getUnitsAt(state, { row: from.row + step.row * i, col: from.col + step.col * i });
+    if (units.length > 0 && !isAllyTransparent(units, owner)) return units[0];
   }
   return undefined;
 }

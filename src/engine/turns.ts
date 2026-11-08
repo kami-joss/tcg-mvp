@@ -71,8 +71,10 @@ export function startTurn(state: GameState): GameState {
   for (const current of [...getMonsters(next, 1), ...getMonsters(next, 2)]) {
     // Son déplacement arrêté (sablier, retour…), la mobilité dépensée au-delà de sa forme et le bonus d'un Terrain de
     // chasse déjà reçu ne valaient que son tour.
-    const { halted: _halted, mobilityDebt: _debt, onMoveTaken: _taken, ...fresh } = current;
-    const monster = current.owner === player ? fresh : current;
+    const { halted: _halted, mobilityDebt: _debt, onMoveTaken: _taken, armed: _armed, ...fresh } = current;
+    // Un monstre armé qui n'a pas attaqué perd son bonus à la fin de son tour : celui de l'adversaire aussi, au début du mien.
+    const { armed: _spent, ...unarmed } = current;
+    const monster = current.owner === player ? fresh : unarmed;
     // Mobilité de la carte, plus les auras et le bonus du plateau, moins les slow ; 0 si stun ou immobilisé (§5 bis).
     const refreshed =
       monster.owner === player
@@ -82,6 +84,7 @@ export function startTurn(state: GameState): GameState {
             boost: 0,
             turnBonuses: [],
             hasAttacked: false,
+            attacksMade: 0,
             usedEffects: [],
             // Le chemin du tour repart de sa case (retour, piège qui fait remonter le temps).
             trail: [monster.pos],

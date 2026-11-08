@@ -49,6 +49,7 @@ export function createMonsterUnit(
     boost: 0,
     turnBonuses: [],
     hasAttacked: false,
+    attacksMade: 0,
     usedEffects: [],
     trail: [pos],
     hasRiposted: false,
@@ -180,9 +181,9 @@ export function auraSources(state: BoardState, monster: MonsterUnit): Unit[] {
   });
 }
 
-/** ATK actuelle d'un monstre : la sienne, plus le bonus du tour et les auras. C'est elle qui frappe et qui riposte. */
+/** ATK actuelle d'un monstre : la sienne, plus le bonus du tour, les auras et son bonus d'armé. C'est elle qui frappe et qui riposte. */
 export function getAtk(state: BoardState, monster: MonsterUnit): number {
-  return monster.atk + monster.atkBonus + auraAtk(state, monster);
+  return monster.atk + monster.atkBonus + auraAtk(state, monster) + (monster.armed?.atk ?? 0);
 }
 
 /** PV qu'apportent les auras à `monster` (Origine : +1 par Origine alliée dans son carré de 1). */
@@ -195,7 +196,27 @@ export function auraMobility(state: BoardState, monster: MonsterUnit): number {
   return auraSources(state, monster).reduce((total, other) => total + (auraOf(other)?.mobility ?? 0), 0);
 }
 
-/** Portée actuelle d'un monstre : celle de sa carte, plus le bonus du tour (Flèche divine). C'est elle qui sert à attaquer. */
-export function getRange(monster: MonsterUnit): number {
-  return getMonsterCard(monster.cardId).range + monster.rangeBonus;
+/** Bonus de portée des auras (Camps de tir) : les sources dont l'aura couvre `monster`, cumulées. */
+export function auraRange(state: BoardState, monster: MonsterUnit): number {
+  return auraSources(state, monster).reduce((total, other) => total + (auraOf(other)?.range ?? 0), 0);
+}
+
+/** Portée actuelle d'un monstre : celle de sa carte, plus le bonus du tour (Flèche divine) et les auras. C'est elle qui sert à attaquer. */
+export function getRange(state: BoardState, monster: MonsterUnit): number {
+  return getMonsterCard(monster.cardId).range + monster.rangeBonus + auraRange(state, monster);
+}
+
+/**
+ * Nombre d'attaques de `monster` par tour (§4.7) : 1, ou davantage tant qu'un allié dont l'aura le donne le couvre
+ * (Carquois prêt ! : 2 au total, plusieurs auras ne s'additionnent pas).
+ */
+export function attackLimit(state: BoardState, monster: MonsterUnit): number {
+  return Math.max(1, ...auraSources(state, monster).map((other) => auraOf(other)?.attacks ?? 0));
+}
+
+/** Il lui reste une attaque ce tour : ni stun, ni « plus d'attaque ce tour », et moins d'attaques faites que sa limite du moment. */
+export function canAttack(state: BoardState, monster: MonsterUnit): boolean {
+  if (monster.statuses.some((status) => status.kind === 'stun')) return false;
+  if (monster.hasAttacked && monster.attacksMade === 0) return false;
+  return monster.attacksMade < attackLimit(state, monster);
 }

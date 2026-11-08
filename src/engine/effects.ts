@@ -11,7 +11,7 @@ import { perceived, perceivedBy, reveal } from './stealth';
 import { NEW_MOVEMENT, enterCell, rewindMonster } from './traps';
 import { getCard, getMonsterCard } from './cards';
 import { payCard, placeSummonedMonster } from './summon';
-import { addUnit, createMonsterUnit, getMonsterAt, getMonsters, getUnitsAt, removeUnit, setUnit } from './units';
+import { addUnit, canAttack, createMonsterUnit, getMonsterAt, getMonsters, getUnitsAt, removeUnit, setUnit } from './units';
 import type {
   EffectSource,
   TurnBonus,
@@ -70,7 +70,7 @@ function getTargetableMonsters(
       return candidates.filter((m) => isInSquare(state.board, from, m.pos));
     }
     case 'line': {
-      const cells = getLineOfSightCells(state, requireSource(source).pos, reach.range);
+      const cells = getLineOfSightCells(state, requireSource(source).pos, reach.range, requireSource(source).owner);
       return candidates.filter((m) => cells.some((pos) => samePos(pos, m.pos)));
     }
   }
@@ -252,6 +252,11 @@ export function getEffectTargets(
     case 'self':
       // Évolution : un choix de carte ; sinon (Dopage), la source elle-même.
       if (effects.some((effect) => effect.type === 'evolve')) return getEvolveTargets(state, player, requireSource(source));
+      // Armer (Flèche explosive, Carreau perforant) : un seul effet armé à la fois, et seulement s'il lui reste une attaque.
+      if (effects.some((effect) => effect.type === 'arm')) {
+        const self = requireSource(source);
+        return self.armed || !canAttack(state, self) ? [] : [{ kind: 'unit', unitId: self.id }];
+      }
       return [{ kind: 'unit', unitId: requireSource(source).id }];
     case 'zone': {
       // Jouable s'il touche au moins un ennemi ; en ligne, dans chaque direction où il en touche un.
@@ -492,6 +497,8 @@ function applyEffect(state: GameState, effect: Effect, monster: MonsterUnit, con
       const atk = effect.perHpLost ? effect.amount * (context.hpLost ?? 0) : effect.amount;
       return atk > 0 ? boost(state, monster, atk, context.origin) : state;
     }
+    case 'arm':
+      return setUnit(state, { ...monster, armed: { source: context.origin, atk: effect.atk ?? 0, splash: effect.splash ?? 0 } });
     case 'addRangeThisTurn':
       return setUnit(emit(state, { type: 'reach', unitId, pos, amount: effect.amount }), {
         ...monster,

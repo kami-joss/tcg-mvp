@@ -51,6 +51,7 @@ describe('invocation (SPEC.md §4.5)', () => {
       boost: 0,
       turnBonuses: [],
       hasAttacked: false,
+      attacksMade: 0,
       usedEffects: [],
       trail: [at(0, 4)],
       hasRiposted: false,

@@ -10,7 +10,11 @@ import apprenti from '../assets/art/apprenti.jpg';
 import archerDeGlaceShiny from '../assets/art/archer-de-glace-shiny.jpg';
 import archerDeGlace from '../assets/art/archer-de-glace.jpg';
 import archerDuFeu from '../assets/art/archer-du-feu.jpg';
+import archerImperial from '../assets/art/archer-imperial.jpg';
 import archerLeger from '../assets/art/archer-leger.jpg';
+import arbaletrierImperial from '../assets/art/arbaletrier-imperial.jpg';
+import campsDeTir from '../assets/art/camps-de-tir.jpg';
+import ecuyerArchers from '../assets/art/ecuyer-archers.jpg';
 import archerLourd from '../assets/art/archer-lourd.jpg';
 import archimage from '../assets/art/archimage.jpg';
 import arnold from '../assets/art/arnold.jpg';
@@ -52,6 +56,7 @@ import teleporteur from '../assets/art/teleporteur.jpg';
 import terrainDrainant from '../assets/art/terrain-drainant.jpg';
 import terrainPiege from '../assets/art/terrain-piege.jpg';
 import trebuchet from '../assets/art/trebuchet.jpg';
+import trebuchetArchers from '../assets/art/trebuchet-archers.jpg';
 import vladimir from '../assets/art/vladimir.jpg';
 import zoneInvocation from '../assets/art/zone-invocation.jpg';
 import zoldikShiny from '../assets/art/zoldik-shiny.jpg';
@@ -77,7 +82,15 @@ export const CARD_ART: Partial<Record<CardId, CardArt>> = {
   'archer-de-glace': art(archerDeGlace, 576, 1024, [44.5, 12.3], 24),
   'archer-du-feu': art(archerDuFeu, 572, 1024, [50, 14.1], 25),
   trebuchet: art(trebuchet, 960, 960, [52, 35], 70),
-  'fleche-divine': art(flecheDivine, 1024, 559, [48, 45], 45),
+  // Deck Archers impériaux (sources dans artworks/, recadrées au ratio 1,78 comme les autres decks en 9:16) : les yeux à 13 %
+  // de la hauteur (SHEET_FRAME.eyeAt), sinon l'image remonte et laisse du vide en bas de la fiche ; scènes et machines : le point
+  // d'intérêt est donné à 13 %, l'image reste calée en haut.
+  'ecuyer-archers': art(ecuyerArchers, 576, 1024, [25.7, 13], 33),
+  'archer-imperial': art(archerImperial, 576, 1024, [36.3, 13], 27),
+  'arbaletrier-imperial': art(arbaletrierImperial, 576, 1024, [44.9, 13], 28),
+  'trebuchet-archers': art(trebuchetArchers, 576, 1024, [30, 13], 70),
+  'camps-de-tir': art(campsDeTir, 576, 1024, [55, 13], 60),
+  'fleche-divine': art(flecheDivine, 576, 1024, [22.1, 13], 29),
   // Deck Pièges
   'poseur-de-piege': art(poseurDePiege, 1024, 1024, [65, 32.5], 30),
   farceur: art(farceur, 1024, 1024, [70, 30.5], 40),

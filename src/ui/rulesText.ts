@@ -44,6 +44,7 @@ export const GLOSSARY = {
   immobilise: 'Immobilisé : ne peut plus bouger (ni avancer après une attaque), mais peut attaquer et activer ses effets.',
   requiem: 'Requiem N : meurt au début de son N-ième prochain tour. Personne ne gagne de VP.',
   contreCoup: 'Contre-coup : ce que le monstre subit en retour de son effet, une fois l’effet joué, même si sa cible n’a rien subi.',
+  arme: 'Armé : la prochaine attaque de ce monstre ce tour porte l’effet noté, puis il n’est plus armé. Un seul effet armé à la fois, et seulement s’il lui reste une attaque ; si l’attaque n’a pas lieu, le bonus est perdu à la fin du tour.',
   silence: 'Silence : le monstre ne peut plus activer ses effets actifs. Il peut encore attaquer, se déplacer, et ses mots-clés et passifs agissent.',
   carapace: 'Carapace : la prochaine attaque (ou riposte) subie n’inflige que 1 PV au monstre, puis la carapace disparaît. Les autres dégâts (sorts, effets, pièges, burn) ne sont pas touchés.',
   camouflage: 'Camouflage N : caché à l’adversaire tant qu’aucun de ses monstres ni terrains n’est dans un carré de N.',
@@ -332,6 +333,13 @@ function abilityBody(ability: Ability): string {
       return `${capitalize(t('invoquer', 'invoque'))} sur une case libre dans un ${t('carre', 'carré')} de 1 un monstre de ton grimoire, en payant son coût. Il peut agir aussitôt.`;
     case 'teleport':
       return `${capitalize(t('teleporter', 'téléporte'))} ${targetOf(targeting).noun} sur une case libre dans un ${t('carre', 'carré')} de 1.`;
+    case 'arm': {
+      const bonus = [
+        first.atk ? `a +${first.atk} ATK` : null,
+        first.splash ? `inflige aussi ${plural(first.splash, 'dégât')} à chaque ennemi dans un ${t('carre', 'carré')} de 1 de sa cible` : null,
+      ];
+      return `${capitalize(t('arme', 'arme'))} ce monstre : sa prochaine attaque ce tour ${bonus.filter(Boolean).join(' et ')}.`;
+    }
     case 'returnOnTrail':
       return `${capitalize(t('teleporter', 'téléporte'))} ce monstre sur une case libre de son ${t('chemin', 'chemin du tour')}. Il ne peut plus se déplacer ce tour.`;
     case 'evolve':
@@ -411,8 +419,8 @@ const alliesAround = ({ archetype, zone }: AllyZoneEffect | StatAura) => {
   return `tes ${ARCHETYPE_NAMES[archetype].many} ${where}`;
 };
 
-const statBonus = ({ atk, hp, mobility }: Pick<StatAura, 'atk' | 'hp' | 'mobility'>) => {
-  const parts = [atk ? `+${atk} ATK` : null, hp ? `+${hp} PV` : null, mobility ? `+${mobility} mobilité` : null].filter(Boolean);
+const statBonus = ({ atk, hp, mobility, range }: Pick<StatAura, 'atk' | 'hp' | 'mobility'> & { range?: number }) => {
+  const parts = [atk ? `+${atk} ATK` : null, hp ? `+${hp} PV` : null, mobility ? `+${mobility} mobilité` : null, range ? `+${range} portée` : null].filter(Boolean);
   return parts.length <= 1 ? parts.join('') : `${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}`;
 };
 
@@ -430,6 +438,14 @@ const passageRules = (card: TerrainCard | MonsterCard) => {
 };
 
 const passageTerm = (card: TerrainCard | MonsterCard) => (card.passage?.lingering ? t('zone', 'Zone') : t('passage', 'Passage'));
+
+/** Aura : « Tes archers impériaux dans un carré de 1 peuvent attaquer 2 fois par tour. », « … ont +1 ATK. » */
+function auraRules(aura: StatAura): string {
+  const who = capitalize(alliesAround(aura));
+  const stats = statBonus(aura);
+  const attacks = aura.attacks ? `peuvent attaquer ${aura.attacks} fois par tour` : '';
+  return [stats ? `${who} ont ${stats}` : null, attacks ? (stats ? `et ${attacks}` : `${who} ${attacks}`) : null].filter(Boolean).join(' ') + '.';
+}
 
 /** Au déplacement (Terrain de chasse) : « Quand un de tes monstres commence un déplacement sur sa case… ». */
 const onMoveRules = (card: TerrainCard) =>
@@ -450,7 +466,7 @@ export function passiveRules(card: Card): RulesItem[] {
   if (card.kind === 'terrain') {
     return [
       card.zoneManaBonus > 0 ? { name: '', text: `La mana zone rapporte +${card.zoneManaBonus} mana.` } : null,
-      card.aura ? { name: 'Aura', text: `${capitalize(alliesAround(card.aura))} ont ${statBonus(card.aura)}.` } : null,
+      card.aura ? { name: card.aura.name ?? 'Aura', text: auraRules(card.aura) } : null,
       card.passage ? { name: passageTerm(card), text: passageRules(card)! } : null,
       card.summonPoint ? { name: 'Point d’invocation', text: 'Sa case est une case d’invocation pour toi, tant qu’aucun monstre ne s’y trouve.' } : null,
       card.onMove ? { name: 'Au déplacement', text: onMoveRules(card)! } : null,
@@ -464,7 +480,8 @@ export function passiveRules(card: Card): RulesItem[] {
       : `${capitalize(clauses(card.onKill, targetOf({ type: 'self' }), { type: 'self' }))}.`;
     items.push({ name: 'Quand il détruit une unité', text: gains });
   }
-  if (card.aura) items.push({ name: 'Aura', text: `${capitalize(alliesAround(card.aura))} ont ${statBonus(card.aura)}.` });
+  if (card.noContact) items.push({ name: '', text: `Ne peut pas attaquer une cible ${t('auContact', 'au contact')}.` });
+  if (card.aura) items.push({ name: card.aura.name ?? 'Aura', text: auraRules(card.aura) });
   if (card.passage) items.push({ name: passageTerm(card), text: passageRules(card)! });
   if (card.turnStart) {
     const target = many(alliesAround(card.turnStart));

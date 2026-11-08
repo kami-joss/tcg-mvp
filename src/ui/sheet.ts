@@ -7,7 +7,9 @@ import {
   MANA_ZONE_NAMES,
   VP_PER_CONTROLLED_ZONE,
   attackAvailability,
+  attackLimit,
   auraAtk,
+  auraRange,
   auraHp,
   auraMobility,
   auraSources,
@@ -238,6 +240,10 @@ export function reasonStatus(reason: UnavailableReason, used: string): SheetStat
       return { text: 'Stun : aucune action ce tour', tone: 'off' };
     case 'silenced':
       return { text: 'Silence : plus d’effet actif', tone: 'off' };
+    case 'armed':
+      return { text: 'Déjà armé : attaque d’abord', tone: 'off' };
+    case 'noAttack':
+      return { text: 'Plus d’attaque ce tour', tone: 'off' };
     case 'justSummoned':
       return { text: 'Arrivé ce tour : au prochain tour', tone: 'off' };
     case 'noTarget':
@@ -432,7 +438,7 @@ function zoneSheet(view: PlayerView, zone: ManaZoneId, pos: Position): SheetData
     ],
     text: contest
       ? [
-          `Le joueur qui a le plus d’unités dans ses 9 cases (monstres, et son terrain : 1 unité) la tient et gagne +${VP_PER_CONTROLLED_ZONE} VP au début de son tour, et +${MANA_PER_CONTROLLED_ZONE} mana s’il y a un terrain.`,
+          `Le joueur qui a le plus de monstres dans ses 9 cases la tient ; un terrain la tient seul, quel que soit le nombre de monstres ennemis. Qui la tient gagne +${VP_PER_CONTROLLED_ZONE} VP au début de son tour, et +${MANA_PER_CONTROLLED_ZONE} mana s’il y a un terrain à lui.`,
           'À égalité (par exemple 1 contre 1), elle est contestée : ni mana ni VP pour personne, et aucun terrain ne s’y pose. On ne pose un terrain que dans une zone qu’on tient.',
         ]
       : [
@@ -451,7 +457,7 @@ function zoneChip(view: PlayerView, monster: MonsterUnit): SheetChip | null {
   if (contested) return effect(ZONE_ICONS[area.zone], name, `${name} contestée : ni mana ni VP pour personne, pas de terrain`, 'warn');
   if (controller === null) return null;
   if (controller !== monster.owner) {
-    return effect(ZONE_ICONS[area.zone], name, `${name} tenue par J${controller} : il faut être plus nombreux dans la zone pour la prendre`, 'warn');
+    return effect(ZONE_ICONS[area.zone], name, `${name} tenue par J${controller} : il faut y avoir plus de monstres, et détruire son terrain s’il y en a un`, 'warn');
   }
   return effect(ZONE_ICONS[area.zone], name, `Tient ${name} : ${zoneIncome(getZoneMana(view, area.pos, controller))}, +${VP_PER_CONTROLLED_ZONE} VP`, 'zone');
 }
@@ -468,7 +474,7 @@ function monsterSheet(view: PlayerView, monster: MonsterUnit): SheetData {
 
   // Stats : ATK et portée du moment, PV (max compris les bonus), pas restants sur le maximum de ce tour.
   const atk = getAtk(view, monster);
-  const range = getRange(monster);
+  const range = getRange(view, monster);
   const base = baseMobility(view, monster);
   // Maximum de ce tour : moins les slow, plus la Charge ; rien s'il ne peut pas bouger. Le +1 d'un Terrain de chasse
   // qu'il aurait en partant d'ici compte déjà.
@@ -554,8 +560,20 @@ function monsterChips(view: PlayerView, monster: MonsterUnit, terrain: TerrainUn
     const detail = `+${hunt.onMove.mobility} mobilité en commençant un déplacement ici, une fois par tour`;
     chips.push(effect('sprint', getCard(hunt.unit.cardId).name, detail, 'boost'));
   }
-  const aura = { atk: auraAtk(view, monster), hp: auraHp(view, monster), mobility: auraMobility(view, monster) };
-  if (aura.atk > 0 || aura.hp > 0 || aura.mobility > 0) {
+  const limit = attackLimit(view, monster);
+  const aura = {
+    atk: auraAtk(view, monster),
+    hp: auraHp(view, monster),
+    mobility: auraMobility(view, monster),
+    range: auraRange(view, monster),
+    attacks: limit > 1 ? limit : 0,
+  };
+  if (monster.armed) {
+    const { atk, splash, source } = monster.armed;
+    const bonus = [atk ? `+${atk} ATK` : null, splash ? `${splash} dégât aux ennemis du carré de 1 de la cible` : null].filter(Boolean).join(', ');
+    chips.push(effect('crosshair', 'Armé', `Sa prochaine attaque de ce tour : ${bonus}${sourceCard(source)}`, 'boost'));
+  }
+  if (aura.atk > 0 || aura.hp > 0 || aura.mobility > 0 || aura.range > 0 || aura.attacks > 0) {
     const sources = auraSources(view, monster).map((other) => getCard(other.cardId).name);
     chips.push(effect('aura', 'Aura', `${auraBonusText(aura)} (${sources.join(', ')})`, 'boost'));
   }

@@ -54,20 +54,21 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
     // Archers et Vampire : un Terrain de chasse à la place du Terrain drainant.
     const { 'terrain-drainant': _drainant, ...others } = commons;
     const hunt = { ...others, 'terrain-de-chasse': 1 };
+    // Archers impériaux (remaniement du 2026-11-08) : 26 cartes, sans Terrain de chasse.
     expect(composition('archers')).toEqual({
-      'archer-leger': 3,
-      'archer-lourd': 3,
-      'archer-de-glace': 3,
-      'archer-du-feu': 3,
-      trebuchet: 2,
-      'monstre-de-test': 1,
-      'fleche-divine': 1,
-      'boule-de-feu': 1,
+      'ecuyer-archers': 3,
+      'archer-imperial': 3,
+      'arbaletrier-imperial': 3,
+      'trebuchet-archers': 2,
+      'fleche-divine': 3,
+      'camps-de-tir': 3,
       charge: 1,
-      bourrasque: 1,
+      bourrasque: 3,
       benediction: 1,
       bastion: 1,
-      ...hunt,
+      teleporteur: 1,
+      'zone-invocation': 1,
+      'terrain-piege': 1,
     });
     expect(composition('pieges')).toEqual({
       'poseur-de-piege': 3,
@@ -148,15 +149,7 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
   });
 
   it('le complément vient du grimoire de test ou des cartes communes', () => {
-    const archers: CardId[] = [
-      'archer-leger',
-      'archer-lourd',
-      'archer-de-glace',
-      'archer-du-feu',
-      'trebuchet',
-      'monstre-de-test',
-      'fleche-divine',
-    ];
+    const archers: CardId[] = ['ecuyer-archers', 'archer-imperial', 'arbaletrier-imperial', 'trebuchet-archers', 'fleche-divine', 'camps-de-tir'];
     const traps: CardId[] = ['poseur-de-piege', 'farceur', 'poseur-de-bombe', 'clown-assassin', 'penombre'];
     // Le grimoire de test a chaque carte commune, sauf le Terrain de chasse (Archers et Vampire seulement).
     for (const id of COMMON_CARDS.filter((c) => c !== 'terrain-de-chasse')) expect(TEST_GRIMOIRE, id).toContain(id);

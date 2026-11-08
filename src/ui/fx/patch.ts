@@ -83,7 +83,7 @@ export function applyEvent(view: PlayerView, event: GameEvent, final: PlayerView
         return moved.kind === 'monster' ? { ...moved, mobilityLeft: 0 } : moved;
       });
     case 'attack':
-      return updateUnit(view, event.unitId, (unit) => (unit.kind === 'monster' ? { ...unit, hasAttacked: true } : unit));
+      return updateUnit(view, event.unitId, (unit) => (unit.kind === 'monster' ? { ...unit, hasAttacked: true, attacksMade: unit.attacksMade + 1, armed: undefined } : unit));
     case 'damage':
       return updateUnit(view, event.unitId, (unit) => ({ ...unit, hp: event.hp }));
     case 'heal':

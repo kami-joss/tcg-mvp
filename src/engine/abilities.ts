@@ -11,6 +11,9 @@ import type { Action, ActivatedAbility, GameEvent, GameState, MonsterUnit } from
 
 type ActivateEffectAction = Extract<Action, { type: 'activateEffect' }>;
 
+/** `attacksMade` d'un monstre qui ne peut plus attaquer ce tour, quelle que soit sa limite. */
+const NO_ATTACKS_LEFT = 99;
+
 /** Rang de l'effet actif visé par une action (absent : le premier). */
 export const effectIndex = (action: { readonly effect?: number }): number => action.effect ?? 0;
 
@@ -82,5 +85,8 @@ export function applyActivateEffect(state: GameState, action: ActivateEffectActi
   // Contre-coup : sur lui-même, après l'effet.
   const countered = ability.backlash ? applyBacklash(resolved, monster.id, ability.backlash, monster.owner) : resolved;
   const after = countered.units[monster.id];
-  return ability.endsAttack && after?.kind === 'monster' ? setUnit(countered, { ...after, hasAttacked: true }) : countered;
+  // Plus aucune attaque : `attacksMade` dépasse toute limite (Carquois prêt ! compris).
+  return ability.endsAttack && after?.kind === 'monster'
+    ? setUnit(countered, { ...after, hasAttacked: true, attacksMade: Math.max(after.attacksMade, NO_ATTACKS_LEFT) })
+    : countered;
 }

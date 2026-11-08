@@ -26,9 +26,9 @@ describe('exemplaires brillants', () => {
     expect(game.players[2].shiny).toBeUndefined();
   });
 
-  it('decks de démo : Archer de glace et Archer du feu, Apprenti - Sorciers du feu brillants ; aucun dans Explorateur du temps', () => {
+  it('decks de démo : Apprenti - Sorciers du feu brillant ; aucun dans Archers impériaux ni Explorateur du temps', () => {
     const shiny = (id: string) => DECKS.find((d) => d.id === id)!.shiny;
-    expect(shiny('archers')).toEqual(['archer-de-glace', 'archer-du-feu']);
+    expect(shiny('archers')).toBeUndefined();
     expect(shiny('sorciers-du-feu')).toEqual(['apprenti']);
     expect(shiny('explorateur-du-temps')).toBeUndefined();
     for (const deck of DECKS) for (const id of deck.shiny ?? []) expect(deck.cards).toContain(id);

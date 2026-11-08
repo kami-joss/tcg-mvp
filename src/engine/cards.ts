@@ -161,7 +161,49 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   ]),
   // Carte de test (§10) : des stats extrêmes, sans effet, pour éprouver les abus de stats ; générique.
   'monstre-de-test': monster('monstre-de-test', 'Monstre de test', { cost: 10, atk: 3, hp: 7, mobility: 9, range: 1 }),
-  'fleche-divine': spell('fleche-divine', 'Flèche divine - Archers', 2, {
+  // Deck Archers impériaux (§6 bis, remplace le deck Archers du 2026-11-08). Les anciens archers ci-dessus n'ont plus de
+  // deck : ils gardent leurs données, comme les cartes sans deck, pour les mécaniques (Trophée, Pillage, Givre, Brûlure).
+  'ecuyer-archers': {
+    ...inArchetype(
+      'archer',
+      monster('ecuyer-archers', 'Écuyer des archers - Archers impériaux', { cost: 1, atk: 0, hp: 3, mobility: 6, range: 0 }),
+    ),
+    // Carquois prêt ! : ses archers impériaux alliés du carré de 1 attaquent 2 fois par tour, tant qu'ils y restent.
+    aura: { name: 'Carquois prêt !', zone: 'square1', archetype: 'archer', atk: 0, hp: 0, mobility: 0, attacks: 2 },
+  },
+  'archer-imperial': inArchetype(
+    'archer',
+    monster('archer-imperial', 'Archer impérial - Archers impériaux', { cost: 2, atk: 2, hp: 2, mobility: 3, range: 4 }, [], {
+      name: 'Flèche explosive',
+      manaCost: 1,
+      unlimited: true,
+      targeting: { type: 'self' },
+      effects: [{ type: 'arm', splash: 1 }],
+    }),
+  ),
+  'arbaletrier-imperial': inArchetype(
+    'archer',
+    monster('arbaletrier-imperial', 'Arbalétrier impérial - Archers impériaux', { cost: 3, atk: 4, hp: 2, mobility: 3, range: 3 }, [], {
+      name: 'Carreau perforant',
+      manaCost: 1,
+      unlimited: true,
+      targeting: { type: 'self' },
+      effects: [{ type: 'arm', atk: 2 }],
+    }),
+  ),
+  'trebuchet-archers': {
+    ...inArchetype(
+      'archer',
+      monster('trebuchet-archers', 'Trébuchet des archers - Archers impériaux', { cost: 4, atk: 5, hp: 2, mobility: 2, range: 6 }, [
+        { keyword: 'siege', multiplier: 2 },
+      ]),
+    ),
+    noContact: true,
+  },
+  'camps-de-tir': terrain('camps-de-tir', 'Camps de tir - Archers impériaux', { cost: 2, hp: 5 }, {
+    aura: { zone: 'cellAndSquare', archetype: 'archer', atk: 0, hp: 0, mobility: 0, range: 1 },
+  }),
+  'fleche-divine': spell('fleche-divine', 'Flèche divine - Archers impériaux', 2, {
     targeting: { type: 'monster', side: 'ally', reach: { type: 'anywhere' }, archetype: 'archer' },
     effects: [
       { type: 'addAtkThisTurn', amount: 1 },
@@ -522,25 +564,22 @@ export const DECKS: readonly Deck[] = [
   { id: 'classique', name: 'Classique', cards: TEST_GRIMOIRE },
   {
     id: 'archers',
-    name: 'Archers',
-    // Démo des exemplaires brillants (handoff V11) : un Archer de glace (ses propres images) et un Archer du feu
-    // (shiny générique).
-    shiny: ['archer-de-glace', 'archer-du-feu'],
+    name: 'Archers impériaux',
+    // 26 cartes, par exception (§10), comme l'ancien deck Archers.
     cards: expand([
-      ['archer-leger', 3],
-      ['archer-lourd', 3],
-      ['archer-de-glace', 3],
-      ['archer-du-feu', 3],
-      ['trebuchet', 2],
-      // En plus des 25 cartes (§10) : le deck en a 26.
-      ['monstre-de-test', 1],
-      ['fleche-divine', 1],
-      ['boule-de-feu', 1],
+      ['ecuyer-archers', 3],
+      ['archer-imperial', 3],
+      ['arbaletrier-imperial', 3],
+      ['trebuchet-archers', 2],
+      ['teleporteur', 1],
       ['charge', 1],
-      ['bourrasque', 1],
       ['benediction', 1],
+      ['bourrasque', 3],
+      ['fleche-divine', 3],
       ['bastion', 1],
-      ...COMMONS_HUNT,
+      ['zone-invocation', 1],
+      ['terrain-piege', 1],
+      ['camps-de-tir', 3],
     ]),
   },
   {

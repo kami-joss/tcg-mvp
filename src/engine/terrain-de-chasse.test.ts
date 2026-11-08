@@ -35,10 +35,10 @@ describe('Terrain de chasse : la carte', () => {
     expect(COMMON_CARDS).toContain('terrain-de-chasse');
   });
 
-  it('un exemplaire dans les decks Archers et Vampire, à la place du Terrain drainant ; dans aucun autre', () => {
+  it('un exemplaire dans le deck Vampire seulement, à la place du Terrain drainant (plus dans Archers impériaux, remaniés le 2026-11-08)', () => {
     for (const deck of DECKS) {
       const count = (id: string) => deck.cards.filter((card) => card === id).length;
-      const hunts = deck.id === 'archers' || deck.id === 'vampire';
+      const hunts = deck.id === 'vampire';
       expect(count('terrain-de-chasse'), deck.id).toBe(hunts ? 1 : 0);
       if (hunts) expect(count('terrain-drainant'), deck.id).toBe(0);
       expect(deck.cards, deck.id).toHaveLength(deck.id === 'archers' ? 26 : 25);

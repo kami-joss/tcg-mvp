@@ -436,7 +436,7 @@ function nextTurnReach(view: PlayerView, unit: MonsterUnit): Threat {
   const { range } = getMonsterCard(unit.cardId);
   const taken = new Set([unit.pos, ...moves].map(posKey));
   const strikes = new Map<string, Position>();
-  for (const pos of [unit.pos, ...moves].flatMap((from) => getStrikeCells(board, from, range))) {
+  for (const pos of [unit.pos, ...moves].flatMap((from) => getStrikeCells(board, from, range, unit.owner))) {
     if (!taken.has(posKey(pos))) strikes.set(posKey(pos), pos);
   }
   return { moves, strikes: [...strikes.values()] };
