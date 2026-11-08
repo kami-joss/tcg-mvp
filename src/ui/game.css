@@ -2818,6 +2818,24 @@ select {
   color: #c9a3ef;
 }
 
+/* Tête du monstre à choisir (évolution, invocation) : ronde, comme son jeton, cerclée de la couleur de la ligne. */
+.bubble__icon--portrait {
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.bubble__icon--portrait::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1.5px oklch(0.45 0.014 60);
+}
+
+.bubble__icon--portrait.bubble__icon--effect::after {
+  box-shadow: inset 0 0 0 1.5px #c9a3ef;
+}
+
 .bubble__glyph {
   display: grid;
   place-items: center;

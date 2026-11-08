@@ -147,6 +147,8 @@ describe('bulle : effets', () => {
     expect(bubbleBack(evolve)).toEqual({ kind: 'effects', unitId: 'u1', page: 'effects' });
     // Le nom de chaque dragon, sans son archétype (Ignis - Dragons élémentaires, Ventus - Dragons élémentaires).
     expect(evolve.rows.map((r) => r.title)).toEqual(['Ignis', 'Ventus']);
+    // Chaque ligne montre la tête du dragon à choisir.
+    expect(evolve.rows.map((r) => r.portrait)).toEqual(['dragon-feu', 'dragon-vent']);
     expect(evolve.rows[0]!.pick).toEqual({
       action: { type: 'activateEffect', unitId: 'u1', target: { kind: 'card', cardId: 'dragon-feu' } },
     });
@@ -204,6 +206,7 @@ describe('bulle : choix en plusieurs temps', () => {
       ['Milicien', 3],
       ['Golem', 5],
     ]);
+    expect(model.rows.map((r) => r.portrait)).toEqual(['milicien', 'golem']);
   });
 });
 
@@ -246,3 +249,19 @@ describe('bulle : carte du grimoire (clic droit)', () => {
   });
 });
 
+
+describe('bulle : tête du monstre à choisir', () => {
+  it('une ligne avec un portrait affiche la tête du monstre, cadrée comme son jeton, à la place de l’icône', async () => {
+    const { createElement } = await import('react');
+    const { renderToStaticMarkup } = await import('react-dom/server');
+    const { ActionBubble } = await import('./ActionBubble');
+    const state = gameWith([{ monster: 'jeune-dragon', owner: 1, at: at(5, 4) }], {
+      players: { 1: { mana: 5, grimoire: ['dragon-feu'] as CardId[] } },
+    });
+    const model = bubble(state, { kind: 'effects', unitId: 'u1', page: 'evolve' });
+    const props = { model, layoutKey: '', onPick: () => {}, onBack: () => {}, onClose: () => {}, onHoverPath: () => {} };
+    const html = renderToStaticMarkup(createElement(ActionBubble, props));
+    expect(html).toContain('bubble__icon--portrait');
+    expect(html).toMatch(/class="art-fit" style="background:url\(&quot;[^"]*dragon-feu/);
+  });
+});

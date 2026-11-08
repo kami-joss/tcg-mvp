@@ -28,6 +28,8 @@ export type BubblePick = { readonly action: Action } | { readonly selection: Sel
 export interface BubbleRow {
   readonly key: string;
   readonly icon: IconName;
+  /** Choix d'un monstre (évolution, invocation) : sa tête, cadrée comme sur son jeton, à la place de l'icône. */
+  readonly portrait?: CardId;
   /** Icône violette (effet), ou flèche tournée vers une direction affichée. */
   readonly tone: 'plain' | 'effect';
   readonly arrow?: Direction;
@@ -218,6 +220,7 @@ function effectsBubble(
           {
             key: evolved.id,
             icon: 'dragon-head',
+            portrait: evolved.id,
             tone: 'effect',
             title: cardTitle(evolved.id),
             subtitle: statsLine(evolved),
@@ -370,6 +373,7 @@ function summonBubble(view: PlayerView, selection: Extract<Selection, { kind: 's
       return {
         key: cardId,
         icon: 'dragon-head',
+        portrait: cardId,
         tone: 'plain',
         title: cardTitle(card.id),
         subtitle: statsLine(card),

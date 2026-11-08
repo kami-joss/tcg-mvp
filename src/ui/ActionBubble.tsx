@@ -4,6 +4,7 @@
 // elle ne suit pas le flottement des jetons.
 import { useLayoutEffect, useRef } from 'react';
 import type { Position } from '../engine';
+import { cardArtFor, fitBackground, tokenFit } from './art';
 import type { BubbleModel, BubbleRow } from './bubble';
 import { Icon } from './Icon';
 
@@ -22,6 +23,33 @@ interface ActionBubbleProps {
 const PLACE_MS = 700;
 
 const ARROW_ROTATION = { down: 0, left: 90, up: 180, right: 270 } as const;
+
+/** Côté (px) de l'icône d'une ligne, et de la tête d'un monstre à choisir. */
+const ICON_SIZE = 32;
+
+/** L'icône d'une ligne : la tête du monstre à choisir (cadrée comme son jeton), sinon le pictogramme de l'action. */
+function RowIcon({ row }: { row: BubbleRow }) {
+  const art = row.portrait ? cardArtFor(row.portrait, false) : undefined;
+  if (art) {
+    return (
+      <span className={`bubble__icon bubble__icon--portrait bubble__icon--${row.tone}`}>
+        <span className="art-fit" style={{ background: fitBackground(art, tokenFit(art), ICON_SIZE) }} />
+      </span>
+    );
+  }
+  return (
+    <span className={`bubble__icon bubble__icon--${row.tone}`}>
+      <span className="bubble__glyph" style={row.arrow ? { rotate: `${ARROW_ROTATION[row.arrow]}deg` } : undefined}>
+        <Icon name={row.icon} />
+      </span>
+      {row.boot && (
+        <span className="bubble__boot">
+          <Icon name="walking-boot" />
+        </span>
+      )}
+    </span>
+  );
+}
 
 /** Décalage du jeton par rapport à sa case, mesuré une fois à l'ouverture, en hauteurs de case. */
 interface Offset {
@@ -152,19 +180,7 @@ export function ActionBubble({ model, layoutKey, onPick, onBack, onClose, onHove
           onClick={() => row.enabled && onPick(row)}
           onMouseEnter={() => hover(row)}
         >
-          <span className={`bubble__icon bubble__icon--${row.tone}`}>
-            <span
-              className="bubble__glyph"
-              style={row.arrow ? { rotate: `${ARROW_ROTATION[row.arrow]}deg` } : undefined}
-            >
-              <Icon name={row.icon} />
-            </span>
-            {row.boot && (
-              <span className="bubble__boot">
-                <Icon name="walking-boot" />
-              </span>
-            )}
-          </span>
+          <RowIcon row={row} />
           <span className="bubble__text">
             <span className="bubble__title">{row.title}</span>
             <span className={`bubble__sub${!row.enabled && row.warn ? ' is-warn' : ''}`}>{row.subtitle}</span>
