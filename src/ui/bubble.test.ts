@@ -83,7 +83,7 @@ describe('bulle d’attaque', () => {
       { monster: 'clown-assassin', owner: 1, at: at(5, 4) },
       { monster: 'golem', owner: 2, at: at(5, 5), facing: 'right' },
     ]);
-    expect(row(bubble(behind, attack()), 'attack').subtitle).toBe('−6 PV dans le dos');
+    expect(row(bubble(behind, attack()), 'attack').subtitle).toBe('−9 PV dans le dos · détruit');
   });
 });
 
@@ -106,16 +106,16 @@ describe('bulle : effets', () => {
     // Poser une bombe : on passe au ciblage sur le plateau (cases violettes).
     expect(effects.rows).toHaveLength(1);
     expect(effects.rows[0]).toMatchObject({
-      title: 'Poser une bombe',
-      cost: 2,
+      title: 'Bombe',
+      cost: 1,
       enabled: true,
       pick: { selection: { kind: 'unit', unitId: 'u1', mode: 'effect' } },
     });
   });
 
   it('sans assez de mana : grisé, en rouge, avec ce qui manque', () => {
-    expect(row(bubble(bomber(1), attack()), 'effects')).toMatchObject({ enabled: false, warn: true, subtitle: 'Il te manque 1 mana' });
-    const effects = bubble(bomber(1), { kind: 'effects', unitId: 'u1', page: 'effects' });
+    expect(row(bubble(bomber(0), attack()), 'effects')).toMatchObject({ enabled: false, warn: true, subtitle: 'Il te manque 1 mana' });
+    const effects = bubble(bomber(0), { kind: 'effects', unitId: 'u1', page: 'effects' });
     expect(effects.rows[0]).toMatchObject({ enabled: false, warn: true, subtitle: 'Il te manque 1 mana', pick: null });
   });
 

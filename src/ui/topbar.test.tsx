@@ -57,7 +57,7 @@ describe('barre du haut', () => {
     expect(html).toMatch(/data-mana="2"[^>]*>7</);
     expect(html).toContain('<span data-vp="1">12</span><small>/30 VP</small>');
     expect(html).toContain('<span class="score__deck">Archers impériaux</span>');
-    expect(html).toContain('<span class="score__deck">Pièges</span>');
+    expect(html).toContain('<span class="score__deck">Maîtres des pièges</span>');
   });
 
   it('chaque score : à côté des VP, les compteurs de ses cartes jouées et de son cimetière (§10)', () => {
@@ -144,7 +144,7 @@ describe('orbe de mana (lot 12 §3)', () => {
   const orb = (mana: number, active = true, animated = true) =>
     renderToStaticMarkup(<ManaOrb player={1} mana={mana} active={active} animated={animated} />);
 
-  it('le liquide monte avec le mana, pleine à 10 (le moteur n’a pas de plafond) ; le chiffre porte data-mana', () => {
+  it('le liquide monte avec le mana, pleine à 10 (les terrains peuvent le dépasser) ; le chiffre porte data-mana', () => {
     expect(ORB_FULL_MANA).toBe(10);
     expect(orb(4)).toContain('style="height:40.0%"');
     expect(orb(13)).toContain('style="height:100.0%"');

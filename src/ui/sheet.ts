@@ -9,6 +9,7 @@ import {
   attackAvailability,
   attackLimit,
   auraAtk,
+  auraCamouflage,
   auraRange,
   auraHp,
   auraMobility,
@@ -567,21 +568,23 @@ function monsterChips(view: PlayerView, monster: MonsterUnit, terrain: TerrainUn
     mobility: auraMobility(view, monster),
     range: auraRange(view, monster),
     attacks: limit > 1 ? limit : 0,
+    camouflage: auraCamouflage(view, monster),
   };
   if (monster.armed) {
     const { atk, splash, source } = monster.armed;
     const bonus = [atk ? `+${atk} ATK` : null, splash ? `${splash} dégât aux ennemis du carré de 1 de la cible` : null].filter(Boolean).join(', ');
     chips.push(effect('crosshair', 'Armé', `Sa prochaine attaque de ce tour : ${bonus}${sourceCard(source)}`, 'boost'));
   }
-  if (aura.atk > 0 || aura.hp > 0 || aura.mobility > 0 || aura.range > 0 || aura.attacks > 0) {
+  if (aura.atk > 0 || aura.hp > 0 || aura.mobility > 0 || aura.range > 0 || aura.attacks > 0 || aura.camouflage > 0) {
     const sources = auraSources(view, monster).map((other) => getCard(other.cardId).name);
     chips.push(effect('aura', 'Aura', `${auraBonusText(aura)} (${sources.join(', ')})`, 'boost'));
   }
   // Camouflage par mot-clé (Pénombre le donne en statut, avec sa puce) : caché ou repéré, vu par son joueur.
   const mine = monster.owner === view.viewer;
   const camouflage = card.keywords.find((spec) => spec.keyword === 'camouflage');
-  if (mine && camouflage && !monster.statuses.some((s) => s.kind === 'camouflage')) {
-    const radius = 'amount' in camouflage ? camouflage.amount : 2;
+  const auraRadius = auraCamouflage(view, monster);
+  if (mine && (camouflage || auraRadius > 0) && !monster.statuses.some((s) => s.kind === 'camouflage')) {
+    const radius = Math.max(camouflage ? ('amount' in camouflage ? camouflage.amount : 2) : 0, auraRadius);
     chips.push(
       view.hiddenFromOpponent.includes(monster.id)
         ? effect('eye-slash', 'Camouflé', `Invisible pour l’adversaire : aucun de ses monstres ni terrains dans un carré de ${radius}`, 'info')

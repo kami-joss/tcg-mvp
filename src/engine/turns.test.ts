@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getLegalActions } from './actions';
 import {
+  BASE_MANA_CAP,
   BASE_MANA_FIRST_TURN,
   MANA_PER_CONTROLLED_ZONE,
   VICTORY_VP,
@@ -86,8 +87,22 @@ describe('début de tour : mana (SPEC.md §4.2)', () => {
     expect(mana).toEqual([3, 3, 4, 4, 5, 5]);
   });
 
-  it('sans plafond', () => {
-    expect(getBaseMana(2 * 20 - 1)).toBe(BASE_MANA_FIRST_TURN + 19);
+  it('mana de base plafonné à 10 (atteint au 8e tour de chaque joueur) ; seuls les terrains en donnent de plus', () => {
+    expect(getBaseMana(2 * 7 - 1)).toBe(9); // 7e tour de J1
+    expect(getBaseMana(2 * 8 - 1)).toBe(BASE_MANA_CAP); // 8e tour de J1
+    expect(getBaseMana(2 * 8)).toBe(BASE_MANA_CAP); // 8e tour de J2
+    expect(getBaseMana(2 * 20 - 1)).toBe(BASE_MANA_CAP);
+  });
+
+  it('au plafond, le mana de zone des terrains s’ajoute : 10 + 1 avec un terrain sur une zone tenue', () => {
+    const state = gameWith(
+      [
+        { monster: 'golem', owner: 1, at: FORGE },
+        { terrain: 'bastion', owner: 1, at: FORGE },
+      ],
+      { turn: 30, activePlayer: 2, players: { 1: { mana: 0 } } },
+    );
+    expect(endTurns(state, 1).players[1].mana).toBe(BASE_MANA_CAP + MANA_PER_CONTROLLED_ZONE);
   });
 
   it('le mana non dépensé est perdu : le mana d’un tour ne se cumule pas avec le suivant', () => {

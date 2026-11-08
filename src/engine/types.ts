@@ -140,6 +140,7 @@ export type CardId =
   | 'terrain-piege'
   | 'zone-invocation'
   | 'terrain-de-chasse'
+  | 'terrain-de-jeu'
   // Deck Bodybuilder
   | 'jeune-gomuscu'
   | 'jean-bon'
@@ -173,13 +174,13 @@ export type CardId =
 
 /**
  * Famille de cartes (SPEC.md §5.1) : les bodybuilders, les archers (sauf le Trébuchet), les dragons élémentaires (Jeune
- * dragon compris), les monstres piège (les 4 monstres du deck Pièges), les sorciers du feu, les explorateurs du temps,
+ * dragon compris), les maîtres des pièges (les 4 monstres du deck Maîtres des pièges), les sorciers du feu, les explorateurs du temps,
  * les vampires.
  */
 export type Archetype = 'bodybuilder' | 'archer' | 'dragon' | 'piege' | 'sorcier' | 'temps' | 'vampire';
 
 /**
- * Mots-clés (SPEC.md §5.6) et leurs paramètres : chaque carte porte ses propres valeurs (« Givre 1 », « Assassin ×3 »).
+ * Mots-clés (SPEC.md §5.6) et leurs paramètres : chaque carte porte ses propres valeurs (« Givre 1 », « Attaque par surprise ×3 »).
  * Une quantité s'appelle `amount`, un multiplicateur `multiplier`, une durée de statut `turns` (§5.7).
  */
 interface KeywordParams {
@@ -497,6 +498,8 @@ export interface StatAura {
   readonly range?: number;
   /** Nombre total d'attaques par tour (Carquois prêt ! : 2) ; plusieurs auras ne s'additionnent pas. */
   readonly attacks?: number;
+  /** Camouflage N tant qu'ils sont dans la zone (Terrain de jeu : 1) ; avec d'autres camouflages, la plus grande valeur compte. */
+  readonly camouflage?: number;
 }
 
 export interface MonsterCard extends CardBase {

@@ -73,8 +73,8 @@ describe('IA : portée du prochain tour (calcul rapide)', () => {
       ],
       { activePlayer: 2 },
     );
-    // Le Golem regarde vers le bas : le Clown, au-dessus de lui, le prend de dos (2 × 3).
-    expect(strikes(state, 1)).toEqual([{ id: 'u1', hits: { u2: 6 } }]);
+    // Le Golem regarde vers le bas : le Clown, au-dessus de lui, le prend de dos (3 × 3).
+    expect(strikes(state, 1)).toEqual([{ id: 'u1', hits: { u2: 9 } }]);
     const stunned = getStrikers(state, 1, () => -1, (m) => getAtk(state, m), () => true);
     expect(stunned).toEqual([]);
   });

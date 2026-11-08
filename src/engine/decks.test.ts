@@ -80,9 +80,7 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
       charge: 1,
       bourrasque: 1,
       benediction: 1,
-      'autel-de-mana': 1,
-      invocateur: 1,
-      'terrain-drainant': 1,
+      'terrain-de-jeu': 3, // 2026-11-08 : à la place de l'Autel de mana, du Terrain drainant et de l'Invocateur
       'terrain-piege': 2,
       'zone-invocation': 2,
     });
@@ -150,7 +148,7 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
 
   it('le complément vient du grimoire de test ou des cartes communes', () => {
     const archers: CardId[] = ['ecuyer-archers', 'archer-imperial', 'arbaletrier-imperial', 'trebuchet-archers', 'fleche-divine', 'camps-de-tir'];
-    const traps: CardId[] = ['poseur-de-piege', 'farceur', 'poseur-de-bombe', 'clown-assassin', 'penombre'];
+    const traps: CardId[] = ['poseur-de-piege', 'farceur', 'poseur-de-bombe', 'clown-assassin', 'penombre', 'terrain-de-jeu'];
     // Le grimoire de test a chaque carte commune, sauf le Terrain de chasse (Archers et Vampire seulement).
     for (const id of COMMON_CARDS.filter((c) => c !== 'terrain-de-chasse')) expect(TEST_GRIMOIRE, id).toContain(id);
     const filler = (d: string, own: CardId[]) => deck(d).cards.filter((c) => !own.includes(c));
@@ -172,10 +170,10 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
     expect(CARDS.trebuchet).toMatchObject({ cost: 5, atk: 4, range: 5, mobility: 2, hp: 1 });
     // Monstre de test (§10) : stats extrêmes, sans effet ni archétype.
     expect(CARDS['monstre-de-test']).toMatchObject({ cost: 10, atk: 3, range: 1, mobility: 9, hp: 7, keywords: [], activated: [], archetype: null });
-    expect(CARDS['poseur-de-piege']).toMatchObject({ cost: 1, atk: 1, range: 1, mobility: 7, hp: 1 });
-    expect(CARDS.farceur).toMatchObject({ cost: 3, atk: 2, range: 1, mobility: 6, hp: 1 });
-    expect(CARDS['poseur-de-bombe']).toMatchObject({ cost: 1, atk: 2, range: 1, mobility: 7, hp: 1 });
-    expect(CARDS['clown-assassin']).toMatchObject({ cost: 4, atk: 2, range: 1, mobility: 7, hp: 2 });
+    expect(CARDS['poseur-de-piege']).toMatchObject({ cost: 2, atk: 1, range: 1, mobility: 7, hp: 1 });
+    expect(CARDS.farceur).toMatchObject({ cost: 3, atk: 2, range: 1, mobility: 7, hp: 1 });
+    expect(CARDS['poseur-de-bombe']).toMatchObject({ cost: 2, atk: 1, range: 1, mobility: 7, hp: 1 });
+    expect(CARDS['clown-assassin']).toMatchObject({ cost: 4, atk: 3, range: 1, mobility: 7, hp: 2 });
     const ability = (id: CardId) => {
       const card = getCard(id);
       return card.kind === 'monster' ? (card.activated[0] ?? null) : null;
@@ -188,7 +186,9 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
         { keyword: 'assassin', multiplier: 2 },
       ],
     });
-    expect(ability('poseur-de-bombe')?.manaCost).toBe(2);
+    expect(ability('poseur-de-bombe')?.manaCost).toBe(1); // Bombe : 1 mana (2 avant le 2026-11-08)
+    expect(ability('poseur-de-bombe')?.effects[0]).toMatchObject({ type: 'placeTrap', turns: 3 });
+    expect(ability('poseur-de-piege')?.effects[0]).toMatchObject({ type: 'placeTrap', turns: 3 });
   });
 });
 
@@ -324,8 +324,8 @@ describe('orientation et Clown assassin (SPEC.md §10)', () => {
       { monster: 'clown-assassin', owner: 1, at: at(1, 3) }, // devant
       { monster: 'golem', owner: 2, at: at(2, 3) },
     ]);
-    expect(applyAction(state, attack('u1', 'u2')).units.u2?.hp).toBe(7 - 6);
-    expect(applyAction(state, attack('u3', 'u4')).units.u4?.hp).toBe(7 - 2);
+    expect(applyAction(state, attack('u1', 'u2')).units.u2).toBeUndefined(); // 3 × 3 = 9 ≥ 7 PV
+    expect(applyAction(state, attack('u3', 'u4')).units.u4?.hp).toBe(7 - 3);
   });
 
   it('Farceur (`assassin` ×2) : dégâts doublés par derrière seulement, pas contre un terrain', () => {
@@ -378,7 +378,7 @@ describe('pièges (SPEC.md §6 bis, §10)', () => {
       MANA,
     );
     const after = applyAction(state, placeTrap('u1', at(7, 1)));
-    expect(after.traps).toEqual([trap(1, at(7, 1), NET)]);
+    expect(after.traps).toEqual([{ ...trap(1, at(7, 1), NET), expiresAtTurn: 7 }]); // posé au tour 1 : 3 tours adverses
     expect(after.players[1].mana).toBe(9);
     expect(() => applyAction(state, placeTrap('u1', at(8, 2)))).toThrow(); // occupée
     expect(() => applyAction(state, placeTrap('u1', at(6, 1)))).toThrow(); // pas adjacente
@@ -387,7 +387,22 @@ describe('pièges (SPEC.md §6 bis, §10)', () => {
 
   it('se pose aussi en diagonale (les 8 cases autour)', () => {
     const state = gameWith([{ monster: 'poseur-de-piege', owner: 1, at: at(8, 1) }], MANA);
-    expect(applyAction(state, placeTrap('u1', at(7, 2))).traps).toEqual([trap(1, at(7, 2), NET)]);
+    expect(applyAction(state, placeTrap('u1', at(7, 2))).traps).toEqual([{ ...trap(1, at(7, 2), NET), expiresAtTurn: 7 }]);
+  });
+
+  it('Filet : le piège dure 3 tours adverses ; plusieurs filets s’accumulent (1 pose par tour et par poseur)', () => {
+    let state = gameWith([{ monster: 'poseur-de-piege', owner: 1, at: at(8, 1) }], MANA);
+    state = applyAction(state, placeTrap('u1', at(7, 1))); // tour 1
+    state = applyAction(applyAction(state, END_TURN), END_TURN); // tour 3 : le premier filet est encore là
+    expect(state.traps).toHaveLength(1);
+    state = applyAction(state, placeTrap('u1', at(7, 2))); // un 2e filet
+    expect(state.traps).toHaveLength(2);
+    state = applyAction(applyAction(state, END_TURN), END_TURN); // tour 5
+    expect(state.traps).toHaveLength(2);
+    state = applyAction(applyAction(state, END_TURN), END_TURN); // tour 7 : le premier disparaît, pas le second (posé au tour 3 : tour 9)
+    expect(state.traps.map((t) => t.pos)).toEqual([at(7, 2)]);
+    // Jamais deux pièges du même camp sur la même case.
+    expect(() => applyAction(state, placeTrap('u1', at(7, 2)))).toThrow();
   });
 
   it('pas de pose à travers une falaise', () => {

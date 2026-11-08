@@ -4,12 +4,12 @@
 // puis se résolvent sur l'état réel, où ces monstres occupent leur case et peuvent l'interrompre.
 import { squareCells, samePos } from './board';
 import { emit } from './events';
-import { getKeyword, setUnit } from './units';
+import { auraCamouflage, getKeyword, setUnit } from './units';
 import { statusAmount } from './statuses';
 import type { BoardState, GameState, PlayerId, Unit, UnitId } from './types';
 
 /**
- * `unit` est invisible pour `viewer` : monstre adverse camouflé (mot-clé, ou statut posé par Pénombre), non révélé, sans
+ * `unit` est invisible pour `viewer` : monstre adverse camouflé (mot-clé, statut posé par Pénombre, ou aura d'un Terrain de jeu), non révélé, sans
  * aucune unité de `viewer` (monstre ou terrain) dans un carré de N autour de lui (la plus grande valeur de camouflage).
  */
 export function isHiddenFrom(state: BoardState, unit: Unit, viewer: PlayerId): boolean {
@@ -17,6 +17,7 @@ export function isHiddenFrom(state: BoardState, unit: Unit, viewer: PlayerId): b
   const radii = [
     getKeyword(unit, 'camouflage')?.amount,
     ...unit.statuses.filter((s) => s.kind === 'camouflage').map(statusAmount),
+    auraCamouflage(state, unit) || undefined, // Terrain de jeu : tenu tant qu'il est dans la zone
   ].filter((n): n is number => n !== undefined);
   if (radii.length === 0) return false;
   const around = squareCells(state.board, unit.pos, Math.max(...radii));

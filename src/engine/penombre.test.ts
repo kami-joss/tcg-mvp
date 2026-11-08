@@ -6,7 +6,7 @@ import { isHiddenFrom } from './stealth';
 import { getPlayerView } from './view';
 import type { Action, CardId, GameState, UnitId } from './types';
 
-// Pénombre (SPEC.md §6 bis, §10) : Tous les monstres piège alliés · invisible 2 pendant 1 tour.
+// Pénombre (SPEC.md §6 bis, §10) : Tous les maîtres des pièges alliés · invisible 2 pendant 1 tour.
 
 const PENOMBRE: Action = { type: 'playCard', cardId: 'penombre', target: { kind: 'all' } };
 const END_TURN: Action = { type: 'endTurn' };

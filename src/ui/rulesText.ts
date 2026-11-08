@@ -22,7 +22,7 @@ import { ARCHETYPE_NAMES, cardTitle } from './cardText';
 
 /** Mots du lexique qu'un texte de carte met en gras, et leur définition (survol). */
 export const GLOSSARY = {
-  piege: 'Piège : caché à l’adversaire, il se déclenche quand un monstre ennemi entre sur sa case, puis disparaît. Il disparaît aussi au début de ton prochain tour.',
+  piege: 'Piège : caché à l’adversaire, il se déclenche quand un monstre ennemi entre sur sa case, puis disparaît. Il disparaît aussi à la fin de sa durée (1 tour adverse par défaut, ou le nombre de tours adverses écrit sur la carte).',
   entrer: 'Entrer sur une case : y arriver en se déplaçant (à chaque case du chemin), en étant repoussé, en avançant après une attaque, en étant invoqué ou en étant téléporté (sur la case d’arrivée seulement).',
   teleporter: 'Téléportation : le monstre est posé directement sur la case, sans traverser les cases entre les deux, mais il entre sur la case d’arrivée : piège, Passage, case brûlée et Zone s’y déclenchent. Ce n’est pas un déplacement : il garde sa mobilité, son attaque et son orientation.',
   repousser: 'Repousser : le monstre recule case par case et entre sur chaque case. Il s’arrête avant le premier obstacle (case bloquée, case occupée, falaise).',
@@ -419,8 +419,14 @@ const alliesAround = ({ archetype, zone }: AllyZoneEffect | StatAura) => {
   return `tes ${ARCHETYPE_NAMES[archetype].many} ${where}`;
 };
 
-const statBonus = ({ atk, hp, mobility, range }: Pick<StatAura, 'atk' | 'hp' | 'mobility'> & { range?: number }) => {
-  const parts = [atk ? `+${atk} ATK` : null, hp ? `+${hp} PV` : null, mobility ? `+${mobility} mobilité` : null, range ? `+${range} portée` : null].filter(Boolean);
+const statBonus = ({ atk, hp, mobility, range, camouflage }: Pick<StatAura, 'atk' | 'hp' | 'mobility'> & { range?: number; camouflage?: number }) => {
+  const parts = [
+    atk ? `+${atk} ATK` : null,
+    hp ? `+${hp} PV` : null,
+    mobility ? `+${mobility} mobilité` : null,
+    range ? `+${range} portée` : null,
+    camouflage ? t('camouflage', `camouflage ${camouflage}`) : null,
+  ].filter(Boolean);
   return parts.length <= 1 ? parts.join('') : `${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}`;
 };
 
@@ -490,7 +496,7 @@ export function passiveRules(card: Card): RulesItem[] {
   return items;
 }
 
-/** Nom d'un mot-clé avec sa valeur, sans durée (elle est dans la phrase) : « Givre 1 », « Assassin ×3 ». */
+/** Nom d'un mot-clé avec sa valeur, sans durée (elle est dans la phrase) : « Givre 1 », « Attaque par surprise ×3 ». */
 function keywordName(spec: KeywordSpec): string {
   const names: Record<KeywordSpec['keyword'], string> = {
     riposte: 'Riposte',
@@ -503,7 +509,7 @@ function keywordName(spec: KeywordSpec): string {
     brulure: 'Brûlure',
     siege: 'Siège',
     sournois: 'Sournois',
-    assassin: 'Assassin',
+    assassin: 'Attaque par surprise',
     camouflage: 'Camouflage',
     soif: 'Soif',
   };

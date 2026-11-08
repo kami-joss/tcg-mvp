@@ -285,14 +285,14 @@ describe('interaction : aperçus du plateau', () => {
   it('dégâts prévus sur chaque cible ; l’assassin de dos les triple', () => {
     const view = activeView(
       gameWith([
-        { monster: 'clown-assassin', owner: 1, at: at(9, 2) }, // u1 : ATK 2, sous le golem
+        { monster: 'clown-assassin', owner: 1, at: at(9, 2) }, // u1 : ATK 3, sous le golem
         { monster: 'golem', owner: 2, at: at(8, 2) }, // u2 : J2 regarde vers le haut, son dos est en bas
         { monster: 'eclaireur', owner: 2, at: at(9, 3) }, // u3 : regarde vers le haut, attaqué de côté
       ]),
     );
     const previews = getAttackPreviews(view, { kind: 'unit', unitId: 'u1', mode: 'act' });
-    expect(previews.get(posKey(at(8, 2)))).toEqual({ damage: 6, behind: true });
-    expect(previews.get(posKey(at(9, 3)))).toEqual({ damage: 2, behind: false });
+    expect(previews.get(posKey(at(8, 2)))).toEqual({ damage: 9, behind: true });
+    expect(previews.get(posKey(at(9, 3)))).toEqual({ damage: 3, behind: false });
   });
 
   it('un monstre sans plus aucune action est épuisé ; un monstre adverse ne l’est jamais', () => {

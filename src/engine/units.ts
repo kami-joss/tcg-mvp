@@ -201,6 +201,11 @@ export function auraRange(state: BoardState, monster: MonsterUnit): number {
   return auraSources(state, monster).reduce((total, other) => total + (auraOf(other)?.range ?? 0), 0);
 }
 
+/** Camouflage qu'apportent les auras à `monster` (Terrain de jeu) : la plus grande valeur des sources qui le couvrent ; 0 sinon. */
+export function auraCamouflage(state: BoardState, monster: MonsterUnit): number {
+  return Math.max(0, ...auraSources(state, monster).map((other) => auraOf(other)?.camouflage ?? 0));
+}
+
 /** Portée actuelle d'un monstre : celle de sa carte, plus le bonus du tour (Flèche divine) et les auras. C'est elle qui sert à attaquer. */
 export function getRange(state: BoardState, monster: MonsterUnit): number {
   return getMonsterCard(monster.cardId).range + monster.rangeBonus + auraRange(state, monster);

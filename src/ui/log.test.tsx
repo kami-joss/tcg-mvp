@@ -81,7 +81,7 @@ describe('journal des actions (SPEC.md §7)', () => {
   it('pièges : la pose ne révèle pas la case ; le déclenchement est annoncé', () => {
     const poser = gameWith([{ monster: 'poseur-de-bombe', owner: 1, at: at(8, 1) }], { players: { 1: { mana: 10 } } });
     const place: Action = { type: 'activateEffect', unitId: 'u1', target: { kind: 'cell', pos: at(8, 2) } };
-    expect(logOf(poser, place)).toEqual(['Poseur de bombe - Pièges de J1 pose un piège.']);
+    expect(logOf(poser, place)).toEqual(['Poseur de bombe - Maîtres des pièges de J1 pose un piège.']);
 
     const state = {
       ...gameWith([{ monster: 'golem', owner: 2, at: at(8, 1) }], { activePlayer: 2 }),
@@ -96,10 +96,10 @@ describe('journal des actions (SPEC.md §7)', () => {
   it('Farceur invisible : ni sa case d’invocation, ni ses déplacements n’apparaissent', () => {
     const state = gameWith([{ monster: 'eclaireur', owner: 2, at: at(9, 4) }], { players: { 1: { grimoire: ['farceur'] } } });
     const summon = { type: 'playCard', cardId: 'farceur', target: { kind: 'cell', pos: at(0, 4) } } as const;
-    expect(logOf(state, summon)).toEqual(['J1 invoque Farceur - Pièges, invisible.']);
+    expect(logOf(state, summon)).toEqual(['J1 invoque Farceur - Maîtres des pièges, invisible.']);
     const moved = { type: 'move', unitId: 'u2', to: at(2, 2) } as const;
     const lines = logOf(applyAction(state, summon), moved);
-    expect(lines).toEqual(['J1 déplace Farceur - Pièges, invisible.']);
+    expect(lines).toEqual(['J1 déplace Farceur - Maîtres des pièges, invisible.']);
   });
 
   it('un Farceur adverse qui sort de la vue disparaît, il n’est pas détruit', () => {
@@ -109,7 +109,7 @@ describe('journal des actions (SPEC.md §7)', () => {
     ]);
     expect(logOf(state, { type: 'move', unitId: 'u1', to: at(9, 0) })).toEqual([
       'J1 déplace Éclaireur en (9, 0).',
-      'Farceur - Pièges de J2 disparaît.',
+      'Farceur - Maîtres des pièges de J2 disparaît.',
     ]);
   });
 
@@ -121,7 +121,7 @@ describe('journal des actions (SPEC.md §7)', () => {
     ]);
     expect(logOf(shot, { type: 'attack', unitId: 'u1', targetId: 'u3', advance: false })).toEqual([
       'Trébuchet de J1 attaque Golem de J2.',
-      'Farceur - Pièges de J2 apparaît en (9, 3) et arrête le tir !',
+      'Farceur - Maîtres des pièges de J2 apparaît en (9, 3) et arrête le tir !',
     ]);
     const walk = gameWith([
       { monster: 'chevalier', owner: 1, at: at(9, 0) },
@@ -129,7 +129,7 @@ describe('journal des actions (SPEC.md §7)', () => {
     ]);
     expect(logOf(walk, { type: 'move', unitId: 'u1', to: at(9, 3) })).toEqual([
       'J1 déplace Chevalier en (9, 3).',
-      'Farceur - Pièges de J2 apparaît en (9, 3) !',
+      'Farceur - Maîtres des pièges de J2 apparaît en (9, 3) !',
       'Chevalier de J1 est arrêté en (9, 2) et ne peut plus bouger de ce tour.',
     ]);
   });

@@ -30,7 +30,7 @@ describe('textes des cartes', () => {
     expect(keywordLabel({ keyword: 'vol' })).toBe('Vol');
     expect(keywordLabel({ keyword: 'prime', amount: 1 })).toBe('Prime 1');
     expect(keywordLabel({ keyword: 'sournois', amount: 1 })).toBe('Sournois +1');
-    expect(keywordLabel({ keyword: 'assassin', multiplier: 3 })).toBe('Assassin ×3');
+    expect(keywordLabel({ keyword: 'assassin', multiplier: 3 })).toBe('Attaque par surprise ×3');
     expect(keywordLabel({ keyword: 'givre', amount: 1, turns: 1 })).toBe('Givre 1');
     expect(keywordLabel({ keyword: 'brulure', amount: 2, turns: 3 })).toBe('Brûlure 2, 3 tours');
   });

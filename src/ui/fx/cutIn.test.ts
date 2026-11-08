@@ -70,7 +70,7 @@ describe('cut-in : la carte qui agit, mise en avant', () => {
     const blessing: Action = { type: 'playCard', cardId: 'benediction', target: { kind: 'unit', unitId: 'u1' } };
     expect(cutInFor(state, blessing)).toMatchObject({ kind: 'spell', cardId: 'benediction', action: 'Sort', to: at(9, 5) });
     const shadow = getLegalActions(state).find((a) => a.type === 'playCard' && a.cardId === 'penombre')!;
-    expect(cutInFor(state, shadow)).toMatchObject({ kind: 'spell', cardId: 'penombre', title: 'Pénombre', archetype: 'Pièges', to: null });
+    expect(cutInFor(state, shadow)).toMatchObject({ kind: 'spell', cardId: 'penombre', title: 'Pénombre', archetype: 'Maîtres des pièges', to: null });
   });
 
   it('terrain et invocation : la carte file vers sa case ; un exemplaire brillant le reste', () => {

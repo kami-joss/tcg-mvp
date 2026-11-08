@@ -155,7 +155,7 @@ r14   P  P  P  P  P  B  P  P  P  P  P  P  P  2  2
 ### 4.2 Déroulé d'un tour
 1. **Début de tour** du joueur actif, dans cet ordre (§10) :
    - Les statuts, pièges et cases brûlées arrivés à échéance disparaissent.
-   - **Revenus** : son mana non dépensé est d'abord perdu ; puis le **mana de base de son tour** (3 à son premier tour, +1 à chacun de ses tours suivants, sans plafond : 3, 3, 4, 4, 5, 5… en comptant les deux joueurs) + 1 mana par mana zone qu'il contrôle **où il a un terrain** (+ bonus éventuels : Autel de mana, Porte-étendard ; un monstre seul sur une zone ne génère pas de mana) ; 1 VP par mana zone qu'il contrôle (mode contestation : une zone contestée ne rapporte rien, §4.4 bis) ; aucun bonus pour le second joueur.
+   - **Revenus** : son mana non dépensé est d'abord perdu ; puis le **mana de base de son tour** (3 à son premier tour, +1 à chacun de ses tours suivants, **10 au plus** : 3, 3, 4, 4, 5, 5… 10, 10 en comptant les deux joueurs ; au-delà de 10, seuls les terrains donnent du mana de plus) + 1 mana par mana zone qu'il contrôle **où il a un terrain** (+ bonus éventuels : Autel de mana, Porte-étendard ; un monstre seul sur une zone ne génère pas de mana) ; 1 VP par mana zone qu'il contrôle (mode contestation : une zone contestée ne rapporte rien, §4.4 bis) ; aucun bonus pour le second joueur.
    - **Effets passifs** de début de tour (Ki né).
    - **Statuts** : requiem (le monstre meurt, sans VP), puis burn.
    - Ses monstres récupèrent toute leur mobilité, leur attaque et leurs effets actifs.
@@ -254,7 +254,7 @@ Le vocabulaire des cartes : un mot = une notion, la même dans les textes de car
 | Adjacent | `adjacent` | Une des **4 cases orthogonales** autour (haut, bas, gauche, droite), sans les diagonales ; jouable et sans falaise entre les deux. Aucune carte ne l'emploie encore (§10, 2026-11-08). |
 | À N pas | `steps` | À N cases au plus en comptant un chemin orthogonal, en L possible, sans ligne de vue (Boule de feu). |
 | Nom d'une carte de deck | `name` | « Nom - Archétype », l'archétype étant le nom de son deck (« Arnold - Bodybuilder », « Apprenti - Sorciers du feu »). Les cartes de base (§6) et communes (§6 ter) gardent leur nom seul. L'interface écrit le nom en gros, l'archétype dessous (§10). |
-| Archétype | `archetype` | Groupe de cartes d'un deck qui vont ensemble, le même mot que dans « Nom - Archétype » (Archers impériaux, Bodybuilder, Dragons, Pièges, Sorciers du feu, Explorateur du temps, Vampire). « Un allié bodybuilder » : un de ses monstres de l'archétype Bodybuilder ; « un allié archer impérial » : de l'archétype Archers impériaux ; « un allié vampire » : de l'archétype Vampire. Une carte générique (de base, commune, ou le Trébuchet) n'a pas d'archétype, même dans un deck (§10). |
+| Archétype | `archetype` | Groupe de cartes d'un deck qui vont ensemble, le même mot que dans « Nom - Archétype » (Archers impériaux, Bodybuilder, Dragons, Maîtres des pièges, Sorciers du feu, Explorateur du temps, Vampire). « Un allié bodybuilder » : un de ses monstres de l'archétype Bodybuilder ; « un allié archer impérial » : de l'archétype Archers impériaux ; « un allié vampire » : de l'archétype Vampire. Une carte générique (de base, commune, ou le Trébuchet) n'a pas d'archétype, même dans un deck (§10). |
 | Tour | `turn` | Le tour d'un joueur : le tour de J1 puis celui de J2 font 2 tours. Une durée de statut se compte en tours du camp de l'unité touchée (§5.5). |
 | Rayon N | `radius` | Les cases autour d'une carte : rayon 1 = les 8 cases adjacentes, rayon 2 = 24 cases (le carré 5 × 5 sans la case centrale) ; falaises et cases `X` coupent la zone comme pour « adjacent ». À ne pas confondre avec la portée. |
 | Une fois par tour/carte | — | Chaque exemplaire une fois par tour. C'est la règle de tous les effets de monstres (effet actif, riposte), sauf un effet actif « sans limite par tour » (§5.2). Jouer une carte (sort, monstre, terrain) n'a pas de limite : seul le mana compte (§4.3). Les effets des terrains n'en ont pas non plus (Passage : à chaque case), sauf Au déplacement : une fois par tour pour chaque monstre, tous exemplaires confondus (§5.2). |
@@ -277,7 +277,7 @@ Exemple : « Actif (3 mana) · Déflagration · 3 cases devant · 2 dégâts + b
 | À l'attaque | `onHit` | Après les dégâts d'une attaque de ce monstre, sur sa cible. |
 | Quand il détruit | `onKill` | Quand une attaque de ce monstre détruit un monstre. « Quand il détruit une unité » : un monstre ou un terrain ; l'effet s'applique au monstre lui-même. |
 | Début de tour | `turnStart` | Au début de chaque tour de son camp, après les revenus et avant les statuts (§4.2). |
-| Aura | `aura` | Passif : tant qu'ils sont dans la zone de la source, les monstres visés ont le bonus (il se cumule avec celui d'une autre aura). Bonus d'ATK, de PV ou de mobilité (§10 pour les PV et la mobilité). |
+| Aura | `aura` | Passif : tant qu'ils sont dans la zone de la source, les monstres visés ont le bonus (il se cumule avec celui d'une autre aura). Bonus d'ATK, de PV, de mobilité ou de portée, nombre d'attaques par tour (§10), ou camouflage N (Terrain de jeu : tenu tant que le monstre est dans la zone, sans durée). |
 | Piège | `trap` | Quand un monstre ennemi entre sur la case piégée (§10). |
 | Passage | `passage` | Terrain : quand un monstre ennemi entre sur une case de sa zone : à chaque case en marchant, une fois par recul (§10). |
 | Zone | `passage` (`lingering`) | Monstre (Golem de lave) : comme Passage, mais elle agit sur tout ennemi dans la zone : quand il y entre, quand la source arrive à côté de lui (une fois par déplacement), et au début de chaque tour de son camp sur ceux qui y sont encore (§10). |
@@ -325,8 +325,9 @@ Un champ absent est nul, jamais deviné. **Quand l'utilisateur donne un nouvel e
 | Carré de 2 | `square2` | Les cases du carré de 1 de la source, et les cases du carré de 1 de celles-ci (sans la source) : le carré 5 × 5 sur terrain dégagé ; falaises et cases `X` coupent la zone comme pour le carré de 1. |
 | sa case et carré de 1 | `cellAndSquare` | La case de la source et les 8 cases autour ; falaises et cases `X` coupent la zone comme pour le carré de 1. Pour un déclencheur de terrain sur ses monstres (Au déplacement), pas un effet sur les ennemis. |
 | bodybuilders alliés, carré de 1 | `square1`, `archetype` | Pour une aura ou un effet de début de tour : ses monstres de cet archétype sur les 8 cases autour de la source (pas la source elle-même). |
+| maîtres des pièges alliés, sa case et carré de 1 | `cellAndSquare`, `archetype` | Aura d'un terrain (Terrain de jeu), sur le modèle de « bodybuilders alliés, sa case et carré de 1 » (Salle de sport) et « archers impériaux alliés, … » (Camps de tir). |
 | bodybuilders alliés, carré de 2 | `square2`, `archetype` | Comme ci-dessus, sur le carré de 2 de la source (carré 5 × 5 sur terrain dégagé ; falaises et cases `X` coupent la zone), pas la source elle-même (Rudy, Arnold, Ki né). |
-| tous les monstres piège alliés | `allies`, `archetype` | Tous ses monstres de cet archétype, où qu'ils soient, sans choix (Pénombre) ; jouable s'il en a au moins un. |
+| tous les maîtres des pièges alliés | `allies`, `archetype` | Tous ses monstres de cet archétype, où qu'ils soient, sans choix (Pénombre) ; jouable s'il en a au moins un. |
 | tous les ennemis | `enemies` | Tous les monstres ennemis que voit le lanceur, où qu'ils soient, sans choix (Piège temporel) ; jouable s'il y en a au moins un. |
 
 ### 5.4 Effets
@@ -366,7 +367,7 @@ Un statut dure un nombre de tours propre à l'effet qui le pose. On compte les t
 | pendant N tours | `turns: N` | Jusqu'à la fin du N-ième prochain tour de son camp. Burn N pendant 2 tours : 2 pertes de N PV, au début de ses 2 prochains tours. |
 | jusqu'à son prochain tour | `turns: 0` | Jusqu'au début du prochain tour de son camp : pris pendant son propre tour, il dure le reste de ce tour, puis il est libre (filet du Poseur de piège, slow du Terrain piégé). |
 
-| N tours adverses | `turns: N` (piège) | Durée d'un **piège** posé (§10) : il reste jusqu'à la fin du N-ième tour de l'adversaire de son poseur, soit jusqu'au début du N-ième prochain tour de son poseur, ou plus tôt s'il est déclenché. Par défaut 1 (Poseur de piège, Poseur de bombe). Sablier du temps : 3. |
+| N tours adverses | `turns: N` (piège) | Durée d'un **piège** posé (§10) : il reste jusqu'à la fin du N-ième tour de l'adversaire de son poseur, soit jusqu'au début du N-ième prochain tour de son poseur, ou plus tôt s'il est déclenché. Par défaut 1. Filet, Bombe et Sablier du temps : 3. |
 
 Hors statuts : « +N mobilité », « +N ATK » et « +N portée » (pour ce tour) valent pour ce tour, « +A ATK +P PV » vaut définitivement.
 
@@ -386,7 +387,7 @@ Un mot-clé est un raccourci : un nom, parfois un nombre, et une définition éc
 | Brûlure N | `brulure` | À l'attaque : burn N pendant 1 tour. Une autre durée s'écrit après : « Brûlure 1, 2 tours ». |
 | Siège ×N | `siege` | Dégâts ×N contre un terrain. |
 | Sournois +N | `sournois` | En attaquant un monstre par derrière : +N ATK pour cette attaque. |
-| Assassin ×N | `assassin` | En attaquant un monstre par derrière : dégâts ×N. |
+| Attaque par surprise ×N | `assassin` | En attaquant un monstre par derrière : dégâts ×N. Anciennement « Assassin ×N » (renommé le 2026-11-08 : « Assassin » est aussi un rôle de fiche, sans règle). |
 | Camouflage N | `camouflage` | Invisible pour l'adversaire tant qu'aucun monstre ni terrain adverse n'est dans un carré de N autour de lui (§10). |
 | Soif N | `soif` | À l'attaque : il récupère N PV (soin N sur lui-même, sans dépasser ses PV max), après les dégâts et avant une riposte ou une avancée ; aussi contre un terrain, et quand la cible est détruite (§10). |
 | Point d'invocation | `summonPoint` | Terrain : sa case est une case d'invocation de son camp, tant qu'aucun monstre ne s'y trouve (§4.5). |
@@ -414,7 +415,7 @@ Posés sur une unité par un effet, pour une durée (§5.5).
 | Carapace | `carapace` | La prochaine attaque ou riposte que subit la cible ne lui inflige que 1 PV, puis la carapace disparaît (Tibo). Les autres dégâts (sorts, effets, pièges, Passage, Zone, burn) ne la touchent pas et ne la consomment pas. |
 
 - Un statut disparaît au début du tour qui suit son échéance (§5.5), avant tout le reste (revenus, passifs, statuts, mobilité). Pendant N tours, il touche chacun des N prochains tours du camp de l'unité.
-- Les statuts du même type se cumulent : deux burn 1 font perdre 2 PV, deux slow 1 retirent 2 de mobilité.
+- Les statuts du même type se cumulent : deux burn 1 font perdre 2 PV, deux slow 1 retirent 2 de mobilité. **Exception : camouflage** (statut, mot-clé et aura du Terrain de jeu) : on garde la plus grande valeur, sans somme.
 - Un monstre stun ou immobilisé perd aussitôt sa mobilité restante. Au début de son tour, sa mobilité est celle de sa carte moins ses slow, ou 0 s'il est stun ou immobilisé.
 - Un slow pris pendant le tour du camp de l'unité réduit aussitôt sa mobilité restante, sans descendre sous 0 (Terrain piégé).
 - Sur un terrain, seul burn s'applique.
@@ -460,7 +461,7 @@ Les 20 cartes ci-dessous, plus 5 cartes communes (§6 ter : toutes sauf le Terra
 
 ## 6 bis. Decks pré-construits
 
-Chaque joueur choisit son deck avant la partie, parmi : **Classique** (le grimoire de test du §6), **Archers impériaux**, **Pièges**, **Dragons**, **Bodybuilder**, **Sorciers du feu**, **Explorateur du temps** et **Vampire**. Pas de deckbuilding. Chaque deck fait 25 cartes (exception : Archers impériaux, 26, §10), 3 exemplaires au plus d'une même carte : ses cartes propres, un complément de cartes du grimoire de test (§6) et des cartes communes (§6 ter), avec les quantités de sa composition ci-dessous (tableau « Composition » du doc « Cartes du TCG »). Ses cartes propres s'appellent « Nom - Archétype », l'archétype étant le nom du deck (§5.1) ; dans les compositions, on les écrit par leur nom seul.
+Chaque joueur choisit son deck avant la partie, parmi : **Classique** (le grimoire de test du §6), **Archers impériaux**, **Maîtres des pièges**, **Dragons**, **Bodybuilder**, **Sorciers du feu**, **Explorateur du temps** et **Vampire**. Pas de deckbuilding. Chaque deck fait 25 cartes (exception : Archers impériaux, 26, §10), 3 exemplaires au plus d'une même carte : ses cartes propres, un complément de cartes du grimoire de test (§6) et des cartes communes (§6 ter), avec les quantités de sa composition ci-dessous (tableau « Composition » du doc « Cartes du TCG »). Ses cartes propres s'appellent « Nom - Archétype », l'archétype étant le nom du deck (§5.1) ; dans les compositions, on les écrit par leur nom seul.
 
 ### Deck Archers impériaux
 
@@ -496,22 +497,26 @@ Cartes sans deck, gardées pour leurs mécaniques (Trophée, Pillage, Givre, Br�
 
 Les quatre archers sont de l'archétype Archers impériaux (code `archer`) ; le Trébuchet et le Monstre de test sont génériques, sans archétype.
 
-### Deck Pièges
+### Deck Maîtres des pièges
+
+Anciennement « Pièges » (renommé le 2026-11-08, id technique `pieges` inchangé). Les 4 monstres sont de l'archétype Piège, qui s'affiche « Maîtres des pièges » (« maîtres des pièges »). « Rôle » (Contrôleur, Assassin) : information de la fiche, sans règle.
 
 | Carte | Coût | ATK | PV | Mob. | Portée | Effet |
 |---|---|---|---|---|---|---|
-| Poseur de piège - Pièges | 1 | 1 | 1 | 7 | 1 | Actif (1 mana) · piège une case libre, carré de 1 · immobilisé jusqu'à son prochain tour |
-| Farceur - Pièges | 3 | 2 | 1 | 6 | 1 | Camouflage 2 ; Assassin ×2 |
-| Poseur de bombe - Pièges | 1 | 2 | 1 | 7 | 1 | Actif (2 mana) · piège une case libre, carré de 1 · 3 dégâts |
-| Clown assassin - Pièges | 4 | 2 | 2 | 7 | 1 | Assassin ×3 |
-
-Les 4 monstres sont de l'archétype Piège (« monstres piège »).
+| Poseur de piège - Maîtres des pièges | 2 | 1 | 1 | 7 | 1 | Actif (1 mana) · Filet · piège une case libre, carré de 1 (3 tours adverses) · immobilisé jusqu'à son prochain tour |
+| Farceur - Maîtres des pièges | 3 | 2 | 1 | 7 | 1 | Camouflage 2 ; Attaque par surprise ×2 |
+| Poseur de bombe - Maîtres des pièges | 2 | 1 | 1 | 7 | 1 | Actif (1 mana) · Bombe · piège une case libre, carré de 1 (3 tours adverses) · 3 dégâts |
+| Clown assassin - Maîtres des pièges | 4 | 3 | 2 | 7 | 1 | Attaque par surprise ×3 |
 
 | Carte | Coût | Effet |
 |---|---|---|
-| Pénombre - Pièges | 5 | Tous les monstres piège alliés · camouflage 2 pendant 1 tour |
+| Pénombre - Maîtres des pièges | 5 | Tous les maîtres des pièges alliés · camouflage 2 pendant 1 tour |
 
-Composition (25) : Poseur de piège ×3, Farceur ×3, Poseur de bombe ×3, Clown assassin ×3, Pénombre ×2 ; complément : Boule de feu, Charge, Bourrasque, Bénédiction, Autel de mana (×1) ; communes : Terrain piégé ×2, Zone d'invocation ×2, Invocateur, Terrain drainant (×1), pas de Téléporteur.
+| Carte | Coût | PV | Effet |
+|---|---|---|---|
+| Terrain de jeu - Maîtres des pièges | 3 | 5 | Aura · maîtres des pièges alliés, sa case et carré de 1 · camouflage 1 |
+
+Composition (25, remaniée le 2026-11-08) : Poseur de piège ×3, Farceur ×3, Poseur de bombe ×3, Clown assassin ×3, Pénombre ×2, Terrain de jeu ×3 ; complément : Boule de feu, Charge, Bourrasque, Bénédiction (×1) ; communes : Terrain piégé ×2, Zone d'invocation ×2, pas de Téléporteur, d'Invocateur ni de Terrain drainant (sortis pour les 3 Terrains de jeu, comme l'Autel de mana).
 
 ### Deck Dragons
 
@@ -662,7 +667,7 @@ Pour tester le jeu seul : au lancement d'une partie, « J2 joué par : l'IA ». 
 - Mana zones : une zone que l'adversaire tient à la fin du tour de l'IA lui rapporte aussitôt (VP et mana, au début de son tour) ; une zone que l'IA tient ne lui rapporte qu'au début de son tour suivant, et moins sûrement si un monstre adverse peut venir la contester d'ici là. Contester une zone adverse vaut donc à peu près un VP : elle y envoie volontiers un petit monstre, même s'il risque d'y être détruit. Une zone que tient un de ses terrains n'a pas besoin de gardien : ses monstres repartent vers les autres.
 - Échanges : un monstre qu'un allié pourra venger (détruire son tueur au tour suivant) coûte moins à perdre ; l'IA se risque donc plus volontiers, et l'adversaire n'est pas censé faire un échange perdant.
 - Sorts et effets : un effet actif ou un sort doit rapporter plus que son mana. Un sort gardé au grimoire garde une valeur (il servira à un moment décisif) : l'IA ne le lance que s'il rapporte davantage, une destruction, une zone prise ou contestée, une unité sauvée, pas pour un bonus sans suite (pas de Bénédiction au premier tour, pas de Boule de feu qui ne fait qu'entamer). Un sort ou un effet ne prend pas à son compte ce que l'action suivante aurait rapporté sans lui.
-- Pièges : un piège ne vaut rien si aucun monstre adverse ne peut marcher dessus avant qu'il disparaisse (au prochain tour de son poseur) ; il vaut d'autant plus qu'il est près d'une mana zone.
+- Pièges : un piège ne vaut rien si aucun monstre adverse ne peut marcher dessus avant qu'il disparaisse (à la fin de sa durée, 3 tours adverses pour Filet, Bombe et Sablier) ; il vaut d'autant plus qu'il est près d'une mana zone.
 - Pas d'allers-retours : une action n'est notée avec l'effet qui la suivrait que si cet effet serait joué, et deux actions valent un peu moins que le même résultat en une seule.
 - Un monstre qui change de forme (Emma) vaut la meilleure de ses deux formes : il y revient quand il veut, en payant le mana.
 - Elle ne triche pas : elle ne voit ni les monstres invisibles adverses, ni les pièges adverses, ni le grimoire adverse.
@@ -798,3 +803,6 @@ Réponses aux questions posées pendant le développement. Elles font autorité 
 - **§4.7 / §10 — Les alliés ne bloquent pas la ligne de vue (validé le 2026-11-08)** : un monstre **allié** de l'attaquant (§5.1 : un allié est toujours un monstre) ne gêne ni un tir en ligne droite, ni un tir en diagonale : le tir passe par-dessus et vise la première unité qui n'est pas un monstre allié. Les **terrains** (le sien compris) et les **monstres ennemis** arrêtent toujours le tir ; une case qui porte un monstre allié **et** un terrain l'arrête (le terrain). Valable pour les effets « en ligne, portée N » (« comme une attaque », §5.3 : le Mage), pour la menace affichée au survol et pour l'IA. Un monstre allié invisible pour l'adversaire ne gêne pas non plus. Les monstres invisibles **ennemis** arrêtent le tir comme avant (§10).
 - **§4.4 bis — Pas de terrain sur une zone contestée (rappel du 2026-11-08)** : confirmé, déjà appliqué : en mode contestation on ne pose un terrain que dans une zone qu'on tient, c'est-à-dire en **supériorité numérique de monstres** (ou avec son propre terrain déjà posé, impossible puisqu'un seul terrain par zone) ; une zone contestée (égalité de monstres des deux camps), neutre, tenue par le nombre de l'adversaire ou par un terrain adverse n'en reçoit pas.
 - **§4.7 / §10 — Les terrains alliés ne bloquent pas non plus (validé le 2026-11-08)** : complète l'entrée précédente. Les **terrains alliés** de l'attaquant ne gênent pas le tir, comme ses monstres : le tir (en ligne droite, en diagonale, effet « en ligne ») passe par-dessus toute unité de son camp, monstre ou terrain, et vise la première unité du camp adverse. Un monstre ou un **terrain ennemi** arrête toujours le tir (et un terrain ennemi se vise s'il est le premier). Remplace « les terrains arrêtent toujours le tir, le sien compris » de l'entrée précédente.
+- **§4.2 — Plafond du mana de base à 10 (validé le 2026-11-08)** : le **mana de base** du début de tour est plafonné à **10** (`BASE_MANA_CAP`) : 3, 4, 5… jusqu'à 10, atteint au **8e tour de chaque joueur** (tours 15 et 16), puis 10 à chaque tour. **Le mana de zone des terrains s'ajoute par-dessus** (+1 par zone tenue où l'on a un terrain, Autel de mana, Étendard avec un terrain) et n'est pas plafonné : c'est la seule source qui fait dépasser 10 au début du tour. Les autres gains **en cours de tour** (Pillage, effets qui donnent du mana) ne changent pas : ils s'ajoutent sans plafond, comme avant. Le mana non dépensé reste perdu en fin de tour. Remplace « sans plafond » du 2026-11-07 et du §4.10 pour le mana de base ; l'orbe du score reste pleine à 10.
+- **§6 bis — Deck Pièges renommé « Maîtres des pièges » et remanié (validé le 2026-11-08)** : même deck (id `pieges`, cartes et quantités inchangées, Pénombre reste), nouveaux noms « Nom - Maîtres des pièges » ; l'archétype `piege` s'affiche « Maîtres des pièges » (« maître des pièges » pour « monstre piège » : Pénombre vise « tous les maîtres des pièges alliés »). **Poseur de piège** : coût 1 → **2** ; **Filet** (1 mana, nom d'effet) : le piège **dure 3 tours adverses** (1 avant). **Poseur de bombe** : coût 1 → **2**, ATK 2 → **1** ; **Bombe** : **1 mana** (2 avant), 3 dégâts (« perd 3 PV » du texte = 3 dégâts d'effet), **3 tours adverses**. **Clown assassin** : ATK 2 → **3**. **Farceur** : mobilité 6 → **7** ; son « Camouflage » est le statut de §5 bis donné en permanence à lui-même : invisible tant qu'aucun monstre ni terrain adverse n'est dans un carré de 2 (Camouflage 2 inchangé). **Attaque par surprise ×N** : nouveau nom du mot-clé Assassin ×N (même règle, §5.6). Règles des pièges, inchangées : « lorsque l'ennemi est sur la case » = l'ennemi **entre** sur la case (§10), le piège ne se déclenche **qu'une fois** puis disparaît, ou disparaît à la fin de ses 3 tours adverses ; il reste même si son poseur est détruit ; « Filet » : immobilisé jusqu'à son prochain tour (`turns: 0`). **Plusieurs filets** peuvent être posés : **1 pose par tour et par poseur** (1x/tour), aucun plafond par poseur, donc jusqu'à 3 filets d'un poseur en même temps ; **un camp n'a qu'un piège par case** (règle du moteur `getTrapCells`, désormais écrite) ; les deux camps peuvent piéger la même case. L'IA estime un piège sur le prochain tour ennemi seulement (elle sous-estime ceux de 3 tours).
+- **§6 bis — Terrain de jeu - Maîtres des pièges (validé le 2026-11-08)** : nouveau terrain du deck Maîtres des pièges (×3), **3 mana, 5 PV**, nom donné « Zone de “jeu” » devenu **Terrain de jeu** (le mot « zone » est déjà pris : mot-clé Zone, Zone d'invocation, mana zones). Son effet, sans nom d'effet (la fiche d'effet §5.2 ne s'impose qu'aux monstres), est le **statut Camouflage 1** (« invisible à plus de 1 case » : invisible pour l'adversaire tant qu'aucun de ses monstres ni terrains n'est dans un carré de 1 autour de lui) donné à **ses maîtres des pièges alliés (monstres)** **sur sa case et dans son carré de 1** (`cellAndSquare`), **tant qu'ils y sont** : sans durée, il ne se pose pas et ne s'use pas, il est recalculé à chaque action (`StatAura.camouflage`, `auraCamouflage`, `isHiddenFrom`) ; en sortir, ou la destruction du terrain, les rend visibles aussitôt (aucun drapeau « révélé »). **Cumul** : avec le Camouflage 2 du Farceur ou celui de Pénombre, c'est **la plus grande valeur** qui compte (pas la somme), comme le moteur le faisait déjà ; précision au §5 bis : les statuts de camouflage ne se cumulent pas. Les monstres cachés comptent toujours pour le contrôle d'une zone en contestation (§4.4 bis, l'état de la zone est public). Un seul terrain par mana zone, sur une zone qu'on tient (§4.9). Pas d'illustration pour l'instant. L'IA ne valorise pas cette aura (elle la prend en compte dans ce qu'elle voit des camouflés, mais ne cherche pas à en profiter).

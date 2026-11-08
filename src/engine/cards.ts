@@ -211,37 +211,40 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
     ],
   }),
 
-  // Deck Pièges : les 4 monstres sont de la famille Piège (« monstres piège », §10).
+  // Deck Maîtres des pièges (ex-Pièges, 2026-11-08) : les 4 monstres sont de la famille Piège (« maîtres des pièges », §10).
   'poseur-de-piege': inArchetype(
     'piege',
-    monster('poseur-de-piege', 'Poseur de piège - Pièges', { cost: 1, atk: 1, hp: 1, mobility: 7, range: 1 }, [], {
+    monster('poseur-de-piege', 'Poseur de piège - Maîtres des pièges', { cost: 2, atk: 1, hp: 1, mobility: 7, range: 1 }, [], {
+      name: 'Filet',
       manaCost: 1,
       targeting: EMPTY_SQUARE_CELL,
-      effects: [{ type: 'placeTrap', effects: [{ type: 'status', kind: 'immobilise', turns: 0 }] }],
+      // Le piège dure 3 tours adverses ; plusieurs filets peuvent être posés (aucun plafond par poseur).
+      effects: [{ type: 'placeTrap', effects: [{ type: 'status', kind: 'immobilise', turns: 0 }], turns: 3 }],
     }),
   ),
   farceur: inArchetype(
     'piege',
-    monster('farceur', 'Farceur - Pièges', { cost: 3, atk: 2, hp: 1, mobility: 6, range: 1 }, [
+    monster('farceur', 'Farceur - Maîtres des pièges', { cost: 3, atk: 2, hp: 1, mobility: 7, range: 1 }, [
       { keyword: 'camouflage', amount: 2 },
       { keyword: 'assassin', multiplier: 2 },
     ]),
   ),
   'poseur-de-bombe': inArchetype(
     'piege',
-    monster('poseur-de-bombe', 'Poseur de bombe - Pièges', { cost: 1, atk: 2, hp: 1, mobility: 7, range: 1 }, [], {
-      manaCost: 2,
+    monster('poseur-de-bombe', 'Poseur de bombe - Maîtres des pièges', { cost: 2, atk: 1, hp: 1, mobility: 7, range: 1 }, [], {
+      name: 'Bombe',
+      manaCost: 1,
       targeting: EMPTY_SQUARE_CELL,
-      effects: [{ type: 'placeTrap', effects: [{ type: 'damage', amount: 3 }] }],
+      effects: [{ type: 'placeTrap', effects: [{ type: 'damage', amount: 3 }], turns: 3 }],
     }),
   ),
   'clown-assassin': inArchetype(
     'piege',
-    monster('clown-assassin', 'Clown assassin - Pièges', { cost: 4, atk: 2, hp: 2, mobility: 7, range: 1 }, [
+    monster('clown-assassin', 'Clown assassin - Maîtres des pièges', { cost: 4, atk: 3, hp: 2, mobility: 7, range: 1 }, [
       { keyword: 'assassin', multiplier: 3 },
     ]),
   ),
-  penombre: spell('penombre', 'Pénombre - Pièges', 5, {
+  penombre: spell('penombre', 'Pénombre - Maîtres des pièges', 5, {
     targeting: { type: 'allies', archetype: 'piege' },
     effects: [{ type: 'status', kind: 'camouflage', amount: 2, turns: 1 }],
   }),
@@ -452,6 +455,10 @@ export const CARDS: Readonly<Record<CardId, Card>> = {
   'salle-de-sport': terrain('salle-de-sport', 'Salle de sport - Bodybuilder', { cost: 2, hp: 4 }, {
     aura: { zone: 'cellAndSquare', archetype: 'bodybuilder', atk: 1, hp: 1, mobility: 0 },
   }),
+  // Terrain de jeu (Maîtres des pièges, 2026-11-08) : Camouflage 1 pour ses maîtres des pièges alliés, sur sa case et dans son carré de 1.
+  'terrain-de-jeu': terrain('terrain-de-jeu', 'Terrain de jeu - Maîtres des pièges', { cost: 3, hp: 5 }, {
+    aura: { zone: 'cellAndSquare', archetype: 'piege', atk: 0, hp: 0, mobility: 0, camouflage: 1 },
+  }),
   seringue: spell('seringue', 'Seringue - Bodybuilder', 2, {
     targeting: { type: 'monster', side: 'ally', reach: { type: 'anywhere' }, archetype: 'bodybuilder' },
     effects: [
@@ -584,7 +591,7 @@ export const DECKS: readonly Deck[] = [
   },
   {
     id: 'pieges',
-    name: 'Pièges',
+    name: 'Maîtres des pièges',
     cards: expand([
       ['poseur-de-piege', 3],
       ['farceur', 3],
@@ -595,9 +602,7 @@ export const DECKS: readonly Deck[] = [
       ['charge', 1],
       ['bourrasque', 1],
       ['benediction', 1],
-      ['autel-de-mana', 1],
-      ['invocateur', 1],
-      ['terrain-drainant', 1],
+      ['terrain-de-jeu', 3],
       ['terrain-piege', 2],
       ['zone-invocation', 2],
     ]),

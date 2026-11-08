@@ -33,7 +33,7 @@ const KEYWORD_NAMES: Readonly<Record<Keyword, string>> = {
   brulure: 'Brûlure',
   siege: 'Siège',
   sournois: 'Sournois',
-  assassin: 'Assassin',
+  assassin: 'Attaque par surprise',
   camouflage: 'Camouflage',
   soif: 'Soif',
 };
@@ -43,7 +43,7 @@ export function durationText(turns: number): string {
   return turns === 0 ? 'jusqu’à son prochain tour' : `pendant ${turns} tour${turns > 1 ? 's' : ''}`;
 }
 
-/** Mot-clé avec sa valeur, comme sur la carte : « Givre 1 », « Sournois +1 », « Assassin ×3 », « Givre 1, 2 tours ». */
+/** Mot-clé avec sa valeur, comme sur la carte : « Givre 1 », « Sournois +1 », « Attaque par surprise ×3 », « Givre 1, 2 tours ». */
 export function keywordLabel(spec: KeywordSpec): string {
   const name = KEYWORD_NAMES[spec.keyword];
   switch (spec.keyword) {
@@ -114,7 +114,7 @@ export const ARCHETYPE_NAMES: Readonly<Record<Archetype, { readonly title: strin
   bodybuilder: { title: 'Bodybuilder', one: 'bodybuilder', many: 'bodybuilders' },
   archer: { title: 'Archers impériaux', one: 'archer impérial', many: 'archers impériaux' },
   dragon: { title: 'Dragons', one: 'dragon élémentaire', many: 'dragons élémentaires' },
-  piege: { title: 'Pièges', one: 'monstre piège', many: 'monstres piège' },
+  piege: { title: 'Maîtres des pièges', one: 'maître des pièges', many: 'maîtres des pièges' },
   sorcier: { title: 'Sorciers du feu', one: 'sorcier du feu', many: 'sorciers du feu' },
   temps: { title: 'Explorateur du temps', one: 'explorateur du temps', many: 'explorateurs du temps' },
   vampire: { title: 'Vampire', one: 'vampire', many: 'vampires' },
@@ -337,13 +337,14 @@ export function onKillText(card: MonsterCard): string | null {
 }
 
 /** Bonus d'une aura : « +2 ATK », « +1 ATK +1 PV +1 mobilité ». */
-export function auraBonusText({ atk, hp, mobility, range, attacks }: Pick<StatAura, 'atk' | 'hp' | 'mobility' | 'range' | 'attacks'>): string {
+export function auraBonusText({ atk, hp, mobility, range, attacks, camouflage }: Pick<StatAura, 'atk' | 'hp' | 'mobility' | 'range' | 'attacks' | 'camouflage'>): string {
   return [
     atk ? `+${atk} ATK` : null,
     hp ? `+${hp} PV` : null,
     mobility ? `+${mobility} mobilité` : null,
     range ? `+${range} portée` : null,
     attacks ? `${attacks} attaques par tour` : null,
+    camouflage ? `camouflage ${camouflage}` : null,
   ]
     .filter(Boolean)
     .join(' ');

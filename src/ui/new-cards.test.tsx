@@ -71,7 +71,7 @@ describe('Pénombre', () => {
   const selection: Selection = { kind: 'card', cardId: 'penombre' };
 
   it('texte de la carte', () => {
-    expect(describeCard(getCard('penombre'))).toEqual(['Tous les monstres piège alliés · camouflage 2 pendant 1 tour']);
+    expect(describeCard(getCard('penombre'))).toEqual(['Tous les maîtres des pièges alliés · camouflage 2 pendant 1 tour']);
   });
 
   it('sans cible à choisir : ses monstres piège en doré, un clic sur l’un d’eux la lance', () => {
@@ -83,7 +83,7 @@ describe('Pénombre', () => {
 
   it('journal, fiche et pastille du statut invisible', () => {
     const after = applyAction(state, PENOMBRE);
-    expect(describeAction(view(state), PENOMBRE, view(after))[0]).toBe('J1 lance Pénombre - Pièges.');
+    expect(describeAction(view(state), PENOMBRE, view(after))[0]).toBe('J1 lance Pénombre - Maîtres des pièges.');
     const chips = getSheet(view(after), { kind: 'cell', pos: at(1, 1) })!.status;
     // Un seul « Camouflé » : le statut de Pénombre, sans puce d'effet en double.
     expect(chips).toEqual([

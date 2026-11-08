@@ -81,7 +81,7 @@ describe('aperçu d’attaque', () => {
       { monster: 'clown-assassin', owner: 1, at: at(5, 4) },
       { monster: 'golem', owner: 2, at: at(5, 5), facing: 'right' },
     ]);
-    expect(preview(state)).toMatchObject({ behind: true, damage: 6, hpAfter: 1 });
-    expect(applyAction(state, attack()).units.u2?.hp).toBe(1);
+    expect(preview(state)).toMatchObject({ behind: true, damage: 9, hpAfter: 0 });
+    expect(applyAction(state, attack()).units.u2).toBeUndefined();
   });
 });
