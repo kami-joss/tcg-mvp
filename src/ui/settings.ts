@@ -57,6 +57,8 @@ export interface DisplaySettings {
   readonly tokenStats: TokenStats;
   /** Défilement du plateau quand la souris touche un bord (la caméra qui suit les actions n'en dépend pas). */
   readonly edgeScroll: boolean;
+  /** Quadrillage du plateau peint (traits et damier des cases) ; sans lui, seules restent les cases à repère. */
+  readonly grid: boolean;
 }
 
 export const DEFAULT_SETTINGS: DisplaySettings = {
@@ -69,6 +71,7 @@ export const DEFAULT_SETTINGS: DisplaySettings = {
   grimoireOpen: true,
   tokenStats: DEFAULT_TOKEN_STATS,
   edgeScroll: true,
+  grid: true,
 };
 
 const KEYS = {
@@ -81,6 +84,7 @@ const KEYS = {
   grimoireOpen: 'tcg-grimoire-ouvert',
   tokenStats: 'tcg-plateau-stats-v6',
   edgeScroll: 'tcg-plateau-defilement-bords',
+  grid: 'tcg-plateau-quadrillage',
 } as const;
 
 /** Valeur mémorisée de chaque vue (celles de la maquette). */
@@ -120,6 +124,7 @@ export function loadSettings(): DisplaySettings {
   const grimoireLayout = read(KEYS.grimoireLayout);
   const grimoireOpen = read(KEYS.grimoireOpen);
   const edgeScroll = read(KEYS.edgeScroll);
+  const grid = read(KEYS.grid);
   return {
     view: (Object.keys(VIEW_VALUES) as BoardView[]).find((v) => VIEW_VALUES[v] === view) ?? DEFAULT_SETTINGS.view,
     animations: animations === null ? DEFAULT_SETTINGS.animations : animations === '1',
@@ -130,6 +135,7 @@ export function loadSettings(): DisplaySettings {
     grimoireOpen: grimoireOpen === null ? DEFAULT_SETTINGS.grimoireOpen : grimoireOpen === '1',
     tokenStats: readTokenStats(),
     edgeScroll: edgeScroll === null ? DEFAULT_SETTINGS.edgeScroll : edgeScroll === '1',
+    grid: grid === null ? DEFAULT_SETTINGS.grid : grid === '1',
   };
 }
 
@@ -143,6 +149,7 @@ export function saveSettings(settings: DisplaySettings): void {
     window.localStorage.setItem(KEYS.grimoireLayout, LAYOUT_VALUES[settings.grimoireLayout]);
     window.localStorage.setItem(KEYS.grimoireOpen, settings.grimoireOpen ? '1' : '0');
     window.localStorage.setItem(KEYS.edgeScroll, settings.edgeScroll ? '1' : '0');
+    window.localStorage.setItem(KEYS.grid, settings.grid ? '1' : '0');
     const stats = Object.fromEntries((Object.keys(STAT_KEYS) as (keyof TokenStats)[]).map((k) => [STAT_KEYS[k], settings.tokenStats[k]]));
     window.localStorage.setItem(KEYS.tokenStats, JSON.stringify(stats));
   } catch {

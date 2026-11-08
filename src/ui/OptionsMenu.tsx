@@ -156,6 +156,10 @@ function OptionsPanel({ settings, boardView, isoAvailable, tiltAvailable, onChan
           <input type="checkbox" checked={settings.edgeScroll} onChange={(event) => onChange({ edgeScroll: event.target.checked })} />
           Défilement aux bords
         </label>
+        <label className="options__check">
+          <input type="checkbox" checked={settings.grid} onChange={(event) => onChange({ grid: event.target.checked })} />
+          Quadrillage du plateau
+        </label>
       </section>
 
       <section className="options__section options__section--rule">

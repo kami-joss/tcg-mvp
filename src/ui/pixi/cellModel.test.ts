@@ -72,6 +72,16 @@ describe('cases du plateau PixiJS : fond et repères', () => {
     expect(blocked.some((v) => v.base === 'water')).toBe(true);
     expect(blocked.some((v) => v.base === 'blocked')).toBe(true);
   });
+
+  it('quadrillage masqué (réglage) : ni damier, ni traits, ni voile des cases bloquées ; mana zones et invocations restent', () => {
+    const list = visuals({ grid: false });
+    const bases = new Set(list.map((v) => v.base));
+    expect(bases.has('plain') || bases.has('odd') || bases.has('blocked')).toBe(false);
+    expect(cellAt(list, at(6, 6)).base).toBe('bare');
+    expect(cellAt(list, FORGE).base).toBe('mana');
+    expect(cellAt(list, summonCell(1)).base).toBe('summon1');
+    expect(bases.has('water')).toBe(true);
+  });
 });
 
 describe('cases du plateau PixiJS : sélection et surbrillances', () => {

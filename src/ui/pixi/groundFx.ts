@@ -1,9 +1,9 @@
 // Ambiance au sol du plateau peint (15 × 15) en PixiJS, dans le repère du plan du plateau : reflets de l'eau (un shader
-// par pièce d'eau, masqué sur son eau : reflets qui coulent, caustiques qui dérivent, scintillements), ombres de nuages,
-// rafales et halos des mana zones, dans le plan isométrique du plateau PixiJS. Et quelques outils PixiJS communs
+// par pièce d'eau, masqué sur son eau : reflets qui coulent, caustiques qui dérivent, scintillements), ombres de nuages
+// et halos des mana zones, dans le plan isométrique du plateau PixiJS. Et quelques outils PixiJS communs
 // (couleurs, textures, images).
 import type { Container as PixiContainer, Shader, Texture } from 'pixi.js';
-import { GROUND_FX_COLORS, HALO_RADIUS, cloudAt, gustAt, pulse } from '../iso/ambience';
+import { GROUND_FX_COLORS, HALO_RADIUS, cloudAt, pulse } from '../iso/ambience';
 import type { GroundAmbience } from '../iso/ambience';
 
 export type Pixi = typeof import('pixi.js');
@@ -188,7 +188,7 @@ export async function buildGroundFx(
   }
   root.addChild(water);
 
-  // Halos des mana zones, ombres de nuages et rafales : des sprites d'une tache floue ou d'un trait, teintés.
+  // Halos des mana zones et ombres de nuages : des sprites d'une tache floue, teintés.
   const soft = painted(pixi, 128, 128, (ctx) => {
     const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
     g.addColorStop(0, 'rgba(255,255,255,1)');
@@ -196,15 +196,7 @@ export async function buildGroundFx(
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 128, 128);
   });
-  const streak = painted(pixi, 128, 4, (ctx) => {
-    const g = ctx.createLinearGradient(0, 0, 128, 0);
-    g.addColorStop(0, 'rgba(255,255,255,0)');
-    g.addColorStop(0.5, 'rgba(255,255,255,1)');
-    g.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, 128, 4);
-  });
-  textures.push(soft, streak);
+  textures.push(soft);
 
   const halos = scene.halos.map((halo) => {
     const sprite = new Sprite({ texture: soft, anchor: 0.5, tint: tint(halo.color), width: HALO_RADIUS * 2, height: HALO_RADIUS * 2 });
@@ -212,20 +204,13 @@ export async function buildGroundFx(
     root.addChild(sprite);
     return sprite;
   });
-  // Nuages et rafales, découpés au plateau (un rectangle : PixiJS le découpe sans passe de masque).
+  // Nuages, découpés au plateau (un rectangle : PixiJS le découpe sans passe de masque).
   const sky = new Container();
   sky.mask = new Graphics().rect(0, 0, scene.size, scene.size).fill(0xffffff);
   root.addChild(sky.mask, sky);
   const cloudTint = tint(GROUND_FX_COLORS.cloud);
   const clouds = scene.clouds.map((cloud) => {
     const sprite = new Sprite({ texture: soft, tint: cloudTint, width: cloud.width, height: cloud.height, alpha: 0.2 });
-    sky.addChild(sprite);
-    return sprite;
-  });
-  const gustTint = tint(GROUND_FX_COLORS.gust);
-  const gusts = scene.gusts.map((gust) => {
-    const sprite = new Sprite({ texture: streak, tint: gustTint, width: gust.width, height: 2 });
-    sprite.y = gust.top;
     sky.addChild(sprite);
     return sprite;
   });
@@ -239,11 +224,6 @@ export async function buildGroundFx(
       scene.clouds.forEach((cloud, i) => {
         const { x, y } = cloudAt(cloud, t);
         clouds[i]!.position.set(x, y);
-      });
-      scene.gusts.forEach((gust, i) => {
-        const { x, alpha } = gustAt(gust, t);
-        gusts[i]!.x = x;
-        gusts[i]!.alpha = 0.55 * alpha;
       });
     },
     destroy() {

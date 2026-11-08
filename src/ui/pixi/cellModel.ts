@@ -31,8 +31,8 @@ export const CELL_COLORS = {
 /** Côté d'une case et pas entre deux cases dans le plan (px). */
 export const CELL_SIZE = 68;
 
-/** Fond d'une case du plateau peint. */
-export type CellBase = 'plain' | 'odd' | 'mana' | 'summon1' | 'summon2' | 'blocked' | 'water';
+/** Fond d'une case du plateau peint ; `bare` : rien (quadrillage masqué, case sans repère). */
+export type CellBase = 'plain' | 'odd' | 'mana' | 'summon1' | 'summon2' | 'blocked' | 'water' | 'bare';
 
 export interface CellVisual {
   /** Case réelle (« ligne,colonne ») et son coin haut-gauche dans le plan affiché (plateau retourné compris). */
@@ -78,6 +78,11 @@ export interface CellInputs {
   readonly flipped: boolean;
   /** Animations permises : la lueur des mana zones pulse (sinon pas de lueur, comme en CSS). */
   readonly animated: boolean;
+  /**
+   * Quadrillage (réglage, vrai par défaut) : sans lui, ni traits ni damier, ni voile des cases bloquées ; mana zones et
+   * cases d'invocation gardent leur fond et leur bord.
+   */
+  readonly grid?: boolean;
 }
 
 /** Couleur de celui qui tient une mana zone : le joueur, contestée, ou la couleur des zones neutres. */
@@ -88,7 +93,7 @@ function holderColor(controller: 1 | 2 | null, contested: boolean, neutral: stri
 
 /** Les cases du plateau à dessiner (les cases hors plateau n'ont rien). */
 export function cellVisuals(inputs: CellInputs): CellVisual[] {
-  const { view, highlights, attacks, selectedUnitId, focused, path, reach, flipped, animated } = inputs;
+  const { view, highlights, attacks, selectedUnitId, focused, path, reach, flipped, animated, grid = true } = inputs;
   const { rows, cols } = view.board;
   const steps = new Map(path.map((pos, i) => [`${pos.row},${pos.col}`, i + 1]));
   const marksByCell = getZoneMarks(view);
@@ -111,7 +116,7 @@ export function cellVisuals(inputs: CellInputs): CellVisual[] {
     if (cell.kind === 'blocked') {
       out.push({
         ...common,
-        base: waterKind(view.board, pos) ? 'water' : 'blocked',
+        base: waterKind(view.board, pos) ? 'water' : grid ? 'blocked' : 'bare',
         edge: null,
         glow: null,
         summon: null,
@@ -143,7 +148,7 @@ export function cellVisuals(inputs: CellInputs): CellVisual[] {
     const onToken = monster !== undefined;
     out.push({
       ...common,
-      base: zone ? 'mana' : cell.summonZoneOf === 1 ? 'summon1' : cell.summonZoneOf === 2 ? 'summon2' : (pos.row + pos.col) % 2 ? 'odd' : 'plain',
+      base: zone ? 'mana' : cell.summonZoneOf === 1 ? 'summon1' : cell.summonZoneOf === 2 ? 'summon2' : !grid ? 'bare' : (pos.row + pos.col) % 2 ? 'odd' : 'plain',
       edge: zone
         ? { color: holderColor(controller, contested, CELL_COLORS.zone), width: 3 }
         : cell.summonZoneOf !== null

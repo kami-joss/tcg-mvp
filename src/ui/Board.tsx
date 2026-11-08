@@ -75,6 +75,8 @@ interface BoardProps {
   margins?: { readonly left: number; readonly right: number };
   /** Défilement quand la souris touche un bord du cadre (réglage ; vrai par défaut). */
   edgeScroll?: boolean;
+  /** Quadrillage du plateau peint (réglage ; vrai par défaut), dessiné par le plateau PixiJS. */
+  grid?: boolean;
   /** Reçoit la commande de la caméra (centrer la vue sur une case), tant que le plateau est monté. */
   cameraRef?: RefObject<BoardCamera | null>;
   onCellClick: (pos: Position) => void;
@@ -563,6 +565,7 @@ export function Board(props: BoardProps) {
             focused: props.focused,
             path,
             reach: props.reach,
+            grid: props.grid ?? true,
           }}
           stats={props.stats ?? DEFAULT_TOKEN_STATS}
           anchor={props.anchor ?? null}

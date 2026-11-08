@@ -28,6 +28,7 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
       grimoireOpen: true,
       tokenStats: { hp: true, mobility: true, enemyMobility: false, atk: false, statuses: true },
       edgeScroll: true,
+      grid: true,
     });
   });
 
@@ -43,6 +44,7 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
       grimoireOpen: false,
       tokenStats: { ...DEFAULT_TOKEN_STATS, atk: true, statuses: false },
       edgeScroll: false,
+      grid: false,
     } as const;
     saveSettings(saved);
     expect(data.get('tcg-plateau-vue-v5')).toBe('45');
@@ -51,6 +53,7 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
     expect(data.get('tcg-grimoire-affichage')).toBe('liste');
     expect(data.get('tcg-grimoire-ouvert')).toBe('0');
     expect(data.get('tcg-plateau-defilement-bords')).toBe('0');
+    expect(data.get('tcg-plateau-quadrillage')).toBe('0');
     expect(JSON.parse(data.get('tcg-plateau-stats-v6')!)).toEqual({ pv: true, mob: true, mobE: false, atk: true, st: false });
     expect(loadSettings()).toEqual(saved);
   });

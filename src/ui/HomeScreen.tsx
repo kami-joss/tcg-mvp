@@ -1,14 +1,18 @@
 // Accueil (`/`) : on règle la partie (carte, mode, deck de chaque joueur, J2 humain ou IA), puis on la lance sur `/game`.
+// Deux liens ouvrent les pages de consultation : la composition des decks et les règles du jeu.
 import { useState } from 'react';
 import { BOARDS, DECKS } from '../engine';
 import type { Board, GameMode, PlayerId } from '../engine';
 import { Icon } from './Icon';
+import type { Page } from './routes';
 import { modeOf } from './session';
 import type { Setup } from './session';
 
 interface HomeScreenProps {
   initial: Setup;
   onStart: (setup: Setup) => void;
+  /** Ouvrir une page de consultation (decks, règles). */
+  onNavigate?: (page: Page) => void;
 }
 
 /** Qui joue J2 : un humain (hotseat) ou l'IA. */
@@ -41,7 +45,7 @@ function boardInfo(board: Board): { title: string; details: string[] } {
   return { title, details };
 }
 
-export function HomeScreen({ initial, onStart }: HomeScreenProps) {
+export function HomeScreen({ initial, onStart, onNavigate }: HomeScreenProps) {
   const [setup, setSetup] = useState<Setup>(initial);
   const mode = modeOf(setup);
   const setDeck = (player: PlayerId, id: string) => {
@@ -93,6 +97,16 @@ export function HomeScreen({ initial, onStart }: HomeScreenProps) {
         <p className="home__kicker">TCG tactique</p>
         <h1>Nouvelle partie</h1>
         <p className="home__lead">Deux joueurs sur le même écran, ou contre l’IA. Choisis la carte et les decks.</p>
+        <nav className="home__links" aria-label="Avant de jouer">
+          <button type="button" className="btn btn--ghost" onClick={() => onNavigate?.('decks')}>
+            <Icon name="spell-book" />
+            Voir les decks
+          </button>
+          <button type="button" className="btn btn--ghost" onClick={() => onNavigate?.('rules')}>
+            <Icon name="help-circle-outline" />
+            Règles du jeu
+          </button>
+        </nav>
       </header>
 
       <section className="home__section" aria-labelledby="home-maps">

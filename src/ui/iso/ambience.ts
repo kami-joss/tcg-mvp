@@ -1,7 +1,7 @@
 // Ambiance animée du décor peint (15 × 15) : reflets de l'eau, feu et fumée de la forge, éclats des cristaux de la Mine,
-// halo et particules des mana zones, ombres de nuages et rafales de vent. Rendu seulement, et seulement quand les
+// halo et particules des mana zones, ombres de nuages. Rendu seulement, et seulement quand les
 // animations sont permises. Ici, les données et les calculs ; le rendu est dans le plateau PixiJS (`pixi/`) : au sol,
-// `groundAmbience` la décrit, `pulse`, `cloudAt`, `gustAt` l'animent ; debout, `twinkle`, `riser`, `flick` (comme le
+// `groundAmbience` la décrit, `pulse`, `cloudAt` l'animent ; debout, `twinkle`, `riser`, `flick` (comme le
 // faisaient les anciennes keyframes `amb*`).
 import { getCell } from '../../engine';
 import type { Board, PlayerId } from '../../engine';
@@ -122,12 +122,11 @@ export function scatter(seed: number, count: number): { u: number; v: number; ph
 
 // --- Ambiance au sol, dessinée par le plateau PixiJS dans le plan du sol (`pixi/groundFx.ts`).
 
-/** Couleurs de l'ambiance au sol : reflets et caustiques de l'eau, ombre des nuages, rafales. */
+/** Couleurs de l'ambiance au sol : reflets et caustiques de l'eau, ombre des nuages. */
 export const GROUND_FX_COLORS = {
   ripple: 'oklch(0.98 0.03 200)',
   caustic: 'oklch(0.97 0.04 195)',
   cloud: 'oklch(0.22 0.04 160)',
-  gust: 'oklch(0.98 0.03 120)',
 } as const;
 
 /** Matrice affine (a, b, c, d, tx, ty) : x' = a x + c y + tx, y' = b x + d y + ty, comme `matrix()` en CSS. */
@@ -188,16 +187,6 @@ export interface CloudShadow {
   readonly delay: number;
 }
 
-/** Rafale : un trait clair qui file et s'efface. */
-export interface Gust {
-  readonly top: number;
-  readonly width: number;
-  readonly x0: number;
-  readonly x1: number;
-  readonly period: number;
-  readonly delay: number;
-}
-
 /** Rectangle en px du plan du plateau. */
 export interface Rect {
   readonly x: number;
@@ -207,8 +196,8 @@ export interface Rect {
 }
 
 /**
- * Toute l'ambiance au sol d'un plateau peint de côté `size` (px) : eau, halos des mana zones, nuages, rafales. `bounds` :
- * ce qu'elle couvre, le plateau et l'eau du décor extérieur (plateau retourné compris) ; nuages et rafales restent
+ * Toute l'ambiance au sol d'un plateau peint de côté `size` (px) : eau, halos des mana zones, nuages. `bounds` :
+ * ce qu'elle couvre, le plateau et l'eau du décor extérieur (plateau retourné compris) ; les nuages restent
  * découpés au plateau.
  */
 export interface GroundAmbience {
@@ -219,7 +208,6 @@ export interface GroundAmbience {
   readonly water: readonly WaterLayer[];
   readonly halos: readonly ZoneHalo[];
   readonly clouds: readonly CloudShadow[];
-  readonly gusts: readonly Gust[];
 }
 
 /** Rayon (px) du halo d'une mana zone. */
@@ -259,16 +247,6 @@ export function groundAmbience(decor: PaintedDecor, size: number, halos: readonl
       delay: -[10, 70, 40][i]!,
     }),
   );
-  const gusts = scatter(7, 6).map(
-    (p): Gust => ({
-      top: 40 + p.u * (size - 80),
-      width: 150 + p.v * 80,
-      x0: -200 + p.v * 300,
-      x1: 300 + p.v * 500,
-      period: 7 + p.phase * 5,
-      delay: -p.phase * 10,
-    }),
-  );
   // Emprise : le plateau, et chaque coin de chaque pièce d'eau, à l'endroit où elle s'affiche.
   let [x0, y0, x1, y1] = [0, 0, size, size];
   for (const { matrix: [a, b, c, d, tx, ty], width, height } of water) {
@@ -280,7 +258,7 @@ export function groundAmbience(decor: PaintedDecor, size: number, halos: readonl
     }
   }
   const bounds = { x: Math.floor(x0), y: Math.floor(y0), width: Math.ceil(x1) - Math.floor(x0), height: Math.ceil(y1) - Math.floor(y0) };
-  return { size, bounds, flipped, water, halos, clouds, gusts };
+  return { size, bounds, flipped, water, halos, clouds };
 }
 
 /** Avancement (0 à 1) d'une animation en boucle de période `period` (s), avec un retard `delay` (négatif : déjà en cours). */
@@ -299,14 +277,6 @@ export function pulse(t: number, period: number): number {
 export function cloudAt(cloud: CloudShadow, t: number): { x: number; y: number } {
   const f = progress(t, cloud.period, cloud.delay);
   return { x: cloud.x0 + (cloud.x1 - cloud.x0) * f, y: cloud.top + cloud.dy * f };
-}
-
-/** Rafale (`ambGust`) : elle file de `x0` à `x1` pendant les 30 premiers % de sa période, visible surtout au début. */
-export function gustAt(gust: Gust, t: number): { x: number; alpha: number } {
-  const f = progress(t, gust.period, gust.delay);
-  const x = f < 0.3 ? gust.x0 + (gust.x1 - gust.x0) * ease(f / 0.3) : gust.x1;
-  const alpha = f < 0.08 ? ease(f / 0.08) : f < 0.3 ? 1 - ease((f - 0.08) / 0.22) : 0;
-  return { x, alpha };
 }
 
 // --- Ambiance debout (feu et fumée de la forge, éclats des cristaux, particules des mana zones) dessinée par PixiJS

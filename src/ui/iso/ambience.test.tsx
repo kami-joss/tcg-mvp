@@ -8,7 +8,6 @@ import {
   cloudAt,
   flick,
   groundAmbience,
-  gustAt,
   isWaterPixel,
   patchMatrix,
   pulse,
@@ -98,8 +97,9 @@ describe('ambiance au sol (canvas PixiJS) : calculs', () => {
       expect(layer.glints).toHaveLength(3);
       for (const g of layer.glints) expect(g.x > 0 && g.x < layer.width && g.y > 0 && g.y < layer.height).toBe(true);
     }
-    // Trois ombres de nuages et six rafales, comme avant.
-    expect([scene.clouds.length, scene.gusts.length]).toEqual([3, 6]);
+    // Trois ombres de nuages (plus de rafales de vent).
+    expect(scene.clouds).toHaveLength(3);
+    expect(scene).not.toHaveProperty('gusts');
   });
 
   it('emprise : le plateau seul, ou le plateau et l’eau du décor extérieur (de l’autre côté si le plateau est retourné)', () => {
@@ -112,17 +112,12 @@ describe('ambiance au sol (canvas PixiJS) : calculs', () => {
     expect(turned.bounds.y).toBe(B - (world.bounds.y + world.bounds.height));
   });
 
-  it('mouvements des anciennes keyframes : halo qui respire, nuage qui traverse, rafale qui file puis s’efface', () => {
+  it('mouvements des anciennes keyframes : halo qui respire, nuage qui traverse', () => {
     expect(pulse(0, 3.2)).toBeCloseTo(0.45, 5);
     expect(pulse(1.6, 3.2)).toBeCloseTo(1, 5);
     const cloud = { top: 0, width: 560, height: 340, x0: -620, x1: 1144, dy: 60, period: 100, delay: 0 };
     expect(cloudAt(cloud, 0)).toEqual({ x: -620, y: 0 });
     expect(cloudAt(cloud, 50)).toEqual({ x: 262, y: 30 });
-    const gust = { top: 0, width: 150, x0: 0, x1: 300, period: 10, delay: 0 };
-    expect(gustAt(gust, 0)).toEqual({ x: 0, alpha: 0 });
-    expect(gustAt(gust, 0.8).alpha).toBeCloseTo(1, 5);
-    expect(gustAt(gust, 3)).toEqual({ x: 300, alpha: 0 });
-    expect(gustAt(gust, 7).alpha).toBe(0);
   });
 });
 

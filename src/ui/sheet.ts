@@ -279,7 +279,7 @@ export function getSheet(view: PlayerView, subject: HoverSubject): SheetData | n
     case 'copy': {
       // La carte seule (§10) : comme dans le grimoire, sans la ligne pour la jouer ; brillante si l'exemplaire l'était.
       const copy = pileOf(view, subject.player, subject.pile)[subject.index];
-      return copy ? { ...cardSheet(view, copy.cardId), shiny: copy.shiny === true, lines: [] } : null;
+      return copy ? cardSheetOf(copy.cardId, copy.shiny === true) : null;
     }
     case 'cell':
       return cellSheet(view, subject.pos);
@@ -315,19 +315,17 @@ export function sameSubject(a: HoverSubject | null, b: HoverSubject | null): boo
 
 const CARD_VERBS: Readonly<Record<Card['kind'], string>> = { monster: 'Invocation', spell: 'Lancer', terrain: 'Poser' };
 
-function cardSheet(view: PlayerView, cardId: CardId): SheetData {
+/** La fiche d'une carte seule, hors du plateau (cartes jouées, cimetière, page des decks) : sans ligne pour la jouer. */
+export function cardSheetOf(cardId: CardId, shiny = false): SheetData {
   const card = getCard(cardId);
   const base = {
     ...empty(card.name, 'card', ''),
     kind: card.kind,
     cost: card.cost,
     art: { cardId, owner: null },
-    shiny: view.me.shiny?.includes(cardId) ?? false,
+    shiny,
     flavor: card.flavor ?? null,
   };
-    const lines: SheetLine[] = [
-    { icon: 'card-play', label: CARD_VERBS[card.kind], status: availabilityStatus(cardAvailability(view, cardId), 'Déjà joué') },
-  ];
 
   switch (card.kind) {
     case 'monster': {
@@ -341,7 +339,6 @@ function cardSheet(view: PlayerView, cardId: CardId): SheetData {
           stat('walking-boot', 'Mobilité', card.mobility),
           stat('high-shot', 'Portée', card.range),
         ],
-        lines,
         text: card.evolvesFrom ? [evolutionLine(card.evolvesFrom)] : [],
         passive: passiveBlock(keywordItems(card), null),
         active: activeBlocks(card),
@@ -353,7 +350,6 @@ function cardSheet(view: PlayerView, cardId: CardId): SheetData {
         ...base,
         typeIcon: 'spell-book',
         type: 'Carte sort · effet immédiat',
-        lines,
         active: [{ name: null, cost: null, text: abilityRules(card.ability), foot: null }],
       };
     case 'terrain':
@@ -362,11 +358,19 @@ function cardSheet(view: PlayerView, cardId: CardId): SheetData {
         typeIcon: 'castle',
         type: 'Carte terrain',
         stats: [stat('hearts', 'PV', card.hp)],
-        lines,
         text: ['Se pose sur une mana zone occupée par un de tes monstres.'],
         passive: passiveBlock(terrainItems(card), null),
       };
   }
+}
+
+/** Une carte du grimoire : sa fiche, et la ligne qui dit si on peut la jouer. */
+function cardSheet(view: PlayerView, cardId: CardId): SheetData {
+  const card = getCard(cardId);
+  const lines: SheetLine[] = [
+    { icon: 'card-play', label: CARD_VERBS[card.kind], status: availabilityStatus(cardAvailability(view, cardId), 'Déjà joué') },
+  ];
+  return { ...cardSheetOf(cardId, view.me.shiny?.includes(cardId) ?? false), lines };
 }
 
 const passiveBlock = (items: SheetPassive['items'], foot: SheetStatus | null): SheetPassive | null =>

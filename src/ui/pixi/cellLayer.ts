@@ -221,7 +221,7 @@ export class CellLayer {
 
     // Fonds et traits (plateau peint).
     for (const v of cells) {
-      if (v.base === 'water') continue;
+      if (v.base === 'water' || v.base === 'bare') continue;
       if (v.base === 'blocked') {
         cellRect(g, v.x, v.y, 0, R, 'oklch(0.34 0.04 150 / 0.36)', { css: 'oklch(0.28 0.04 165 / 0.32)', width: 1 });
         continue;
