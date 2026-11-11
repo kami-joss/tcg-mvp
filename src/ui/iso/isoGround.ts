@@ -19,7 +19,143 @@ export interface GroundGrass extends GroundTilesDef {
    * feraient un damier) ; les tuiles sont jointives, sans fondu.
    */
   readonly motif?: readonly string[];
+  /** Touffes posées une à une par-dessus l'herbe (`GroundTufts`) : du volume, sans motif qui se répète. */
+  readonly touffes?: GroundTufts;
+  /**
+   * Force des grandes nuances (bruit flouté en lumière douce, 0 à 1 ; 0,6 par défaut) : elles cassent la répétition des
+   * tuiles, mais font varier la couleur de l'herbe d'une case à l'autre ; 0 pour une herbe partout de la même couleur.
+   */
+  readonly nuances?: number;
 }
+
+/**
+ * Touffes d'herbe posées une à une sur le sol (2026-11-11) : chacune est une image vue comme les sprites (isométrie
+ * vraie), dessinée dans le plan redressée par l'inverse de la projection, pour que la vue isométrique la remette debout.
+ * Leur nombre, leur place, leur image et leur taille sont tirés pour chaque case : aucune case ne ressemble à une autre.
+ */
+/** Une sorte de végétation semée (`GroundTufts`) : son image, son poids au tirage, sa taille, son pied. */
+export interface GroundTuftKind {
+  /** Image (dans le dossier du sol), vue comme les sprites, recadrée au plus près. */
+  readonly image: string;
+  /** Poids au tirage, relatif aux autres sortes (une touffe fréquente, un champignon rare). */
+  readonly poids: number;
+  /** Largeur à l'écran, en fraction de la largeur du losange d'une case (plus petite, plus grande). */
+  readonly taille: readonly [number, number];
+  /**
+   * Pied dans l'image, en fraction de sa hauteur depuis le haut : en bas pour une plante debout (sa base), vers le milieu
+   * pour ce qui est couché au sol (trèfle, rosette, pierres).
+   */
+  readonly pied: number;
+  /** Écart aux cases nues (`GroundTufts.sans`), en cases ; celui de `GroundTufts` par défaut (plus grand pour des fleurs). */
+  readonly rayon?: number;
+  /**
+   * Sorte locale : semée seulement sur ces cases et leur carré de `rayon` (des cailloux autour des roches), à raison de
+   * `parCase` éléments par case en moyenne, en plus et hors du tirage général.
+   */
+  readonly pres?: { readonly cases: readonly (readonly [number, number])[]; readonly rayon: number; readonly parCase: number };
+}
+
+/**
+ * Végétation semée une à une sur le sol (2026-11-11) : chaque élément est une image vue comme les sprites (isométrie
+ * vraie), dessinée dans le plan redressée par l'inverse de la projection, pour que la vue isométrique la remette debout.
+ * Leur nombre par case (tirage de Poisson : des cases vides, d'autres à deux ou trois éléments), leur sorte, leur place
+ * sur toute la case et leur taille sont tirés pour chaque case : aucune case ne ressemble à une autre.
+ */
+export interface GroundTufts {
+  readonly sortes: readonly GroundTuftKind[];
+  /** Éléments par case en moyenne (loi de Poisson). */
+  readonly parCase: number;
+  /** Cases laissées nues, et leur carré de `rayon` : les mana zones, pour que leur lueur et leur icône restent lisibles. */
+  readonly sans: readonly (readonly [number, number])[];
+  readonly rayon: number;
+  /** Opacité de l'ombre de contact sous chaque élément. */
+  readonly ombre: number;
+}
+
+/** Un élément posé : son image, son pied dans le plan du sol (px de plan), sa largeur à l'écran (unités du plan), son pied dans l'image. */
+export interface TuftPlacement {
+  readonly image: string;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly pied: number;
+}
+
+/** Graine propre à une case : le même tirage où qu'elle soit calculée (plateau seul, monde, sol net). */
+function cellSeed(seed: number, row: number, col: number): number {
+  let h = (seed ^ Math.imul(row + 0x9e37, 0x85ebca6b)) >>> 0;
+  h = Math.imul(h ^ (col + 0x632b), 0xc2b2ae35) >>> 0;
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+/** Tirage de Poisson de moyenne `mean` (méthode de Knuth). */
+export function poisson(random: () => number, mean: number): number {
+  const limit = Math.exp(-mean);
+  let k = 0;
+  let p = random();
+  while (p > limit) {
+    k++;
+    p *= random();
+  }
+  return k;
+}
+
+/**
+ * La végétation d'un sol `size` × `size` (décor extérieur compris), triée du fond vers l'avant (les éléments les plus
+ * proches de la caméra dessinés en dernier). Pure et déterministe : la même case donne toujours les mêmes éléments.
+ */
+export function tuftPlacements(size: number, decor: GroundDecor): TuftPlacement[] {
+  const tufts = decor.herbe.touffes;
+  if (!tufts || tufts.sortes.length === 0 || tufts.parCase <= 0) return [];
+  const { pas, case: cell, marge } = decor.plan;
+  const border = decor.plan.bordure ?? 0;
+  const corner = (index: number) => marge + (index + border) * pas - (pas - cell) / 2;
+  const near = (row: number, col: number, radius: number) => tufts.sans.some(([r, c]) => Math.abs(r - row) <= radius && Math.abs(c - col) <= radius);
+  const diamond = pas * Math.SQRT2;
+  const general = tufts.sortes.filter((kind) => !kind.pres);
+  const local = tufts.sortes.filter((kind) => kind.pres);
+  const names = general.map((kind) => kind.image);
+  const weights = general.map((kind) => kind.poids);
+  const out: TuftPlacement[] = [];
+  const place = (kind: GroundTuftKind, row: number, col: number, random: () => number) => {
+    const [x, y, t] = [random(), random(), random()];
+    const [small, large] = kind.taille;
+    out.push({ image: kind.image, x: corner(col) + pas * x, y: corner(row) + pas * y, width: diamond * (small + (large - small) * t), pied: kind.pied });
+  };
+  for (let row = -border; row < size + border; row++) {
+    for (let col = -border; col < size + border; col++) {
+      if (near(row, col, tufts.rayon)) continue;
+      const random = seeded(cellSeed(decor.graine, row, col));
+      const count = names.length > 0 ? poisson(random, tufts.parCase) : 0;
+      for (let i = 0; i < count; i++) {
+        const kind = general[names.indexOf(weightedPick(random, names, weights))]!;
+        // Une sorte qui veut plus d'écart (des fleurs) n'est pas posée trop près des cases nues : on tire quand même sa
+        // place, pour que le tirage des éléments suivants ne dépende pas de ce choix.
+        if (kind.rayon !== undefined && kind.rayon > tufts.rayon && near(row, col, kind.rayon)) {
+          random();
+          random();
+          random();
+          continue;
+        }
+        place(kind, row, col, random);
+      }
+      for (const kind of local) {
+        const { cases, rayon, parCase } = kind.pres!;
+        if (!cases.some(([r, c]) => Math.abs(r - row) <= rayon && Math.abs(c - col) <= rayon)) continue;
+        const extra = poisson(random, parCase);
+        for (let i = 0; i < extra; i++) place(kind, row, col, random);
+      }
+    }
+  }
+  return out.sort((a, b) => a.x + a.y - (b.x + b.y));
+}
+
+/**
+ * Flou du bruit des grandes nuances, en unités du plan : il efface son grain fin (moins d'une unité) et garde ses
+ * grandes taches (plusieurs dizaines d'unités), seules utiles pour casser la répétition des tuiles.
+ */
+export const NUANCE_BLUR = 4;
+
 /** Filtre de l'herbe par défaut, réglé pour les premières tuiles. */
 export const GRASS_FILTER = 'saturate(0.8) sepia(0.1) brightness(0.93)';
 
@@ -84,7 +220,31 @@ export interface GroundSprite {
   /** Largeur et hauteur de l'arbre à l'écran (px, au pas de 72 px), d'après son image et son échelle : la taille de son ombre. */
   readonly taille?: readonly [number, number];
 }
+/**
+ * Terre au pied des sprites (2026-11-11) : une tache de terre aux bords bruités sous chaque arbre et chaque rocher
+ * listé, pour adoucir le passage de l'herbe au relief ; les taches voisines se fondent en une seule (un bosquet, une
+ * crête).
+ */
+export interface GroundFootDirt {
+  /** Tuiles de la terre (celles du chemin), tirées au hasard. */
+  readonly tuiles: readonly string[];
+  /** Teinte multipliée sur la terre (0..1 par canal). */
+  readonly teinte: readonly [number, number, number];
+  readonly opacite: number;
+  /** Sprites concernés, par identifiant, et le rayon de leur tache en cases (multiplié par l'échelle du sprite). */
+  readonly pieds: readonly { readonly ids: readonly string[]; readonly rayon: number }[];
+}
+
+/** Une tache de terre : son centre dans le plan du sol (px de plan) et son rayon (px de plan). */
+export interface FootDirtSpot {
+  readonly x: number;
+  readonly y: number;
+  readonly r: number;
+}
+
 export interface GroundDecor {
+  /** Terre au pied des arbres et des rochers (`GroundFootDirt`). */
+  readonly terre?: GroundFootDirt;
   /** `bordure` : nombre de cases de décor peintes autour du plateau (0 si absent). */
   readonly plan: { readonly pas: number; readonly case: number; readonly marge: number; readonly densite: number; readonly bordure?: number };
   readonly graine: number;
@@ -105,6 +265,34 @@ const browserCanvas: MakeCanvas = (width, height) => {
   canvas.height = height;
   return canvas;
 };
+
+/**
+ * Une partie carrée du sol, en unités du plan du sol entier (coin haut-gauche et côté) : `buildGround` ne dessine que
+ * ce carré, avec exactement le même contenu que le sol entier (même hasard, mêmes masques, mêmes ombres), et le fond
+ * sur ses bords (`GROUND_VIEW_FADE`) pour se poser sans raccord sur le sol entier.
+ */
+export interface GroundView {
+  readonly x: number;
+  readonly y: number;
+  readonly size: number;
+}
+
+/**
+ * Fondu des bords d'un recadrage (`GroundView`), en unités du plan : un carré blanc à `inset` du bord, flouté d'écart type
+ * `blur` ; transparent au bord, opaque à `inset + 3 × blur`. Les flous près du bord (ombres) n'y ont pas tout leur
+ * voisinage : cette bande transparente les cache.
+ */
+export const GROUND_VIEW_FADE = { inset: 30, blur: 9 } as const;
+
+/**
+ * Le plateau et `margin` cases autour, dans le plan du sol entier (décor extérieur compris) : le recadrage à dessiner
+ * plus finement (`buildGround(…, view)`). La marge garde le fondu de ses bords hors du plateau.
+ */
+export function boardView(plan: GroundDecor['plan'], size: number, margin = 1): GroundView {
+  const { pas, case: cell, marge, bordure = 0 } = plan;
+  const start = marge + (bordure - margin) * pas - (pas - cell) / 2;
+  return { x: start, y: start, size: (size + 2 * margin) * pas };
+}
 
 /** Pseudo-aléatoire déterministe (mulberry32) : le même plateau à chaque chargement. */
 export function seeded(seed: number): () => number {
@@ -153,6 +341,25 @@ export function socleBlend(mask: number, coarse: number, fine: number): { alpha:
   return { alpha: Math.min(1, Math.max(0, (s - 0.2) / 0.14)) * gate, rim: Math.exp(-(((s - 0.22) / 0.04) ** 2)) * 0.18 * gate };
 }
 
+/** Les taches de terre d'un sol `size` × `size` (`decor.terre`) : une par sprite listé, au centre de sa case. */
+export function footDirtSpots(size: number, decor: GroundDecor): FootDirtSpot[] {
+  const dirt = decor.terre;
+  if (!dirt) return [];
+  const { pas, case: cell, marge } = decor.plan;
+  const border = decor.plan.bordure ?? 0;
+  const center = (index: number) => marge + (index + border) * pas - (pas - cell) / 2 + pas / 2;
+  const out: FootDirtSpot[] = [];
+  for (const sprite of decor.sprites) {
+    const foot = dirt.pieds.find((group) => group.ids.includes(sprite.id));
+    if (!foot || !sprite.case) continue;
+    const [row, col] = sprite.case;
+    if (row < -border || col < -border || row >= size + border || col >= size + border) continue;
+    const scale = (sprite as { readonly echelle?: number }).echelle ?? 1;
+    out.push({ x: center(col), y: center(row), r: foot.rayon * pas * scale });
+  }
+  return out;
+}
+
 /** Longueur de l'ombre portée d'un relief, d'un bâtiment ou d'un objet, en cases, selon sa hauteur. */
 const SHADOW_LENGTH = { haute: 1.2, moyenne: 0.55, basse: 0.35, arbre: 0 } as const;
 
@@ -184,13 +391,30 @@ export function treeShadow(x: number, y: number, [width, height]: readonly [numb
 
 /**
  * Construit le sol d'un plateau `size` × `size`. `images` contient les tuiles vues de dessus (côté 2 × `pas` px), les
- * pièces de 1 × 2 cases et `bruit` (texture tuilable). Renvoie un canevas de côté `plan × densité`.
+ * pièces de 1 × 2 cases et `bruit` (texture tuilable). Renvoie un canevas de côté `plan × densité`, ou seulement le
+ * carré `view` (côté `view.size × densité`), au même contenu. Les images réduites le sont en haute qualité.
  */
-export function buildGround(size: number, decor: GroundDecor, images: Readonly<Record<string, CanvasImageSource>>, makeCanvas: MakeCanvas = browserCanvas): Canvas {
+export function buildGround(
+  size: number,
+  decor: GroundDecor,
+  images: Readonly<Record<string, CanvasImageSource>>,
+  makeRawCanvas: MakeCanvas = browserCanvas,
+  view: GroundView | null = null,
+): Canvas {
   const { pas, case: cell, marge, densite: D } = decor.plan;
   const border = decor.plan.bordure ?? 0;
   const plan = 2 * marge + (size + 2 * border) * pas - (pas - cell);
-  const W = Math.round(plan * D);
+  // Le carré dessiné, dans le plan : tout le sol, ou le recadrage.
+  const [vx, vy, vs] = view ? [view.x, view.y, view.size] : [0, 0, plan];
+  const W = Math.round(vs * D);
+  // Réductions en haute qualité (les tuiles de 180 px réduites à la densité du sol ; le lissage par défaut crénèle) :
+  // le réglage tient tant que le canevas garde sa taille.
+  const makeCanvas: MakeCanvas = (width, height) => {
+    const canvas = makeRawCanvas(width, height);
+    const context = canvas.getContext('2d');
+    if (context) context.imageSmoothingQuality = 'high';
+    return canvas;
+  };
   const ground = makeCanvas(W, W);
   const g = ground.getContext('2d')!;
   // Canevas de travail : suivis pour être libérés dès la fin de chaque étape (avec une bordure de décor, un canevas
@@ -213,7 +437,7 @@ export function buildGround(size: number, decor: GroundDecor, images: Readonly<R
     const c = track(W, W);
     return [c, c.getContext('2d')!];
   };
-  const inPlan = (ctx: Ctx) => ctx.setTransform(D, 0, 0, D, 0, 0);
+  const inPlan = (ctx: Ctx) => ctx.setTransform(D, 0, 0, D, -vx * D, -vy * D);
   // Une case couvre tout son pas (la demi-gouttière autour comprise) : pas de joint entre les tuiles.
   // Les cases de décor ont des indices négatifs ou ≥ size ; la case (0, 0) du plateau est décalée de `border` cases.
   const cellX = (col: number) => marge + (col + border) * pas - (pas - cell) / 2;
@@ -319,7 +543,9 @@ export function buildGround(size: number, decor: GroundDecor, images: Readonly<R
     }
     mx.putImageData(img, 0, 0);
     const [c, x] = fresh();
-    x.drawImage(m, 0, 0, W, W);
+    // Le masque est au pas d'un pixel du plan entier : on n'en prend que le carré dessiné.
+    const side = view ? vs : M;
+    x.drawImage(m, vx, vy, side, side, 0, 0, W, W);
     return c;
   };
   const masked = (layer: Canvas, alpha: Float32Array): Canvas => {
@@ -350,15 +576,56 @@ export function buildGround(size: number, decor: GroundDecor, images: Readonly<R
     for (let row = -border - 1; row <= size + border; row++) for (let col = -border - 1; col <= size + border; col++) all.push([row, col]);
     paint(g, all, (row, col) => grassTile(random, decor.herbe, row, col), !decor.herbe.motif);
   }
-  scoped(() => {
-    // grandes nuances : bruit étiré sur ~6 cases, en lumière douce, pour casser la répétition des tuiles
+
+  // --- 1 bis. touffes posées une à une, sous les nuances et le filtre de l'herbe, et sous les chemins, socles et pièces
+  // d'eau qui les recouvrent ------------------------------------------------------------------------------------------
+  const tufts = decor.herbe.touffes;
+  const placements = tuftPlacements(size, decor);
+  if (tufts && placements.length > 0) {
+    const shadow = makeCanvas(64, 64);
+    const sx = shadow.getContext('2d')!;
+    const disc = sx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    disc.addColorStop(0, 'rgba(30,36,14,1)');
+    disc.addColorStop(1, 'rgba(30,36,14,0)');
+    sx.fillStyle = disc;
+    sx.fillRect(0, 0, 64, 64);
+    // Redresse une image vue en isométrie : l'inverse de X = (x − y)/√2, Y = (x + y)/√6.
+    const [upright, depth] = [Math.SQRT1_2, Math.sqrt(1.5)];
+    for (const tuft of placements) {
+      const image = images[tuft.image] as (CanvasImageSource & { readonly width: number; readonly height: number }) | undefined;
+      if (!image) continue;
+      inPlan(g);
+      // Ombre de contact : un disque flou dans le plan (aplati par la projection), un peu vers le bas à droite de l'écran.
+      const r = tuft.width * 0.34;
+      const [ox, oy] = [SHADOW_DIR[0] * r * 0.25, SHADOW_DIR[1] * r * 0.25];
+      g.globalAlpha = tufts.ombre;
+      g.drawImage(shadow, tuft.x + ox - r, tuft.y + oy - r, 2 * r, 2 * r);
+      g.globalAlpha = 1;
+      g.transform(upright, -upright, depth, depth, tuft.x, tuft.y);
+      const height = (tuft.width * image.height) / image.width;
+      g.drawImage(image, -tuft.width / 2, -tuft.pied * height, tuft.width, height);
+    }
+    inPlan(g);
+  }
+  const nuances = decor.herbe.nuances ?? 0.6;
+  if (nuances > 0) scoped(() => {
+    // grandes nuances : bruit étiré sur ~6 cases, en lumière douce, pour casser la répétition des tuiles. Le bruit est
+    // d'abord flouté (`NUANCE_BLUR`), en tuile raccordée (entourée de ses copies, pour un flou sans couture) : son grain
+    // fin, étiré et posé sur toute l'herbe, la couvrait d'un brouillard tacheté qui la rendait floue (2026-11-11).
     const [n2, n2x] = fresh();
     const big = 6 * pas;
-    n2x.filter = 'grayscale(1)';
-    for (let y = 0; y < plan; y += big) for (let xx = 0; xx < plan; xx += big) n2x.drawImage(images.bruit!, xx * D, y * D, big * D, big * D);
+    const P = Math.round(big * D);
+    const wide = track(3 * P, 3 * P);
+    const wx = wide.getContext('2d')!;
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) wx.drawImage(images.bruit!, i * P, j * P, P, P);
+    const smooth = track(P, P);
+    const smx = smooth.getContext('2d')!;
+    smx.filter = `grayscale(1) blur(${NUANCE_BLUR * D}px)`;
+    smx.drawImage(wide, -P, -P);
+    for (let y = 0; y < plan; y += big) for (let xx = 0; xx < plan; xx += big) n2x.drawImage(smooth, (xx - vx) * D, (y - vy) * D, P, P);
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalCompositeOperation = 'soft-light';
-    g.globalAlpha = 0.6;
+    g.globalAlpha = nuances;
     g.drawImage(n2, 0, 0);
     g.globalAlpha = 1;
     g.globalCompositeOperation = 'source-over';
@@ -409,6 +676,42 @@ export function buildGround(size: number, decor: GroundDecor, images: Readonly<R
     g.drawImage(alphaCanvas(band, zone.bande), 0, 0);
   });
 
+  // --- 2 bis. terre au pied des arbres et des rochers (`decor.terre`) : une tache bruitée par sprite -------------
+  const dirt = decor.terre;
+  const spots = footDirtSpots(size, decor);
+  if (dirt && spots.length > 0) scoped(() => {
+    const [layer, lx] = fresh();
+    inPlan(lx);
+    const cells = new Map<string, [number, number]>();
+    for (const spot of spots) {
+      const reach = Math.ceil(spot.r / pas) + 1;
+      const [col, row] = [Math.floor((spot.x - marge) / pas) - border, Math.floor((spot.y - marge) / pas) - border];
+      for (let dr = -reach; dr <= reach; dr++) for (let dc = -reach; dc <= reach; dc++) cells.set(`${row + dr},${col + dc}`, [row + dr, col + dc]);
+    }
+    paint(lx, [...cells.values()], () => dirt.tuiles[Math.floor(random() * dirt.tuiles.length)]!);
+    lx.setTransform(1, 0, 0, 1, 0, 0);
+    lx.globalCompositeOperation = 'multiply';
+    lx.fillStyle = `rgb(${dirt.teinte.map((v) => Math.round(v * 255)).join(',')})`;
+    lx.fillRect(0, 0, W, W);
+    lx.globalCompositeOperation = 'source-over';
+    // Masque au pas d'un pixel du plan : un disque par tache, au bord rongé par le bruit ; les disques voisins se fondent.
+    const alpha = new Float32Array(M * M);
+    for (const spot of spots) {
+      const [x0, x1] = [Math.max(0, Math.floor(spot.x - spot.r * 1.5)), Math.min(M - 1, Math.ceil(spot.x + spot.r * 1.5))];
+      const [y0, y1] = [Math.max(0, Math.floor(spot.y - spot.r * 1.5)), Math.min(M - 1, Math.ceil(spot.y + spot.r * 1.5))];
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          const i = y * M + x;
+          const v = 1 - Math.hypot(x - spot.x, y - spot.y) / spot.r + 0.22 * noise.coarse[i]! + 0.07 * noise.fine[i]!;
+          const a = smoothstep(v / 0.35) * dirt.opacite;
+          if (a > alpha[i]!) alpha[i] = a;
+        }
+      }
+    }
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.drawImage(masked(layer, alpha), 0, 0);
+  });
+
   // --- 3. socles de terre sous les reliefs, teintés -------------------------------------------------------------
   for (const socle of decor.socles) scoped(() => {
     if (socle.cases.length === 0) return;
@@ -446,8 +749,8 @@ export function buildGround(size: number, decor: GroundDecor, images: Readonly<R
     const [row, col] = d.case;
     const x = cellX(col);
     const y = cellY(row);
-    if (d.sens === 'lignes') g.setTransform(D, 0, 0, D, x * D, y * D);
-    else g.setTransform(0, D, D, 0, x * D, y * D); // transposée : la pièce part vers la droite
+    if (d.sens === 'lignes') g.setTransform(D, 0, 0, D, (x - vx) * D, (y - vy) * D);
+    else g.setTransform(0, D, D, 0, (x - vx) * D, (y - vy) * D); // transposée : la pièce part vers la droite
     if (d.miroir) g.transform(1, 0, 0, -1, 0, 2 * pas);
     g.drawImage(images[d.image]!, 0, 0, pas, 2 * pas);
   }
@@ -504,8 +807,18 @@ export function buildGround(size: number, decor: GroundDecor, images: Readonly<R
   g.drawImage(blurred(ao, 12), 0, 0);
   g.globalAlpha = 1;
 
-  // --- 6. bords du monde fondus en transparence (décor en bordure seulement) -----------------------------------
-  if (border > 0) {
+  // --- 6. bords du monde fondus en transparence (décor en bordure seulement), ou ceux du recadrage -------------
+  if (view) {
+    const [fade, fx] = fresh();
+    fx.fillStyle = '#fff';
+    const inset = GROUND_VIEW_FADE.inset * D;
+    fx.fillRect(inset, inset, W - 2 * inset, W - 2 * inset);
+    const soft = blurred(fade, GROUND_VIEW_FADE.blur);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalCompositeOperation = 'destination-in';
+    g.drawImage(soft, 0, 0);
+    g.globalCompositeOperation = 'source-over';
+  } else if (border > 0) {
     const [fade, fx] = fresh();
     inPlan(fx);
     fx.fillStyle = '#fff';

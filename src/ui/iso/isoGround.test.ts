@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { BATTLEFIELD_13, BATTLEFIELD_15, getCell } from '../../engine';
-import { SHADOW_DIR, grassTile, seeded, smoothstep, socleBlend, treeShadow, weightedPick, zoneBlend } from './isoGround';
+import { GROUND_VIEW_FADE, SHADOW_DIR, boardView, grassTile, seeded, smoothstep, socleBlend, footDirtSpots, poisson, treeShadow, tuftPlacements, weightedPick, zoneBlend } from './isoGround';
 import {
   GROUND_IMAGES,
   GROUND_WAIT,
   HD_SPRITE_SCALE,
   PAINTED_SPRITE_SCALE,
   STAND_DEPTH,
+  boardOnly,
   flatGroundBackground,
   groundImageNames,
   paintedBoardDecor,
   paintedDecor,
   paintedStandDepth,
   placePaintedSprites,
+  sharpView,
   spriteScale,
   spritesHiding,
   worldPlan,
@@ -123,11 +125,11 @@ describe('décor peint du 15 × 15 (rendu seulement)', () => {
     expect(2 * marge + 15 * pas - (pas - cell)).toBe(planSize(15));
   });
 
-  it('décor complet : 6 cases de décor tout autour (plan de 1968 px), 244 sprites ; le plateau seul : 29 sprites, 6 pièces d’eau', () => {
+  it('décor complet : 6 cases de décor tout autour (plan de 1968 px), 201 sprites (18 grandes montagnes au lieu de 64 petites) ; le plateau seul : 29 sprites, 6 pièces d’eau', () => {
     expect(full.plan.bordure).toBe(6);
     expect(worldPlan(full, 15)).toBe(1968);
     // Le carré de cases bloquées (9, 9)–(10, 10) porte un jeune sapin par case, à la place des quatre rochers.
-    expect(full.sprites).toHaveLength(244);
+    expect(full.sprites).toHaveLength(201);
     expect(board.plan.bordure).toBe(0);
     expect(worldPlan(board, 15)).toBe(planSize(15));
     expect(board.sprites).toHaveLength(29);
@@ -250,8 +252,12 @@ describe('sprites peints du 15 × 15 (rendu seulement)', () => {
     for (const sprite of hd) expect(sprite.miroir ?? false, sprite.id).toBe(false);
   });
 
-  it('herbe peinte posée en continu (motif 3 × 3, sans fleurs) ; cristaux vifs à 2 cases au moins de la zone de la Mine', () => {
-    expect(full.herbe.motif).toHaveLength(9);
+  it('herbe peinte posée en continu (motif 7 × 7 du 2026-11-11, sans fleurs, déjà à sa teinte) ; cristaux vifs à 2 cases au moins de la zone de la Mine', () => {
+    // Un grand motif : la même herbe ne revient que tous les 7 cases ; un vert vif, façon Wakfu (2026-11-11).
+    expect(full.herbe.motif).toHaveLength(49);
+    expect(full.herbe.filtre).toBe('hue-rotate(10deg) saturate(1.1) brightness(1.05)');
+    // La même couleur partout (pas de damier) : pas de grandes nuances par-dessus.
+    expect(full.herbe.nuances).toBe(0);
     for (const tile of full.herbe.motif!) expect(GROUND_IMAGES[tile], tile).toBeDefined();
     expect([...full.herbe.tuiles, ...full.herbe.motif!].some((t) => t.includes('fleurs'))).toBe(false);
     // Le sous-bois prolonge l'herbe à l'ombre : même motif, même filtre, sans terre ni ancienne herbe.
@@ -338,5 +344,132 @@ describe('décor qui s’efface devant un jeton', () => {
     const hiding = spritesHiding([at(5, 5)], plan, 15, 15, false, 'tilt');
     expect(hiding.get('4,5')).toEqual(['s5_5']);
     expect(hiding.has('6,5')).toBe(false);
+  });
+});
+
+describe('sol net du plateau (recadrage du sol du monde)', () => {
+  it('le plateau et une case autour, dans le plan du monde : il commence une case avant la première case du plateau', () => {
+    const plan = { pas: 72, case: 68, marge: 14, densite: 1.5, bordure: 6 };
+    // Première case du plateau dans le plan du monde : marge + 6 cases de décor, moins la demi-gouttière.
+    expect(boardView(plan, 15)).toEqual({ x: 14 + 5 * 72 - 2, y: 14 + 5 * 72 - 2, size: 17 * 72 });
+    expect(boardView(plan, 15, 2)).toEqual({ x: 14 + 4 * 72 - 2, y: 14 + 4 * 72 - 2, size: 19 * 72 });
+  });
+
+  it('15 × 15 : le carré net tient dans le monde, couvre tout le plateau, et son fondu reste hors du plateau', () => {
+    const decor = paintedDecor(BATTLEFIELD_15)!;
+    const view = sharpView(BATTLEFIELD_15)!;
+    const world = worldPlan(decor, 15);
+    expect(view.x).toBeGreaterThan(0);
+    expect(view.x + view.size).toBeLessThan(world);
+    // Le fondu (bord du carré blanc à `inset`, flou d'écart type `blur`) est opaque à 3 écarts types au-delà, avant la
+    // première case du plateau (une case plus loin).
+    expect(GROUND_VIEW_FADE.inset + 3 * GROUND_VIEW_FADE.blur).toBeLessThanOrEqual(decor.plan.pas);
+    // Sans décor extérieur, pas de sol net.
+    expect(sharpView(BATTLEFIELD_13)).toBeNull();
+  });
+});
+
+describe('végétation semée une à une (15 × 15, planche V1 du 2026-11-11)', () => {
+  const decor = paintedDecor(BATTLEFIELD_15)!;
+  const tufts = decor.herbe.touffes!;
+  const { pas, case: cell, marge, bordure = 0 } = decor.plan;
+  const cellOf = (x: number) => Math.floor((x - marge + (pas - cell) / 2) / pas) - bordure;
+  const placed = tuftPlacements(15, decor);
+  const bareCells = new Set<string>();
+  for (const [r, c] of tufts.sans) for (let dr = -tufts.rayon; dr <= tufts.rayon; dr++) for (let dc = -tufts.rayon; dc <= tufts.rayon; dc++) bareCells.add(`${r + dr},${c + dc}`);
+  const side = 15 + 2 * bordure;
+
+  it('déterministe, triée du fond vers l’avant, chaque élément à la taille et au pied de sa sorte, dans sa case', () => {
+    expect(tuftPlacements(15, decor)).toEqual(placed);
+    for (let i = 1; i < placed.length; i++) expect(placed[i]!.x + placed[i]!.y).toBeGreaterThanOrEqual(placed[i - 1]!.x + placed[i - 1]!.y);
+    const diamond = pas * Math.SQRT2;
+    for (const t of placed) {
+      const kind = tufts.sortes.find((k) => k.image === t.image)!;
+      expect(t.width).toBeGreaterThanOrEqual(kind.taille[0] * diamond - 1e-9);
+      expect(t.width).toBeLessThanOrEqual(kind.taille[1] * diamond + 1e-9);
+      expect(t.pied).toBe(kind.pied);
+      expect(bareCells.has(`${cellOf(t.y)},${cellOf(t.x)}`)).toBe(false);
+    }
+  });
+
+  it('tirage de Poisson : environ `parCase` par case, des cases vides et d’autres à deux éléments ou plus', () => {
+    const counts = new Map<string, number>();
+    for (const t of placed) counts.set(`${cellOf(t.y)},${cellOf(t.x)}`, (counts.get(`${cellOf(t.y)},${cellOf(t.x)}`) ?? 0) + 1);
+    const cells = side * side - bareCells.size;
+    expect(placed.length / cells).toBeGreaterThan(tufts.parCase * 0.85);
+    expect(placed.length / cells).toBeLessThan(tufts.parCase * 1.15);
+    const empty = cells - counts.size;
+    const several = [...counts.values()].filter((n) => n >= 2).length;
+    // Poisson de moyenne 0,9 : environ 41 % de cases vides et 23 % à deux éléments ou plus.
+    expect(empty / cells).toBeGreaterThan(0.3);
+    expect(several / cells).toBeGreaterThan(0.15);
+  });
+
+  it('les sortes suivent leur poids : les touffes fréquentes l’emportent sur les champignons ; les images sont dans le dossier du sol', () => {
+    const count = (image: string) => placed.filter((t) => t.image === image).length;
+    expect(count('vege_touffe_eventail')).toBeGreaterThan(count('vege_champignons') * 4);
+    // Les fleurs (planche V2) : environ 13 % des éléments, jamais à moins de 2 cases d'une mana zone (leur jaune est proche de l'or des zones neutres).
+    const generalPlaced = placed.filter((t) => !tufts.sortes.find((k) => k.image === t.image)!.pres);
+    const flowers = generalPlaced.filter((t) => tufts.sortes.find((k) => k.image === t.image)!.rayon === 2);
+    expect(flowers.length / generalPlaced.length).toBeGreaterThan(0.08);
+    expect(flowers.length / generalPlaced.length).toBeLessThan(0.2);
+    for (const t of flowers) {
+      const [row, col] = [cellOf(t.y), cellOf(t.x)];
+      expect(tufts.sans.some(([r, c]) => Math.abs(r - row) <= 2 && Math.abs(c - col) <= 2)).toBe(false);
+    }
+    for (const kind of tufts.sortes) expect(GROUND_IMAGES[kind.image], kind.image).toBeDefined();
+    expect(groundImageNames(decor)).toEqual(expect.arrayContaining(tufts.sortes.map((k) => k.image)));
+  });
+
+  it('pas de végétation dans le sol du plateau seul (vue de dessus) ; une sorte peut demander plus d’écart aux cases nues', () => {
+    expect(boardOnly(decor, 15).herbe.touffes).toBeUndefined();
+    expect(tuftPlacements(15, paintedBoardDecor(BATTLEFIELD_15)!)).toEqual([]);
+    const flowers = { ...tufts, sortes: [{ image: 'vege_trefle', poids: 1, taille: [0.2, 0.2] as const, pied: 0.6, rayon: 2 }], parCase: 3 };
+    const far = tuftPlacements(15, { ...decor, herbe: { ...decor.herbe, touffes: flowers } });
+    expect(far.length).toBeGreaterThan(0);
+    for (const t of far) {
+      const [row, col] = [cellOf(t.y), cellOf(t.x)];
+      expect(tufts.sans.some(([r, c]) => Math.abs(r - row) <= 2 && Math.abs(c - col) <= 2)).toBe(false);
+    }
+  });
+
+  it('cailloux semés seulement autour des roches (sorte locale, hors du tirage général)', () => {
+    const local = tufts.sortes.filter((k) => k.pres);
+    expect(local.length).toBeGreaterThan(0);
+    const pebbles = placed.filter((t) => local.some((k) => k.image === t.image));
+    expect(pebbles.length).toBeGreaterThan(0);
+    for (const t of pebbles) {
+      const { cases, rayon } = local.find((k) => k.image === t.image)!.pres!;
+      const [row, col] = [cellOf(t.y), cellOf(t.x)];
+      expect(cases.some(([r, c]) => Math.abs(r - row) <= rayon && Math.abs(c - col) <= rayon)).toBe(true);
+    }
+  });
+
+  it('poisson : moyenne respectée', () => {
+    const random = seeded(7);
+    let total = 0;
+    for (let i = 0; i < 4000; i++) total += poisson(random, 0.9);
+    expect(total / 4000).toBeGreaterThan(0.85);
+    expect(total / 4000).toBeLessThan(0.95);
+  });
+});
+
+describe('terre au pied des arbres verts et des rochers (15 × 15)', () => {
+  const decor = paintedDecor(BATTLEFIELD_15)!;
+  const dirt = decor.terre!;
+  const listed = (id: string) => dirt.pieds.some((g) => g.ids.includes(id));
+
+  it('une tache par sapin vert et par rocher, aucune sous les sapins violets ; son rayon suit l’échelle du sprite', () => {
+    const spots = footDirtSpots(15, decor);
+    const concerned = decor.sprites.filter((s) => listed(s.id) && s.case);
+    expect(spots).toHaveLength(concerned.length);
+    expect(concerned.some((s) => s.id.startsWith('hd_roche_'))).toBe(true);
+    expect(concerned.some((s) => s.id.endsWith('_vert'))).toBe(true);
+    expect(listed('hd_sapin_sombre')).toBe(false);
+    expect(listed('hd_jeune_sapin')).toBe(false);
+    const rock = decor.sprites.find((s) => s.id === 'hd_roche_1')!;
+    const group = dirt.pieds.find((g) => g.ids.includes('hd_roche_1'))!;
+    expect(spots.some((s) => Math.abs(s.r - group.rayon * decor.plan.pas * ((rock as { echelle?: number }).echelle ?? 1)) < 1e-9)).toBe(true);
+    for (const name of dirt.tuiles) expect(GROUND_IMAGES[name], name).toBeDefined();
   });
 });

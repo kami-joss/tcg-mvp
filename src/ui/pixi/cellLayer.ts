@@ -214,6 +214,34 @@ function pill(
   return node;
 }
 
+/**
+ * Cases en tuiles (quadrillage) : le joint entre deux cases, et le biseau de chaque case, en unités du plan (une case en
+ * fait 68) ; la lumière vient du haut à gauche de l'écran, c'est-à-dire du haut et de la gauche du plan.
+ */
+const TILE = { joint: 'rgba(28, 34, 16, 0.5)', bevel: 7, light: 0.22, shadow: 0.3 } as const;
+
+/** Biseau d'une case, à poser sur elle : bords haut et gauche éclairés, bas et droit ombrés, coins arrondis. */
+function bevelTexture(pixi: Pixi): Texture {
+  const k = 2;
+  const [size, b, r] = [S * k, TILE.bevel * k, R * k];
+  return painted(pixi, size, size, (ctx) => {
+    ctx.beginPath();
+    ctx.roundRect(0, 0, size, size, r);
+    ctx.clip();
+    const strip = (x0: number, y0: number, x1: number, y1: number, rgb: string, alpha: number, rect: [number, number, number, number]) => {
+      const gradient = ctx.createLinearGradient(x0, y0, x1, y1);
+      gradient.addColorStop(0, `rgba(${rgb}, ${alpha})`);
+      gradient.addColorStop(1, `rgba(${rgb}, 0)`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(...rect);
+    };
+    strip(size, 0, size - b, 0, '20, 28, 10', TILE.shadow, [size - b, 0, b, size]);
+    strip(0, size, 0, size - b, '20, 28, 10', TILE.shadow * 1.2, [0, size - b, size, b]);
+    strip(0, 0, b, 0, '255, 250, 220', TILE.light, [0, 0, b, size]);
+    strip(0, 0, 0, b, '255, 250, 220', TILE.light * 0.8, [0, 0, size, b]);
+  });
+}
+
 /** Profondeur des noms de zone : devant tout le décor debout, comme une étiquette posée sur l'image. */
 const ZONE_TAG_DEPTH = 100_000;
 
@@ -316,6 +344,9 @@ export class CellLayer {
   private readonly glowBase: number[] = [];
   /** Icônes incrustées dans les cases centrales des mana zones. */
   private readonly inlays: Sprite[] = [];
+  /** Biseaux des cases en tuiles (quadrillage), au-dessus des fonds, sous les lueurs ; leur texture, commune. */
+  private readonly bevelLayer: PixiContainer;
+  private bevelTexture: Texture | null = null;
 
   constructor(
     private readonly pixi: Pixi,
@@ -330,7 +361,8 @@ export class CellLayer {
     this.hoverRing = new pixi.Graphics();
     this.dangerLine = new pixi.Graphics();
     this.dots = new pixi.Container();
-    layers.cells.addChild(this.ground, this.pulsing, this.glowLayer);
+    this.bevelLayer = new pixi.Container();
+    layers.cells.addChild(this.ground, this.bevelLayer, this.pulsing, this.glowLayer);
     layers.over.addChild(this.overlays, this.dangerVeil, this.halos, this.hoverRing, this.dangerLine, this.dots);
   }
 
@@ -348,6 +380,7 @@ export class CellLayer {
     for (const child of this.halos.removeChildren()) child.destroy();
     for (const child of this.dots.removeChildren()) child.destroy();
     for (const sprite of [...this.glows, ...this.still, ...this.inlays]) sprite.destroy();
+    for (const child of this.bevelLayer.removeChildren()) child.destroy();
     this.inlays.length = 0;
     this.glows.length = 0;
     this.glowBase.length = 0;
@@ -369,12 +402,19 @@ export class CellLayer {
       }
       const fill = {
         plain: 'oklch(0.25 0.04 165 / 0.03)',
-        odd: 'oklch(1 0 0 / 0.035)',
         mana: 'oklch(0.25 0.04 165 / 0.03)',
         summon1: 'oklch(0.56 0.15 255 / 0.42)',
         summon2: 'oklch(0.56 0.18 25 / 0.42)',
       }[v.base];
-      cellRect(g, v.x, v.y, 0, R, fill, v.edge ? { css: v.edge.color, width: v.edge.width } : { css: 'oklch(0.28 0.04 165 / 0.2)', width: 1 });
+      if (!v.tile) {
+        cellRect(g, v.x, v.y, 0, R, fill, v.edge ? { css: v.edge.color, width: v.edge.width } : { css: 'oklch(0.28 0.04 165 / 0.2)', width: 1 });
+        continue;
+      }
+      // En tuile : le joint remplit la moitié de l'espace qui la sépare de ses voisines (la voisine fait l'autre), puis
+      // le biseau.
+      cellRect(g, v.x, v.y, 0, R, fill, v.edge ? { css: v.edge.color, width: v.edge.width } : undefined);
+      g.roundRect(v.x, v.y, S, S, R).stroke({ width: (ISO.pitch - S) / 2, ...cssColor(TILE.joint), alignment: 0 });
+      this.bevelLayer.addChild(new pixi.Sprite({ texture: (this.bevelTexture ??= bevelTexture(pixi)), x: v.x, y: v.y, width: S, height: S }));
     }
 
     // Mana zones (refonte du 2026-11-11). Au repos : une lueur dans le carré de la zone, la case centrale éclairée (elles

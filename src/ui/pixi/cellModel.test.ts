@@ -44,10 +44,14 @@ describe('cases du plateau PixiJS : fond et repères', () => {
     expect(cellAt(visuals({ flipped: true }), at(0, 0))).toMatchObject({ x: 14 + 14 * 72, y: 14 + 14 * 72 });
   });
 
-  it('damier : cases paires et impaires', () => {
+  it('pas de damier : deux cases d’herbe voisines ont le même fond ; avec le quadrillage, chaque case au sol est une tuile', () => {
     const list = visuals();
     expect(cellAt(list, at(6, 6)).base).toBe('plain');
-    expect(cellAt(list, at(6, 7)).base).toBe('odd');
+    expect(cellAt(list, at(6, 7)).base).toBe('plain');
+    expect(cellAt(list, at(6, 6)).tile).toBe(true);
+    expect(cellAt(list, FORGE).tile).toBe(true);
+    expect(cellAt(list, summonCell(1)).tile).toBe(true);
+    expect(list.filter((v) => v.base === 'blocked' || v.base === 'water').every((v) => !v.tile)).toBe(true);
   });
 
   it('mana zone (refonte du 2026-11-11) : sa couleur, son nom, son icône, ce qu’elle rapporte ou qui la tient ; la lueur respire avec les animations', () => {
@@ -95,10 +99,12 @@ describe('cases du plateau PixiJS : fond et repères', () => {
     expect(blocked.some((v) => v.base === 'blocked')).toBe(true);
   });
 
-  it('quadrillage masqué (réglage) : ni damier, ni traits, ni voile des cases bloquées ; mana zones et invocations restent', () => {
+  it('quadrillage masqué (réglage) : ni fond ni traits des cases, ni voile des cases bloquées ; mana zones et invocations restent', () => {
     const list = visuals({ grid: false });
     const bases = new Set(list.map((v) => v.base));
-    expect(bases.has('plain') || bases.has('odd') || bases.has('blocked')).toBe(false);
+    expect(bases.has('plain') || bases.has('blocked')).toBe(false);
+    // Sans quadrillage, plus aucun carreau : ni joint ni biseau.
+    expect(list.some((v) => v.tile)).toBe(false);
     expect(cellAt(list, at(6, 6)).base).toBe('bare');
     expect(cellAt(list, FORGE).base).toBe('mana');
     expect(cellAt(list, summonCell(1)).base).toBe('summon1');

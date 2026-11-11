@@ -25,6 +25,8 @@ interface PixiBoardProps {
   /** Sol du plateau seul, puis du monde peint (`usePaintedGround`). */
   ground: string | null;
   world: string | null;
+  /** Sol net du plateau, posé sur celui du monde (`usePaintedGround`). */
+  sharp?: string | null;
   /** Le sol du monde viendra (sinon, le plateau seul suffit à l'écran de chargement). */
   worldExpected: boolean;
   controllers: ZoneControllers;
@@ -49,7 +51,7 @@ interface PixiBoardProps {
 const NO_MASKS: Readonly<Record<string, string>> = {};
 
 export function PixiBoard(props: PixiBoardProps) {
-  const { board, camera, plan, flipped, animated, ground, world, controllers, reveal, viewport, scene, cells, stats, anchor } = props;
+  const { board, camera, plan, flipped, animated, ground, world, sharp = null, controllers, reveal, viewport, scene, cells, stats, anchor } = props;
   const host = useRef<HTMLDivElement>(null);
   const [renderer, setRenderer] = useState<BoardRenderer | null>(null);
   /** PixiJS indisponible (WebGL) : rien ne sera dessiné, l'écran de chargement n'attend pas. */
@@ -148,10 +150,10 @@ export function PixiBoard(props: PixiBoardProps) {
   useEffect(() => {
     if (!renderer) return;
     renderer
-      .setDecor({ board, flipped, animated, ground, world, controllers, masks })
+      .setDecor({ board, flipped, animated, ground, world, sharp, controllers, masks })
       .catch((error: unknown) => console.warn('Décor du plateau PixiJS incomplet :', error));
     // `controllers` ne compte que par `zoneKey`.
-  }, [renderer, board, flipped, animated, ground, world, zoneKey, masks]);
+  }, [renderer, board, flipped, animated, ground, world, sharp, zoneKey, masks]);
 
   useEffect(() => {
     renderer?.setCamera(camera, plan);

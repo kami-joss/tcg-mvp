@@ -33,7 +33,8 @@ export const CELL_COLORS = {
 export const CELL_SIZE = 68;
 
 /** Fond d'une case du plateau peint ; `bare` : rien (quadrillage masqué, case sans repère). */
-export type CellBase = 'plain' | 'odd' | 'mana' | 'summon1' | 'summon2' | 'blocked' | 'water' | 'bare';
+/** Fond d'une case. L'herbe a le même fond partout : plus de damier (2026-11-11), seuls les traits des cases restent. */
+export type CellBase = 'plain' | 'mana' | 'summon1' | 'summon2' | 'blocked' | 'water' | 'bare';
 
 export interface CellVisual {
   /** Case réelle (« ligne,colonne ») et son coin haut-gauche dans le plan affiché (plateau retourné compris). */
@@ -46,6 +47,12 @@ export interface CellVisual {
   readonly edge: { readonly color: string; readonly width: number } | null;
   /** Case d'invocation : « J1 » ou « J2 ». */
   readonly summon: 1 | 2 | null;
+  /**
+   * Case en tuile (quadrillage du plateau, 2026-11-11, façon Dofus) : un joint sombre autour d'elle et un biseau éclairé
+   * en haut à gauche, ombré en bas à droite. Seulement avec le quadrillage, et pour les cases au sol (herbe, mana zone,
+   * case d'invocation) ; sans quadrillage, la pelouse est continue.
+   */
+  readonly tile: boolean;
   /** Mana zone, portée par sa case centrale (refonte du 2026-11-11) : voir `ManaZoneVisual`. */
   readonly manaZone: ManaZoneVisual | null;
   /** Marques au sol des terrains « Passage » et des cases brûlées. */
@@ -177,6 +184,7 @@ export function cellVisuals(inputs: CellInputs): CellVisual[] {
         base: waterKind(view.board, pos) ? 'water' : grid ? 'blocked' : 'bare',
         edge: null,
         summon: null,
+        tile: false,
         manaZone: null,
         dim: false,
         reach: null,
@@ -209,9 +217,10 @@ export function cellVisuals(inputs: CellInputs): CellVisual[] {
     const onToken = monster !== undefined;
     out.push({
       ...common,
-      base: zone ? 'mana' : cell.summonZoneOf === 1 ? 'summon1' : cell.summonZoneOf === 2 ? 'summon2' : !grid ? 'bare' : (pos.row + pos.col) % 2 ? 'odd' : 'plain',
+      base: zone ? 'mana' : cell.summonZoneOf === 1 ? 'summon1' : cell.summonZoneOf === 2 ? 'summon2' : !grid ? 'bare' : 'plain',
       edge: cell.summonZoneOf !== null ? { color: cell.summonZoneOf === 1 ? CELL_COLORS.j1 : CELL_COLORS.j2, width: 2 } : null,
       summon: cell.summonZoneOf,
+      tile: grid,
       manaZone: zone
         ? {
             look: contested ? 'contested' : controller === 1 ? 'p1' : controller === 2 ? 'p2' : 'neutral',

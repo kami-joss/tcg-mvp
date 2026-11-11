@@ -630,6 +630,7 @@ export function Board(props: BoardProps) {
           animated={animated}
           ground={grounds.board}
           world={grounds.world}
+          sharp={grounds.sharp}
           worldExpected={grounds.worldExpected}
           controllers={controllers}
           reveal={reveal}

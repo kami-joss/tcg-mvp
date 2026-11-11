@@ -5,7 +5,7 @@
 // (3d : `motions`, que `fx/stage.ts` appelle à la place des animations des jetons HTML).
 // Le dessin n'a lieu que quand il le faut : à chaque image de l'ambiance (30 par seconde), d'un fondu, ou après un
 // changement (défilement, caméra, décor) ; rien quand tout est immobile.
-import type { Application, Container as PixiContainer, Sprite, Texture } from 'pixi.js';
+import type { Application, Graphics, Container as PixiContainer, Sprite, Texture, TilingSprite } from 'pixi.js';
 import type { Board } from '../../engine';
 import {
   EMBER,
@@ -23,7 +23,7 @@ import {
   zoneHalos,
 } from '../iso/ambience';
 import type { ZoneControllers } from '../iso/ambience';
-import { DECOR_FADE, GROUND_WAIT, STAND_DEPTH, paintedBoardDecor, paintedDecor, placePaintedSprites, spritesHiding, worldPlan } from '../iso/paintedDecor';
+import { DECOR_FADE, GROUND_WAIT, STAND_DEPTH, paintedBoardDecor, paintedDecor, placePaintedSprites, sharpView, spritesHiding, worldPlan } from '../iso/paintedDecor';
 import type { PaintedDecor, PlacedSprite } from '../iso/paintedDecor';
 import { SPRITES } from '../iso/scenery';
 import type { IsoCamera } from '../iso/scenery';
@@ -44,6 +44,8 @@ import type { BuiltScene, Pixi } from './groundFx';
 import { isoDepth, isoPlaneMatrix, isoProject, isoUnproject } from './isoProjection';
 import type { Board as BoardData, Position } from '../../engine';
 import { ISO } from '../iso/scenery';
+import { MIST_LAYERS, MIST_NIGHT, mistTile } from './mistModel';
+import mistUrl from '../../assets/plateau15/fond/brume.webp';
 
 /** Durée (ms) du fondu d'un sprite qui s'efface ou réapparaît. */
 const FADE_MS = 250;
@@ -56,6 +58,8 @@ export interface BoardDecorInput {
   /** Sol du plateau seul, puis du monde (décor extérieur compris) : URL, `null` tant qu'il se calcule. */
   readonly ground: string | null;
   readonly world: string | null;
+  /** Sol net du plateau (`sharpView`), posé sur celui du monde : URL, `null` tant qu'absent. */
+  readonly sharp?: string | null;
   readonly controllers: ZoneControllers;
   /** Masques de l'eau de chaque image de pièce d'eau (`useWaterMasks`). */
   readonly masks: Readonly<Record<string, string>>;
@@ -103,6 +107,12 @@ export interface DrawnProgress {
 
 export class BoardRenderer {
   private readonly world: PixiContainer;
+  /** Sous le monde, à l'écran : le fond de nuit et les couches de brume (`mistModel.ts`). */
+  private readonly backdrop: PixiContainer;
+  private readonly night: Graphics;
+  private mists: TilingSprite[] = [];
+  /** Temps de la dérive de la brume (s), avancé seulement si les animations sont permises. */
+  private mistTime = 0;
   /**
    * De bas en haut, comme l'empilement d'une case en HTML : le sol et son ambiance (plan), les ponts couchés, les
    * cases (plan), « J1 » et les icônes des marques, la pénombre, les surbrillances et les unités au sol (plan), les
@@ -176,7 +186,25 @@ export class BoardRenderer {
       this.requestRender();
     });
     this.world.addChild(this.plane, this.flats, this.planeCells, this.textsUnder, this.planeOver, this.groundTexts, this.standing);
-    app.stage.addChild(this.world);
+    this.backdrop = new Container();
+    this.night = new pixi.Graphics();
+    this.backdrop.addChild(this.night);
+    app.stage.addChild(this.backdrop, this.world);
+    this.sizeBackdrop();
+    void pixi.Assets.load<Texture>(mistUrl)
+      .then((texture) => {
+        if (this.destroyed) return;
+        this.mists = MIST_LAYERS.map((layer) => {
+          const sprite = new pixi.TilingSprite({ texture, width: 1, height: 1 });
+          sprite.alpha = layer.alpha;
+          sprite.tint = layer.tint;
+          this.backdrop.addChild(sprite);
+          return sprite;
+        });
+        this.sizeBackdrop();
+        this.requestRender();
+      })
+      .catch(() => undefined);
     const fonts = typeof document !== 'undefined' && document.fonts ? document.fonts : null;
     const ready = fonts
       ? Promise.all([fonts.load('800 12px "Alegreya Sans SC"'), fonts.load('800 12px "Alegreya Sans"')]).catch(() => [])
@@ -278,6 +306,7 @@ export class BoardRenderer {
   resize(): void {
     if (this.destroyed) return;
     this.app.resize();
+    this.sizeBackdrop();
     this.renderNow();
   }
 
@@ -285,6 +314,7 @@ export class BoardRenderer {
   setOffset(x: number, y: number): void {
     if (this.world.x === x && this.world.y === y) return;
     this.world.position.set(x, y);
+    this.placeMist();
     this.renderNow();
   }
 
@@ -293,6 +323,7 @@ export class BoardRenderer {
     this.camera = camera;
     this.plan = plan;
     this.layout();
+    this.placeMist();
     this.requestRender();
   }
 
@@ -403,6 +434,10 @@ export class BoardRenderer {
       this.decor?.groundFx?.update(t);
       this.cells.update(t);
       if (this.animated) this.units.update(t);
+      if (this.decor?.animated ?? this.animated) {
+        this.mistTime = t;
+        this.placeMist();
+      }
       this.dirty = true;
     }
     if (this.dirty || fading || growing) {
@@ -412,6 +447,27 @@ export class BoardRenderer {
     }
     if (animated || fading || growing) this.raf = requestAnimationFrame(this.frame);
   };
+
+  /** Fond de nuit et brume à la taille du canvas. */
+  private sizeBackdrop(): void {
+    const { width, height } = this.app.screen;
+    this.night.clear().rect(0, 0, width, height).fill(MIST_NIGHT);
+    for (const sprite of this.mists) {
+      sprite.width = width;
+      sprite.height = height;
+    }
+    this.placeMist();
+  }
+
+  /** Motif de chaque couche de brume : défilement (en parallaxe), zoom et dérive. */
+  private placeMist(): void {
+    const k = this.camera?.k ?? 1;
+    this.mists.forEach((sprite, i) => {
+      const tile = mistTile(MIST_LAYERS[i]!, this.world.position, k, this.mistTime);
+      sprite.tilePosition.set(tile.x, tile.y);
+      sprite.tileScale.set(tile.scale);
+    });
+  }
 
   /** Place le plan et chaque élément debout selon la caméra. */
   private layout(): void {
@@ -481,6 +537,8 @@ export class BoardRenderer {
     // Images d'abord (la scène se construit ensuite d'un bloc) : le sol et chaque sprite utilisé.
     const groundUrl = showWorld ? input.world : input.ground;
     const groundImage = groundUrl ? await loadImage(groundUrl).catch(() => null) : null;
+    const view = showWorld && input.sharp ? sharpView(board) : null;
+    const sharpImage = view && input.sharp ? await loadImage(input.sharp).catch(() => null) : null;
     const ids = spriteImages(placed);
     const spriteTextures = new Map<string, Texture>();
     await Promise.all(
@@ -503,12 +561,21 @@ export class BoardRenderer {
       ground.rotation = Math.PI;
     }
     const [gx, gw] = showWorld ? [-border * full.plan.pas, worldPlan(full, Math.max(board.rows, board.cols))] : [0, plan];
-    if (groundImage) {
-      const texture = TextureClass.from(groundImage);
+    // Le sol est vu en biais (écrasé à 58 % en hauteur) et souvent réduit : des mipmaps et un filtrage anisotrope le
+    // gardent net, sans crénelage ni scintillement.
+    const groundTexture = (image: HTMLImageElement): Texture => {
+      const texture = new TextureClass({ source: new pixi.ImageSource({ resource: image, autoGenerateMipmaps: true, maxAnisotropy: 16 }) });
       owned.push(texture);
-      ground.addChild(new Sprite({ texture, x: gx, y: gx, width: gw, height: gw }));
+      return texture;
+    };
+    if (groundImage) {
+      ground.addChild(new Sprite({ texture: groundTexture(groundImage), x: gx, y: gx, width: gw, height: gw }));
     } else {
       ground.addChild(new Graphics().rect(gx, gx, gw, gw).fill(GROUND_WAIT));
+    }
+    // Le sol net du plateau par-dessus : le même contenu que le monde, plus dense, fondu sur ses bords hors du plateau.
+    if (groundImage && view && sharpImage) {
+      ground.addChild(new Sprite({ texture: groundTexture(sharpImage), x: view.x + gx, y: view.y + gx, width: view.size, height: view.size }));
     }
     this.groundLayer.addChild(ground);
     nodes.push(ground);

@@ -19,6 +19,7 @@ export function preloadBoard(board: Board): void {
   const quiet = () => {};
   grounds?.board.catch(quiet);
   grounds?.world?.catch(quiet);
+  grounds?.sharp?.catch(quiet);
   const urls = spriteImages(placePaintedSprites(decor, board.rows, board.cols, false)).flatMap((id) => {
     const url = SPRITE_URLS[id];
     return url ? [url] : [];

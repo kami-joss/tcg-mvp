@@ -7,8 +7,8 @@ import DECOR_15 from './decor-15x15.json';
 import { isWaterPixel } from './ambience';
 import { groundKey, readGround, writeGround } from './groundCache';
 import type { GroundRequest, GroundResponse } from './groundWorker';
-import { buildGround } from './isoGround';
-import type { GroundDecor, GroundSprite } from './isoGround';
+import { boardView, buildGround } from './isoGround';
+import type { GroundDecor, GroundSprite, GroundView } from './isoGround';
 import { HD_SPRITE_IDS, SPRITES } from './scenery';
 
 /** Tuiles du sol, pièces de 1 × 2 cases et texture de bruit, par nom de fichier. */
@@ -36,12 +36,16 @@ export interface PaintedDecor extends GroundDecor {
 
 /**
  * Le décor réduit au plateau : pas de bordure (`plan.bordure` = 0), seuls les sprites et les pièces d'eau posés sur ses
- * cases. Son sol se calcule vite (environ 1,5 s) : il s'affiche en premier, et en vue de dessus.
+ * cases, et pas de touffes (dessinées pour la vue isométrique, elles seraient déformées en vue de dessus). Son sol se
+ * calcule vite (environ 1,5 s) : il s'affiche en premier, et en vue de dessus.
  */
 export function boardOnly(decor: PaintedDecor, size: number): PaintedDecor {
   const inBoard = ([row, col]: readonly number[]) => row! >= 0 && col! >= 0 && row! < size && col! < size;
+  const { touffes, ...herbe } = decor.herbe;
+  void touffes;
   return {
     ...decor,
+    herbe,
     plan: { ...decor.plan, bordure: 0 },
     decals: decor.decals.filter(({ case: [row, col], sens }) => inBoard([row, col]) && inBoard(sens === 'lignes' ? [row + 1, col] : [row, col + 1])),
     sprites: decor.sprites.filter((s) => (s.entre ?? s.empreinte ?? (s.case ? [s.case] : [])).every(inBoard)),
@@ -267,7 +271,7 @@ export function spritesHiding(
 
 /** Noms des images dont le sol a besoin : herbe, sols de zones, terre des socles, pièces peintes, bruit. */
 export function groundImageNames(decor: GroundDecor): string[] {
-  const names = new Set<string>(['bruit', 'terre_unie', 'terre_copeaux', ...decor.herbe.tuiles, ...(decor.herbe.motif ?? [])]);
+  const names = new Set<string>(['bruit', 'terre_unie', 'terre_copeaux', ...decor.herbe.tuiles, ...(decor.herbe.motif ?? []), ...(decor.herbe.touffes?.sortes.map((kind) => kind.image) ?? []), ...(decor.terre?.tuiles ?? [])]);
   for (const zone of decor.zones) for (const tile of [...zone.tuiles, ...(zone.motif ?? [])]) names.add(tile);
   for (const decal of decor.decals) names.add(decal.image);
   return [...names];
@@ -303,7 +307,7 @@ const requests = new Map<number, { resolve: (blob: Blob) => void; reject: (error
 
 const canUseWorker = (): boolean => typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined';
 
-function groundInWorker(size: number, decor: PaintedDecor): Promise<Blob> {
+function groundInWorker(size: number, decor: PaintedDecor, view: GroundView | null = null): Promise<Blob> {
   if (!worker) {
     worker = new Worker(new URL('./groundWorker.ts', import.meta.url), { type: 'module' });
     worker.onmessage = ({ data }: MessageEvent<GroundResponse>) => {
@@ -315,15 +319,34 @@ function groundInWorker(size: number, decor: PaintedDecor): Promise<Blob> {
   }
   const id = nextRequest++;
   const images = Object.fromEntries(groundImageNames(decor).map((name) => [name, new URL(GROUND_IMAGES[name]!, location.href).href]));
-  const message: GroundRequest = { id, size, decor, images };
+  const message: GroundRequest = { id, size, decor, images, view };
   return new Promise((resolve, reject) => {
     requests.set(id, { resolve, reject });
     worker!.postMessage(message);
   });
 }
 
+const coarsePointer = (): boolean => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+
 /** Densité du sol avec son décor extérieur (README : 1,5 sur ordinateur, 1 sur téléphone ; 2 serait trop lourd). */
-export const worldDensity = (): number => (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches ? 1 : 1.5);
+export const worldDensity = (): number => (coarsePointer() ? 1 : 1.5);
+
+/**
+ * Densité du sol net du plateau : 2,5, celle des tuiles peintes (180 px pour une case de 72) et des sprites HD, pour que
+ * l'herbe du plateau garde sa finesse sous le sol du monde, plus grossier (à 1,5, elle perd environ un cinquième de sa
+ * netteté au zoom 100 % sur un écran Retina, un tiers à 150 %) ; aucun sur téléphone (mémoire), le monde y suffit.
+ */
+export const sharpDensity = (): number | null => (coarsePointer() ? null : 2.5);
+
+/**
+ * Le carré du sol net (`boardView` : le plateau et une case autour), dans le plan du sol du monde ; `null` sans décor
+ * extérieur.
+ */
+export function sharpView(board: Board): GroundView | null {
+  const set = PAINTED[board.name];
+  if (!set || (set.full.plan.bordure ?? 0) === 0) return null;
+  return boardView(set.full.plan, Math.max(board.rows, board.cols));
+}
 
 /** Sols prêts ou en cours, par clé du cache : une URL d'objet, calculée ou lue une fois par session. */
 const grounds = new Map<string, Promise<string>>();
@@ -359,6 +382,8 @@ function groundUrl(key: string, compute: () => Promise<Blob>): Promise<string> {
 export interface PaintedGrounds {
   readonly board: string | null;
   readonly world: string | null;
+  /** Le sol net du plateau (`sharpView`), posé sur celui du monde ; `null` tant qu'absent, ou s'il n'y en a pas. */
+  readonly sharp: string | null;
   /** Le sol du monde viendra (décor extérieur, tâche de fond possible) : sinon, le plateau seul suffit. */
   readonly worldExpected: boolean;
 }
@@ -366,12 +391,19 @@ export interface PaintedGrounds {
 /** Le décor extérieur de ce plateau se calculera-t-il (il en a un, et une tâche de fond est possible) ? */
 const expectsWorld = (set: PaintedSet | undefined): boolean => (set?.full.plan.bordure ?? 0) > 0 && canUseWorker();
 
+/** Les sols d'un plateau en cours de lecture ou de calcul. */
+export interface PaintedGroundsLoading {
+  readonly board: Promise<string>;
+  readonly world: Promise<string> | null;
+  readonly sharp: Promise<string> | null;
+}
+
 /**
  * Lance (une fois par session) le calcul ou la lecture des sols peints d'un plateau : celui du plateau seul, puis celui
- * du monde ; `null` sans décor peint. Appelé assez tôt (accueil, lancer de dés), le plateau est prêt quand la partie
- * s'affiche.
+ * du monde, puis le sol net du plateau ; `null` sans décor peint. Appelé assez tôt (accueil, lancer de dés), le plateau
+ * est prêt quand la partie s'affiche.
  */
-export function loadPaintedGrounds(board: Board): { readonly board: Promise<string>; readonly world: Promise<string> | null } | null {
+export function loadPaintedGrounds(board: Board): PaintedGroundsLoading | null {
   const set = PAINTED[board.name];
   const keys = groundKeys(board);
   if (!set || !keys) return null;
@@ -380,72 +412,89 @@ export function loadPaintedGrounds(board: Board): { readonly board: Promise<stri
   const boardReady = groundUrl(keys.board, () =>
     canUseWorker() ? groundInWorker(size, boardDecor).catch(() => groundOnMainThread(size, boardDecor)) : groundOnMainThread(size, boardDecor),
   );
-  if (!keys.world) return { board: boardReady, world: null };
+  if (!keys.world) return { board: boardReady, world: null, sharp: null };
   const worldKey = keys.world;
   const worldDecor = worldDecorOf(set);
   // Après le plateau seul : la tâche de fond traite ses demandes l'une après l'autre, le plateau passe d'abord.
   const world = boardReady.then(() => groundUrl(worldKey, () => groundInWorker(size, worldDecor)));
-  return { board: boardReady, world };
+  // Puis le sol net du plateau : le même décor que le monde, recadré et plus dense.
+  const sharpKey = keys.sharp;
+  const view = sharpView(board);
+  const sharpDecor = sharpDecorOf(set);
+  const sharp =
+    sharpKey && view && sharpDecor ? world.then(() => groundUrl(sharpKey, () => groundInWorker(size, sharpDecor, view))) : null;
+  return { board: boardReady, world, sharp };
 }
 
 /** Le décor du monde, à la densité de cet appareil. */
 const worldDecorOf = (set: PaintedSet): PaintedDecor => ({ ...set.full, plan: { ...set.full.plan, densite: worldDensity() } });
 
-/** Clés du cache des sols, par plateau (l'empreinte d'un décor se calcule sur tout son texte : une fois). */
-const keysOf = new Map<string, { readonly board: string; readonly world: string | null }>();
+/** Le décor du monde à la densité du sol net, `null` sans sol net sur cet appareil. */
+const sharpDecorOf = (set: PaintedSet): PaintedDecor | null => {
+  const density = sharpDensity();
+  return density === null ? null : { ...set.full, plan: { ...set.full.plan, densite: density } };
+};
 
-/** Clés du cache des sols d'un plateau : plateau seul, et monde s'il doit venir. */
-function groundKeys(board: Board): { readonly board: string; readonly world: string | null } | null {
+/** Clés du cache des sols, par plateau (l'empreinte d'un décor se calcule sur tout son texte : une fois). */
+const keysOf = new Map<string, { readonly board: string; readonly world: string | null; readonly sharp: string | null }>();
+
+/** Clés du cache des sols d'un plateau : plateau seul, monde s'il doit venir, et sol net du plateau avec lui. */
+function groundKeys(board: Board): { readonly board: string; readonly world: string | null; readonly sharp: string | null } | null {
   const set = PAINTED[board.name];
   if (!set) return null;
   let keys = keysOf.get(board.name);
   if (!keys) {
     const world = expectsWorld(set) ? worldDecorOf(set) : null;
+    const sharp = world ? sharpDecorOf(set) : null;
     keys = {
       board: groundKey(`${board.name}|plateau`, set.board, set.board.plan.densite),
       world: world ? groundKey(`${board.name}|monde`, world, world.plan.densite) : null,
+      // La marge du recadrage (`boardView`) est fixe : un changement passe par `GROUND_VERSION`.
+      sharp: sharp ? groundKey(`${board.name}|net`, sharp, sharp.plan.densite) : null,
     };
     keysOf.set(board.name, keys);
   }
   return keys;
 }
 
+type ReadyGrounds = { board: string | null; world: string | null; sharp: string | null };
+
 /** Les sols d'un plateau déjà prêts dans cette session, sans attendre. */
-function readyGrounds(board: Board): { board: string | null; world: string | null } {
+function readyGrounds(board: Board): ReadyGrounds {
   const keys = groundKeys(board);
-  return { board: (keys && groundsReady.get(keys.board)) ?? null, world: (keys?.world && groundsReady.get(keys.world)) || null };
+  return {
+    board: (keys && groundsReady.get(keys.board)) ?? null,
+    world: (keys?.world && groundsReady.get(keys.world)) || null,
+    sharp: (keys?.sharp && groundsReady.get(keys.sharp)) || null,
+  };
 }
 
 /**
  * Sols peints du plateau : celui du plateau seul d'abord (vite prêt ; c'est aussi celui de la vue de dessus), puis
  * celui du monde avec son décor extérieur, calculé en tâche de fond (quelques secondes la première fois, puis lu dans
- * le cache de l'appareil). Sans tâche de fond possible, seulement le plateau.
+ * le cache de l'appareil), puis le sol net du plateau, posé dessus. Sans tâche de fond possible, seulement le plateau.
  */
 export function usePaintedGround(board: Board): PaintedGrounds {
   const set = PAINTED[board.name];
   const worldExpected = expectsWorld(set);
-  const none: PaintedGrounds = { board: null, world: null, worldExpected };
-  const [ready, setReady] = useState<{ name: string; board: string | null; world: string | null }>(() => ({ name: board.name, ...readyGrounds(board) }));
+  const none: PaintedGrounds = { board: null, world: null, sharp: null, worldExpected };
+  const [ready, setReady] = useState<ReadyGrounds & { name: string }>(() => ({ name: board.name, ...readyGrounds(board) }));
   useEffect(() => {
     const loading = loadPaintedGrounds(board);
     if (!loading) return;
     let alive = true;
-    const update = (patch: { board?: string; world?: string }) =>
+    const update = (patch: Partial<ReadyGrounds>) =>
       alive &&
-      setReady((current) => ({ ...(current.name === board.name ? current : { board: null, world: null }), ...patch, name: board.name }));
-    loading.board.then(
-      (url) => update({ board: url }),
-      (error: unknown) => console.error(error),
-    );
-    loading.world?.then(
-      (url) => update({ world: url }),
-      (error: unknown) => console.error(error),
-    );
+      setReady((current) => ({ ...(current.name === board.name ? current : { board: null, world: null, sharp: null }), ...patch, name: board.name }));
+    const fail = (error: unknown) => console.error(error);
+    loading.board.then((url) => update({ board: url }), fail);
+    loading.world?.then((url) => update({ world: url }), fail);
+    loading.sharp?.then((url) => update({ sharp: url }), fail);
     return () => {
       alive = false;
     };
   }, [board]);
-  return set && ready.name === board.name ? { board: ready.board, world: ready.world, worldExpected } : none;
+  return set && ready.name === board.name ? { board: ready.board, world: ready.world, sharp: ready.sharp, worldExpected } : none;
 }
 
 /** Masques de l'eau des pièces peintes (canal, étangs), par image : calculés une fois par session. */

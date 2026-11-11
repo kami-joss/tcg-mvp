@@ -9,7 +9,7 @@ const STORE = 'sols';
  * Version du calcul du sol (`isoGround.ts`) : à augmenter à chaque changement de ce calcul qui modifie son image, pour
  * ne pas resservir un sol calculé par l'ancienne version.
  */
-export const GROUND_VERSION = 'v7';
+export const GROUND_VERSION = 'v19';
 
 /** Empreinte courte d'un texte (FNV-1a 32 bits) : change dès que le décor change. */
 export function fingerprint(text: string): string {
@@ -24,6 +24,17 @@ export function fingerprint(text: string): string {
 /** Clé d'un sol dans le cache. */
 export const groundKey = (board: string, decor: unknown, density: number): string =>
   `${board}|${fingerprint(JSON.stringify(decor))}|${GROUND_VERSION}|${density}`;
+
+/**
+ * Les clés du cache que remplace le sol `key` : le même sol (même carte, même sorte) d'un autre décor, d'une autre
+ * version du calcul ou d'une autre densité. Elles ne resserviraient plus, et un sol pèse plusieurs Mo.
+ */
+export function staleGrounds(keys: readonly string[], key: string): string[] {
+  // `key` sans ses trois derniers champs (empreinte, version, densité) : la carte et la sorte de sol.
+  const parts = key.split('|');
+  const prefix = `${parts.slice(0, -3).join('|')}|`;
+  return keys.filter((other) => other !== key && other.startsWith(prefix) && other.split('|').length === parts.length);
+}
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -55,10 +66,14 @@ export async function readGround(key: string): Promise<Blob | undefined> {
   }
 }
 
-/** Met un sol en cache ; un échec est sans conséquence. */
+/** Met un sol en cache, à la place de ses anciennes versions (`staleGrounds`) ; un échec est sans conséquence. */
 export async function writeGround(key: string, blob: Blob): Promise<void> {
   try {
     await run('readwrite', (store) => store.put(blob, key));
+    const keys = await run('readonly', (store) => store.getAllKeys());
+    for (const stale of staleGrounds(keys.filter((k): k is string => typeof k === 'string'), key)) {
+      await run('readwrite', (store) => store.delete(stale));
+    }
   } catch {
     // Pas de cache : le sol sera recalculé au prochain chargement.
   }

@@ -1,7 +1,7 @@
 // Calcul du sol peint en tâche de fond (Web Worker, `OffscreenCanvas`) : avec le décor extérieur, il prend 20 à 30 s,
 // ce qui figerait la page sur le fil principal. Reçoit le décor et les adresses des images, renvoie l'image en WebP.
 import { buildGround } from './isoGround';
-import type { GroundDecor, MakeCanvas } from './isoGround';
+import type { GroundDecor, GroundView, MakeCanvas } from './isoGround';
 
 export interface GroundRequest {
   readonly id: number;
@@ -9,6 +9,8 @@ export interface GroundRequest {
   readonly decor: GroundDecor;
   /** Adresse absolue de chaque image du sol, par nom. */
   readonly images: Readonly<Record<string, string>>;
+  /** Seulement ce carré du sol (`buildGround`), ou tout le sol. */
+  readonly view?: GroundView | null;
 }
 
 export type GroundResponse = { readonly id: number; readonly blob: Blob } | { readonly id: number; readonly error: string };
@@ -23,10 +25,10 @@ async function bitmap(url: string): Promise<ImageBitmap> {
 
 const scope = self as unknown as { postMessage: (message: GroundResponse) => void; onmessage: ((event: MessageEvent<GroundRequest>) => void) | null };
 
-scope.onmessage = async ({ data: { id, size, decor, images } }) => {
+scope.onmessage = async ({ data: { id, size, decor, images, view = null } }) => {
   try {
     const entries = await Promise.all(Object.entries(images).map(async ([name, url]) => [name, await bitmap(url)] as const));
-    const canvas = buildGround(size, decor, Object.fromEntries(entries), offscreen) as unknown as OffscreenCanvas;
+    const canvas = buildGround(size, decor, Object.fromEntries(entries), offscreen, view) as unknown as OffscreenCanvas;
     const blob = await canvas.convertToBlob({ type: 'image/webp', quality: 0.92 });
     // Libère tout de suite la mémoire du canevas (plusieurs dizaines de Mo).
     canvas.width = 0;
