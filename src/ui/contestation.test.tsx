@@ -7,6 +7,7 @@ import { Board } from './Board';
 import { getZoneTiles } from './contestZones';
 import { Legend } from './Legend';
 import { getSheet } from './sheet';
+import { getUnitTip } from './unitTip';
 import type { BoardView } from './settings';
 
 // Mode contestation (SPEC.md §4.4 bis) à l'écran : zones de 9 cases au sol, état de la zone dans la fiche et l'aide.
@@ -98,7 +99,7 @@ describe('mode contestation : fiche et aide', () => {
 
   it('la puce de la zone d’un monstre : tenue, contestée, ou tenue par un terrain adverse', () => {
     const chip = (v: PlayerView, unitId: string) =>
-      getSheet(v, { kind: 'unit', unitId })?.status?.find((c) => c.text === 'Forge');
+      getUnitTip(v, unitId)?.chips.find((c) => c.text === 'Forge');
     expect(chip(view([{ monster: 'golem', owner: 1, at: at(5, 5) }]), 'u1')).toMatchObject({ kind: 'zone', detail: 'Tient Forge : pas de mana sans terrain, +1 VP' });
     const withTerrain = view([
       { monster: 'golem', owner: 1, at: at(5, 5) },

@@ -8,6 +8,7 @@ import { getAttackPreviews, posKey } from './interaction';
 import { describeAction } from './log';
 import { eventSounds } from './sfx/events';
 import { getSheet } from './sheet';
+import { getTipAt } from './unitTip';
 import { CARDS } from '../engine';
 
 // Interface de Flèche divine (SPEC.md §6 bis) : texte, famille Archer, portée du tour dans la fiche, journal, animation.
@@ -42,7 +43,7 @@ describe('Flèche divine et famille Archer', () => {
   it('fiche : portée 3 et puce du bonus ; dégâts annoncés à 3 cases', () => {
     const sheet = getSheet(view(after), { kind: 'cell', pos: at(9, 0) })!;
     expect(sheet.stats.find((s) => s.label === 'Portée')).toMatchObject({ value: '3', delta: 1 });
-    expect(sheet.status).toContainEqual({ icon: 'broadsword', text: 'Flèche divine', detail: '+1 ATK +1 portée jusqu’à la fin du tour', kind: 'boost', group: 'effect' });
+    expect(getTipAt(view(after), at(9, 0))!.chips).toContainEqual({ icon: 'broadsword', text: 'Flèche divine', detail: '+1 ATK +1 portée jusqu’à la fin du tour', kind: 'boost', group: 'effect' });
     expect(getAttackPreviews(view(after), { kind: 'unit', unitId: 'u1', mode: 'act' }).get(posKey(at(6, 0)))?.damage).toBe(2);
   });
 

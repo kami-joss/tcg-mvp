@@ -7,7 +7,8 @@ import { clickCell, getHighlights, posKey } from './interaction';
 import { describeAction } from './log';
 import { cardEffectLine, describeCard } from './cardText';
 import { abilityRules, GLOSSARY, passiveRules, plainRules, rulesSegments } from './rulesText';
-import { getSheet, reasonStatus } from './sheet';
+import { reasonStatus } from './sheet';
+import { getUnitTip } from './unitTip';
 import { CARDS } from '../engine';
 
 // Deck Archers impériaux dans l'interface : notation du lexique, textes naturels, fiche (puce « Armé », 2 attaques).
@@ -56,12 +57,12 @@ describe('fiche en jeu', () => {
 
   it('puces : 2 attaques par tour (aura de l’Écuyer), puis « Armé » après Carreau perforant', () => {
     const state = base();
-    const chips = (s: typeof state) => getSheet(view(s), { kind: 'unit', unitId: 'u1' })!.status?.map((c) => c.text) ?? [];
+    const chips = (s: typeof state) => getUnitTip(view(s), 'u1')!.chips.map((c) => c.text);
     expect(chips(state)).toContain('Aura');
-    expect(getSheet(view(state), { kind: 'unit', unitId: 'u1' })!.status?.find((c) => c.text === 'Aura')?.detail).toMatch(/2 attaques par tour/);
+    expect(getUnitTip(view(state), 'u1')!.chips.find((c) => c.text === 'Aura')?.detail).toMatch(/2 attaques par tour/);
     const armed = applyAction(state, { type: 'activateEffect', unitId: 'u1', target: { kind: 'unit', unitId: 'u1' } });
     expect(chips(armed)).toContain('Armé');
-    expect(getSheet(view(armed), { kind: 'unit', unitId: 'u1' })!.status?.find((c) => c.text === 'Armé')?.detail).toMatch(/\+2 ATK/);
+    expect(getUnitTip(view(armed), 'u1')!.chips.find((c) => c.text === 'Armé')?.detail).toMatch(/\+2 ATK/);
   });
 
   it('raisons d’indisponibilité : déjà armé, plus d’attaque ce tour', () => {

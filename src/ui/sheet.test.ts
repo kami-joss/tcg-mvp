@@ -3,13 +3,11 @@ import { BATTLEFIELD_15, applyAction, getPlayerView } from '../engine';
 import type { Action, GameState } from '../engine';
 import { at, gameWith, withStatus } from '../engine/test-utils';
 import { canPlay } from './interaction';
-import { getSheet, sameSubject, subjectAt } from './sheet';
-import type { SheetData } from './sheet';
+import { cardReason, getSheet, sameSubject, subjectAt } from './sheet';
 
 const cellSheet = (state: GameState, viewer: 1 | 2, row: number, col: number) =>
   getSheet(getPlayerView(state, viewer), { kind: 'cell', pos: at(row, col) });
 const END_TURN: Action = { type: 'endTurn' };
-const chipTexts = (sheet: SheetData | null) => sheet?.status?.map((c) => c.text) ?? [];
 
 describe('fiche (lot 9)', () => {
   const state = gameWith([
@@ -17,7 +15,7 @@ describe('fiche (lot 9)', () => {
     { monster: 'golem', owner: 2, at: at(8, 2), hp: 5 },
   ]);
 
-  it('son propre monstre : pas restants, attaque disponible, ni statut ni effet', () => {
+  it('son propre monstre : ses stats du moment (pas restants) ; la carte ne dit rien de son état', () => {
     const sheet = cellSheet(state, 1, 8, 1);
     expect(sheet?.title).toBe('Chevalier');
     expect(sheet?.stats.map((s) => [s.label, s.value])).toEqual([
@@ -26,44 +24,24 @@ describe('fiche (lot 9)', () => {
       ['Pas rest.', '1/3'],
       ['Portée', '1'],
     ]);
-    expect(sheet?.lines).toEqual([{ icon: 'broadsword', label: 'Attaque', status: { text: 'Disponible', tone: 'ok' } }]);
-    // Ni statut ni effet : rien en pied de fiche.
-    expect(chipTexts(sheet)).toEqual([]);
+    // Ni disponibilité ni statut sur la carte : ils sont au jeton (`unitTip.ts`).
+    expect(sheet?.lines).toEqual([]);
+    expect(sheet?.text).toEqual([]);
+    expect(sheet).not.toHaveProperty('status');
   });
 
-  it('attaque : utilisée ce tour, ou aucune cible depuis cette case', () => {
-    const used = gameWith([
-      { monster: 'chevalier', owner: 1, at: at(8, 1), hasAttacked: true },
-      { monster: 'golem', owner: 2, at: at(8, 2) },
-    ]);
-    expect(cellSheet(used, 1, 8, 1)?.lines[0]?.status).toEqual({ text: 'Utilisée ce tour', tone: 'off' });
-    const alone = gameWith([{ monster: 'chevalier', owner: 1, at: at(8, 1) }]);
-    expect(cellSheet(alone, 1, 8, 1)?.lines[0]?.status).toEqual({ text: 'Aucune cible depuis cette case', tone: 'off' });
-  });
-
-  it('monstre adverse : informations publiques, menace et rappel de sa portée', () => {
+  it('monstre adverse : informations publiques (PV, mobilité de la carte), sans sa menace (au jeton)', () => {
     const sheet = cellSheet(state, 1, 8, 2);
     expect(sheet?.type).toBe('Monstre · Joueur 2 (adversaire)');
     expect(sheet?.stats).toContainEqual({ icon: 'hearts', label: 'PV', value: '5/7', delta: 0, hurt: true });
     expect(sheet?.stats.map((s) => s.label)).toContain('Mobilité');
-    expect(sheet?.text.join(' ')).toContain('prochain tour');
-    expect(sheet?.lines.map((l) => l.label)).toEqual(['Menace']);
+    expect(sheet?.lines).toEqual([]);
+    expect(sheet?.text).toEqual([]);
   });
 
-  it('statuts : ce qu’il leur reste à durer, en tours de l’unité touchée ; couleur selon leur cause', () => {
-    const burning = withStatus(withStatus(state, 'u2', 'burn', 1, 2), 'u2', 'immobilise', 0, 0);
-    expect(cellSheet(burning, 1, 8, 2)?.status).toEqual(
-      expect.arrayContaining([
-        { icon: 'flame', text: 'Burn 1', detail: 'Burn 1 : perd 1 PV au début de chacun de ses tours pendant ses 2 prochains tours', kind: 'burn', group: 'status' },
-        { icon: 'walking-boot', text: 'Immobilisé', detail: 'Immobilisé : ne peut plus se déplacer jusqu’à son prochain tour', kind: 'warn', group: 'status' },
-      ]),
-    );
-  });
-
-  it('slow reçu pendant son tour et Charge : la mobilité le montre (pastille), « Effets en cours » aussi', () => {
+  it('slow reçu pendant son tour et Charge : la mobilité le montre (pastille)', () => {
     let slowed = withStatus(gameWith([{ monster: 'golem', owner: 1, at: at(8, 1) }]), 'u1', 'slow', 1, 1);
     expect(cellSheet(slowed, 1, 8, 1)?.stats[2]).toEqual({ icon: 'walking-boot', label: 'Pas rest.', value: '1/1', delta: -1, hurt: false });
-    expect(cellSheet(slowed, 1, 8, 1)?.status?.map((c) => [c.text, c.detail])).toContainEqual(['Slow 1', 'Slow 1 : −1 mobilité jusqu’à la fin de ce tour et de son prochain']);
     slowed = applyAction(applyAction(slowed, END_TURN), END_TURN); // son tour suivant : encore ralenti
     expect(cellSheet(slowed, 1, 8, 1)?.stats[2]).toMatchObject({ value: '1/1', delta: -1 });
 
@@ -73,14 +51,12 @@ describe('fiche (lot 9)', () => {
       target: { kind: 'unit', unitId: 'u1' },
     });
     expect(cellSheet(charged, 1, 8, 1)?.stats[2]).toMatchObject({ value: '4/4', delta: 2 });
-    expect(cellSheet(charged, 1, 8, 1)?.status).toContainEqual({ icon: 'sprint', text: 'Charge', detail: '+2 mobilité ce tour', kind: 'boost', group: 'effect' });
   });
 
-  it('effet passif (riposte prête) et effet actif (coût, disponibilité)', () => {
-    const guard = gameWith([{ monster: 'gardien', owner: 1, at: at(8, 1) }]);
-    expect(cellSheet(guard, 1, 8, 1)?.passive?.foot).toEqual({ text: 'Riposte prête · une fois par tour/carte', tone: 'ok' });
+  it('effet actif : son coût, sans sa disponibilité (au jeton)', () => {
     const poor = gameWith([{ monster: 'invocateur', owner: 1, at: at(5, 4) }], { players: { 1: { mana: 0 } } });
-    expect(cellSheet(poor, 1, 5, 4)?.active[0]).toMatchObject({ cost: 1, foot: { text: 'Mana insuffisant · il te manque 1', tone: 'warn' } });
+    expect(cellSheet(poor, 1, 5, 4)?.active[0]).toMatchObject({ cost: 1 });
+    expect(cellSheet(poor, 1, 5, 4)?.active[0]).not.toHaveProperty('foot');
   });
 
   it('effet actif et mots-clés : écrits avec le lexique', () => {
@@ -90,7 +66,6 @@ describe('fiche (lot 9)', () => {
       name: 'Lance-flamme',
       cost: 3,
       text: 'Inflige 2 dégâts aux ennemis sur 3 cases en ligne et les 2 cases en diagonale devant lui, dans la direction de ton choix et leur inflige {{burn|burn 2}} pendant 1 tour.',
-      foot: null,
     }]);
   });
 
@@ -114,20 +89,18 @@ describe('fiche (lot 9)', () => {
     expect(cellSheet(trapped, 2, 8, 2)).toBeNull();
   });
 
-  it('carte du grimoire trop chère : il manque du mana ; pas d’« Effets en cours »', () => {
-    const poor = gameWith([], { players: { 1: { mana: 1 } } });
-    const sheet = getSheet(getPlayerView(poor, 1), { kind: 'card', cardId: 'golem' });
-    expect(sheet?.lines).toEqual([
-      { icon: 'card-play', label: 'Invocation', status: { text: 'Mana insuffisant · il te manque 3', tone: 'warn' } },
-    ]);
-    expect(sheet?.status).toBeNull();
+  it('carte du grimoire trop chère : la fiche n’en dit rien, le grimoire donne la raison', () => {
+    const view = getPlayerView(gameWith([], { players: { 1: { mana: 1 } } }), 1);
+    expect(getSheet(view, { kind: 'card', cardId: 'golem' })?.lines).toEqual([]);
+    expect(cardReason(view, 'golem')).toEqual({ text: 'Il te manque 3 mana', tone: 'warn' });
   });
 
-  it('sort du grimoire : « Lancer », son effet en effet actif (coût en haut de la fiche)', () => {
-    const sheet = getSheet(getPlayerView(gameWith([], { players: { 1: { mana: 5 } } }), 1), { kind: 'card', cardId: 'charge' });
-    expect(sheet?.lines[0]).toEqual({ icon: 'card-play', label: 'Lancer', status: { text: 'Aucune cible à portée', tone: 'off' } });
+  it('sort du grimoire : son effet en effet actif (coût en haut de la fiche) ; sans cible, la raison au grimoire', () => {
+    const view = getPlayerView(gameWith([], { players: { 1: { mana: 5 } } }), 1);
+    const sheet = getSheet(view, { kind: 'card', cardId: 'charge' });
     expect(sheet?.active[0]).toMatchObject({ cost: null, name: null });
     expect(sheet?.cost).toBe(1);
+    expect(cardReason(view, 'charge')).toEqual({ text: 'Aucune cible à portée', tone: 'off' });
   });
 
   it('mana zone neutre et case bloquée', () => {
@@ -166,7 +139,7 @@ describe('fiche d’un sort déjà lancé ce tour', () => {
     const after = applyAction(state, { type: 'playCard', cardId: 'charge', target: { kind: 'unit', unitId: 'u1' } });
     const view = getPlayerView(after, 1);
     expect(canPlay(view, 'charge')).toBe(true);
-    expect(getSheet(view, { kind: 'card', cardId: 'charge' })?.lines[0]?.status).toEqual({ text: 'Disponible', tone: 'ok' });
+    expect(cardReason(view, 'charge')).toBeNull();
   });
 });
 

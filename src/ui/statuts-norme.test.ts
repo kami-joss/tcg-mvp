@@ -3,7 +3,8 @@ import { getPlayerView } from '../engine';
 import { addStatus } from '../engine/statuses';
 import { at, gameWith } from '../engine/test-utils';
 import { statusText } from './cardText';
-import { getSheet, reasonStatus } from './sheet';
+import { reasonStatus } from './sheet';
+import { getUnitTip } from './unitTip';
 import { groupStatuses, isBonus, statusBadge, statusEffect, statusIcon, statusLabel } from './statusInfo';
 import { statusPills } from './pixi/tokenModel';
 
@@ -92,7 +93,7 @@ describe('fiche et pastilles', () => {
   };
 
   it('une puce par statut avec son nom du lexique et sa couleur (bonus en vert, malus en alerte)', () => {
-    const chips = getSheet(getPlayerView(withStatuses(), 1), { kind: 'unit', unitId: 'u1' })!.status ?? [];
+    const chips = getUnitTip(getPlayerView(withStatuses(), 1), 'u1')!.chips;
     const named = Object.fromEntries(chips.map((c) => [c.text, c.kind]));
     expect(named['Désarmé']).toBe('warn');
     expect(named['ATK +2']).toBe('boost');

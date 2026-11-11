@@ -10,6 +10,7 @@ import { Grimoire } from './Grimoire';
 import { clickCard, clickCell, getHighlights, posKey } from './interaction';
 import { describeAction } from './log';
 import { getSheet } from './sheet';
+import { getTipAt, getUnitTip } from './unitTip';
 import { CARDS } from '../engine';
 import { TEST_CARDS } from '../engine/test-cards';
 
@@ -75,8 +76,7 @@ describe('effets actifs multiples et retour', () => {
 
   it('après le Miroir : puce Silence sur la fiche, ses effets actifs indisponibles (« Silence »), l’attaque reste ouverte', () => {
     const mirrored = applyAction(moved, { type: 'activateEffect', unitId: 'u1', effect: 1, target: { kind: 'unit', unitId: 'u2' } });
-    const sheet = getSheet(view(mirrored), { kind: 'unit', unitId: 'u1' })!;
-    expect(sheet.status?.map((c) => c.text)).toContain('Silence');
+    expect(getUnitTip(view(mirrored), 'u1')!.chips.map((c) => c.text)).toContain('Silence');
     const bubble = getBubble(view(mirrored), { kind: 'effects', unitId: 'u1', page: 'effects' })!;
     expect(bubble.rows.map((r) => r.enabled)).toEqual([false, false]);
   });
@@ -114,9 +114,14 @@ describe('effets actifs multiples et retour', () => {
       'Dragonnet - Explorateur du temps de J1 revient dans le temps en (1, 1).',
     );
     const sheet = getSheet(view(moved), { kind: 'cell', pos: at(1, 3) })!;
-    expect(sheet.active.map((a) => [a.name, a.cost, a.foot?.text])).toEqual([
-      ['Retour vers le futur', 1, 'Disponible'],
-      ['Miroir de souvenirs', 1, 'Disponible'],
+    expect(sheet.active.map((a) => [a.name, a.cost])).toEqual([
+      ['Retour vers le futur', 1],
+      ['Miroir de souvenirs', 1],
+    ]);
+    // Leur disponibilité, au jeton.
+    expect(getTipAt(view(moved), at(1, 3))!.lines.slice(1).map((l) => [l.label, l.status.text])).toEqual([
+      ['Retour vers le futur', 'Disponible'],
+      ['Miroir de souvenirs', 'Disponible'],
     ]);
   });
 });

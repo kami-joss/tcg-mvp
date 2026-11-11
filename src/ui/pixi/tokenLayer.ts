@@ -19,6 +19,7 @@ import type { Pixi } from './groundFx';
 import { isoDepth, isoProject } from './isoProjection';
 import { TOKEN_FOOT } from './tokenModel';
 import type { StatPill, StatusPill, TerrainVisual, TokenVisual } from './tokenModel';
+import type { Readiness } from '../unitTip';
 import { REST, poseOf } from './tokenMotion';
 import type { Motion, Playing, Point, Pose } from './tokenMotion';
 
@@ -31,6 +32,9 @@ const DARK = 'oklch(0.16 0.02 60)';
 const GOLD = 'oklch(0.88 0.15 88)';
 const PAPER = CELL_COLORS.paper;
 const INK = CELL_COLORS.ink;
+/** Icônes de la pastille « encore possible ce tour » : l'épée de l'ATK, le tourbillon des effets actifs de la fiche. */
+const READY_ATTACK = 'oklch(0.78 0.14 55)';
+const READY_EFFECT = 'oklch(0.78 0.12 295)';
 const STATUS_COLORS: Readonly<Record<StatusPill['kind'], readonly [string, string]>> = {
   slow: ['oklch(0.86 0.07 220)', 'oklch(0.35 0.1 240)'],
   stun: ['oklch(0.88 0.13 95)', 'oklch(0.35 0.08 70)'],
@@ -178,6 +182,37 @@ function statusChip(pixi: Pixi, status: StatusPill, h = S * 0.206): PixiContaine
     result.node.addChild(sign);
   }
   return result.node;
+}
+
+/**
+ * Pastille de ce qu'un monstre peut encore faire ce tour, centrée en (0, 0) : fond sombre, liseré et lueur verts, épée
+ * (attaque) et tourbillon (effet actif), comme `.token__ready`.
+ */
+function readyPill(pixi: Pixi, ready: Readiness): PixiContainer {
+  const node = new pixi.Container();
+  const icons: [IconName, string][] = [];
+  if (ready.attack) icons.push(['broadsword', READY_ATTACK]);
+  if (ready.effect) icons.push(['magic-swirl', READY_EFFECT]);
+  const size = S * 0.15;
+  const gap = 2;
+  const h = S * 0.2;
+  const w = icons.length * size + (icons.length - 1) * gap + h * 0.6;
+  node.addChild(
+    new pixi.Graphics().roundRect(-w / 2 - 2, -h / 2 - 2, w + 4, h + 4, h / 2 + 2).fill(cssColor('oklch(0.8 0.13 150 / 0.28)')),
+    new pixi.Graphics()
+      .roundRect(-w / 2, -h / 2, w, h, h / 2)
+      .fill(cssColor('oklch(0.19 0.012 55 / 0.94)'))
+      .roundRect(-w / 2, -h / 2, w, h, h / 2)
+      .stroke({ width: 1.2, ...cssColor('oklch(0.8 0.13 150 / 0.85)'), alignment: 0 }),
+  );
+  let x = -w / 2 + h * 0.3 + size / 2;
+  for (const [name, color] of icons) {
+    const glyph = icon(pixi, name, size, color);
+    glyph.position.set(x, 0);
+    node.addChild(glyph);
+    x += size + gap;
+  }
+  return node;
 }
 
 /** Pastille des dégâts annoncés, centrée en (0, 0). */
@@ -636,6 +671,12 @@ export class TokenLayer {
         frame.addChild(c.node);
         x += c.width + 1.5;
       });
+    }
+    // Ce qu'il peut encore faire ce tour, au-dessus de la goutte (plus haut quand les stats y sont).
+    if (t.ready) {
+      const pill = readyPill(pixi, t.ready);
+      pill.position.set(0, DROP_CY - DROP_R - 8 - (t.statsAbove ? S * 0.2 : 0));
+      frame.addChild(pill);
     }
     // Dégâts annoncés au-dessus du jeton (plus haut quand les stats y sont).
     if (t.damage) {

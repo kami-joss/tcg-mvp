@@ -11,6 +11,7 @@ import { clickCell, getHighlights, posKey } from './interaction';
 import type { Selection } from './interaction';
 import { describeAction } from './log';
 import { getSheet } from './sheet';
+import { getTipAt } from './unitTip';
 import { CARDS } from '../engine';
 
 // Interface d'Origine (aura +1 ATK +1 PV +1 mobilité) et de Pénombre (sort sans choix de cible), SPEC.md §6 bis.
@@ -51,7 +52,7 @@ describe('Origine - Dragons élémentaires (plus dans aucun deck, données gard�
       ['6', 1],
       ['6/6', 1],
     ]);
-    expect(sheet.status).toContainEqual({ icon: 'aura', text: 'Aura', detail: '+1 ATK +1 PV +1 mobilité (Origine - Dragons élémentaires)', kind: 'boost', group: 'effect' });
+    expect(getTipAt(view(after), at(0, 4))!.chips).toContainEqual({ icon: 'aura', text: 'Aura', detail: '+1 ATK +1 PV +1 mobilité (Origine - Dragons élémentaires)', kind: 'boost', group: 'effect' });
     const aura = view(after).events.find((e) => e.type === 'auraHp')!;
     const before = { ...view(after), units: { ...view(after).units, u2: { ...view(after).units.u2!, hp: 5, maxHp: 5, auraHp: 0 } } };
     expect(applyEvent(before, aura, view(after)).units.u2).toMatchObject({ hp: 6, maxHp: 6, auraHp: 1 });
@@ -84,12 +85,13 @@ describe('Pénombre', () => {
   it('journal, fiche et pastille du statut invisible', () => {
     const after = applyAction(state, PENOMBRE);
     expect(describeAction(view(state), PENOMBRE, view(after))[0]).toBe('J1 lance Pénombre - Maîtres des pièges.');
-    const chips = getSheet(view(after), { kind: 'cell', pos: at(1, 1) })!.status;
+    const chips = getTipAt(view(after), at(1, 1))!.chips;
     // Un seul « Camouflé » : le statut de Pénombre, sans puce d'effet en double.
     expect(chips).toEqual([
       {
         icon: 'hood',
         text: 'Camouflage',
+        turns: 2,
         detail: 'Camouflage jusqu’à la fin de ce tour et de son prochain : invisible pour l’adversaire sans monstre ni terrain à lui dans un carré de 2',
         kind: 'info',
         group: 'status',

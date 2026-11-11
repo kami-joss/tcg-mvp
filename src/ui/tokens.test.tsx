@@ -108,3 +108,20 @@ describe('stats sur les jetons', () => {
     expect(html).not.toContain('status--burn');
   });
 });
+
+describe('pastille « encore possible ce tour » (option J du 2026-11-11)', () => {
+  it('au-dessus de ses jetons qui peuvent encore attaquer ou lancer un effet, jamais sur ceux de l’adversaire', () => {
+    const state = gameWith([
+      { monster: 'chevalier', owner: 1, at: at(8, 1) },
+      { monster: 'golem', owner: 2, at: at(8, 2) },
+    ]);
+    const html = render(getPlayerView(state, 1));
+    expect(html.match(/class="token__ready( is-high)?"/g)).toHaveLength(1);
+    expect(html).toMatch(/class="token__ready[^"]*"[^>]*>.*?token__ready-attack/);
+    const done = gameWith([
+      { monster: 'chevalier', owner: 1, at: at(8, 1), hasAttacked: true },
+      { monster: 'golem', owner: 2, at: at(8, 2) },
+    ]);
+    expect(render(getPlayerView(done, 1))).not.toContain('token__ready');
+  });
+});

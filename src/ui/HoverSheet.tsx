@@ -1,6 +1,9 @@
 // Fiche (handoff V8, lot 9), dans la colonne de gauche (jamais sur le plateau). Monstre, terrain ou carte : une carte
-// de 280 × 498, l'illustration en fond cadrée sur les yeux et pleinement visible dans le bandeau du haut, le corps qui
-// défile, « Effets en cours » en bas. Zone, piège ou case : la hauteur de son texte, sans illustration.
+// de 280 × 498 « plein cadre » (refonte du 2026-11-11, piste E) : l'illustration sur toute la carte, sans fondu ; le coût
+// dans un rond bleu en haut à droite, comme dans le grimoire ; en bas, le nom et l'archétype posés sur le dessin, puis
+// des blocs de verre à peine flouté (stats en 4 colonnes, effet passif en ambre, un bloc par effet actif en violet, avec
+// son coût). La carte ne dit que ce qu'elle fait : l'état de l'unité (disponibilité, statuts, effets en cours) est au
+// jeton (`unitTip.ts`). Zone, piège ou case : la hauteur de son texte, sans illustration.
 // Taille de la fiche (`SHEET_SCALE`, posée en `--sheet-k`) : elle agrandit le cadre, l'illustration et l'overframe
 // (calques `.sheet__scale`, dans le repère 280 × 498) ; le texte garde sa taille et sa place, tout le gain de hauteur va
 // au bandeau de l'illustration.
@@ -17,7 +20,7 @@ import { OverframeStage, SHEET_H, ShinyLayers } from './Overframe';
 import type { OverframeLayers } from './Overframe';
 import { MAX_HEADROOM, OVERFRAMES } from './overframes';
 import type { OverframeDef } from './overframes';
-import type { SheetData, SheetStatus } from './sheet';
+import type { SheetActive, SheetData, SheetStatus } from './sheet';
 import { CardRules } from './CardRules';
 
 /** Largeur de la fiche, en px : le cadrage de l'illustration s'écrit en px. */
@@ -35,20 +38,21 @@ const KIND_ICONS: Readonly<Record<NonNullable<SheetData['kind']>, IconName>> = {
   terrain: 'castle',
 };
 
+/** Sous le nom d'une carte sans archétype : son type. */
+const KIND_WORDS: Readonly<Record<NonNullable<SheetData['kind']>, string>> = {
+  monster: 'Monstre',
+  spell: 'Sort',
+  terrain: 'Terrain',
+};
+
+/** Coût en mana : le rond bleu du grimoire (en liste), avec le chiffre. */
 function Cost({ value, small = false }: { value: number; small?: boolean }) {
   return (
-    <span className={`mana-pill${small ? ' mana-pill--small' : ''}`} title="Coût en mana">
-      <Icon name="water-drop" />
+    <span className={`mana-dot${small ? ' mana-dot--small' : ''}`} role="img" aria-label={`Coût : ${value} mana`} title="Coût en mana">
       {value}
     </span>
   );
 }
-
-/** Pied de fiche : les statuts, puis les autres effets qui touchent l'unité. */
-const CHIP_GROUPS = [
-  { group: 'status', title: 'Statuts' },
-  { group: 'effect', title: 'Effets' },
-] as const;
 
 function Status({ status, className }: { status: SheetStatus; className: string }) {
   return (
@@ -146,7 +150,17 @@ export function HoverSheet({ sheet, animated = false, onOpen, onHoverReach }: Ho
   );
 }
 
-function SheetFrame({
+function SheetFrame(props: {
+  sheet: SheetData;
+  animated: boolean;
+  layers?: OverframeLayers;
+  onHoverReach?: (reach: readonly Position[] | null) => void;
+}) {
+  return props.sheet.art ? <CardFace {...props} /> : <PlainSheet sheet={props.sheet} />;
+}
+
+/** Carte plein cadre : monstre, terrain, sort, du plateau ou du grimoire. */
+function CardFace({
   sheet,
   animated,
   layers,
@@ -157,60 +171,62 @@ function SheetFrame({
   layers?: OverframeLayers;
   onHoverReach?: (reach: readonly Position[] | null) => void;
 }) {
-  const card = sheet.art !== null;
+  const owner = sheet.frame === 1 || sheet.frame === 2 ? sheet.frame : null;
   const classes = [
     'sheet',
     `sheet--${sheet.frame}`,
-    card && 'sheet--card',
+    'sheet--card',
+    'sheet--full',
     sheet.kind && `is-jewel jewel--${sheet.kind}`,
     layers && 'sheet--of',
     sheet.shiny && 'sheet--shiny',
   ];
   return (
     <aside className={classes.filter(Boolean).join(' ')} aria-label={`Fiche : ${sheet.title}`}>
-      {layers ? layers.back : card && <SheetBackground sheet={sheet} />}
-      {!layers && card && sheet.shiny && <ShinyLayers animated={animated} />}
-      {card && <div className="sheet__band">{sheet.cost !== null && <Cost value={sheet.cost} />}</div>}
-      <div className="sheet__head">
-        <h2 className="sheet__title">
-          {sheet.title}
-          {sheet.archetype && <small className="sheet__archetype">{sheet.archetype}</small>}
-        </h2>
-        {sheet.shiny && <span className="sheet__shiny">★ Brillante</span>}
-        {!card && sheet.cost !== null && <Cost value={sheet.cost} />}
-      </div>
-      <div className="sheet__body">
-        <p className="sheet__type">
-          {sheet.typeIcon && <Icon name={sheet.typeIcon} />}
-          {sheet.type}
-        </p>
+      {layers ? layers.back : <SheetBackground sheet={sheet} />}
+      {!layers && sheet.shiny && <ShinyLayers animated={animated} />}
+      {sheet.cost !== null && (
+        <span className="sheet__cost">
+          <Cost value={sheet.cost} />
+        </span>
+      )}
+      {sheet.shiny && <span className="sheet__shiny">★ Brillante</span>}
+      <div className="sheet__stack">
+        <header className="sheet__name">
+          <div className="sheet__name-text">
+            <h2 className="sheet__title">{sheet.title}</h2>
+            <p className="sheet__kind" title={sheet.type}>
+              {sheet.typeIcon && <Icon name={sheet.typeIcon} />}
+              {sheet.archetype || (sheet.kind ? KIND_WORDS[sheet.kind] : sheet.type)}
+            </p>
+          </div>
+          {owner && <span className={`sheet__owner sheet__owner--p${owner}`}>J{owner}</span>}
+        </header>
+        {sheet.flavor && <p className="sheet__flavor">{sheet.flavor}</p>}
         {sheet.stats.length > 0 && (
           <div className="sheet__stats">
             {sheet.stats.map((stat) => (
               <div
                 key={stat.label}
-                className={`sheet__stat${stat.delta > 0 ? ' is-up' : stat.delta < 0 ? ' is-down' : ''}${stat.hurt ? ' is-hurt' : ''}`}
+                className={`sheet__stat sheet__stat--${stat.icon}${stat.hurt ? ' is-hurt' : ''}`}
+                aria-label={`${stat.label} ${stat.value}${stat.delta !== 0 ? ` (${stat.delta > 0 ? '+' : '−'}${Math.abs(stat.delta)})` : ''}`}
               >
-                <Icon name={stat.icon} />
-                <strong>{stat.value}</strong>
-                <span>{stat.label}</span>
-                {stat.delta !== 0 && (
-                  <em className="sheet__delta">{stat.delta > 0 ? `+${stat.delta}` : `−${-stat.delta}`}</em>
-                )}
+                <span className="sheet__stat-value">
+                  <Icon name={stat.icon} />
+                  <strong>{stat.value}</strong>
+                  {stat.delta !== 0 && (
+                    <em className={`sheet__delta ${stat.delta > 0 ? 'is-up' : 'is-down'}`}>
+                      {stat.delta > 0 ? `+${stat.delta}` : `−${-stat.delta}`}
+                    </em>
+                  )}
+                </span>
+                <span className="sheet__stat-label">{stat.label}</span>
               </div>
             ))}
           </div>
         )}
-        {sheet.lines.map((line) => (
-          <div key={line.label} className="sheet__avail">
-            <Icon name={line.icon} />
-            <b>{line.label}</b>
-            <Status status={line.status} className="sheet__state" />
-          </div>
-        ))}
-        {sheet.flavor && <p className="sheet__flavor">{sheet.flavor}</p>}
         {sheet.text.map((line) => (
-          <p key={line} className="sheet__line">
+          <p key={line} className="sheet__block sheet__block--note sheet__line">
             {line}
           </p>
         ))}
@@ -224,7 +240,7 @@ function SheetFrame({
               <p key={`${item.name}-${item.text}`} className="sheet__line">
                 {item.name && (
                   <>
-                    <b>
+                    <b className="sheet__item">
                       <CardRules text={item.name} />
                     </b>{' '}
                     ·{' '}
@@ -233,58 +249,72 @@ function SheetFrame({
                 <CardRules text={item.text} />
               </p>
             ))}
-            {sheet.passive.foot && <Status status={sheet.passive.foot} className="sheet__foot" />}
           </div>
         )}
         {sheet.active.map((active, i) => (
-          <div
-            key={i}
-            className={`sheet__block sheet__block--active${active.reach && onHoverReach ? ' has-reach' : ''}`}
-            onMouseEnter={active.reach && onHoverReach ? () => onHoverReach(active.reach!) : undefined}
-            onMouseLeave={active.reach && onHoverReach ? () => onHoverReach(null) : undefined}
-          >
-            <p className="sheet__block-head">
-              <Icon name="magic-swirl" />
-              <span>Effet actif{active.name && ` · ${active.name}`}</span>
-              {active.cost !== null && <Cost value={active.cost} small />}
-            </p>
-            <p className="sheet__line">
-              <CardRules text={active.text} />
-            </p>
-            {active.foot && <Status status={active.foot} className="sheet__foot" />}
-          </div>
+          <ActiveBlock key={i} active={active} onHoverReach={onHoverReach} />
         ))}
       </div>
-      {sheet.status && (
-        <div className="sheet__status">
-          {sheet.status.length === 0 ? (
-            <div className="sheet__group">
-              <p className="sheet__status-head">Statuts · Effets</p>
-              <p className="sheet__none">Aucun</p>
-            </div>
-          ) : (
-            // Un groupe vide ne prend pas de place : la fiche garde la hauteur pour le texte de la carte.
-            CHIP_GROUPS.map(({ group, title }) => {
-              const chips = sheet.status!.filter((chip) => chip.group === group);
-              if (chips.length === 0) return null;
-              return (
-                <div key={group} className={`sheet__group sheet__group--${group}`}>
-                  <p className="sheet__status-head">{title}</p>
-                  <div className="sheet__chips">
-                    {chips.map((chip, i) => (
-                      <span key={`${i}-${chip.text}`} className={`chip chip--${chip.kind}`} title={chip.detail}>
-                        <Icon name={chip.icon} />
-                        {chip.text}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      )}
       {layers?.glare}
+    </aside>
+  );
+}
+
+/** Un effet actif (ou l'effet d'un sort) : son coût à droite, son nom en gras devant le texte ; sa portée au survol. */
+function ActiveBlock({ active, onHoverReach }: { active: SheetActive; onHoverReach?: (reach: readonly Position[] | null) => void }) {
+  const reach = active.reach && onHoverReach ? active.reach : null;
+  return (
+    <div
+      className={`sheet__block sheet__block--active${reach ? ' has-reach' : ''}`}
+      onMouseEnter={reach ? () => onHoverReach!(reach) : undefined}
+      onMouseLeave={reach ? () => onHoverReach!(null) : undefined}
+    >
+      <p className="sheet__block-head">
+        <Icon name="magic-swirl" />
+        <span>Effet actif</span>
+        {active.cost !== null && <Cost value={active.cost} small />}
+      </p>
+      <p className="sheet__line">
+        {active.name && (
+          <>
+            <b className="sheet__item">{active.name}</b> ·{' '}
+          </>
+        )}
+        <CardRules text={active.text} />
+      </p>
+    </div>
+  );
+}
+
+/** Zone, case, piège : un encadré de la hauteur de son texte, sans illustration. */
+function PlainSheet({ sheet }: { sheet: SheetData }) {
+  return (
+    <aside className={`sheet sheet--${sheet.frame}`} aria-label={`Fiche : ${sheet.title}`}>
+      <div className="sheet__head">
+        <h2 className="sheet__title">
+          {sheet.title}
+          {sheet.archetype && <small className="sheet__archetype">{sheet.archetype}</small>}
+        </h2>
+        {sheet.cost !== null && <Cost value={sheet.cost} />}
+      </div>
+      <div className="sheet__body">
+        <p className="sheet__type">
+          {sheet.typeIcon && <Icon name={sheet.typeIcon} />}
+          {sheet.type}
+        </p>
+        {sheet.lines.map((line) => (
+          <div key={line.label} className="sheet__avail">
+            <Icon name={line.icon} />
+            <b>{line.label}</b>
+            <Status status={line.status} className="sheet__state" />
+          </div>
+        ))}
+        {sheet.text.map((line) => (
+          <p key={line} className="sheet__line">
+            {line}
+          </p>
+        ))}
+      </div>
     </aside>
   );
 }

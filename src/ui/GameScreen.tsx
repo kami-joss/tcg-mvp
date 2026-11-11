@@ -65,6 +65,8 @@ import type { BoardView, DisplaySettings } from './settings';
 import { eventSounds } from './sfx/events';
 import { configureSound, sfx, unlockAudio } from './sfx/sound';
 import { getSheet, sameSubject, subjectAt } from './sheet';
+import { getTipAt } from './unitTip';
+import { UnitTooltip, tipPosition } from './UnitTooltip';
 import type { HoverSubject, SheetData } from './sheet';
 import type { LogEntry } from './log';
 import { TopBar } from './TopBar';
@@ -169,6 +171,9 @@ const FOCUS_DELAY_MS = 100;
 
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
+/** Survol d'un jeton avant que son infobulle s'ouvre ; d'un jeton à l'autre, elle suit aussitôt. */
+const TIP_DELAY_MS = 250;
+
 export function GameScreen(props: GameScreenProps) {
   const { view, before, log, onAction, setup, onRestart, onHome, autoPlay = null, onTimeUp, clock = null, onIdle, onConcede, banner = null, homeWarning } = props;
   const onIdleRef = useRef(onIdle);
@@ -228,6 +233,22 @@ export function GameScreen(props: GameScreenProps) {
   useAmbientLoops(animated);
 
   const hovered = hover?.subject.kind === 'cell' ? hover.subject.pos : null;
+  // Infobulle du jeton survolé (option J du 2026-11-11) : son état dans la partie, que la fiche ne montre plus. Pas
+  // pendant une animation, avec la bulle d'action ou l'aperçu ouverts, ni après un clic sur la même case.
+  const [tipMuted, setTipMuted] = useState<typeof hover>(null);
+  const tipCell =
+    hover && hover.subject.kind === 'cell' && hover !== tipMuted && !busy && !preview && !isBubble(selection) ? hover : null;
+  const unitTip = tipCell && tipCell.subject.kind === 'cell' ? getTipAt(display, tipCell.subject.pos) : null;
+  const tipKey = unitTip && hovered ? posKey(hovered) : null;
+  const [tipShown, setTipShown] = useState<string | null>(null);
+  const tipShownRef = useRef(tipShown);
+  tipShownRef.current = tipShown;
+  useEffect(() => {
+    if (!tipKey) return setTipShown(null);
+    if (tipShownRef.current !== null) return setTipShown(tipKey);
+    const timer = window.setTimeout(() => setTipShown(tipKey), TIP_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [tipKey]);
   // Bulle d'action : pendant une animation, aucune ; une sélection de bulle qui n'a plus rien à proposer est oubliée.
   const bubble = useMemo(() => (busy ? null : getBubble(view, selection, flipped)), [busy, view, selection, flipped]);
   const activeSelection = busy || (isBubble(selection) && !bubble) ? NO_SELECTION : selection;
@@ -530,6 +551,8 @@ export function GameScreen(props: GameScreenProps) {
     setSelection(next);
   };
   const handleCellClick = (pos: Position) => {
+    // Un clic ferme l'infobulle jusqu'à la case suivante : la caméra peut se recentrer, la case n'est plus là.
+    setTipMuted(hover);
     const subject = subjectAt(display, pos);
     if (subject.kind === 'unit') focusNow(subject);
     if (busy) return;
@@ -538,6 +561,7 @@ export function GameScreen(props: GameScreenProps) {
     else select(result.selection);
   };
   const handleCellContextMenu = (pos: Position) => {
+    setTipMuted(hover);
     if (busy) return;
     const next = contextCell(view, activeSelection, pos);
     const subject = subjectAt(display, pos);
@@ -748,6 +772,12 @@ export function GameScreen(props: GameScreenProps) {
           onHoverPath={(hoverPath) => setBubblePath(hoverPath ? { selection: activeSelection, path: hoverPath } : null)}
           onHoverReach={(reach) => setBubbleReach(reach ? { selection: activeSelection, reach } : null)}
           iso={mode === 'iso'}
+        />
+      )}
+      {unitTip && tipCell && tipShown === tipKey && (
+        <UnitTooltip
+          tip={unitTip}
+          style={tipPosition(tipCell.rect, { width: window.innerWidth, height: window.innerHeight })}
         />
       )}
       {cutIn && <CutInOverlay key={cutIn.id} cutIn={cutIn.cutIn} target={cutIn.target} onDone={cutIn.done} />}

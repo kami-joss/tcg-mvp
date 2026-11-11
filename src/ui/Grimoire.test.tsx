@@ -43,13 +43,15 @@ describe('grimoire : affichages', () => {
     expect(list.match(/class="tile tile--\w+ tile--row/g)).toHaveLength(tiles.match(/data-card=/g)!.length);
   });
 
-  it('vue liste : un sort ou un terrain injouable dit pourquoi, à la place de ses stats ; un monstre garde ses stats', () => {
+  it('vue liste : une carte injouable dit pourquoi, à la place de ses stats, monstres compris (la fiche ne le dit plus)', () => {
     const list = render('list');
     const spells = list.split('grimoire__section--spell')[1]!.split('</section>')[0]!;
-    expect(spells).toMatch(/class="tile__note tile__reason">[^<]+</);
+    expect(spells).toMatch(/class="tile__note tile__reason tone--\w+">[^<]+</);
     const monsters = list.split('grimoire__section--monster')[1]!.split('</section>')[0]!;
-    expect(monsters).not.toContain('tile__reason');
-    expect(monsters).toContain('tile__stats');
+    expect(monsters).toMatch(/class="tile__note tile__reason tone--warn">Il te manque \d mana</);
+    const tiles = render('grid2').split('grimoire__section--monster')[1]!.split('</section>')[0]!;
+    expect(tiles).toContain('tile__stats');
+    expect(tiles).toMatch(/class="tile__note tile__reason tone--warn">Il te manque \d mana</);
   });
 
   it('tuiles teintées selon le type de carte', () => {

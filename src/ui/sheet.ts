@@ -1,38 +1,27 @@
-// Fiche (handoff V8, lot 9) : ce que la carte fait, et ce qu'elle peut faire maintenant. Construite à partir de la vue
-// du joueur : elle ne montre que ce qu'il a le droit de voir (ses propres pièges, rien du grimoire adverse).
-// Dans l'ordre : type, stats (bonus et malus en pastille), lignes de disponibilité, effet passif (ambre), effet actif
-// (violet), puis « Effets en cours » en bas (statuts, bonus du tour, zone tenue…).
+// Fiche (handoff V8, lot 9 ; refonte « plein cadre » du 2026-11-11) : ce que la carte fait, rien de plus. Construite à
+// partir de la vue du joueur : elle ne montre que ce qu'il a le droit de voir (ses propres pièges, rien du grimoire
+// adverse). Dans l'ordre : type, stats (du moment, bonus et malus en pastille), effet passif (ambre), effets actifs
+// (violet). Ce que l'unité peut encore faire ce tour, ses statuts et les effets en cours ne sont plus sur la carte
+// (validé le 2026-11-11) : ils sont au jeton (`unitTip.ts`), et la raison d'une carte injouable dans le grimoire.
 import {
   MANA_PER_CONTROLLED_ZONE,
   MANA_ZONE_NAMES,
   VP_PER_CONTROLLED_ZONE,
-  attackAvailability,
-  attackLimit,
-  auraAtk,
-  auraStealth,
-  auraRange,
-  auraHp,
   auraMobility,
-  auraSources,
   canMove,
   cardAvailability,
-  effectAvailability,
   getAtk,
   getCard,
   getCell,
   getEffectReach,
   getMonsterCard,
-  getNextTurnMobility,
   getOnMoveBonus,
   getRange,
-  pendingOnMove,
   getUnitsAt,
   getViewZoneStatus,
   getZoneMana,
   getZoneOf,
-  ownerNextTurn,
   samePos,
-  statusTurnsLeft,
 } from '../engine';
 import type {
   Availability,
@@ -42,25 +31,19 @@ import type {
   CardSet,
   ManaZoneId,
   MonsterCard,
-  EffectSource,
   MonsterUnit,
-  TurnBonus,
   PlayerId,
   PlayerView,
   Position,
-  Status,
   TerrainUnit,
   Trap,
-  Unit,
   UnitId,
   UnavailableReason,
 } from '../engine';
 import {
   ARCHETYPE_NAMES,
-  auraBonusText,
   cardTitle,
   effectName,
-  durationText,
   effectText,
   splitCardName,
   trapLabel,
@@ -69,7 +52,6 @@ import type { IconName } from './Icon';
 import { waterKind } from './iso/scenery';
 import { pileOf } from './piles';
 import type { PileKind } from './piles';
-import { isBonus, statusEffect, statusIcon, statusLabel } from './statusInfo';
 import { abilityRules, passiveRules } from './rulesText';
 
 /**
@@ -100,7 +82,7 @@ export interface SheetStat {
   readonly hurt: boolean;
 }
 
-/** Ligne de disponibilité : l'attaque, l'invocation, la menace d'un monstre adverse… */
+/** Ligne d'état : le contrôle d'une mana zone ; dans l'infobulle d'un jeton, l'attaque, un effet actif, la menace… */
 export interface SheetLine {
   readonly icon: IconName;
   readonly label: string;
@@ -110,8 +92,6 @@ export interface SheetLine {
 export interface SheetPassive {
   /** Mots-clés et passifs : « **Riposte** · texte » (sans nom pour la règle d'un terrain) ; textes balisés (`rulesSegments`). */
   readonly items: readonly { readonly name: string; readonly text: string }[];
-  /** Riposte prête ou utilisée. */
-  readonly foot: SheetStatus | null;
 }
 
 export interface SheetActive {
@@ -120,7 +100,6 @@ export interface SheetActive {
   /** Coût en mana de l'effet d'un monstre ; `null` pour un sort (son coût est en haut de la fiche). */
   readonly cost: number | null;
   readonly text: string;
-  readonly foot: SheetStatus | null;
   /** Portée de l'effet d'un monstre du plateau, montrée sur le plateau au survol du bloc. */
   readonly reach?: readonly Position[];
 }
@@ -138,6 +117,8 @@ export interface SheetChip {
   readonly detail: string;
   readonly kind: ChipKind;
   readonly group: ChipGroup;
+  /** Statut : les tours qu'il lui reste à durer (« · 1 tour »), 0 : jusqu'à son prochain tour ; absent sinon. */
+  readonly turns?: number;
 }
 
 export interface SheetData {
@@ -164,13 +145,12 @@ export interface SheetData {
   readonly typeIcon: IconName | null;
   readonly type: string;
   readonly stats: readonly SheetStat[];
+  /** Lignes d'état d'une case (contrôle d'une mana zone) ; jamais sur une carte. */
   readonly lines: readonly SheetLine[];
   readonly text: readonly string[];
   readonly passive: SheetPassive | null;
   /** Effets actifs, dans l'ordre de la carte. */
   readonly active: readonly SheetActive[];
-  /** Effets en cours ; `null` : pas de pied (cases, cartes du grimoire). */
-  readonly status: readonly SheetChip[] | null;
 }
 
 
@@ -198,7 +178,6 @@ const empty = (name: string, frame: SheetData['frame'], type: string): SheetData
   text: [],
   passive: null,
   active: [],
-  status: null,
 });
 
 const stat = (icon: IconName, label: string, value: number | string, delta = 0, hurt = false): SheetStat => ({
@@ -216,28 +195,23 @@ const terrainItems = keywordItems;
 /** « · Bodybuilder » après le type d'un monstre d'une famille (§5.1). */
 const familySuffix = (card: Card) => (card.kind === 'monster' && card.archetype ? ` · ${ARCHETYPE_NAMES[card.archetype].title}` : '');
 
-const hasRiposte = (card: MonsterCard) => card.keywords.some((spec) => spec.keyword === 'riposte');
+/** Nom d'un effet actif : le sien, ou celui tiré de ses effets quand le monstre en a plusieurs ; `null` sinon. */
+export const activeName = (card: MonsterCard, rank: number): string | null => {
+  const ability = card.activated[rank]!;
+  return ability.name ?? (card.activated.length > 1 ? effectName(ability) : null);
+};
 
-/**
- * Un bloc par effet actif ; `foot` : sa disponibilité (sur le plateau, pendant son tour), par rang d'effet ; `monster` :
- * le monstre du plateau, dont la portée de chaque effet se montre au survol.
- */
-function activeBlocks(
-  cards: CardSet,
-  card: MonsterCard,
-  foot: (effect: number) => SheetStatus | null = () => null,
-  monster?: { view: PlayerView; unit: MonsterUnit },
-): SheetActive[] {
+/** Un bloc par effet actif ; `monster` : le monstre du plateau, dont la portée de chaque effet se montre au survol. */
+function activeBlocks(cards: CardSet, card: MonsterCard, monster?: { view: PlayerView; unit: MonsterUnit }): SheetActive[] {
   return card.activated.map((ability, i) => ({
-    name: ability.name ?? (card.activated.length > 1 ? effectName(ability) : null),
+    name: activeName(card, i),
     cost: ability.manaCost,
     text: abilityRules(cards, ability),
-    foot: foot(i),
     ...(monster ? { reach: getEffectReach(monster.view, ability, monster.unit.owner, monster.unit) } : {}),
   }));
 }
 
-const OK: SheetStatus = { text: 'Disponible', tone: 'ok' };
+export const OK: SheetStatus = { text: 'Disponible', tone: 'ok' };
 
 /** Pourquoi ce n'est pas possible, en mots ; `missing` : la cible qui manque, dite selon ce qu'on essaie de faire. */
 export function reasonStatus(reason: UnavailableReason, used: string): SheetStatus {
@@ -290,7 +264,7 @@ export function reasonStatus(reason: UnavailableReason, used: string): SheetStat
   }
 }
 
-const availabilityStatus = (availability: Availability, used: string): SheetStatus =>
+export const availabilityStatus = (availability: Availability, used: string): SheetStatus =>
   availability.ok ? OK : reasonStatus(availability.reason, used);
 
 export function getSheet(view: PlayerView, subject: HoverSubject): SheetData | null {
@@ -334,8 +308,6 @@ export function sameSubject(a: HoverSubject | null, b: HoverSubject | null): boo
   }
 }
 
-const CARD_VERBS: Readonly<Record<Card['kind'], string>> = { monster: 'Invocation', spell: 'Lancer', terrain: 'Poser' };
-
 /** La fiche d'une carte seule, hors du plateau (cartes jouées, cimetière, page des decks) : sans ligne pour la jouer. */
 export function cardSheetOf(cards: CardSet, cardId: CardId, shiny = false): SheetData {
   const card = getCard(cards, cardId);
@@ -361,9 +333,8 @@ export function cardSheetOf(cards: CardSet, cardId: CardId, shiny = false): Shee
           stat('high-shot', 'Portée', card.range),
         ],
         text: card.evolvesFrom ? [evolutionLine(cards, card.evolvesFrom)] : [],
-        passive: passiveBlock(keywordItems(card), null),
+        passive: passiveBlock(keywordItems(card)),
         active: activeBlocks(cards, card),
-        status: null,
       };
     }
     case 'spell':
@@ -371,7 +342,7 @@ export function cardSheetOf(cards: CardSet, cardId: CardId, shiny = false): Shee
         ...base,
         typeIcon: 'spell-book',
         type: 'Carte sort · effet immédiat',
-        active: [{ name: null, cost: null, text: abilityRules(cards, card.ability), foot: null }],
+        active: [{ name: null, cost: null, text: abilityRules(cards, card.ability) }],
       };
     case 'terrain':
       return {
@@ -380,22 +351,31 @@ export function cardSheetOf(cards: CardSet, cardId: CardId, shiny = false): Shee
         type: 'Carte terrain',
         stats: [stat('hearts', 'PV', card.hp)],
         text: ['Se pose sur une mana zone occupée par un de tes monstres.'],
-        passive: passiveBlock(terrainItems(card), null),
+        passive: passiveBlock(terrainItems(card)),
       };
   }
 }
 
-/** Une carte du grimoire : sa fiche, et la ligne qui dit si on peut la jouer. */
+/**
+ * Une carte du grimoire : sa fiche seule, brillante s'il en reste un exemplaire brillant. Si elle ne peut pas être jouée,
+ * la raison est dans le grimoire, sous la carte (`cardReason`).
+ */
 function cardSheet(view: PlayerView, cardId: CardId): SheetData {
-  const card = getCard(view.cards, cardId);
-  const lines: SheetLine[] = [
-    { icon: 'card-play', label: CARD_VERBS[card.kind], status: availabilityStatus(cardAvailability(view, cardId), 'Déjà joué') },
-  ];
-  return { ...cardSheetOf(view.cards, cardId, view.me.shiny?.includes(cardId) ?? false), lines };
+  return cardSheetOf(view.cards, cardId, view.me.shiny?.includes(cardId) ?? false);
 }
 
-const passiveBlock = (items: SheetPassive['items'], foot: SheetStatus | null): SheetPassive | null =>
-  items.length > 0 ? { items, foot } : null;
+/**
+ * Pourquoi une carte du grimoire ne peut pas être jouée, écrit sous la carte (« Il te manque 3 mana », en orange), ou
+ * `null` si elle peut l'être.
+ */
+export function cardReason(view: PlayerView, cardId: CardId): SheetStatus | null {
+  const availability = cardAvailability(view, cardId);
+  if (availability.ok) return null;
+  const { reason } = availability;
+  return reason.kind === 'mana' ? { text: `Il te manque ${reason.missing} mana`, tone: 'warn' } : reasonStatus(reason, 'Déjà joué');
+}
+
+const passiveBlock = (items: SheetPassive['items']): SheetPassive | null => (items.length > 0 ? { items } : null);
 
 /** Règle d'une case X selon sa hauteur (SPEC.md §10). */
 const BLOCKED_TEXTS = {
@@ -444,7 +424,7 @@ function cellSheet(view: PlayerView, pos: Position): SheetData | null {
 }
 
 /** Le mana qu'une zone tenue rapporte : rien sans terrain (§4.2). */
-const zoneIncome = (mana: number) => (mana > 0 ? `+${mana} mana` : 'pas de mana sans terrain');
+export const zoneIncome = (mana: number) => (mana > 0 ? `+${mana} mana` : 'pas de mana sans terrain');
 
 /** Une mana zone : qui la tient (ou contestée, §4.4 bis) et ce qu'elle rapporte. */
 function zoneSheet(view: PlayerView, zone: ManaZoneId, pos: Position): SheetData {
@@ -475,28 +455,12 @@ function zoneSheet(view: PlayerView, zone: ManaZoneId, pos: Position): SheetData
   };
 }
 
-/** Puce de la mana zone où se trouve un monstre : celle qu'il tient, contestée, ou tenue par l'adversaire. */
-function zoneChip(view: PlayerView, monster: MonsterUnit): SheetChip | null {
-  const area = getZoneOf(view.board, view.mode, monster.pos);
-  if (!area) return null;
-  const name = MANA_ZONE_NAMES[area.zone];
-  const { controller, contested } = getViewZoneStatus(view, area.pos);
-  // La puce ne montre que le nom de la zone (§10) ; contestée ou tenue par l'adversaire, elle est en alerte.
-  if (contested) return effect(ZONE_ICONS[area.zone], name, `${name} contestée : ni mana ni VP pour personne, pas de terrain`, 'warn');
-  if (controller === null) return null;
-  if (controller !== monster.owner) {
-    return effect(ZONE_ICONS[area.zone], name, `${name} tenue par J${controller} : il faut y avoir plus de monstres, et détruire son terrain s’il y en a un`, 'warn');
-  }
-  return effect(ZONE_ICONS[area.zone], name, `Tient ${name} : ${zoneIncome(getZoneMana(view, area.pos, controller))}, +${VP_PER_CONTROLLED_ZONE} VP`, 'zone');
-}
-
 /** Mobilité de base d'un monstre : sa carte et les auras. */
 const baseMobility = (view: PlayerView, monster: MonsterUnit) =>
   getMonsterCard(view.cards, monster.cardId).mobility + auraMobility(view, monster);
 
 function monsterSheet(view: PlayerView, monster: MonsterUnit): SheetData {
   const card = getMonsterCard(view.cards, monster.cardId);
-  const terrain = getUnitsAt(view, monster.pos).find((u): u is TerrainUnit => u.kind === 'terrain');
   const mine = monster.owner === view.viewer;
   const myTurn = mine && view.activePlayer === view.viewer && view.winner === null;
 
@@ -517,29 +481,6 @@ function monsterSheet(view: PlayerView, monster: MonsterUnit): SheetData {
     stat('high-shot', 'Portée', range, range - card.range),
   ];
 
-  const lines: SheetLine[] = [];
-  if (myTurn) {
-    const attack = attackAvailability(view, monster.id);
-    const status = attack.ok
-      ? OK
-      : attack.reason.kind === 'noTarget'
-        ? { text: 'Aucune cible depuis cette case', tone: 'off' as const }
-        : reasonStatus(attack.reason, 'Utilisée ce tour');
-    lines.push({ icon: 'broadsword', label: 'Attaque', status });
-  } else if (!mine) {
-    lines.push({ icon: 'crosshair', label: 'Menace', status: { text: 'Hachures au survol', tone: 'info' } });
-  }
-
-  const effectFoot = (i: number) => {
-    const availability = myTurn ? effectAvailability(view, monster.id, i) : null;
-    return availability ? availabilityStatus(availability, 'Déjà utilisé ce tour : une fois par tour/carte') : null;
-  };
-  const riposte = hasRiposte(card)
-    ? monster.hasRiposted
-      ? { text: 'Riposte utilisée ce tour', tone: 'off' as const }
-      : { text: 'Riposte prête · une fois par tour/carte', tone: 'ok' as const }
-    : null;
-
   return {
     ...empty(card.name, monster.owner, `Monstre${familySuffix(card)} · Joueur ${monster.owner}${mine ? '' : ' (adversaire)'}`),
     flavor: card.flavor ?? null,
@@ -549,97 +490,13 @@ function monsterSheet(view: PlayerView, monster: MonsterUnit): SheetData {
     shiny: monster.shiny === true,
     typeIcon: 'dragon-head',
     stats,
-    lines,
-    text: mine
-      ? []
-      : [
-          `À son prochain tour : hachures orange, là où il pourra aller (mobilité ${getNextTurnMobility(view.cards, monster, view.turn, view.activePlayer)}) ; rouges, là où il pourra frapper (portée ${card.range}).`,
-        ],
-    passive: passiveBlock(keywordItems(card), riposte),
-    active: activeBlocks(view.cards, card, effectFoot, { view, unit: monster }),
-    status: monsterChips(view, monster, terrain),
+    passive: passiveBlock(keywordItems(card)),
+    active: activeBlocks(view.cards, card, { view, unit: monster }),
   };
-}
-
-/** Nom d'une source : son effet s'il en a un (« Dopage », « Passage »), sinon la carte (« Charge »). */
-export const sourceName = (cards: CardSet, source: EffectSource) => source.effect ?? cardTitle(cards, source.cardId);
-
-/** « (Jean Bon) » : la carte d'un effet nommé ; rien quand le nom est déjà celui de la carte. */
-const sourceCard = (cards: CardSet, source: EffectSource) => (source.effect ? ` (${cardTitle(cards, source.cardId)})` : '');
-
-function turnBonusChip(cards: CardSet, { source, atk, range, mobility }: TurnBonus): SheetChip {
-  const now = [atk > 0 ? `+${atk} ATK` : null, range > 0 ? `+${range} portée` : null].filter(Boolean).join(' ');
-  const parts = [now ? `${now} jusqu’à la fin du tour` : null, mobility > 0 ? `+${mobility} mobilité ce tour` : null].filter(Boolean);
-  const icon: IconName = atk > 0 ? 'broadsword' : range > 0 ? 'high-shot' : 'sprint';
-  return effect(icon, sourceName(cards, source), `${parts.join(', ')}${sourceCard(cards, source)}`, 'boost');
-}
-
-const effect = (icon: IconName, text: string, detail: string, kind: ChipKind): SheetChip => ({ icon, text, detail, kind, group: 'effect' });
-
-/** « Effets en cours » d'un monstre : ses statuts, puis les effets qui le touchent (bonus du tour, auras, plateau, camouflage, zone, terrain). */
-function monsterChips(view: PlayerView, monster: MonsterUnit, terrain: TerrainUnit | undefined): SheetChip[] {
-  const card = getMonsterCard(view.cards, monster.cardId);
-  const chips: SheetChip[] = [...statusChips(view, monster)];
-  // Bonus du tour, un par source : son nom (« Dopage », « Charge »), le bonus et la carte au survol.
-  for (const bonus of monster.turnBonuses) chips.push(turnBonusChip(view.cards, bonus));
-  // Dans la zone d'un Terrain de chasse allié, son +1 l'attend (à son tour, s'il n'est pas encore parti d'une telle zone).
-  const hunt = monster.owner === view.viewer && view.activePlayer === view.viewer ? pendingOnMove(view, monster) : null;
-  if (hunt) {
-    const detail = `+${hunt.onMove.mobility} mobilité en commençant un déplacement ici, une fois par tour`;
-    chips.push(effect('sprint', cardTitle(view.cards, hunt.unit.cardId), detail, 'boost'));
-  }
-  const limit = attackLimit(view, monster);
-  const aura = {
-    atk: auraAtk(view, monster),
-    hp: auraHp(view, monster),
-    mobility: auraMobility(view, monster),
-    range: auraRange(view, monster),
-    attacks: limit > 1 ? limit : 0,
-    stealth: auraStealth(view, monster) >= 2 ? ('camouflage' as const) : auraStealth(view, monster) === 1 ? ('invisible' as const) : undefined,
-  };
-  if (monster.armed) {
-    const { atk, splash, source } = monster.armed;
-    const bonus = [atk ? `+${atk} ATK` : null, splash ? `${splash} dégât aux ennemis du carré de 1 de la cible` : null].filter(Boolean).join(', ');
-    chips.push(effect('crosshair', 'Armé', `Sa prochaine attaque de ce tour : ${bonus}${sourceCard(view.cards, source)}`, 'boost'));
-  }
-  if (aura.atk > 0 || aura.hp > 0 || aura.mobility > 0 || aura.range > 0 || aura.attacks > 0 || aura.stealth !== undefined) {
-    const sources = auraSources(view, monster).map((other) => getCard(view.cards, other.cardId).name);
-    chips.push(effect('aura', 'Aura', `${auraBonusText(aura)} (${sources.join(', ')})`, 'boost'));
-  }
-  // Camouflage par mot-clé (Pénombre le donne en statut, avec sa puce) : caché ou repéré, vu par son joueur.
-  const mine = monster.owner === view.viewer;
-  const camouflage = card.keywords.find((spec) => spec.keyword === 'camouflage');
-  const auraRadius = auraStealth(view, monster);
-  if (mine && (camouflage || auraRadius > 0) && !monster.statuses.some((s) => s.kind === 'camouflage' || s.kind === 'invisible')) {
-    const radius = Math.max(camouflage ? 2 : 0, auraRadius);
-    chips.push(
-      view.hiddenFromOpponent.includes(monster.id)
-        ? effect('eye-slash', 'Camouflé', `Invisible pour l’adversaire : aucun de ses monstres ni terrains dans un carré de ${radius}`, 'info')
-        : effect('eye', 'Repéré', `Visible : un monstre ou un terrain adverse est dans un carré de ${radius}`, 'warn'),
-    );
-  }
-  const zone = zoneChip(view, monster);
-  if (zone) chips.push(zone);
-  if (terrain) {
-    const name = getCard(view.cards, terrain.cardId).name;
-    chips.push(effect('castle', name, `Sur ${name} (${terrain.hp} PV)`, 'terrain'));
-  }
-  return chips;
 }
 
 function terrainSheet(view: PlayerView, terrain: TerrainUnit): SheetData {
   const card = getCard(view.cards, terrain.cardId);
-  const zone = getCell(view.board, terrain.pos);
-  const chips: SheetChip[] = [...statusChips(view, terrain)];
-  if (zone.kind === 'plain' && zone.manaZone) {
-    const name = MANA_ZONE_NAMES[zone.manaZone];
-    chips.push(effect(ZONE_ICONS[zone.manaZone], name, `Tient ${name} pour J${terrain.owner}`, 'zone'));
-  }
-  const above = getUnitsAt(view, terrain.pos).find((u) => u.kind === 'monster');
-  if (above) {
-    const name = getCard(view.cards, above.cardId).name;
-    chips.push(effect('dragon-head', name, `Sous ${name} (J${above.owner})`, 'terrain'));
-  }
   return {
     ...empty(card.name, terrain.owner, `Terrain · Joueur ${terrain.owner}`),
     kind: 'terrain',
@@ -648,8 +505,7 @@ function terrainSheet(view: PlayerView, terrain: TerrainUnit): SheetData {
     shiny: terrain.shiny === true,
     typeIcon: 'castle',
     stats: [stat('hearts', 'PV', `${terrain.hp}/${terrain.maxHp}`, 0, terrain.hp < terrain.maxHp)],
-    passive: passiveBlock(terrainItems(card), null),
-    status: chips,
+    passive: passiveBlock(terrainItems(card)),
   };
 }
 
@@ -679,55 +535,6 @@ function trapSheet(cards: CardSet, trap: Trap): SheetData {
     ...empty(`Ton piège · ${trapLabel(trap)}`, 'trap', 'Piège caché · visible par toi seul'),
     text: [`Posé par ${getCard(cards, trap.cardId).name}. L’ennemi qui entre ici subit : ${what}.`, 'Disparaît au début de ton prochain tour.'],
   };
-}
-
-/** Ce qu'il reste d'un statut, vu depuis le tour en cours (§5.5). */
-function remainingText(view: PlayerView, unit: Unit, status: Status): string {
-  const left = statusTurnsLeft(status, unit.owner, view.turn, view.activePlayer);
-  if (left === 0) return durationText(0);
-  if (unit.owner !== view.activePlayer) return left === 1 ? 'pendant son prochain tour' : `pendant ses ${left} prochains tours`;
-  if (left === 1) return 'jusqu’à la fin de ce tour';
-  return `jusqu’à la fin de ce tour et de ${left === 2 ? 'son prochain' : `ses ${left - 1} prochains`}`;
-}
-
-/** Couleur de la puce : bonus en vert, malus selon leur nature (givre pour le slow, braise pour le burn), alerte sinon. */
-function statusChipKind(status: Status): ChipKind {
-  if (status.kind === 'slow') return 'frost';
-  if (status.kind === 'burn') return 'burn';
-  if (status.kind === 'camouflage' || status.kind === 'invisible' || status.kind === 'carapace') return 'info';
-  return isBonus(status) ? 'boost' : 'warn';
-}
-
-/** Une puce par statut en cours sur `unit` : son nom ; au survol, son effet et ce qu'il lui reste à durer (§5 bis, §5.5). */
-export function statusChips(view: PlayerView, unit: Unit): SheetChip[] {
-  return unit.statuses.map((status) => ({
-    icon: statusIcon(status),
-    text: statusLabel(status),
-    detail: statusText(view, unit, status),
-    kind: statusChipKind(status),
-    group: 'status',
-  }));
-}
-
-function statusText(view: PlayerView, unit: Unit, status: Status): string {
-  const until = remainingText(view, unit, status);
-  switch (status.kind) {
-    case 'requiem': {
-      const left = Math.max(1, (status.expiresAtTurn - ownerNextTurn(view.turn, view.activePlayer, unit.owner)) / 2 + 1);
-      const when = left === 1 ? 'son prochain tour' : `son ${left}e prochain tour`;
-      return `Requiem : meurt au début de ${when}, sans VP pour personne`;
-    }
-    case 'carapace':
-      return `Carapace : ${statusEffect(status)} ; sinon ${until}`;
-    case 'camouflage':
-    case 'invisible': {
-      const radius = status.kind === 'invisible' ? 1 : 2;
-      const seen = unit.owner === view.viewer && !view.hiddenFromOpponent.includes(unit.id);
-      return `${statusLabel(status)} ${until} : invisible pour l’adversaire sans monstre ni terrain à lui dans un carré de ${radius}${seen ? ' (repéré en ce moment)' : ''}`;
-    }
-    default:
-      return `${statusLabel(status)} : ${statusEffect(status)} ${until}`;
-  }
 }
 
 /** Une carte qui peut aussi arriver par l'évolution d'un autre monstre (dragons élémentaires). */

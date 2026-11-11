@@ -2303,6 +2303,40 @@ select {
   top: calc(var(--k) * -0.56);
 }
 
+/* Ce qu'il peut encore faire ce tour (option J du 2026-11-11) : une pastille sombre au liseré vert au-dessus de la
+   goutte, l'épée pour l'attaque, le tourbillon pour un effet actif ; plus haut quand les stats sont au-dessus. */
+.token__ready {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  top: calc(var(--k) * -0.2);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: max(1.5px, calc(var(--k) * 0.025)) max(3px, calc(var(--k) * 0.06));
+  border-radius: 99px;
+  background: oklch(0.19 0.012 55 / 0.94);
+  box-shadow: 0 0 0 1.2px oklch(0.8 0.13 150 / 0.85), 0 0 calc(var(--k) * 0.12) oklch(0.8 0.13 150 / 0.4);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.token__ready.is-high {
+  top: calc(var(--k) * -0.4);
+}
+
+.token__ready .icon {
+  font-size: max(9px, calc(var(--k) * 0.15));
+}
+
+.token__ready-attack {
+  color: oklch(0.78 0.14 55);
+}
+
+.token__ready-effect {
+  color: oklch(0.78 0.12 295);
+}
+
 /*
  * Stats sous la goutte (mordant un peu sur le rond) : mobilité à gauche, PV au centre, ATK à droite. Au-dessus du rond
  * quand la pointe descend. Les trois ensemble forment un petit arc (PV décalé).
@@ -4469,6 +4503,15 @@ select {
   opacity: 1;
 }
 
+/* Pourquoi la carte n'est pas jouable : en orange s'il manque du mana (ou une place), en gris sinon. */
+.tile__reason.tone--warn {
+  color: oklch(0.82 0.12 60);
+}
+
+.tile__reason.tone--off {
+  color: oklch(0.76 0.015 80);
+}
+
 .tile--row .tile__kind {
   position: static;
   flex: none;
@@ -4991,13 +5034,6 @@ select {
   filter: drop-shadow(0 4px 6px oklch(0 0 0 / 0.4));
 }
 
-/* Bandeau clair du haut : l'illustration s'y voit en entier ; le coût en haut à droite. */
-.sheet__band {
-  position: relative;
-  flex: none;
-  height: var(--sheet-band);
-}
-
 /* Calque dans le repère de la fiche 280 × 498 (illustration, calques de l'overframe), mis à l'échelle de la fiche.
    `zoom` ne crée pas de contexte d'empilement : ses calques gardent leur ordre avec ceux du cadre. */
 .sheet__scale {
@@ -5010,14 +5046,7 @@ select {
   pointer-events: none;
 }
 
-.sheet__band > .mana-pill {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  box-shadow: var(--mana-shine), 0 0 0 1px oklch(0.28 0.12 264), 0 3px 8px oklch(0 0 0 / 0.5);
-}
-
-/* Pastille de coût en mana : une goutte saphir. */
+/* Pastille de coût en mana : une goutte saphir (bulle d'action). */
 .mana-pill {
   flex: none;
   display: inline-flex;
@@ -5038,16 +5067,31 @@ select {
   font-size: 15px;
 }
 
-.mana-pill--small {
-  height: 18px;
-  padding: 0 6px 0 4px;
-  border-radius: 9px;
-  font-size: 12px;
+/* Coût d'une carte et de ses effets actifs : le rond bleu du grimoire en liste, avec le chiffre. */
+.mana-dot {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--mana-pill);
+  box-shadow: var(--mana-shine), 0 0 0 1px oklch(0.28 0.12 264), 0 3px 8px oklch(0 0 0 / 0.5);
+  color: white;
+  font: 800 20px/1 var(--font);
+  letter-spacing: 0;
+  text-shadow: none;
 }
 
-.mana-pill--small .icon {
-  font-size: 10px;
+.mana-dot--small {
+  width: 22px;
+  height: 22px;
+  font-size: 13px;
+  box-shadow: var(--mana-shine), 0 0 0 1px oklch(0.28 0.12 264), 0 1px 3px oklch(0 0 0 / 0.45);
 }
+
+/* --- Fiche sans illustration (zone, case, piège) : un encadré de la hauteur de son texte --- */
 
 .sheet__head {
   flex: none;
@@ -5071,29 +5115,11 @@ select {
   opacity: 0.8;
 }
 
-/* Texte d'ambiance (Maître du temps). */
-.sheet__flavor {
-  margin: 0;
-  font: italic 500 13px/1.35 var(--font);
-  opacity: 0.85;
-}
-
-/* Le corps défile (fondu en bas) ; une fiche sans illustration prend simplement sa hauteur. */
 .sheet__body {
   display: flex;
   flex-direction: column;
   gap: 9px;
   padding: 0 12px 12px;
-}
-
-.sheet--card .sheet__body {
-  flex: 1;
-  min-height: 0;
-  padding-bottom: 16px;
-  overflow: hidden auto;
-  scrollbar-width: thin;
-  scrollbar-color: oklch(0.7 0.02 80 / 0.55) transparent;
-  mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
 }
 
 .sheet__type {
@@ -5110,69 +5136,8 @@ select {
   font-size: 17px;
 }
 
-.sheet__stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
-  gap: 5px;
-  padding-top: 4px;
-}
-
-.sheet__stat {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 6px 2px 5px;
-  border-radius: 7px;
-  background: oklch(0.13 0.01 60 / 0.55);
-  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.12);
-}
-
-.sheet__stat .icon {
-  font-size: 16px;
-  margin-bottom: 4px;
-  color: #f2ebe0;
-}
-
-.sheet__stat strong {
-  font: 800 18px/1 var(--font);
-}
-
-.sheet__stat span {
-  font: 700 10px/1.3 var(--font-sc);
-  letter-spacing: 0.03em;
-  color: oklch(0.85 0.015 80);
-}
-
-.sheet__stat.is-up strong {
-  color: oklch(0.86 0.14 150);
-}
-
-.sheet__stat.is-down strong,
-.sheet__stat.is-hurt strong {
-  color: oklch(0.78 0.16 28);
-}
-
-/* Bonus ou malus du moment, par rapport à la carte. */
-.sheet__delta {
-  position: absolute;
-  top: -7px;
-  right: -5px;
-  padding: 2px 5px;
-  border-radius: 8px;
-  background: oklch(0.55 0.19 28);
-  box-shadow: 0 0 0 2px oklch(0.2 0.014 60);
-  color: white;
-  font: 800 11px/1 var(--font);
-  font-style: normal;
-  text-shadow: none;
-}
-
-.sheet__stat.is-up .sheet__delta {
-  background: oklch(0.55 0.15 150);
-}
-
-/* Disponibilité : point coloré et texte (vert possible, orange il manque quelque chose, gris impossible). */
+/* Ligne d'état (contrôle d'une mana zone ; infobulle d'un jeton) : point coloré et texte (vert possible, orange il
+   manque quelque chose, gris impossible). */
 .tone--ok {
   --tone-dot: oklch(0.68 0.15 150);
   --tone-text: oklch(0.9 0.09 150);
@@ -5245,23 +5210,234 @@ select {
   cursor: help;
 }
 
-/* Effet passif (ambre) et effet actif (violet), avec leur disponibilité en pied. */
-.sheet__block {
+/* --- Carte plein cadre (refonte du 2026-11-11, piste E) ---
+   L'illustration couvre toute la carte, sans fondu ni voile. Le coût en haut à droite ; en bas, posés sur le dessin, le
+   nom et l'archétype, puis des blocs de verre à peine flouté (3 px) pour que le dessin se voie derrière. Si le texte
+   est long, la pile défile ; sinon elle reste collée en bas. */
+.sheet--full {
+  --sheet-veil: linear-gradient(transparent, transparent);
+  border-radius: 14px;
+}
+
+.sheet__cost {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  right: 12px;
+  display: flex;
+}
+
+.sheet--full > .sheet__shiny {
+  position: absolute;
+  z-index: 2;
+  top: 21px;
+  left: 12px;
+}
+
+.sheet__stack {
+  position: absolute;
+  z-index: 1;
+  inset: 60px 10px 10px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 8px 10px;
-  border-radius: 8px;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.7 0.02 80 / 0.55) transparent;
+}
+
+/* Collée en bas tant qu'elle tient ; plus haute que la carte, elle défile depuis son haut. */
+.sheet__stack > :first-child {
+  margin-top: auto;
+}
+
+.sheet__name {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 0 4px 2px;
+  text-shadow: 0 1px 2px oklch(0 0 0 / 0.85), 0 0 10px oklch(0 0 0 / 0.6);
+}
+
+.sheet__name-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.sheet--full .sheet__title {
+  font: 800 26px/1.05 var(--font);
+  color: white;
+}
+
+.sheet__kind {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  font: 700 13px/1.2 var(--font-sc);
+  letter-spacing: 0.05em;
+  color: oklch(0.84 0.09 60);
+}
+
+.sheet__kind .icon {
+  flex: none;
+  font-size: 14px;
+}
+
+/* Le camp d'une unité du plateau. */
+.sheet__owner {
+  flex: none;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  color: white;
+  font: 700 12px/1.3 var(--font);
+  text-shadow: none;
+}
+
+.sheet__owner--p1 {
+  background: oklch(0.45 0.13 258 / 0.9);
+  box-shadow: inset 0 0 0 1px oklch(0.76 0.1 255 / 0.8);
+}
+
+.sheet__owner--p2 {
+  background: oklch(0.45 0.15 25 / 0.9);
+  box-shadow: inset 0 0 0 1px oklch(0.76 0.12 25 / 0.8);
+}
+
+/* Texte d'ambiance (Maître du temps), sur le dessin. */
+.sheet__flavor {
+  margin: 0;
+  padding: 0 4px;
+  font: italic 500 13px/1.35 var(--font);
+  text-shadow: 0 1px 2px oklch(0 0 0 / 0.85), 0 0 10px oklch(0 0 0 / 0.6);
+  opacity: 0.92;
+}
+
+/* Les stats, comme dans le jeu : 4 colonnes séparées d'un trait, icône colorée et chiffre, nom dessous. */
+.sheet__stats {
+  flex: none;
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  padding: 7px 0 6px;
+  border-radius: 12px;
+  background: oklch(0.16 0.012 55 / 0.6);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.14);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  text-shadow: none;
+}
+
+.sheet__stat {
+  --stat-color: #f2ebe0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sheet__stat + .sheet__stat {
+  border-left: 1px solid oklch(1 0 0 / 0.12);
+}
+
+.sheet__stat--broadsword {
+  --stat-color: oklch(0.78 0.14 55);
+}
+
+.sheet__stat--hearts {
+  --stat-color: oklch(0.76 0.15 22);
+}
+
+.sheet__stat--walking-boot {
+  --stat-color: oklch(0.82 0.1 170);
+}
+
+.sheet__stat--high-shot {
+  --stat-color: oklch(0.8 0.1 250);
+}
+
+.sheet__stat-value {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 2px 4px;
+}
+
+.sheet__stat-value .icon {
+  font-size: 16px;
+  color: var(--stat-color);
+}
+
+.sheet__stat strong {
+  font: 800 18px/1.1 var(--font);
+  color: white;
+}
+
+.sheet__stat.is-hurt strong {
+  color: oklch(0.78 0.15 22);
+}
+
+.sheet__stat-label {
+  font: 700 12px/1.2 var(--font-sc);
+  letter-spacing: 0.04em;
+  color: oklch(0.78 0.025 75);
+}
+
+/* Bonus ou malus du moment, par rapport à la carte. */
+.sheet__delta {
+  padding: 1px 5px;
+  border-radius: 99px;
+  background: oklch(0.52 0.13 150);
+  color: white;
+  font: 800 11px/1.2 var(--font);
+  font-style: normal;
+}
+
+.sheet__delta.is-down {
+  background: oklch(0.52 0.17 27);
+}
+
+/* Blocs de verre : une note (évolution, règle d'un terrain), l'effet passif (ambre), chaque effet actif (violet). */
+.sheet__block {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 13px 10px;
+  border-radius: 12px;
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  text-shadow: none;
+}
+
+.sheet__block .sheet__line {
+  line-height: 1.36;
+  color: oklch(0.93 0.015 80);
+}
+
+.sheet__item {
+  font-weight: 800;
+  color: white;
+}
+
+.sheet__block--note {
+  background: oklch(0.16 0.012 55 / 0.6);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.14);
 }
 
 .sheet__block--passive {
-  background: linear-gradient(oklch(0.55 0.12 75 / 0.24), oklch(0.55 0.12 75 / 0.24)), oklch(0.13 0.01 60 / 0.55);
-  box-shadow: inset 0 0 0 1px oklch(0.72 0.12 75 / 0.6);
+  background: oklch(0.25 0.04 75 / 0.6);
+  box-shadow: inset 0 0 0 1px oklch(0.82 0.11 85 / 0.38);
 }
 
 .sheet__block--active {
-  background: linear-gradient(oklch(0.55 0.15 305 / 0.26), oklch(0.55 0.15 305 / 0.26)), oklch(0.13 0.01 60 / 0.55);
-  box-shadow: inset 0 0 0 1px oklch(0.68 0.15 305 / 0.6);
+  background: oklch(0.21 0.05 295 / 0.6);
+  box-shadow: inset 0 0 0 1px oklch(0.76 0.12 295 / 0.4);
 }
 
 /* Effet d'un monstre du plateau : au survol, sa portée s'affiche sur le plateau. */
@@ -5271,84 +5447,41 @@ select {
 }
 
 .sheet__block--active.has-reach:hover {
-  box-shadow: inset 0 0 0 1.5px oklch(0.8 0.15 305);
+  box-shadow: inset 0 0 0 1.5px oklch(0.8 0.15 300);
 }
 
 .sheet__block-head {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font: 800 11px/1 var(--font-sc);
-  letter-spacing: 0.06em;
+  gap: 6px;
+  min-height: 16px;
+  font: 700 12px/1 var(--font-sc);
+  letter-spacing: 0.08em;
 }
 
-.sheet__block-head > span:not(.mana-pill) {
+.sheet__block-head > span:not(.mana-dot) {
   flex: 1;
 }
 
 .sheet__block-head > .icon {
   flex: none;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .sheet__block--passive .sheet__block-head {
-  color: oklch(0.87 0.12 75);
+  color: oklch(0.84 0.11 82);
 }
 
 .sheet__block--passive .sheet__block-head > .icon {
-  color: #ecc983;
+  color: oklch(0.8 0.12 82);
 }
 
 .sheet__block--active .sheet__block-head {
-  color: oklch(0.85 0.1 305);
+  color: oklch(0.82 0.1 295);
 }
 
 .sheet__block--active .sheet__block-head > .icon {
-  color: #d9b8f7;
-}
-
-.sheet__foot {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding-top: 6px;
-  border-top: 1px solid oklch(1 0 0 / 0.14);
-  font: 800 12.5px/1.25 var(--font);
-  color: var(--tone-text);
-}
-
-/* Pied de fiche, fixe : « Statuts » puis « Effets », une puce par nom ; le détail au survol. */
-.sheet__status {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 9px 12px 11px;
-  background: oklch(0.13 0.012 60 / 0.76);
-  box-shadow: inset 0 1px 0 oklch(0.38 0.014 60);
-}
-
-.sheet__status-head {
-  font: 800 11px/1 var(--font-sc);
-  letter-spacing: 0.08em;
-  color: oklch(0.72 0.015 80);
-}
-
-.sheet__group {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.sheet__none {
-  font: 500 13px/1.3 var(--font);
-  color: oklch(0.68 0.012 80);
-}
-
-.sheet__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+  color: oklch(0.76 0.13 295);
 }
 
 /* Puce : fond de sa couleur à 20 %, contour à 55 %. */
@@ -5401,6 +5534,164 @@ select {
 .chip--info {
   --chip: oklch(0.62 0.03 250);
   --chip-icon: oklch(0.88 0.03 250);
+}
+
+/* --- Infobulle d'un jeton (option J du 2026-11-11) : l'état de l'unité dans la partie, au survol de sa case. Elle
+   flotte à côté du jeton, sous la bulle d'action, et ne prend pas la souris. --- */
+.unit-tip {
+  position: fixed;
+  z-index: 55;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 12px 11px;
+  border-radius: 12px;
+  background: oklch(0.21 0.012 55 / 0.96);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.14), 0 12px 28px oklch(0 0 0 / 0.5);
+  color: oklch(0.94 0.012 80);
+  font: 500 13.5px/1.3 var(--font);
+  pointer-events: none;
+  animation: tipIn 0.12s ease-out;
+}
+
+@keyframes tipIn {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+
+.unit-tip__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid oklch(1 0 0 / 0.08);
+}
+
+.unit-tip__head > b {
+  font: 800 15px/1.2 var(--font);
+  color: oklch(0.96 0.01 85);
+}
+
+.unit-tip__dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px oklch(0.95 0.01 85);
+}
+
+.unit-tip__dot--p1 {
+  background: var(--j1);
+}
+
+.unit-tip__dot--p2 {
+  background: var(--j2);
+}
+
+.unit-tip__when {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: oklch(0.72 0.015 80);
+}
+
+/* L'état à droite ; trop long pour y tenir, il passe sur sa ligne. */
+.unit-tip__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 7px;
+}
+
+.unit-tip__line > .icon {
+  flex: none;
+  font-size: 14px;
+  color: oklch(0.85 0.02 80);
+}
+
+.unit-tip__line--broadsword > .icon {
+  color: oklch(0.78 0.14 55);
+}
+
+.unit-tip__line--magic-swirl > .icon {
+  color: oklch(0.78 0.12 295);
+}
+
+.unit-tip__line > b {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.unit-tip__state {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  max-width: 100%;
+  color: var(--tone-text);
+  font-size: 12.5px;
+  text-align: right;
+}
+
+.unit-tip__state .tone__dot {
+  width: 6px;
+  height: 6px;
+  translate: 0 -1px;
+}
+
+.unit-tip__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid oklch(1 0 0 / 0.08);
+}
+
+.unit-tip__chips .chip {
+  padding: 2px 8px 2px 6px;
+  border-radius: 99px;
+  cursor: default;
+}
+
+.unit-tip__turns {
+  font-weight: 600;
+  font-size: 11.5px;
+  opacity: 0.85;
+}
+
+.unit-tip__effects {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid oklch(1 0 0 / 0.08);
+}
+
+.unit-tip__chips + .unit-tip__effects {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.unit-tip__effect {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: oklch(0.88 0.015 80);
+}
+
+.unit-tip__effect > .icon {
+  flex: none;
+  margin-top: 1px;
+  font-size: 13px;
+  color: var(--chip-icon, oklch(0.85 0.02 80));
+}
+
+.unit-tip__effect b {
+  color: oklch(0.96 0.01 85);
 }
 
 /* Sans fiche : un cadre pointillé à sa place. */

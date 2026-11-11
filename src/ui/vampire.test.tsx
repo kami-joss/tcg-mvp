@@ -9,6 +9,7 @@ import { describeAction } from './log';
 import { abilityRules, passiveRules, plainRules, rulesSegments } from './rulesText';
 import { MAX_HEADROOM, OVERFRAMES, PARTICLES, hasShinyImages, overframeLook, overframeUrl } from './overframes';
 import { getSheet } from './sheet';
+import { getTipAt } from './unitTip';
 import { CARDS } from '../engine';
 import { TEST_CARDS } from '../engine/test-cards';
 
@@ -73,10 +74,9 @@ describe('Emma dans l’interface', () => {
     expect(describeAction(view(state), transform, view(bat))[0]).toBe('Emma - Vampire de J1 se transforme en Emma chauve-souris.');
     const sheet = getSheet(view(bat), { kind: 'cell', pos: at(5, 4) })!;
     expect(sheet).toMatchObject({ title: 'Emma chauve-souris', archetype: 'Vampire', art: { cardId: 'emma-chauve-souris', owner: 1 } });
-    // Un seul effet actif, sans nom : la fiche ne le nomme pas ; sans limite par tour, il reste disponible.
-    expect(sheet.active.map((a) => [a.name, a.cost, plainRules(a.text), a.foot?.text])).toEqual([
-      [null, 1, 'Se transforme en Emma. Sans limite par tour.', 'Disponible'],
-    ]);
+    // Un seul effet actif, sans nom : la fiche ne le nomme pas ; sans limite par tour, il reste disponible (au jeton).
+    expect(sheet.active.map((a) => [a.name, a.cost, plainRules(a.text)])).toEqual([[null, 1, 'Se transforme en Emma. Sans limite par tour.']]);
+    expect(getTipAt(view(bat), at(5, 4))!.lines.map((l) => [l.label, l.status.text])).toContainEqual(['Effet actif', 'Disponible']);
   });
 });
 

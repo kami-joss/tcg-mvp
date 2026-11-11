@@ -8,6 +8,8 @@ import { canAttack, getAtk, getCard, getMonsterCard, getOnMoveBonus, getUnitsAt,
 import type { CardId, Direction, PlayerId, PlayerView, Position, Status, StatusKind, UnitId } from '../../engine';
 import { shortName } from '../art';
 import { isExhausted } from '../interaction';
+import { readiness } from '../unitTip';
+import type { Readiness } from '../unitTip';
 import type { AttackPreview, Highlight } from '../interaction';
 import { ISO } from '../iso/scenery';
 import type { TokenStats } from '../settings';
@@ -102,6 +104,11 @@ export interface TokenVisual {
   readonly selected: boolean;
   /** Plus rien à faire ce tour (illustration ternie, flèche grise). */
   readonly exhausted: boolean;
+  /**
+   * Ce qu'il peut encore faire ce tour (son camp, à son tour) : la pastille au-dessus de la goutte, épée pour l'attaque,
+   * tourbillon pour un effet actif (option J du 2026-11-11) ; `null` : pas de pastille.
+   */
+  readonly ready: Readiness | null;
   /** Camouflé, invisible pour l'adversaire (vu par son joueur) : translucide, contour en pointillés. */
   readonly hidden: boolean;
   /** Un terrain allié sur sa case : ombre plus claire. */
@@ -203,6 +210,7 @@ export function unitVisuals(inputs: TokenInputs): { tokens: TokenVisual[]; terra
       damage: attack ? `−${attack.damage}${attack.behind ? ' dos' : ''}` : null,
       selected: unit.id === selectedUnitId,
       exhausted: isExhausted(view, unit.id),
+      ready: readiness(view, unit.id),
       hidden: view.hiddenFromOpponent.includes(unit.id),
       onTerrain: units.some((u) => u.kind === 'terrain'),
       bobDelay: -((pos.row * 7 + pos.col * 3) % 10) * 0.18,

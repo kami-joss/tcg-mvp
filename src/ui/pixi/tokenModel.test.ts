@@ -30,6 +30,22 @@ describe('jetons du plateau PixiJS', () => {
     expect(flipped).toMatchObject({ x: 14 + 8 * 72 + TOKEN_FOOT, facing: 'left', angle: ISO_ANGLES.left });
   });
 
+  it('pastille de ce qu’il peut encore faire ce tour : attaque et effet actif ; rien pour l’adversaire ni une fois tout fait', () => {
+    const units: UnitSpec[] = [
+      { monster: 'chevalier', owner: 1, at: at(6, 6) },
+      { monster: 'golem', owner: 2, at: at(6, 7) },
+      { monster: 'invocateur', owner: 1, at: at(8, 8), hasAttacked: true },
+    ];
+    const { tokens } = visuals(units, {}, gameWith(units, { board: BATTLEFIELD_15, players: { 1: { mana: 3 } } }));
+    expect(tokens.map((t) => [t.id, t.ready])).toEqual([
+      ['u1', { attack: true, effect: false }],
+      ['u2', null],
+      ['u3', { attack: false, effect: true }],
+    ]);
+    const done = gameWith([{ ...units[0]!, hasAttacked: true }, units[1]!], { board: BATTLEFIELD_15 });
+    expect(visuals([], {}, done).tokens[0]!.ready).toBeNull();
+  });
+
   it('stats sous la goutte, au-dessus quand la pointe descend', () => {
     expect(statsAbove(ISO_ANGLES.down)).toBe(true);
     expect(statsAbove(ISO_ANGLES.up)).toBe(false);

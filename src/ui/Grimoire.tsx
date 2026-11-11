@@ -1,8 +1,9 @@
 // Grimoire du joueur actif (SPEC.md §7) : coût, type, nombre d'exemplaires, caractéristiques, en trois sections
 // (monstres, sorts, terrains ; une section vide disparaît).
 // Deux affichages (refonte du 2026-11-11), choisis par les boutons de l'en-tête : la liste, par défaut (une ligne par
-// carte : coût, vignette de l'illustration, nom, stats d'un monstre ou, si la carte n'est pas jouable, pourquoi), ou
-// des tuiles illustrées, 2 par ligne. L'affichage règle aussi la largeur de son panneau, qui flotte à droite du plateau
+// carte : coût, vignette de l'illustration, nom, stats ou, si la carte n'est pas jouable, pourquoi : « Il te manque
+// 3 mana », monstres compris, puisque la fiche ne le dit plus), ou des tuiles illustrées, 2 par ligne (la raison sous
+// le nom et les stats). L'affichage règle aussi la largeur de son panneau, qui flotte à droite du plateau
 // et se replie contre le bord par son onglet (`GrimoireTab`, handoff V11, lot 13 §4).
 // Tuiles illustrées au format 3:4 (handoff V8, lot 9) : l'illustration cadrée sur les yeux, coût en haut à gauche, type
 // et exemplaires en haut à droite, nom et caractéristiques en bas. Jouable : liseré vert ; injouable : ternie ;
@@ -14,7 +15,7 @@
 // la tuile s'incline, l'illustration respire et la moitié des particules arrière passent.
 import { useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent } from 'react';
-import { cardAvailability, getCard } from '../engine';
+import { getCard } from '../engine';
 import type { Card, CardId, CardSet, PlayerView } from '../engine';
 import { THUMB_FRAME, TILE_FRAME, artFit, cardArtFor, fitBackground } from './art';
 import { groupCards, splitCardName } from './cardText';
@@ -24,7 +25,8 @@ import { canPlay } from './interaction';
 import { ShinyLayers, TileParticles, useMotionGate } from './Overframe';
 import { OVERFRAMES } from './overframes';
 import { GRIMOIRE_LAYOUTS } from './settings';
-import { reasonStatus } from './sheet';
+import { cardReason } from './sheet';
+import type { SheetStatus } from './sheet';
 import type { GrimoireLayout } from './settings';
 
 interface GrimoireProps {
@@ -88,12 +90,6 @@ function Stats({ card }: { card: Card }) {
   );
 }
 
-/** Pourquoi une carte du grimoire ne peut pas être jouée (« Aucune cible à portée »), ou rien si elle peut l'être. */
-function whyNot(view: PlayerView, cardId: CardId): string | undefined {
-  const availability = cardAvailability(view, cardId);
-  return availability.ok ? undefined : reasonStatus(availability.reason, '').text;
-}
-
 export function Grimoire(props: GrimoireProps) {
   const { view, selectedCard, focusedCard = null, layout, onLayout, onCardClick, onCardContextMenu, onCardHover } = props;
   const { animated = false } = props;
@@ -142,7 +138,7 @@ export function Grimoire(props: GrimoireProps) {
                     count={count}
                     list={layout === 'list'}
                     playable={canPlay(view, cardId)}
-                    reason={whyNot(view, cardId)}
+                    reason={cardReason(view, cardId) ?? undefined}
                     selected={selectedCard === cardId}
                     focused={focusedCard === cardId}
                     shiny={view.me.shiny?.includes(cardId) ?? false}
@@ -172,8 +168,8 @@ interface TileProps {
   list: boolean;
   /** Jouable (liseré vert) ou non (ternie) ; absent : ni l'un ni l'autre, la tuile ne fait que montrer sa fiche. */
   playable?: boolean;
-  /** Pourquoi elle n'est pas jouable (en liste, sous son nom, à la place des stats d'un sort ou d'un terrain). */
-  reason?: string;
+  /** Pourquoi elle n'est pas jouable : en liste, sous son nom, à la place de ses stats ; en tuile, sous ses stats. */
+  reason?: SheetStatus;
   /** Choisie pour être jouée (grimoire seulement). */
   selected?: boolean;
   focused: boolean;
@@ -290,8 +286,8 @@ export function Tile(props: TileProps) {
             </span>
             <span className="tile__body">
               <TileName name={card.name} />
-              {reason && card.kind !== 'monster' ? (
-                <span className="tile__note tile__reason">{reason}</span>
+              {reason ? (
+                <span className={`tile__note tile__reason tone--${reason.tone}`}>{reason.text}</span>
               ) : card.kind === 'spell' ? (
                 <span className="tile__note">Sort</span>
               ) : (
@@ -324,8 +320,10 @@ export function Tile(props: TileProps) {
             <span className="tile__body">
               <TileName name={card.name} />
               {card.kind !== 'spell' && <Stats card={card} />}
-              {card.kind !== 'monster' && (
-                <span className="tile__note">{card.kind === 'spell' ? 'Sort · effet immédiat' : 'Terrain'}</span>
+              {reason ? (
+                <span className={`tile__note tile__reason tone--${reason.tone}`}>{reason.text}</span>
+              ) : (
+                card.kind !== 'monster' && <span className="tile__note">{card.kind === 'spell' ? 'Sort · effet immédiat' : 'Terrain'}</span>
               )}
               {card.kind === 'monster' && card.evolvesFrom && (
                 <span className="tile__note">Ou par évolution d’un {getCard(cards, card.evolvesFrom).name}</span>

@@ -8,6 +8,7 @@ import { Board } from './Board';
 import { ALL_TOKEN_STATS } from './settings';
 import type { BoardView } from './settings';
 import { getSheet } from './sheet';
+import { getTipAt } from './unitTip';
 
 // Grande carte 13 × 13 (handoff V7, lot 7) : rendu des étangs, vue iso, mobilité de la carte affichée.
 
@@ -98,10 +99,9 @@ describe('plateau 13 × 13', () => {
     expect(html).toMatch(/class="stat stat--mob" title="Mobilité">.*?<\/svg>2<\/span>/); // Golem : 2
     const sheet = getSheet(view, { kind: 'cell', pos: at(12, 12) })!;
     expect(sheet.stats).toContainEqual({ icon: 'walking-boot', label: 'Mobilité', value: '2', delta: 0, hurt: false });
-    expect(sheet.status ?? []).toEqual([]);
-    expect(sheet.text[0]).toContain('(mobilité 2)');
+    expect(getTipAt(view, at(12, 12))!.chips).toEqual([]);
+    expect(getTipAt(view, at(12, 12))!.lines[0]!.status.text).toContain('mobilité 2');
     const card = getSheet(view, { kind: 'card', cardId: 'golem' })!;
     expect(card.stats).toContainEqual({ icon: 'walking-boot', label: 'Mobilité', value: '2', delta: 0, hurt: false });
-    expect(card.status).toBeNull();
   });
 });

@@ -51,6 +51,8 @@ import type { ZoneTile } from './contestZones';
 import { diceLayout, getZoneMarks } from './zoneMarks';
 import { groupStatuses, signed, statusBadge, statusEffect, statusIcon, statusLabel } from './statusInfo';
 import type { ZoneMark } from './zoneMarks';
+import { readiness } from './unitTip';
+import type { Readiness } from './unitTip';
 
 interface BoardProps {
   view: PlayerView;
@@ -916,6 +918,7 @@ function BoardCell({
               bobDelay={bobDelay}
               target={onToken ? (highlight === 'attack' || attack ? 'attack' : highlight === 'target' ? 'card' : null) : null}
               damage={onToken && attack ? attack : null}
+              ready={readiness(view, monster.id)}
             />
           )}
         </>
@@ -1028,6 +1031,8 @@ interface MonsterTokenProps {
   /** Cible posée sur le jeton (vue inclinée). */
   target: 'attack' | 'card' | null;
   damage: AttackPreview | null;
+  /** Ce qu'il peut encore faire ce tour (pastille au-dessus de la goutte), ou `null`. */
+  ready: Readiness | null;
 }
 
 /**
@@ -1039,7 +1044,7 @@ interface MonsterTokenProps {
  */
 function MonsterToken(props: MonsterTokenProps) {
   const { monster, atk, attackSpent, requiem, active, selected, exhausted, hidden, onZone, angle, stats, onMoveBonus, standScale } = props;
-  const { bobDelay, target, damage } = props;
+  const { bobDelay, target, damage, ready } = props;
   const { card } = props;
   const art = CARD_ART[monster.cardId];
   const above = statsAbove(angle);
@@ -1117,6 +1122,12 @@ function MonsterToken(props: MonsterTokenProps) {
                   </span>
                 )}
               </span>
+              {ready && (
+                <span className={`token__ready${above ? ' is-high' : ''}`} aria-label="Encore possible ce tour">
+                  {ready.attack && <Icon name="broadsword" className="token__ready-attack" />}
+                  {ready.effect && <Icon name="magic-swirl" className="token__ready-effect" />}
+                </span>
+              )}
               {damage && (
                 <span className={`dmg-pill${above ? ' is-high' : ''}`}>
                   −{damage.damage}

@@ -10,6 +10,7 @@ import { getUnitZones } from './zones';
 import { logEntry } from './log';
 import { passiveRules, plainRules, rulesSegments } from './rulesText';
 import { getSheet } from './sheet';
+import { getTipAt } from './unitTip';
 import { CARDS } from '../engine';
 
 // Terrain de chasse dans l'interface : texte de la carte, journal, fiche (pas restants, puce), menace au survol.
@@ -71,14 +72,14 @@ describe('Terrain de chasse : fiche', () => {
     const state = hunting([{ monster: 'milicien', owner: 1, at: at(5, 3) }]);
     const sheet = getSheet(view(state), { kind: 'cell', pos: at(5, 3) })!;
     expect(sheet.stats.find((s) => s.label === 'Pas rest.')).toMatchObject({ value: '3/3', delta: 1 });
-    expect(sheet.status).toContainEqual(
+    expect(getTipAt(view(state), at(5, 3))!.chips).toContainEqual(
       expect.objectContaining({ text: 'Terrain de chasse', group: 'effect', detail: '+1 mobilité en commençant un déplacement ici, une fois par tour' }),
     );
     // Parti de la zone : le +1 est pris (2 + 1 − 1), c'est un bonus du tour venu du terrain.
     const after = applyAction(state, move);
     const moved = getSheet(view(after), { kind: 'cell', pos: at(4, 3) })!;
     expect(moved.stats.find((s) => s.label === 'Pas rest.')).toMatchObject({ value: '2/3' });
-    expect(moved.status!.filter((c) => c.text === 'Terrain de chasse')).toEqual([
+    expect(getTipAt(view(after), at(4, 3))!.chips.filter((c) => c.text === 'Terrain de chasse')).toEqual([
       expect.objectContaining({ detail: expect.stringContaining('+1 mobilité ce tour') }),
     ]);
   });
@@ -87,9 +88,9 @@ describe('Terrain de chasse : fiche', () => {
     const state = hunting([{ monster: 'milicien', owner: 1, at: at(1, 1) }]);
     const sheet = getSheet(view(state), { kind: 'cell', pos: at(1, 1) })!;
     expect(sheet.stats.find((s) => s.label === 'Pas rest.')).toMatchObject({ value: '2/2' });
-    expect(sheet.status!.some((c) => c.text.startsWith('Terrain de chasse'))).toBe(false);
+    expect(getTipAt(view(state), at(1, 1))!.chips.some((c) => c.text.startsWith('Terrain de chasse'))).toBe(false);
     const theirs = hunting([{ monster: 'milicien', owner: 1, at: at(5, 3) }], { activePlayer: 2 });
-    expect(getSheet(view(theirs), { kind: 'cell', pos: at(5, 3) })!.status!.some((c) => c.text.startsWith('Terrain de chasse'))).toBe(false);
+    expect(getTipAt(view(theirs), at(5, 3))!.chips.some((c) => c.text.startsWith('Terrain de chasse'))).toBe(false);
   });
 });
 

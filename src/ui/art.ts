@@ -218,8 +218,8 @@ export interface ArtFrame {
   readonly cover: number;
 }
 
-/** Fiche (280 × 498) : les yeux dans le bandeau clair du haut. */
-export const SHEET_FRAME: ArtFrame = { ratio: 498 / 280, eyeAt: 0.13, cover: 0.8 };
+/** Fiche plein cadre (280 × 498, refonte du 2026-11-11) : les yeux vers le haut, l'image sur toute la hauteur. */
+export const SHEET_FRAME: ArtFrame = { ratio: 498 / 280, eyeAt: 0.13, cover: 1 };
 /** Tuile du grimoire (3:4) et carte qui vole. */
 export const TILE_FRAME: ArtFrame = { ratio: 4 / 3, eyeAt: 0.16, cover: 0.85 };
 /** Vignette carrée d'une ligne du grimoire en liste : le visage. */

@@ -3,7 +3,7 @@ import { getCard, getPlayerView } from '../engine';
 import { at, gameWith } from '../engine/test-utils';
 import { cardEffectLine } from './cardText';
 import { passiveRules, plainRules, rulesSegments } from './rulesText';
-import { getSheet } from './sheet';
+import { getUnitTip } from './unitTip';
 import { CARDS } from '../engine';
 
 // Terrain de jeu - Maîtres des pièges dans l'interface : notation du lexique, phrase naturelle, puce du monstre couvert.
@@ -24,7 +24,7 @@ describe('Terrain de jeu : textes et fiche', () => {
       ],
       { activePlayer: 1 },
     );
-    const chips = getSheet(getPlayerView(state, 1), { kind: 'unit', unitId: 'u2' })!.status ?? [];
+    const chips = getUnitTip(getPlayerView(state, 1), 'u2')!.chips;
     expect(chips.map((c) => c.text)).toEqual(expect.arrayContaining(['Camouflé', 'Aura']));
     expect(chips.find((c) => c.text === 'Camouflé')?.detail).toMatch(/carré de 1/);
     expect(chips.find((c) => c.text === 'Aura')?.detail).toMatch(/invisible/);
