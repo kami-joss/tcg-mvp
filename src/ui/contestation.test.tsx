@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BATTLEFIELD_13, BATTLEFIELD_15, getPlayerView } from '../engine';
-import type { PlayerView } from '../engine';
+import type { PlayerView, Position } from '../engine';
 import { at, gameWith, type UnitSpec } from '../engine/test-utils';
 import { Board } from './Board';
 import { getZoneTiles } from './contestZones';
@@ -21,10 +21,11 @@ const contested = () =>
     { monster: 'eclaireur', owner: 2, at: at(7, 7) },
   ]);
 
-const render = (v: PlayerView, mode: BoardView = 'top') =>
+const render = (v: PlayerView, mode: BoardView = 'top', hovered: Position | null = null) =>
   renderToStaticMarkup(
     <Board
       view={v}
+      hovered={hovered}
       highlights={new Map()}
       attacks={new Map()}
       selectedUnitId={null}
@@ -71,7 +72,9 @@ describe('mode contestation : zones au sol', () => {
   it('la mana zone contestée : sa case et son étiquette le disent', () => {
     const html = render(contested());
     expect(html).toContain('cell--contested');
-    expect(html).toContain('Contestée · Forge');
+    // Son nom, au survol de la zone seulement (§10).
+    expect(html).not.toContain('Contestée · Forge');
+    expect(render(contested(), 'top', at(5, 5))).toContain('Contestée · Forge');
     expect(html.match(/cell__area--contested/g)).toHaveLength(9);
   });
 });

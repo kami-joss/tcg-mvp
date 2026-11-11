@@ -809,6 +809,9 @@ function BoardCell({
   const danger = zones.danger.get(key);
   const moveCost = reachKind === 'move' ? zones.moveCosts.get(key) : undefined;
   const isHovered = hovered ? samePos(hovered, pos) : false;
+  // La souris est sur la mana zone de cette case (une des 9 cases en contestation) : son nom s'affiche (§10).
+  const hoveredZone = zone && hovered ? manaZoneAt(view, hovered) : null;
+  const zoneHovered = hoveredZone !== null && samePos(hoveredZone, pos);
   const dim = focused && !highlight && !reachKind && !step && !isSelected(monster) && !isSelected(terrain);
   // En vue inclinée ou isométrique, les unités sont debout : une cible posée sur un monstre s'affiche sur le jeton.
   const upright = mode !== 'top';
@@ -921,7 +924,7 @@ function BoardCell({
           )}
         </>
       )}
-      {zone && !drawnByPixi && (
+      {zone && !drawnByPixi && zoneHovered && (
         <span className="zone-label">
           {controller && `J${controller} · `}
           {zoneStatus?.contested && 'Contestée · '}

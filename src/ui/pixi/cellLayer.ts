@@ -509,10 +509,10 @@ export class CellLayer {
       place(pill(pixi, `J${v.summon}`, { fontSize: S * 0.16 * s, family: 'sc', fill, color: 'white', ring: { css: 'white', width: 1.5 }, padX: 4 * s, padY: 1 * s, radius: 4 * s }), v.x + 0.76 * S, v.y + 0.76 * S, { under: true });
     }
 
-    // Noms des mana zones, à la pointe avant de la case centrale : leur icône, leur nom, et ce qu'elles rapportent ou qui
-    // les tient. Toujours devant le décor (refonte du 2026-11-11).
+    // Nom de la mana zone survolée, à la pointe avant de sa case centrale : son icône, son nom, et ce qu'elle rapporte ou
+    // qui la tient. Seulement au survol, devant le décor (refonte du 2026-11-11).
     for (const v of cells) {
-      if (!v.manaZone) continue;
+      if (!v.manaZone?.hovered) continue;
       place(zoneTag(pixi, v.manaZone), v.x + S + 2, v.y + S + 2, { dz: ZONE_TAG_DEPTH });
     }
   }

@@ -1,15 +1,16 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BATTLEFIELD, BATTLEFIELD_15, getPlayerView } from '../engine';
-import type { PlayerView } from '../engine';
+import type { PlayerView, Position } from '../engine';
 import { at, gameWith } from '../engine/test-utils';
 import { Board, revealCells } from './Board';
 import type { BoardView } from './settings';
 
-const render = (view: PlayerView, mode: BoardView, zoom = 1, margins?: { left: number; right: number }) =>
+const render = (view: PlayerView, mode: BoardView, zoom = 1, margins?: { left: number; right: number }, hovered: Position | null = null) =>
   renderToStaticMarkup(
     <Board
       view={view}
+      hovered={hovered}
       highlights={new Map()}
       attacks={new Map()}
       selectedUnitId={null}
@@ -103,11 +104,20 @@ describe('plateau PixiJS (15 × 15)', () => {
     const html = renderPixi(view, 'iso');
     expect(html.match(/cell--pixi/g)).toHaveLength(15 * 15);
     for (const name of ['zone-label', 'cell__summon', 'cell__glow', 'hl-move', 'layer--dim']) expect(html, name).not.toContain(name);
-    // En vue de dessus, tout reste en HTML.
-    const plain = render(view, 'top');
+    // En vue de dessus, tout reste en HTML (le nom d'une zone, au survol).
+    const plain = render(view, 'top', 1, undefined, at(7, 7));
     expect(plain).toContain('zone-label');
     expect(plain).toContain('cell__summon');
     expect(plain).not.toContain('cell--pixi');
+  });
+
+  it('vue de dessus : le nom d’une mana zone seulement au survol de la zone (une de ses 9 cases en contestation)', () => {
+    const labels = (html: string) => html.match(/class="zone-label">[^<]*/g)?.map((tag) => tag.replace('class="zone-label">', ''));
+    expect(labels(render(view, 'top'))).toBeUndefined();
+    expect(labels(render(view, 'top', 1, undefined, at(6, 6)))).toBeUndefined();
+    expect(labels(render(view, 'top', 1, undefined, at(7, 7)))).toEqual(['Forge']);
+    const contest = { ...view, mode: 'contestation' as const };
+    expect(labels(render(contest, 'top', 1, undefined, at(6, 6)))).toEqual(['Forge']);
   });
 
   it('les unités sont dessinées dans le canvas : pas de jeton, de blason ni de flèche en HTML', () => {

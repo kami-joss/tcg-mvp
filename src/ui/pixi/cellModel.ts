@@ -77,9 +77,8 @@ export interface CellVisual {
 
 /**
  * Une mana zone (refonte du 2026-11-11) : au repos, une lueur dans son carré (3 × 3 en contestation, sa case sinon) et
- * la case centrale éclairée ; quand la souris passe sur la zone ou sur son nom, un trait fin au bord, les quatre coins et
- * un cercle fin autour de la case centrale. Son nom, avec son icône et ce qu'elle rapporte ou qui la tient, passe
- * toujours au-dessus du décor.
+ * la case centrale éclairée ; quand la souris passe sur la zone, un trait fin au bord, les quatre coins, un cercle fin
+ * autour de la case centrale, et son nom, avec son icône et ce qu'elle rapporte ou qui la tient, au-dessus du décor.
  */
 export interface ManaZoneVisual {
   readonly look: 'neutral' | 'p1' | 'p2' | 'contested';
@@ -89,7 +88,7 @@ export interface ManaZoneVisual {
   readonly x: number;
   readonly y: number;
   readonly size: number;
-  /** La souris est sur une de ses cases (ou sur son nom) : le trait fin s'affiche. */
+  /** La souris est sur une de ses cases : le trait fin et le nom s'affichent. */
   readonly hovered: boolean;
   /** La lueur respire (animations permises). */
   readonly pulse: boolean;
