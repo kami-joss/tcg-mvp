@@ -17,7 +17,7 @@ export const STATUS_ICONS: Readonly<Record<StatusKind, IconName>> = {
   carapace: 'shield',
   silence: 'speaker-off',
   invisible: 'eye',
-  epuise: 'anvil',
+  desarme: 'anvil',
   vol: 'dragon-head',
   absorbe: 'water-drop',
   absorbation: 'hearts',

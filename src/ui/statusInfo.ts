@@ -1,5 +1,6 @@
 // Vocabulaire des statuts pour l'interface (SPEC.md §5 bis) : noms, bonus ou malus, descriptions. Un seul endroit, pour que
 // la fiche, les pastilles, le journal et les textes de cartes disent la même chose.
+import { normalStatus } from '../engine';
 import type { StatKey, Status, StatusKind, StatusSpec } from '../engine';
 import type { IconName } from './Icon';
 import { STATUS_ICONS } from './zoneMarks';
@@ -9,14 +10,15 @@ const BONUS_KINDS: ReadonlySet<StatusKind> = new Set(['camouflage', 'invisible',
 
 export const isBonus = (status: StatusSpec): boolean => (status.kind === 'stat' ? status.amount > 0 : BONUS_KINDS.has(status.kind));
 
-/** Nom d'une stat dans « ATK +2 », « mobilité −1 ». */
+/** Nom d'une stat dans « ATK +2 », « mobilité +1 » (un malus de mobilité s'écrit Slow, `normalStatus`). */
 export const STAT_NAMES: Readonly<Record<StatKey, string>> = { atk: 'ATK', mobility: 'mobilité', range: 'portée', maxHp: 'PV max' };
 
 /** « +2 », « −1 » (vrai signe moins). */
 export const signed = (amount: number): string => (amount < 0 ? `−${-amount}` : `+${amount}`);
 
 /** Nom d'un statut avec sa valeur : « Slow 1 », « Burn 2 », « Absorbé », « ATK +2 », « Récupération 2 ». */
-export function statusLabel(status: StatusSpec): string {
+export function statusLabel(posed: StatusSpec): string {
+  const status = normalStatus(posed);
   switch (status.kind) {
     case 'stun':
       return 'Stun';
@@ -36,8 +38,8 @@ export function statusLabel(status: StatusSpec): string {
       return 'Carapace';
     case 'silence':
       return 'Silence';
-    case 'epuise':
-      return 'Épuisé';
+    case 'desarme':
+      return 'Désarmé';
     case 'vol':
       return 'Vol';
     case 'absorbe':
@@ -52,7 +54,8 @@ export function statusLabel(status: StatusSpec): string {
 }
 
 /** Ce que fait un statut, en une phrase (survol de la fiche et des pastilles). */
-export function statusEffect(status: StatusSpec): string {
+export function statusEffect(posed: StatusSpec): string {
+  const status = normalStatus(posed);
   switch (status.kind) {
     case 'stun':
       return 'aucune action possible';
@@ -72,7 +75,7 @@ export function statusEffect(status: StatusSpec): string {
       return 'la prochaine attaque subie n’inflige que 1 PV, puis la carapace disparaît';
     case 'silence':
       return 'ne peut plus activer ses effets actifs';
-    case 'epuise':
+    case 'desarme':
       return 'ne peut pas attaquer';
     case 'vol':
       return 'peut survoler les cases X';
@@ -101,7 +104,8 @@ export function groupStatuses(statuses: readonly Status[]): { readonly key: stri
 }
 
 /** Icône d'un statut ; un statut de stat prend l'icône de sa stat. */
-export function statusIcon(status: StatusSpec): IconName {
+export function statusIcon(posed: StatusSpec): IconName {
+  const status = normalStatus(posed);
   if (status.kind !== 'stat') return STATUS_ICONS[status.kind];
   return { atk: 'broadsword', mobility: 'walking-boot', range: 'high-shot', maxHp: 'hearts' }[status.stat] as IconName;
 }

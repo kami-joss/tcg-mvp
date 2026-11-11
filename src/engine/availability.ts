@@ -2,7 +2,7 @@
 // pas possible (mana, déjà utilisé, aucune cible…), pour que l'interface n'ait pas à la deviner. Calculée sur la vue du
 // joueur (ses actions légales y sont déjà) : elle ne révèle rien de caché.
 import { getCard, getMonsterCard } from './cards';
-import { isExhausted, isSilenced, isStunned } from './statuses';
+import { isDisarmed, isSilenced, isStunned } from './statuses';
 import { canAttack, getEffectCost } from './units';
 import type { CardId, PlayerView, UnitId } from './types';
 
@@ -25,8 +25,8 @@ export type UnavailableReason =
   | { readonly kind: 'stunned' }
   /** Silence : plus d'effet actif. */
   | { readonly kind: 'silenced' }
-  /** Épuisé : ne peut pas attaquer. */
-  | { readonly kind: 'exhausted' }
+  /** Désarmé : ne peut pas attaquer. */
+  | { readonly kind: 'disarmed' }
   /** Déjà armé : une seule attaque armée à la fois (Flèche explosive, Carreau perforant). */
   | { readonly kind: 'armed' }
   /** Plus d'attaque ce tour : rien à armer. */
@@ -57,7 +57,7 @@ export function attackAvailability(view: PlayerView, unitId: UnitId): Availabili
   const unit = view.units[unitId];
   if (!myTurn(view) || unit?.kind !== 'monster' || unit.owner !== view.viewer) return no({ kind: 'notYourTurn' });
   if (isStunned(unit)) return no({ kind: 'stunned' });
-  if (isExhausted(unit)) return no({ kind: 'exhausted' });
+  if (isDisarmed(unit)) return no({ kind: 'disarmed' });
   if (!canAttack(view, unit)) return no({ kind: 'alreadyUsed' });
   if (view.legalActions.some((a) => a.type === 'attack' && a.unitId === unitId)) return OK;
   return no({ kind: 'noTarget', target: 'monster' });

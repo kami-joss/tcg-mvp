@@ -17,7 +17,7 @@ import type {
   Targeting,
   TerrainCard,
 } from '../engine';
-import { getMonsterCard, isDirectionalZone } from '../engine';
+import { getMonsterCard, isDirectionalZone, normalStatus } from '../engine';
 import { ARCHETYPE_NAMES, cardTitle } from './cardText';
 import { STAT_NAMES, signed } from './statusInfo';
 
@@ -40,13 +40,13 @@ export const GLOSSARY = {
   passage: 'Passage : se déclenche à chaque case où l’ennemi entre en se déplaçant, une fois par recul, et à l’arrivée d’une téléportation.',
   zone: 'Zone : comme Passage (l’ennemi qui entre dans le carré de 1 du monstre), mais elle agit aussi quand c’est le monstre qui arrive à côté d’un ennemi (une fois par déplacement), et de nouveau au début de ton tour sur chaque ennemi qui y est encore.',
   stun: 'Stun : plus aucune action (ni déplacement, ni attaque, ni effet actif, ni riposte).',
-  slow: 'Slow N : −N mobilité. Les slow se cumulent.',
+  slow: 'Slow N : −N mobilité. C’est le seul malus de mobilité. Les slow se cumulent.',
   burn: 'Burn N : perd N PV au début de chacun de ses tours touchés. Les burn se cumulent.',
   immobilise: 'Immobilisé : ne peut plus bouger (ni avancer après une attaque), mais peut attaquer et activer ses effets.',
   requiem: 'Requiem : meurt au début de son deuxième tour après affectation. Personne ne gagne de VP.',
   invisible: 'Invisible : caché à l’adversaire à plus de 1 case (tant qu’aucun de ses monstres ni terrains n’est dans un carré de 1).',
   vol: 'Vol : peut survoler les cases X (et les falaises de la Scierie), mais pas les ennemis ; ne termine jamais sur une case X.',
-  epuise: 'Épuisé : le monstre ne peut pas attaquer. Il peut encore se déplacer et activer ses effets.',
+  desarme: 'Désarmé : le monstre ne peut pas attaquer. Il peut encore se déplacer et activer ses effets.',
   absorbe: 'Absorbé : le monstre perd 1 PV par instance au début du tour adverse ; le monstre qui l’absorbe gagne ces PV.',
   absorbation: 'Absorbation : le monstre gagne 1 PV par instance au début de son tour, jusqu’à ses PV max.',
   recuperation: 'Récupération X : le monstre gagne X PV au début de son tour, jusqu’à ses PV max.',
@@ -171,7 +171,8 @@ function targetOf(targeting: Targeting): Target {
 }
 
 /** Un statut, en gras : « {{burn|burn 1}} », « {{requiem|requiem 2}} ». */
-function statusWord(spec: StatusSpec): string {
+function statusWord(posed: StatusSpec): string {
+  const spec = normalStatus(posed); // un malus de mobilité est un slow
   switch (spec.kind) {
     case 'slow':
     case 'burn':
@@ -182,8 +183,8 @@ function statusWord(spec: StatusSpec): string {
       return t('invisible', 'invisible');
     case 'requiem':
       return t('requiem', 'requiem');
-    case 'epuise':
-      return t('epuise', 'épuisé');
+    case 'desarme':
+      return t('desarme', 'désarmé');
     case 'vol':
       return t('vol', 'vol');
     case 'absorbe':

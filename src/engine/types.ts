@@ -249,8 +249,8 @@ export type StatusKind =
   | 'carapace'
   /** Ne peut plus activer ses effets actifs ; attaque, déplacement, mots-clés et passifs restent possibles (Dragonnet). */
   | 'silence'
-  /** Épuisé : ne peut pas attaquer ; déplacement et effets restent possibles. */
-  | 'epuise'
+  /** Désarmé : ne peut pas attaquer ; déplacement et effets restent possibles. */
+  | 'desarme'
   /** Vol : peut survoler les cases X, comme le mot-clé Vol (§5.6) ; un bonus de durée. */
   | 'vol'
   /** Absorbé : perd `amount` PV au début du tour de l'adversaire de son porteur ; le monstre qui l'a posé (`by`) les gagne. */
@@ -259,7 +259,10 @@ export type StatusKind =
   | 'absorbation'
   /** Récupération : gagne `amount` PV au début de son tour, jusqu'à ses PV max. */
   | 'recuperation'
-  /** Bonus ou malus de stat, `amount` signé : ATK, mobilité, portée ou PV max (pendant la durée). */
+  /**
+   * Bonus ou malus de stat, `amount` signé : ATK, portée ou PV max ±X, mobilité +X (pendant la durée). Un malus de
+   * mobilité est un slow : `normalStatus` le récrit (SPEC §5 bis).
+   */
   | 'stat';
 
 /** Les stats que peut changer un statut `stat` (SPEC §5 bis). */
@@ -272,7 +275,7 @@ export type StatKey = 'atk' | 'mobility' | 'range' | 'maxHp';
 export type StatusSpec =
   | { readonly kind: 'requiem' }
   | {
-      readonly kind: 'stun' | 'immobilise' | 'camouflage' | 'invisible' | 'carapace' | 'silence' | 'epuise' | 'vol';
+      readonly kind: 'stun' | 'immobilise' | 'camouflage' | 'invisible' | 'carapace' | 'silence' | 'desarme' | 'vol';
       readonly turns: number;
     }
   | { readonly kind: 'slow' | 'burn' | 'absorbation' | 'recuperation'; readonly amount: number; readonly turns: number }

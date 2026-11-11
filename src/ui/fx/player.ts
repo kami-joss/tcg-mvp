@@ -79,7 +79,7 @@ const STATUS_SOUNDS: Readonly<Record<StatusKind, SoundName | null>> = {
   carapace: null,
   silence: null,
   invisible: null,
-  epuise: null,
+  desarme: null,
   vol: null,
   absorbe: null,
   absorbation: null,

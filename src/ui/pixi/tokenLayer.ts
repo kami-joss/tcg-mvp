@@ -41,7 +41,7 @@ const STATUS_COLORS: Readonly<Record<StatusPill['kind'], readonly [string, strin
   carapace: ['oklch(0.62 0.1 150)', 'oklch(0.2 0.06 150)'],
   silence: ['oklch(0.78 0.08 20)', 'oklch(0.3 0.1 20)'],
   invisible: ['oklch(0.55 0.07 250)', 'oklch(0.95 0.02 250)'],
-  epuise: ['oklch(0.7 0.05 60)', 'oklch(0.3 0.05 60)'],
+  desarme: ['oklch(0.7 0.05 60)', 'oklch(0.3 0.05 60)'],
   vol: ['oklch(0.82 0.08 230)', 'oklch(0.28 0.08 240)'],
   absorbe: ['oklch(0.45 0.12 340)', 'oklch(0.95 0.03 340)'],
   absorbation: ['oklch(0.8 0.12 150)', 'oklch(0.28 0.08 150)'],

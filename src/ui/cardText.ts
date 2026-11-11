@@ -1,7 +1,7 @@
 // Notation compacte des cartes, générée à partir de leurs données avec les mots du lexique (SPEC.md §5) : le format des
 // tableaux de cartes de SPEC.md (§6, §6 bis), qu'un test compare aux données. C'est la référence interne ; les joueurs
 // lisent les phrases de `rulesText.ts`. Noms (`splitCardName`, `cardTitle`), noms d'effets et journal s'en servent aussi.
-import { getCard } from '../engine';
+import { getCard, normalStatus } from '../engine';
 import { statusLabel } from './statusInfo';
 import type {
   Ability,
@@ -183,7 +183,8 @@ function allyZoneText({ zone, archetype }: AllyZoneEffect | StatAura): string {
 }
 
 /** Statut avec sa durée : « burn 1 pendant 1 tour », « immobilisé jusqu’à son prochain tour », « requiem ». */
-export function statusText(spec: StatusSpec): string {
+export function statusText(posed: StatusSpec): string {
+  const spec = normalStatus(posed); // « mobilité −1 » s'écrit « slow 1 »
   if (spec.kind === 'requiem') return 'requiem';
   // « slow 1 », « stun », « récupération 2 », « ATK +2 » : le nom du lexique (§5 bis), en minuscules sauf une stat.
   const label = statusLabel(spec);

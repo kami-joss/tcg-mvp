@@ -7,6 +7,17 @@ describe('cartes (SPEC.md §6)', () => {
     for (const [id, card] of Object.entries(CARDS)) expect(card.id).toBe(id);
   });
 
+  it('aucune carte n’écrit « mobilité −X » : le malus de mobilité est un slow (SPEC §5 bis, 2026-11-11)', () => {
+    const mobilityMalus = (value: unknown): boolean => {
+      if (Array.isArray(value)) return value.some(mobilityMalus);
+      if (!value || typeof value !== 'object') return false;
+      const record = value as Record<string, unknown>;
+      if (record.kind === 'stat' && record.stat === 'mobility' && typeof record.amount === 'number' && record.amount < 0) return true;
+      return Object.values(record).some(mobilityMalus);
+    };
+    for (const card of Object.values(CARDS)) expect(mobilityMalus(card), card.id).toBe(false);
+  });
+
   it('le grimoire de test contient 25 cartes : 16 monstres, 4 sorts, 5 terrains (cartes communes comprises)', () => {
     const kinds = TEST_GRIMOIRE.map((id) => getCard(id).kind);
     expect(TEST_GRIMOIRE).toHaveLength(25);

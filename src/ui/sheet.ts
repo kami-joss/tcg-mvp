@@ -252,8 +252,8 @@ export function reasonStatus(reason: UnavailableReason, used: string): SheetStat
       return { text: 'Stun : aucune action ce tour', tone: 'off' };
     case 'silenced':
       return { text: 'Silence : plus d’effet actif', tone: 'off' };
-    case 'exhausted':
-      return { text: 'Épuisé : ne peut pas attaquer', tone: 'off' };
+    case 'disarmed':
+      return { text: 'Désarmé : ne peut pas attaquer', tone: 'off' };
     case 'armed':
       return { text: 'Déjà armé : attaque d’abord', tone: 'off' };
     case 'noAttack':

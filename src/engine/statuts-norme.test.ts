@@ -4,34 +4,34 @@ import { effectAvailability } from './availability';
 import { getAttackTargets } from './combat';
 import { getMoveDestinations } from './movement';
 import { isHiddenFrom } from './stealth';
-import { addStatus, isExhausted } from './statuses';
+import { addStatus, isDisarmed, normalStatus } from './statuses';
 import { at, gameWith } from './test-utils';
 import { getAtk, getRange } from './units';
 import { getPlayerView } from './view';
 import type { GameState, MonsterUnit, StatusSpec } from './types';
 
-// Norme des statuts (SPEC.md §5 bis, 2026-11-08) : Épuisé, Récupération, Absorbation, Absorbé (lié à l'absorbeur),
+// Norme des statuts (SPEC.md §5 bis, 2026-11-08) : Désarmé, Récupération, Absorbation, Absorbé (lié à l'absorbeur),
 // bonus et malus de stat, Camouflage (plus de 2 cases) et Invisible (plus de 1 case), Requiem sans paramètre.
 
 const endTurn = { type: 'endTurn' } as const;
 const monster = (state: GameState, id: string) => state.units[id] as MonsterUnit;
 const give = (state: GameState, id: string, spec: StatusSpec) => addStatus(state, id, spec);
 
-describe('Épuisé : ne peut pas attaquer', () => {
+describe('Désarmé : ne peut pas attaquer', () => {
   it('plus d’attaque, mais le déplacement et les effets restent possibles ; il disparaît à la fin de sa durée', () => {
     let state = gameWith([{ monster: 'archer', owner: 1, at: at(9, 1) }, { monster: 'golem', owner: 2, at: at(9, 2) }]);
     expect(getAttackTargets(state, monster(state, 'u1'))).toHaveLength(1);
-    state = give(state, 'u1', { kind: 'epuise', turns: 1 });
-    expect(isExhausted(monster(state, 'u1'))).toBe(true);
+    state = give(state, 'u1', { kind: 'desarme', turns: 1 });
+    expect(isDisarmed(monster(state, 'u1'))).toBe(true);
     expect(getAttackTargets(state, monster(state, 'u1'))).toEqual([]);
     expect(getLegalActions(state).some((a) => a.type === 'attack')).toBe(false);
     expect(getLegalActions(state).some((a) => a.type === 'move' && a.unitId === 'u1')).toBe(true);
     expect(effectAvailability(getPlayerView(state, 1), 'u1')).toBeNull(); // pas d'effet sur l'Archer
-    // 1 tour : encore épuisé à son prochain tour, libre ensuite.
+    // 1 tour : encore désarmé à son prochain tour, libre ensuite.
     const next = applyAction(applyAction(state, endTurn), endTurn);
-    expect(isExhausted(monster(next, 'u1'))).toBe(true);
+    expect(isDisarmed(monster(next, 'u1'))).toBe(true);
     const later = applyAction(applyAction(next, endTurn), endTurn);
-    expect(isExhausted(monster(later, 'u1'))).toBe(false);
+    expect(isDisarmed(monster(later, 'u1'))).toBe(false);
   });
 });
 
@@ -101,14 +101,27 @@ describe('<stat> +X et <stat> −X', () => {
     expect(getAtk(later, monster(later, 'u1'))).toBe(2);
   });
 
-  it('mobilité ±X : compte aussitôt pendant son tour, puis à chaque début de tour pendant la durée', () => {
+  it('mobilité +X : compte aussitôt pendant son tour, puis à chaque début de tour pendant la durée', () => {
     let state = gameWith([{ monster: 'chevalier', owner: 1, at: at(9, 1) }]); // mobilité 3
     state = give(state, 'u1', { kind: 'stat', stat: 'mobility', amount: 2, turns: 1 });
     expect(monster(state, 'u1').mobilityLeft).toBe(5);
     const next = applyAction(applyAction(state, endTurn), endTurn);
     expect(monster(next, 'u1').mobilityLeft).toBe(5); // encore actif à son prochain tour
+  });
+
+  it('un malus de mobilité est un slow : « mobilité −X » pose slow X (2026-11-11)', () => {
+    expect(normalStatus({ kind: 'stat', stat: 'mobility', amount: -2, turns: 1 })).toEqual({ kind: 'slow', amount: 2, turns: 1 });
+    // Les autres stats et le bonus de mobilité ne changent pas.
+    const atk = { kind: 'stat', stat: 'atk', amount: -1, turns: 1 } as const;
+    expect(normalStatus(atk)).toBe(atk);
+    const boost = { kind: 'stat', stat: 'mobility', amount: 1, turns: 1 } as const;
+    expect(normalStatus(boost)).toBe(boost);
+    // Posé sur un monstre : c'est un slow, avec ses effets (mobilité en moins aussitôt, retirée par Cure comme un malus).
     const slowed = give(gameWith([{ monster: 'chevalier', owner: 1, at: at(9, 1) }]), 'u1', { kind: 'stat', stat: 'mobility', amount: -1, turns: 1 });
-    expect(monster(slowed, 'u1').mobilityLeft).toBe(2);
+    expect(monster(slowed, 'u1').statuses).toEqual([expect.objectContaining({ kind: 'slow', amount: 1 })]);
+    expect(monster(slowed, 'u1')).toMatchObject({ mobilityLeft: 2, froze: 1 });
+    const next = applyAction(applyAction(slowed, endTurn), endTurn);
+    expect(monster(next, 'u1').mobilityLeft).toBe(2); // encore là à son prochain tour
   });
 
   it('PV max +X : PV et PV max montent ; à la fin les PV max reviennent et les PV sont plafonnés, sans tuer', () => {

@@ -2195,7 +2195,7 @@ select {
   color: oklch(0.28 0.08 240);
 }
 
-.status--epuise {
+.status--desarme {
   background: oklch(0.7 0.05 60);
   color: oklch(0.3 0.05 60);
 }

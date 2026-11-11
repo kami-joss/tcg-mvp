@@ -252,7 +252,7 @@ export function attackLimit(state: BoardState, monster: MonsterUnit): number {
 
 /** Il lui reste une attaque ce tour : ni stun, ni « plus d'attaque ce tour », et moins d'attaques faites que sa limite du moment. */
 export function canAttack(state: BoardState, monster: MonsterUnit): boolean {
-  if (monster.statuses.some((status) => status.kind === 'stun' || status.kind === 'epuise')) return false;
+  if (monster.statuses.some((status) => status.kind === 'stun' || status.kind === 'desarme')) return false;
   if (monster.hasAttacked && monster.attacksMade === 0) return false;
   return monster.attacksMade < attackLimit(state, monster);
 }

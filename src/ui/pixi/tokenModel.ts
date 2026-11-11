@@ -30,7 +30,7 @@ const STATUS_ORDER: readonly StatusKind[] = [
   'requiem',
   'stun',
   'silence',
-  'epuise',
+  'desarme',
   'vol',
   'immobilise',
   'slow',

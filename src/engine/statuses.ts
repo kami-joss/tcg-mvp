@@ -21,11 +21,22 @@ export function statusTotal(unit: Unit, kind: StatusKind): number {
   return unit.statuses.filter((status) => status.kind === kind).reduce((total, status) => total + statusAmount(status), 0);
 }
 
+/**
+ * Un malus de mobilité est un slow (SPEC §5 bis, validé le 2026-11-11) : « mobilité −X » n'existe pas, il s'écrit
+ * Slow X. Tout statut posé passe par ici (`addStatus`), et les textes aussi : un mot, une notion.
+ */
+export function normalStatus(spec: StatusSpec): StatusSpec {
+  if (spec.kind === 'stat' && spec.stat === 'mobility' && spec.amount < 0) {
+    return { kind: 'slow', amount: -spec.amount, turns: spec.turns };
+  }
+  return spec;
+}
+
 /** Stun : plus aucune action (ni déplacement, ni attaque, ni effet, ni riposte). */
 export const isStunned = (unit: Unit) => hasStatus(unit, 'stun');
 
-/** Épuisé : ne peut pas attaquer (déplacement et effets restent possibles). */
-export const isExhausted = (unit: Unit) => hasStatus(unit, 'epuise');
+/** Désarmé : ne peut pas attaquer (déplacement et effets restent possibles). */
+export const isDisarmed = (unit: Unit) => hasStatus(unit, 'desarme');
 
 /** Silence : plus d'effet actif (l'attaque, le déplacement, les mots-clés et les passifs ne changent pas). */
 export const isSilenced = (unit: Unit) => hasStatus(unit, 'silence');
@@ -76,7 +87,8 @@ export function statusTurnsLeft(status: Status, owner: PlayerId, turn: number, a
  * son camp la réduit aussitôt, sans descendre sous 0 (Terrain piégé, §5 bis) ; sur un terrain, seul burn compte (un
  * terrain ne bouge ni n'agit).
  */
-export function addStatus(state: GameState, unitId: UnitId, spec: StatusSpec): GameState {
+export function addStatus(state: GameState, unitId: UnitId, posed: StatusSpec): GameState {
+  const spec = normalStatus(posed);
   const unit = state.units[unitId];
   const { kind } = spec;
   if (!unit || (unit.kind === 'terrain' && kind !== 'burn')) return state;
@@ -94,13 +106,8 @@ export function addStatus(state: GameState, unitId: UnitId, spec: StatusSpec): G
     else if (spec.kind === 'slow' && mine) {
       updated = { ...updated, mobilityLeft: Math.max(0, updated.mobilityLeft - spec.amount), froze: updated.froze + spec.amount };
     } else if (spec.kind === 'stat' && spec.stat === 'mobility' && mine) {
-      // Mobilité +X / −X pendant son tour : elle compte aussitôt (sans descendre sous 0).
-      updated = {
-        ...updated,
-        mobilityLeft: Math.max(0, updated.mobilityLeft + spec.amount),
-        boost: updated.boost + Math.max(0, spec.amount),
-        froze: updated.froze + Math.max(0, -spec.amount),
-      };
+      // Mobilité +X pendant son tour : elle compte aussitôt (un malus de mobilité est un slow, `normalStatus`).
+      updated = { ...updated, mobilityLeft: updated.mobilityLeft + spec.amount, boost: updated.boost + spec.amount };
     } else if (spec.kind === 'stat' && spec.stat === 'maxHp') {
       // PV max +X / −X : les PV suivent, sans descendre sous 1 (comme une aura de PV).
       const maxHp = Math.max(1, updated.maxHp + spec.amount);
@@ -139,7 +146,7 @@ export function expireStatuses(state: GameState, turn: number): GameState {
 function mobilityWith(monster: MonsterUnit, statuses: readonly Status[], bonus: number): number {
   if (statuses.some((s) => s.kind === 'stun' || s.kind === 'immobilise')) return 0;
   const slow = statuses.filter((s) => s.kind === 'slow').reduce((total, s) => total + statusAmount(s), 0);
-  const stat = statTotal({ statuses }, 'mobility'); // mobilité +X / −X
+  const stat = statTotal({ statuses }, 'mobility'); // mobilité +X
   return Math.max(0, getMonsterCard(monster.cardId).mobility + bonus + stat - slow);
 }
 

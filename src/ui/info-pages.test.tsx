@@ -96,7 +96,7 @@ describe('règles du jeu', () => {
   });
 
   it('une entrée du lexique : son nom, puis sa définition', () => {
-    expect(glossaryEntry('slow')).toEqual({ name: 'Slow N', text: '−N mobilité. Les slow se cumulent.' });
+    expect(glossaryEntry('slow')).toEqual({ name: 'Slow N', text: '−N mobilité. C’est le seul malus de mobilité. Les slow se cumulent.' });
     expect(glossaryEntry('carre').name).toBe('Carré de N');
   });
 

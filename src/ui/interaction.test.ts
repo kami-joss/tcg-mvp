@@ -298,7 +298,7 @@ describe('interaction : aperçus du plateau', () => {
     expect(previews.get(posKey(at(9, 3)))).toEqual({ damage: 3, behind: false });
   });
 
-  it('un monstre sans plus aucune action est épuisé ; un monstre adverse ne l’est jamais', () => {
+  it('un monstre sans plus aucune action a fini son tour ; un monstre adverse jamais', () => {
     const view = activeView(
       gameWith([
         { monster: 'chevalier', owner: 1, at: at(8, 1), mobilityLeft: 0, hasAttacked: true },

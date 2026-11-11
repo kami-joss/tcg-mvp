@@ -197,7 +197,7 @@ export const KEYWORD_RULES: Readonly<Record<Keyword, { readonly name: string; re
 
 /** Statuts (SPEC.md §5 bis), malus puis bonus : leur définition est celle du lexique des cartes. */
 export const STATUS_TERMS: readonly { readonly title: string; readonly terms: readonly GlossaryTerm[] }[] = [
-  { title: 'Malus', terms: ['burn', 'slow', 'immobilise', 'absorbe', 'stun', 'silence', 'epuise', 'requiem'] },
+  { title: 'Malus', terms: ['burn', 'slow', 'immobilise', 'absorbe', 'stun', 'silence', 'desarme', 'requiem'] },
   { title: 'Bonus', terms: ['camouflage', 'invisible', 'absorbation', 'recuperation', 'vol', 'carapace'] },
 ];
 

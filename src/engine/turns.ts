@@ -102,9 +102,9 @@ export function startTurn(state: GameState): GameState {
       monster.owner === player
         ? {
             mobilityLeft: turnMobility(monster, auraMobility(next, monster)),
-            // Slow et mobilité −X retirent des pas, mobilité +X en ajoute (affichage « pas restants »).
-            froze: statusTotal(monster, 'slow') + Math.max(0, -statTotal(monster, 'mobility')),
-            boost: Math.max(0, statTotal(monster, 'mobility')),
+            // Les slow retirent des pas, mobilité +X en ajoute (affichage « pas restants »).
+            froze: statusTotal(monster, 'slow'),
+            boost: statTotal(monster, 'mobility'),
             turnBonuses: [],
             hasAttacked: false,
             attacksMade: 0,

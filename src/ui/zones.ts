@@ -43,11 +43,11 @@ function isNow(view: PlayerView, unit: MonsterUnit): boolean {
   return unit.owner === view.viewer && view.activePlayer === view.viewer;
 }
 
-/** Peut-il attaquer à ce tour-là ? Maintenant : s'il lui reste une attaque ; au prochain tour : sans stun ni épuisé. */
+/** Peut-il attaquer à ce tour-là ? Maintenant : s'il lui reste une attaque ; au prochain tour : sans stun ni désarmé. */
 function canStrike(view: PlayerView, unit: MonsterUnit): boolean {
   if (isNow(view, unit)) return canAttack(view, unit);
   const next = ownerNextTurn(view.turn, view.activePlayer, unit.owner);
-  return !unit.statuses.some((s) => (s.kind === 'stun' || s.kind === 'epuise') && s.expiresAtTurn > next);
+  return !unit.statuses.some((s) => (s.kind === 'stun' || s.kind === 'desarme') && s.expiresAtTurn > next);
 }
 
 /**
