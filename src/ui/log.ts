@@ -85,6 +85,30 @@ function effectName(view: PlayerView, unitId: UnitId, effect = 0): string {
   return abilityOf(view, unitId, effect)?.name ?? 'son effet';
 }
 
+/**
+ * Case où l'action a fait arriver un monstre : celle d'une invocation (`summon`), ou celle où `unitId` a été téléporté ou
+ * est revenu. Elle diffère de la case visée quand un monstre caché l'occupait (§10, 2026-11-12) ; `fallback` sinon.
+ */
+function landedAt(after: PlayerView, fallback: Position, unitId?: UnitId): Position {
+  for (const event of after.events) {
+    if (!unitId && event.type === 'summon' && event.unit.kind === 'monster') return event.unit.pos;
+    if (unitId && (event.type === 'teleport' || event.type === 'rewind') && event.unitId === unitId) return event.to;
+  }
+  return fallback;
+}
+
+/**
+ * Rien n'a été joué : la case d'arrivée portait un monstre caché, et aucune autre case valide (§10, 2026-11-12). Seule la
+ * révélation reste ; ni carte jouée, ni effet lancé.
+ */
+function blockedArrival(action: Action, after: PlayerView): boolean {
+  if (action.type === 'playCard') return !after.events.some((event) => event.type === 'cardPlayed');
+  if (action.type === 'activateEffect') return !after.events.some((event) => event.type === 'effect');
+  return false;
+}
+
+const BLOCKED = 'mais un monstre caché occupe la case : rien n’est joué';
+
 function describeIntent(view: PlayerView, action: Action, after: PlayerView): string {
   const actor = `J${view.activePlayer}`;
   const name = (unitId: UnitId) => {
@@ -92,23 +116,38 @@ function describeIntent(view: PlayerView, action: Action, after: PlayerView): st
     return unit ? unitName(after.cards, unit) : unitId;
   };
 
+  if (blockedArrival(action, after)) {
+    if (action.type === 'playCard') {
+      const card = getCard(after.cards, action.cardId);
+      return card.kind === 'monster' && action.target.kind === 'cell'
+        ? `${actor} veut invoquer ${card.name} ${place(view.board, action.target.pos)}, ${BLOCKED}.`
+        : `${actor} veut lancer ${card.name}, ${BLOCKED}.`;
+    }
+    if (action.type === 'activateEffect') return `${name(action.unitId)} veut utiliser ${effectName(view, action.unitId, action.effect)}, ${BLOCKED}.`;
+  }
+
   switch (action.type) {
     case 'playCard': {
       const card = getCard(after.cards, action.cardId);
       const { target } = action;
       if (target.kind === 'cell') {
-        const summoned = Object.values(after.units).find((u) => !view.units[u.id] && samePos(u.pos, target.pos));
-        if (summoned && isSecret(after, summoned.id)) return `${actor} invoque ${card.name}, invisible.`;
-        return `${actor} ${card.kind === 'monster' ? 'invoque' : 'pose'} ${card.name} ${place(view.board, target.pos)}.`;
+        if (card.kind === 'monster') {
+          const at = landedAt(after, target.pos);
+          const summoned = Object.values(after.units).find((u) => !view.units[u.id] && samePos(u.pos, at));
+          if (summoned && isSecret(after, summoned.id)) return `${actor} invoque ${card.name}, invisible.`;
+          return `${actor} invoque ${card.name} ${place(view.board, at)}.`;
+        }
+        return `${actor} pose ${card.name} ${place(view.board, target.pos)}.`;
       }
       if (target.kind === 'cellAndCard') {
         // Réanimation : le monstre revient de son cimetière.
-        const back = Object.values(after.units).find((u) => !view.units[u.id] && samePos(u.pos, target.pos));
-        const where = back && isSecret(after, back.id) ? ', invisible' : ` ${place(view.board, target.pos)}`;
+        const at = landedAt(after, target.pos);
+        const back = Object.values(after.units).find((u) => !view.units[u.id] && samePos(u.pos, at));
+        const where = back && isSecret(after, back.id) ? ', invisible' : ` ${place(view.board, at)}`;
         return `${actor} lance ${card.name} : ${getCard(after.cards, target.cardId).name} revient${where}.`;
       }
       if (target.kind === 'unitAndCell') {
-        const where = isSecret(after, target.unitId) ? '' : ` ${place(view.board, target.pos)}`;
+        const where = isSecret(after, target.unitId) ? '' : ` ${place(view.board, landedAt(after, target.pos, target.unitId))}`;
         return `${actor} lance ${card.name} : ${name(target.unitId)} est téléporté${where}.`;
       }
       if (target.kind === 'area' || target.kind === 'card' || target.kind === 'all') {
@@ -137,7 +176,7 @@ function describeIntent(view: PlayerView, action: Action, after: PlayerView): st
       if (action.target.kind === 'cell') {
         // Retour (Explorateur du temps) : il revient sur une case de son chemin, que tout le monde voit.
         if (abilityOf(view, action.unitId, action.effect)?.effects.some((effect) => effect.type === 'returnOnTrail')) {
-          return `${name(action.unitId)} revient dans le temps ${place(view.board, action.target.pos)}.`;
+          return `${name(action.unitId)} revient dans le temps ${place(view.board, landedAt(after, action.target.pos, action.unitId))}.`;
         }
         // Une case brûlée est publique ; un piège reste secret.
         const burned = after.events.find((event) => event.type === 'cellBurned');
@@ -145,14 +184,16 @@ function describeIntent(view: PlayerView, action: Action, after: PlayerView): st
         return `${name(action.unitId)} pose un piège.`;
       }
       if (action.target.kind === 'cellAndCard') {
-        const { pos, cardId } = action.target;
+        const { cardId } = action.target;
+        const pos = landedAt(after, action.target.pos);
         const summoned = Object.values(after.units).find((u) => !view.units[u.id] && samePos(u.pos, pos));
         if (summoned && isSecret(after, summoned.id)) return `${name(action.unitId)} invoque ${getCard(after.cards, cardId).name}, invisible.`;
         return `${name(action.unitId)} invoque ${getCard(after.cards, cardId).name} ${place(view.board, pos)}.`;
       }
       if (action.target.kind === 'unitAndCell') {
-        const where = isSecret(after, action.target.unitId) ? '' : ` ${place(view.board, action.target.pos)}`;
-        return `${name(action.unitId)} téléporte ${name(action.target.unitId)}${where}.`;
+        const { unitId, pos } = action.target;
+        const where = isSecret(after, unitId) ? '' : ` ${place(view.board, landedAt(after, pos, unitId))}`;
+        return `${name(action.unitId)} téléporte ${name(unitId)}${where}.`;
       }
       if (action.target.kind === 'card') {
         return `${name(action.unitId)} évolue en ${getCard(after.cards, action.target.cardId).name} ${place(view.board, view.units[action.unitId]?.pos ?? { row: 0, col: 0 })}.`;
@@ -321,11 +362,12 @@ function describeTrap(before: PlayerView, action: Action, after: PlayerView, blo
       return [item('fishing-net', `${unitName(after.cards, unit)} est pris au piège ${place(after.board, moved.pos)} et ne peut plus bouger de ce tour.`, 'hurt')];
     }
   }
-  const summoned =
-    action.type === 'playCard' && action.target.kind === 'cell' && getCard(after.cards, action.cardId).kind === 'monster'
-      ? { pos: action.target.pos, cardId: action.cardId }
+  const summoned = blockedArrival(action, after)
+    ? null
+    : action.type === 'playCard' && action.target.kind === 'cell' && getCard(after.cards, action.cardId).kind === 'monster'
+      ? { pos: landedAt(after, action.target.pos), cardId: action.cardId }
       : action.type === 'activateEffect' && action.target.kind === 'cellAndCard'
-        ? action.target
+        ? { pos: landedAt(after, action.target.pos), cardId: action.target.cardId }
         : null;
   if (summoned && !Object.values(after.units).some((u) => u.kind === 'monster' && samePos(u.pos, summoned.pos))) {
     const how = trapped ? 'tombe dans un piège et est détruit' : 'est détruit à son arrivée';

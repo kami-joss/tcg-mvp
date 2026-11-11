@@ -324,3 +324,30 @@ describe('journal : noms et joueurs à la couleur de leur camp', () => {
     );
   });
 });
+
+describe('journal : arriver sur un monstre caché (§10, 2026-11-12)', () => {
+  const farceur = (col: number) => ({ monster: 'farceur' as const, owner: 2 as const, at: at(0, col) });
+
+  it('le monstre caché apparaît, l’invocation se fait sur la case où il est vraiment arrivé', () => {
+    const state = gameWith([farceur(3)], { players: { 1: { mana: 10, grimoire: ['milicien'] } } });
+    expect(logOf(state, { type: 'playCard', cardId: 'milicien', target: { kind: 'cell', pos: at(0, 3) } })).toEqual([
+      'J1 invoque Milicien en (0, 4).',
+      'Farceur - Maîtres des pièges de J2 apparaît en (0, 3) !',
+    ]);
+  });
+
+  it('aucune autre case : rien n’est joué, et le journal le dit', () => {
+    const state = gameWith([farceur(3), farceur(4), farceur(5)], { players: { 1: { mana: 10, grimoire: ['milicien'] } } });
+    expect(logOf(state, { type: 'playCard', cardId: 'milicien', target: { kind: 'cell', pos: at(0, 4) } })).toEqual([
+      'J1 veut invoquer Milicien en (0, 4), mais un monstre caché occupe la case : rien n’est joué.',
+      'Farceur - Maîtres des pièges de J2 apparaît en (0, 4) !',
+    ]);
+  });
+
+  it('une téléportation (Repli) se dit sur sa case d’arrivée', () => {
+    const state = gameWith([{ monster: 'milicien', owner: 1, at: at(8, 8) }, farceur(5)], { players: { 1: { mana: 10, grimoire: ['repli'] } } });
+    expect(logOf(state, { type: 'playCard', cardId: 'repli', target: { kind: 'unitAndCell', unitId: 'u1', pos: at(0, 5) } })[0]).toBe(
+      'J1 lance Repli : Milicien de J1 est téléporté en (0, 4).',
+    );
+  });
+});

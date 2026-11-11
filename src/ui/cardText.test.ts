@@ -67,7 +67,9 @@ describe('textes des cartes', () => {
     expect(cardEffectLine(CARDS, getCard(CARDS, 'terrain-piege'))).toBe('Passage · carré de 1 · slow 1 jusqu’à son prochain tour');
     expect(cardEffectLine(CARDS, getCard(CARDS, 'zone-invocation'))).toBe('Point d’invocation');
     expect(cardEffectLine(CARDS, getCard(CARDS, 'invocateur'))).toBe('Actif (1 mana) · une case libre, carré de 1 · invocation');
-    expect(cardEffectLine(CARDS, getCard(CARDS, 'teleporteur'))).toBe('Actif (1 mana) · un allié · téléportation sur une case libre, carré de 1');
+    // Le coût de l'effet se règle dans l'atelier : lu dans les cartes, pas recopié.
+    const teleport = CARDS.teleporteur.kind === 'monster' ? CARDS.teleporteur.activated[0]!.manaCost : NaN;
+    expect(cardEffectLine(CARDS, getCard(CARDS, 'teleporteur'))).toBe(`Actif (${teleport} mana) · un allié · téléportation sur une case libre, carré de 1`);
     expect(describeCard(CARDS, getCard(CARDS, 'terrain-drainant'))[1]).toMatch(/^Passif · Passage · carré de 1 · 1 dégât : .*à chaque case où il entre \(une fois par recul\)\.$/);
   });
 });

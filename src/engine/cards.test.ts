@@ -50,7 +50,7 @@ describe('cartes (SPEC.md §6)', () => {
     expect(CARDS.invocateur).toMatchObject({ cost: 4, atk: 1, hp: 3, mobility: 3, range: 2 });
     expect(CARDS.invocateur).toMatchObject({ activated: [{ manaCost: 1, targeting: { type: 'emptySquareCell' }, effects: [{ type: 'summon' }] }] });
     expect(CARDS.teleporteur).toMatchObject({ cost: 4, atk: 1, hp: 3, mobility: 3, range: 2 });
-    expect(CARDS.teleporteur).toMatchObject({ activated: [{ manaCost: 1, targeting: { type: 'monster', side: 'ally' }, effects: [{ type: 'teleport' }] }] });
+    expect(CARDS.teleporteur).toMatchObject({ activated: [{ manaCost: expect.any(Number), targeting: { type: 'monster', side: 'ally' }, effects: [{ type: 'teleport' }] }] });
     expect(CARDS['terrain-drainant']).toMatchObject({ cost: 1, hp: 4, passage: { zone: 'square1', effects: [{ type: 'damage', amount: 1 }] } });
     expect(CARDS['terrain-piege']).toMatchObject({
       cost: 1,

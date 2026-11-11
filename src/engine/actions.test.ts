@@ -5,7 +5,7 @@ import { DECKS } from './cards';
 import { VICTORY_VP } from './config';
 import { createGame } from './game';
 import { at, gameWith } from './test-utils';
-import type { Action, GameState, PlayerId, Unit } from './types';
+import type { Action, GameState, PlayerId, Trap, Unit } from './types';
 
 /** Générateur pseudo-aléatoire reproductible (mulberry32). */
 function seededRandom(seed: number): () => number {
@@ -18,8 +18,14 @@ function seededRandom(seed: number): () => number {
   };
 }
 
-/** Invariants qui doivent tenir dans toute position atteignable ; `deckSize` : le nombre de cartes du deck de chaque joueur. */
-function expectInvariants(state: GameState, deckSize: Readonly<Record<PlayerId, number>>): void {
+/** Un ennemi caché qui se tenait déjà sur la case d'un piège quand il a été posé (§10, 2026-11-12). */
+const underTrap = (trap: Trap, unitId: string) => `${trap.owner},${trap.pos.row},${trap.pos.col},${unitId}`;
+
+/**
+ * Invariants qui doivent tenir dans toute position atteignable ; `deckSize` : le nombre de cartes du deck de chaque
+ * joueur ; `allowed` : les ennemis cachés sur la case d'un piège posé sur eux (`underTrap`).
+ */
+function expectInvariants(state: GameState, deckSize: Readonly<Record<PlayerId, number>>, allowed: ReadonlySet<string> = new Set()): void {
   const byCell = new Map<string, Unit[]>();
   for (const unit of Object.values(state.units)) {
     expect(isPlayable(state.board, unit.pos)).toBe(true);
@@ -42,12 +48,13 @@ function expectInvariants(state: GameState, deckSize: Readonly<Record<PlayerId, 
     expect(player.grimoire.length + player.graveyard.length + onBoard).toBe(deckSize[player.id]);
   }
   if (state.winner !== null) expect(state.players[state.winner].vp).toBeGreaterThanOrEqual(VICTORY_VP);
-  // Pièges : sur des cases jouables, au plus un par joueur et par case, jamais sous un monstre ennemi.
+  // Pièges : sur des cases jouables, au plus un par joueur et par case, jamais sous un monstre ennemi, sauf un monstre
+  // caché qui s'y tenait déjà quand il a été posé (il se pose quand même, §10).
   for (const trap of state.traps) {
     expect(isPlayable(state.board, trap.pos)).toBe(true);
     expect(state.traps.filter((t) => t.owner === trap.owner && t.pos.row === trap.pos.row && t.pos.col === trap.pos.col)).toHaveLength(1);
     const units = Object.values(state.units).filter((u) => u.pos.row === trap.pos.row && u.pos.col === trap.pos.col);
-    expect(units.every((u) => u.owner === trap.owner)).toBe(true);
+    expect(units.every((u) => u.owner === trap.owner || allowed.has(underTrap(trap, u.id)))).toBe(true);
   }
 }
 
@@ -90,14 +97,21 @@ describe('cohérence du moteur', () => {
       for (const seed of [1, 2, 3, 4, 5]) {
         const random = seededRandom(seed);
         let state = createGame(board, { 1: deck1, 2: deck2 });
+        const allowed = new Set<string>();
         for (let step = 0; step < 800 && state.winner === null; step++) {
           const actions = getLegalActions(state);
           // Régulièrement, toutes les actions proposées doivent être acceptées.
           if (step % 25 === 0) for (const action of actions) applyAction(state, action);
           const action = actions[Math.floor(random() * actions.length)]!;
           played.add(action.type);
+          const before = state;
           state = applyAction(state, action);
-          expectInvariants(state, { 1: deck1.length, 2: deck2.length });
+          for (const trap of state.traps.filter((t) => !before.traps.includes(t))) {
+            for (const unit of Object.values(before.units)) {
+              if (unit.owner !== trap.owner && unit.pos.row === trap.pos.row && unit.pos.col === trap.pos.col) allowed.add(underTrap(trap, unit.id));
+            }
+          }
+          expectInvariants(state, { 1: deck1.length, 2: deck2.length }, allowed);
         }
         if (state.winner !== null) finished++;
       }

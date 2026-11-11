@@ -1,6 +1,7 @@
 // Effets actifs des monstres (SPEC.md §4.8, §5.2) : un monstre peut en avoir plusieurs, chacun une fois par tour.
 import { getMonsterCard } from './cards';
 import { applyBacklash, getAreaCells, getEffectTargets, resolveAbility, sameEffectTarget } from './effects';
+import { effectArrival } from './arrival';
 import { IllegalActionError } from './errors';
 import { emit } from './events';
 import { addMana } from './players';
@@ -56,9 +57,24 @@ export function applyActivateEffect(state: GameState, action: ActivateEffectActi
   if (!targets.some((t) => sameEffectTarget(t, action.target))) {
     throw new IllegalActionError(`Cible invalide pour l'effet de ${monster.id}`);
   }
+  // Un monstre caché sur la case d'arrivée (invocation, téléportation, retour ; §10, 2026-11-12) : il se révèle, le
+  // monstre arrive sur la case valide la plus proche ; sans case valide, l'effet n'est ni payé ni compté.
+  const moved = effectArrival(state, ability, action.target, monster.owner, monster);
+  if (moved && !moved.target) return moved.state;
+  return activate(moved ? moved.state : state, monster, ability, effect, cost, moved?.target ?? action.target);
+}
 
+/** Lance l'effet, cible validée (et déjà déplacée si un monstre caché occupait sa case) : le note, le paie, le résout. */
+function activate(
+  state: GameState,
+  monster: MonsterUnit,
+  ability: ActivatedAbility,
+  effect: number,
+  cost: number,
+  target: ActivateEffectAction['target'],
+): GameState {
   // Zone en ligne : le monstre se tourne vers la direction choisie, avant que l'effet ne parte (recul « vers l'avant »).
-  const facing = action.target.kind === 'area' ? action.target.direction : undefined;
+  const facing = target.kind === 'area' ? target.direction : undefined;
   // Un effet sans limite par tour n'est pas noté comme utilisé.
   const usedEffects = ability.unlimited ? monster.usedEffects : [...monster.usedEffects, effect];
   const source = { ...monster, usedEffects, ...(facing ? { facing } : {}) };
@@ -66,7 +82,6 @@ export function applyActivateEffect(state: GameState, action: ActivateEffectActi
   // Pour un piège, l'événement ne donne pas la case : seule la pose (visible de son poseur) la révèle. Pour une
   // invocation ou une téléportation non plus : la case d'arrivée suit, avec le monstre, s'il est visible. Celle du
   // monstre visé n'est montrée qu'aux joueurs qui le voient (`getPlayerView`).
-  const { target } = action;
   const targetId = target.kind === 'unit' || target.kind === 'unitAndDirection' ? target.unitId : null;
   const pos = targetId ? (state.units[targetId]?.pos ?? monster.pos) : monster.pos;
   const { targeting } = ability;
@@ -81,7 +96,7 @@ export function applyActivateEffect(state: GameState, action: ActivateEffectActi
     ...(effect > 0 ? { effect } : {}),
   };
   const paid = addMana(emit(used, event), monster.owner, -cost);
-  const resolved = resolveAbility(paid, ability, action.target, monster.owner, source, { cardId: monster.cardId, ...(ability.name ? { effect: ability.name } : {}) });
+  const resolved = resolveAbility(paid, ability, target, monster.owner, source, { cardId: monster.cardId, ...(ability.name ? { effect: ability.name } : {}) });
   // « Puis plus d'attaque ce tour » (Zoldik) : il a pu attaquer avant, plus après.
   // Contre-coup : sur lui-même, après l'effet.
   const countered = ability.backlash ? applyBacklash(resolved, monster.id, ability.backlash, monster.owner) : resolved;

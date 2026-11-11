@@ -7,6 +7,8 @@ import { perceived } from './stealth';
 import { emit } from './events';
 import { isShinyCopy, shine } from './players';
 import { getFreeSummonCells, payCard, placeSummonedMonster } from './summon';
+import { arrival, effectArrival } from './arrival';
+import type { Arrival } from './arrival';
 import { addUnit, createTerrainUnit, getMonsterAt, getUnitsAt } from './units';
 import { getZoneStatus } from './zones';
 import type { Action, Card, CardTarget, GameState, PlayerId, Position } from './types';
@@ -79,10 +81,30 @@ export function applyPlayCard(state: GameState, action: PlayCardAction): GameSta
   if (player.mana < card.cost) {
     throw new IllegalActionError(`Mana insuffisant pour « ${card.name} » : ${player.mana} < ${card.cost}`);
   }
-  const { target } = action;
-  if (!getCardTargets(perceived(state), card, state).some((t) => sameCardTarget(t, target))) {
+  if (!getCardTargets(perceived(state), card, state).some((t) => sameCardTarget(t, action.target))) {
     throw new IllegalActionError(`Cible invalide pour « ${card.name} »`);
   }
+  // Un monstre caché sur la case d'arrivée (§10, 2026-11-12) : il se révèle, le monstre arrive sur la case valide la plus
+  // proche ; sans case valide, rien n'est payé ni joué.
+  const moved = cardArrival(state, card, action.target);
+  if (moved && !moved.target) return moved.state;
+  return playCard(moved ? moved.state : state, card, moved?.target ?? action.target);
+}
+
+/** L'arrivée de la carte sur un monstre caché, ou `null` si elle ne fait arriver aucun monstre sur une case occupée. */
+function cardArrival(state: GameState, card: Card, target: CardTarget): Arrival<CardTarget> | null {
+  const player = state.activePlayer;
+  if (card.kind === 'monster' && target.kind === 'cell') {
+    const options = getFreeSummonCells(state, player).map((pos): CardTarget => ({ kind: 'cell', pos }));
+    return arrival(state, player, target.pos, options, (option) => cellOf(option));
+  }
+  if (card.kind === 'spell' && target.kind !== 'cell') return effectArrival(state, card.ability, target, player, null);
+  return null;
+}
+
+/** Joue la carte, cible validée (et déjà déplacée si un monstre caché occupait sa case). */
+function playCard(state: GameState, card: Card, target: CardTarget): GameState {
+  const player = state.players[state.activePlayer];
 
   // L'unité vers laquelle va la carte : celle qu'elle pose, ou le monstre visé par le sort ; un sort sans cible n'en a pas.
   const id = `u${state.nextUnitId}`;
