@@ -214,12 +214,6 @@ function pill(
   return node;
 }
 
-/**
- * Rotation dans le plan d'une icône couchée au sol, pour qu'elle se lise droite à l'écran en vue isométrique : le haut de
- * l'écran est la diagonale vers le haut à gauche du plan (X = (x − y)/√2, Y = (x + y)/√6).
- */
-const INLAY_ROTATION = -Math.PI / 4;
-
 /** Profondeur des noms de zone : devant tout le décor debout, comme une étiquette posée sur l'image. */
 const ZONE_TAG_DEPTH = 100_000;
 
@@ -400,12 +394,13 @@ export class CellLayer {
         this.glows.push(halo, well);
         this.glowBase.push(halo.alpha, well.alpha);
       } else this.still.push(halo, well);
-      // L'icône de la zone incrustée dans la case centrale : couchée dans le plan, tournée pour se lire droite à l'écran,
-      // en creux (sombre) avec un liseré clair sur son bord bas ; pas sous les marques d'un « Passage » ou d'une case brûlée.
+      // L'icône de la zone incrustée dans la case centrale : couchée dans le plan, dans l'axe de la case (ses bords suivent
+      // ceux de la tuile), en creux (sombre) avec un liseré clair vers le bas de l'écran ; pas sous les marques d'un
+      // « Passage » ou d'une case brûlée.
       if (v.marks.length === 0) {
         const texture = iconTexture(pixi, z.icon);
         const inlay = (dx: number, dy: number, css: string) => {
-          const icon = new pixi.Sprite({ texture, anchor: 0.5, x: v.x + S / 2 + dx, y: v.y + S / 2 + dy, rotation: INLAY_ROTATION });
+          const icon = new pixi.Sprite({ texture, anchor: 0.5, x: v.x + S / 2 + dx, y: v.y + S / 2 + dy });
           icon.width = icon.height = S * 0.78;
           const { color, alpha } = cssColor(css);
           icon.tint = color;
