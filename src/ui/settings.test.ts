@@ -26,6 +26,7 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
       zoom: 1,
       grimoireLayout: 'list',
       grimoireOpen: true,
+      journalOpen: true,
       tokenStats: { hp: true, mobility: true, enemyMobility: false, atk: false, statuses: true },
       edgeScroll: false,
       grid: true,
@@ -44,6 +45,7 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
       zoom: 1.5,
       grimoireLayout: 'list',
       grimoireOpen: false,
+      journalOpen: false,
       tokenStats: { ...DEFAULT_TOKEN_STATS, atk: true, statuses: false },
       edgeScroll: true,
       grid: false,
@@ -56,6 +58,7 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
     expect(data.get('tcg-plateau-zoom-v5')).toBe('1.5');
     expect(data.get('tcg-grimoire-affichage')).toBe('liste');
     expect(data.get('tcg-grimoire-ouvert')).toBe('0');
+    expect(data.get('tcg-journal-ouvert')).toBe('0');
     expect(data.get('tcg-plateau-defilement-bords-v2')).toBe('1');
     expect(data.get('tcg-plateau-quadrillage')).toBe('0');
     expect(data.get('tcg-zones-menace')).toBe('0');

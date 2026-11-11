@@ -1,9 +1,10 @@
 // Journal des actions (SPEC.md §7) : une entrée par action, déduite de l'action et des vues avant/après — sa phrase,
-// son icône, le camp qui agit, et ses conséquences (dégâts, destructions, VP…), chacune avec son icône.
+// son icône, le camp qui agit, et ses conséquences (dégâts, destructions, VP…), chacune avec son icône, en arborescence :
+// une conséquence qui en entraîne une autre la porte sous elle (destruction → VP, dégâts → carapace).
 // Les vues ne contiennent que des informations publiques : le journal ne révèle rien de caché. Les deux joueurs le
 // lisent : la case d'un de ses monstres invisibles pour l'adversaire n'y apparaît jamais (§10).
 import { getCard, getCell, getMonsterCard, samePos } from '../engine';
-import type { Action, Board, CardSet, Direction, ManaZoneId, PlayerId, PlayerView, Position, Unit, UnitId } from '../engine';
+import type { Action, Board, CardId, CardSet, Direction, ManaZoneId, PlayerId, PlayerView, Position, Unit, UnitId } from '../engine';
 import type { IconName } from './Icon';
 import { cardTitle } from './cardText';
 import { statusLabel } from './statusInfo';
@@ -11,11 +12,19 @@ import { statusLabel } from './statusInfo';
 /** Couleur d'une conséquence : perte (PV, destruction, piège), gain (bonus), VP, information. */
 export type LogTone = 'hurt' | 'good' | 'vp' | 'info';
 
-/** Conséquence d'une action, avec son icône. */
+/** Conséquence d'une action, avec son icône ; ce qu'elle a entraîné à son tour, dessous. */
 export interface LogItem {
   readonly icon: IconName;
   readonly text: string;
   readonly tone: LogTone;
+  readonly children?: readonly LogItem[];
+}
+
+/** Un nom de carte dans les phrases d'une entrée (`text` : tel qu'écrit, « Milicien de J1 »), à la couleur de son camp. */
+export interface LogName {
+  readonly text: string;
+  readonly name: string;
+  readonly player: PlayerId;
 }
 
 /** Entrée du journal : une par action (et le début de partie, et les actions refusées). */
@@ -29,6 +38,8 @@ export interface LogEntry {
   readonly items: readonly LogItem[];
   /** Début de tour : son numéro, son joueur, le mana et les VP reçus. */
   readonly turn?: { readonly number: number; readonly player: PlayerId; readonly mana: number; readonly vp: number };
+  /** Noms des cartes dans ses phrases (`logSegments`). */
+  readonly names?: readonly LogName[];
 }
 
 const item = (icon: IconName, text: string, tone: LogTone): LogItem => ({ icon, text, tone });
@@ -205,8 +216,17 @@ function targetOf(action: Action): UnitId | null {
   }
 }
 
-/** Conséquences visibles sur les unités : dégâts, soins, destructions, bonus, reculs, avancées. */
-function describeUnitChanges(before: PlayerView, action: Action, after: PlayerView): LogItem[] {
+/** Une destruction du journal et le camp de l'unité détruite (pour y rattacher les VP gagnés). */
+interface Destroyed {
+  readonly item: LogItem;
+  readonly owner: PlayerId;
+}
+
+/**
+ * Conséquences visibles sur les unités : dégâts, soins, destructions, bonus, reculs, avancées. Les destructions sont
+ * aussi rendues à part, dans `destroyed`.
+ */
+function describeUnitChanges(before: PlayerView, action: Action, after: PlayerView, destroyed: Destroyed[] = []): LogItem[] {
   const lines: LogItem[] = [];
   const target = targetOf(action);
   const units = Object.values(before.units).sort((a, b) => Number(b.id === target) - Number(a.id === target));
@@ -218,22 +238,27 @@ function describeUnitChanges(before: PlayerView, action: Action, after: PlayerVi
     if (!next) {
       // Un monstre adverse invisible qui sort de la vue n'est pas détruit ; un requiem arrivé à son terme le tue.
       const requiem = after.events.some((event) => event.type === 'requiem' && event.unitId === unit.id);
-      lines.push(
-        after.hiddenEnemies.includes(unit.id)
-          ? item('eye-slash', `${unitName(after.cards, unit)} disparaît.`, 'info')
-          : requiem
-            ? item('death-skull', `${unitName(after.cards, unit)} succombe (requiem).`, 'hurt')
-            : item('tombstone', `${unitName(after.cards, unit)} est détruit.`, 'hurt'),
-      );
+      if (after.hiddenEnemies.includes(unit.id)) {
+        lines.push(item('eye-slash', `${unitName(after.cards, unit)} disparaît.`, 'info'));
+      } else if (requiem) {
+        lines.push(item('death-skull', `${unitName(after.cards, unit)} succombe (requiem).`, 'hurt'));
+      } else {
+        const gone = item('tombstone', `${unitName(after.cards, unit)} est détruit.`, 'hurt');
+        destroyed.push({ item: gone, owner: unit.owner });
+        lines.push(gone);
+      }
       continue;
     }
+    // Carapace : des dégâts qui l'auraient fait descendre sous 1 PV ont été retenus ; sous la perte de PV, s'il y en a une.
+    const held = after.events.some((event) => event.type === 'damage' && event.unitId === unit.id && event.held)
+      ? item('shield', `${unitName(after.cards, unit)} tient à 1 PV (carapace).`, 'info')
+      : null;
     if (next.hp !== unit.hp) {
       const lost = next.hp < unit.hp;
-      lines.push(item(lost ? 'health-decrease' : 'health-increase', `${unitName(after.cards, unit)} : ${unit.hp} → ${next.hp} PV.`, lost ? 'hurt' : 'good'));
-    }
-    // Carapace : des dégâts qui l'auraient fait descendre sous 1 PV ont été retenus.
-    if (after.events.some((event) => event.type === 'damage' && event.unitId === unit.id && event.held)) {
-      lines.push(item('shield', `${unitName(after.cards, unit)} tient à 1 PV (carapace).`, 'info'));
+      const hp = item(lost ? 'health-decrease' : 'health-increase', `${unitName(after.cards, unit)} : ${unit.hp} → ${next.hp} PV.`, lost ? 'hurt' : 'good');
+      lines.push(held ? { ...hp, children: [held] } : hp);
+    } else if (held) {
+      lines.push(held);
     }
     // Cure : ses malus retirés.
     for (const event of after.events) {
@@ -365,16 +390,22 @@ interface Outcome {
   readonly gains: readonly LogItem[];
   readonly winner: LogItem | null;
   readonly turn?: LogEntry['turn'];
+  /** Unités détruites (parmi `items`). */
+  readonly destroyed: readonly Destroyed[];
+  /** VP gagnés pendant l'action (parmi `gains`), par joueur. */
+  readonly vpGains: readonly { readonly item: LogItem; readonly player: PlayerId }[];
 }
 
 function outcome(before: PlayerView, action: Action, after: PlayerView): Outcome {
   const revealed = getRevealed(before, action, after);
   const blockers = getBlockers(before, after);
+  const destroyed: Destroyed[] = [];
+  const vpGains: { item: LogItem; player: PlayerId }[] = [];
   const items = [
     ...describeReveal(action, revealed, blockers, after),
     ...describeTrap(before, action, after, blockers),
     ...describePassages(before, after),
-    ...describeUnitChanges(before, action, after),
+    ...describeUnitChanges(before, action, after, destroyed),
   ];
   const gains: LogItem[] = [];
   let turn: LogEntry['turn'];
@@ -391,28 +422,136 @@ function outcome(before: PlayerView, action: Action, after: PlayerView): Outcome
     }
     for (const player of [1, 2] as const) {
       const gain = publicInfo(after, player).vp - publicInfo(before, player).vp;
-      if (gain > 0) gains.push(item('crown', `J${player} gagne ${gain} VP (${publicInfo(after, player).vp} au total).`, 'vp'));
+      if (gain > 0) {
+        const vp = item('crown', `J${player} gagne ${gain} VP (${publicInfo(after, player).vp} au total).`, 'vp');
+        vpGains.push({ item: vp, player });
+        gains.push(vp);
+      }
     }
   }
   const winner = after.winner !== null && before.winner === null ? item('crown', `J${after.winner} remporte la partie !`, 'vp') : null;
-  return { intent: describeIntent(before, action, after), icon: intentIcon(before, action, after), items, gains, winner, turn };
+  return { intent: describeIntent(before, action, after), icon: intentIcon(before, action, after), items, gains, winner, turn, destroyed, vpGains };
 }
+
+/** Les conséquences et ce qu'elles ont entraîné, dans l'ordre de lecture. */
+const flatten = (items: readonly LogItem[]): LogItem[] => items.flatMap((i) => [i, ...flatten(i.children ?? [])]);
 
 /** Phrases du journal pour une action : la sienne, puis ses conséquences. */
 export function describeAction(before: PlayerView, action: Action, after: PlayerView): string[] {
   const { intent, items, gains, winner } = outcome(before, action, after);
-  return [intent, ...items.map((i) => i.text), ...gains.map((i) => i.text), ...(winner ? [winner.text] : [])];
+  return [intent, ...flatten(items).map((i) => i.text), ...gains.map((i) => i.text), ...(winner ? [winner.text] : [])];
+}
+
+/**
+ * Noms des cartes dans les phrases d'une entrée : chaque unité des deux vues (« Milicien de J1 »), et la carte jouée ou
+ * visée par le joueur actif, que la phrase nomme seule (« J1 invoque Milicien »), comme le monstre qu'il déplace.
+ */
+function namesOf(before: PlayerView, action: Action, after: PlayerView): LogName[] {
+  const names = new Map<string, LogName>();
+  const add = (name: string, player: PlayerId, bare = false) => {
+    for (const text of bare ? [`${name} de J${player}`, name] : [`${name} de J${player}`]) {
+      if (!names.has(text)) names.set(text, { text, name, player });
+    }
+  };
+  for (const unit of [...Object.values(before.units), ...Object.values(after.units)]) {
+    add(getCard(after.cards, unit.cardId).name, unit.owner);
+  }
+  const actor = before.activePlayer;
+  const cardName = (cardId: CardId) => getCard(after.cards, cardId).name;
+  if (action.type === 'playCard') add(cardName(action.cardId), actor, true);
+  if ((action.type === 'playCard' || action.type === 'activateEffect') && (action.target.kind === 'cellAndCard' || action.target.kind === 'card')) {
+    add(cardName(action.target.cardId), actor, true);
+  }
+  if (action.type === 'move') {
+    const unit = before.units[action.unitId];
+    if (unit) add(cardName(unit.cardId), unit.owner, true);
+  }
+  return [...names.values()];
 }
 
 /**
  * Entrée du journal pour une action. Fin de tour : une entrée « tour » (numéro, joueur, mana et VP reçus), avec ce
- * qui s'est passé au début du tour (statuts, requiem…).
+ * qui s'est passé au début du tour (statuts, requiem…). Les VP d'une destruction se rangent sous elle quand elle est la
+ * seule unité adverse détruite.
  */
 export function logEntry(before: PlayerView, action: Action, after: PlayerView): LogEntry {
-  const { intent, icon, items, gains, winner, turn } = outcome(before, action, after);
+  const { intent, icon, items, gains, winner, turn, destroyed, vpGains } = outcome(before, action, after);
+  const names = namesOf(before, action, after);
   const tail = winner ? [winner] : [];
   if (action.type === 'endTurn' && turn) {
-    return { kind: 'turn', player: turn.player, icon, text: intent, items: [...items, ...tail], turn };
+    return { kind: 'turn', player: turn.player, icon, text: intent, items: [...items, ...tail], turn, names };
   }
-  return { kind: 'action', player: before.activePlayer, icon, text: intent, items: [...items, ...gains, ...tail] };
+  const nested = new Map<LogItem, LogItem>();
+  for (const { item: vp, player } of vpGains) {
+    const victims = destroyed.filter((d) => d.owner !== player);
+    if (victims.length === 1) nested.set(victims[0]!.item, vp);
+  }
+  const under = new Set(nested.values());
+  const tree = items.map((i) => (nested.has(i) ? { ...i, children: [...(i.children ?? []), nested.get(i)!] } : i));
+  return { kind: 'action', player: before.activePlayer, icon, text: intent, items: [...tree, ...gains.filter((g) => !under.has(g)), ...tail], names };
+}
+
+/** Morceau d'une phrase du journal : du texte, le nom d'une carte (à la couleur de son camp) ou un joueur (« J1 »). */
+export type LogSegment =
+  | string
+  | { readonly kind: 'name'; readonly name: string; readonly player: PlayerId; readonly title: string }
+  | { readonly kind: 'player'; readonly player: PlayerId };
+
+const WORD = /[\p{L}\p{N}]/u;
+
+/**
+ * Découpe une phrase du journal : les noms des cartes de l'entrée (le plus long d'abord, entre deux mots) et les
+ * joueurs (« J1 », « J2 »), pour les écrire à la couleur de leur camp.
+ */
+export function logSegments(text: string, names: readonly LogName[] = []): LogSegment[] {
+  const sorted = [...names].sort((a, b) => b.text.length - a.text.length);
+  const out: LogSegment[] = [];
+  let plain = '';
+  const flush = () => {
+    if (plain) out.push(plain);
+    plain = '';
+  };
+  const bounded = (from: number, length: number) =>
+    (from === 0 || !WORD.test(text[from - 1]!)) && (from + length === text.length || !WORD.test(text[from + length]!));
+  let i = 0;
+  while (i < text.length) {
+    const hit = sorted.find((n) => text.startsWith(n.text, i) && bounded(i, n.text.length));
+    if (hit) {
+      flush();
+      out.push({ kind: 'name', name: hit.name, player: hit.player, title: hit.text });
+      i += hit.text.length;
+      continue;
+    }
+    const who = /^J([12])/.exec(text.slice(i, i + 2));
+    if (who && bounded(i, 2)) {
+      flush();
+      out.push({ kind: 'player', player: Number(who[1]) as PlayerId });
+      i += 2;
+      continue;
+    }
+    plain += text[i];
+    i += 1;
+  }
+  flush();
+  return out;
+}
+
+/**
+ * Actions de l'adversaire pendant son dernier tour, si le tour en cours est celui de `viewer` : ce que le badge du
+ * journal replié compte (`key` : l'entrée du début de son tour, pour ne le montrer qu'une fois).
+ */
+export function unreadActions(entries: readonly LogEntry[], viewer: PlayerId): { player: PlayerId; count: number; key: number } | null {
+  let mine = -1;
+  for (let i = entries.length - 1; i >= 0; i -= 1) {
+    if (entries[i]!.kind !== 'turn') continue;
+    if (entries[i]!.player !== viewer) return null;
+    mine = i;
+    break;
+  }
+  if (mine < 0) return null;
+  let from = mine - 1;
+  while (from >= 0 && entries[from]!.kind !== 'turn') from -= 1;
+  const player: PlayerId = viewer === 1 ? 2 : 1;
+  const count = entries.slice(from + 1, mine).filter((e) => e.kind === 'action' && e.player === player).length;
+  return { player, count, key: mine };
 }

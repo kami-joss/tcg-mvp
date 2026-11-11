@@ -1195,21 +1195,12 @@ select {
   max-height: 100%;
 }
 
-.game__left > .panel {
+/* Journal (refonte du 2026-11-11) : en bas de la colonne, ouvert à la hauteur que donne `journalHeight`, ou replié en
+   une barre ; il cède de la place si la fenêtre est basse. */
+.game__left > .journal {
   flex: 0 1 auto;
-  min-height: 72px;
-  max-height: 34%;
+  min-height: 46px;
   margin-top: auto;
-  background: oklch(0.22 0.014 60 / 0.84);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 10px 28px oklch(0 0 0 / 0.35);
-}
-
-.game__left .log {
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: none;
 }
 
 /*
@@ -4445,26 +4436,177 @@ select {
   font-size: 12.5px;
 }
 
-.log {
+/* --- Journal (refonte du 2026-11-11) ---
+   Panneau flouté ; ouvert, son en-tête et la liste ; replié, une barre (dernière entrée, ou badge des actions adverses). */
+.journal {
+  --tree-line: oklch(0.93 0.03 85 / 0.22);
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  max-height: 24em;
-  margin: 0;
-  padding: 0 4px 0 0;
-  overflow-y: auto;
-  list-style: none;
-  font-size: 13.5px;
-  line-height: 1.35;
+  border: 1px solid oklch(0.95 0.03 85 / 0.14);
+  border-radius: 14px;
+  background: oklch(0.2 0.012 60 / 0.88);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 12px 30px oklch(0 0 0 / 0.45);
+  overflow: hidden;
   color: var(--text);
 }
 
-/* Une entrée par action : l'icône de l'action dans une pastille à la couleur du camp, puis la phrase et ses conséquences. */
-.log__entry {
-  --side: oklch(0.42 0.014 60);
+.journal__head {
+  flex: none;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
+  height: 42px;
+  padding: 0 4px 0 14px;
+  border-bottom: 1px solid oklch(0.95 0.03 85 / 0.08);
+}
+
+.journal__title {
+  flex: none;
+  margin: 0 auto 0 0;
+  font: 800 14px/1 var(--font-sc);
+  letter-spacing: 0.08em;
+  color: var(--text);
+}
+
+.journal__toggle {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.journal__toggle:hover,
+.journal__toggle:focus-visible {
+  background: oklch(1 0 0 / 0.07);
+  color: var(--text);
+}
+
+.journal__chevron {
+  width: 20px;
+  height: 20px;
+}
+
+.journal__chevron--down {
+  rotate: 90deg;
+}
+
+.journal__chevron--up {
+  flex: none;
+  rotate: -90deg;
+  color: var(--muted);
+}
+
+/* Replié : une barre cliquable avec la dernière entrée. */
+.journal--closed {
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 0 10px 0 12px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.journal--closed:hover,
+.journal--closed:focus-visible {
+  border-color: oklch(0.95 0.03 85 / 0.26);
+}
+
+.journal--closed .journal__title {
+  margin: 0;
+}
+
+.journal__summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  color: oklch(0.9 0.02 85);
+}
+
+.journal__icon {
+  width: 26px;
+  height: 26px;
+  margin: 0;
+}
+
+/* Après l'écran de passage : le badge compte les actions de l'adversaire. */
+.journal--closed.has-badge {
+  border-color: oklch(0.86 0.1 88 / 0.7);
+  box-shadow:
+    0 0 0 3px oklch(0.86 0.1 88 / 0.14),
+    0 10px 24px oklch(0 0 0 / 0.4);
+}
+
+.journal__badge {
+  flex: none;
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: var(--gold);
+  color: oklch(0.25 0.04 70);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.log {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  margin: 0;
+  padding: 10px 12px 12px 14px;
+  overflow-y: auto;
+  list-style: none;
+  font-size: 14px;
+  line-height: 1.35;
+  color: oklch(0.92 0.02 85);
+  scrollbar-width: thin;
+}
+
+/* Les noms des cartes, soulignés à la couleur de leur camp ; les joueurs, écrits à cette couleur. */
+.log__name {
+  font-weight: 700;
+  text-decoration: underline 1.5px;
+  text-underline-offset: 3px;
+}
+
+.log__name--p1 {
+  text-decoration-color: var(--j1);
+}
+
+.log__name--p2 {
+  text-decoration-color: var(--j2);
+}
+
+.log__who--p1 {
+  color: oklch(0.76 0.11 255);
+}
+
+.log__who--p2 {
+  color: oklch(0.76 0.12 25);
+}
+
+/* Une entrée : l'action (icône dans une pastille cerclée à la couleur du camp, sa phrase), puis ses conséquences. */
+.log__entry {
+  --side: oklch(0.5 0.014 60);
 }
 
 .log__entry--p1,
@@ -4477,21 +4619,62 @@ select {
   --side: var(--j2);
 }
 
+.log__entry.is-latest {
+  margin: 0 -8px;
+  padding: 5px 8px;
+  border-radius: 9px;
+  background: oklch(0.82 0.11 85 / 0.1);
+}
+
+.log__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+
 .log__icon {
+  --tint: oklch(0.88 0.03 85);
   flex: none;
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
-  margin-top: -2px;
+  width: 28px;
+  height: 28px;
+  box-sizing: border-box;
   border-radius: 50%;
-  background: var(--side);
-  color: white;
-  font-size: 13px;
+  background: oklch(1 0 0 / 0.08);
+  box-shadow: inset 0 0 0 1.5px var(--side, oklch(0.5 0.014 60));
+  color: var(--tint);
 }
 
-.log__body {
+.log__icon .icon {
+  width: 15px;
+  height: 15px;
+}
+
+/* La couleur de l'icône dit le type de l'action. */
+.log__icon[data-icon='dragon-head'] {
+  --tint: oklch(0.76 0.12 25);
+}
+.log__icon[data-icon='walking-boot'],
+.log__icon[data-icon='castle'] {
+  --tint: oklch(0.82 0.1 155);
+}
+.log__icon[data-icon='spell-book'],
+.log__icon[data-icon='magic-swirl'] {
+  --tint: oklch(0.78 0.11 280);
+}
+.log__icon[data-icon='broadsword'],
+.log__icon[data-icon='high-shot'],
+.log__icon[data-icon='flame'] {
+  --tint: oklch(0.78 0.12 50);
+}
+.log__icon[data-icon='water-drop'] {
+  --tint: var(--mana-drop);
+}
+
+.log__text {
   min-width: 0;
+  padding-top: 4px;
 }
 
 .log__entry--start .log__text {
@@ -4499,65 +4682,170 @@ select {
 }
 
 .log__entry--refused .log__icon {
-  background: var(--danger);
+  --side: var(--danger);
+  --tint: var(--danger);
 }
 
 .log__entry--refused .log__text {
   color: var(--danger);
 }
 
-/* Conséquences : des étiquettes colorées à la suite de la phrase (pertes en rouge, gains en vert, VP en or). */
-.log__item {
-  margin-left: 7px;
-  font-size: 12.5px;
-  color: var(--muted);
+/* Conséquences en arborescence : un trait vertical depuis l'icône, un coude vers chacune. */
+.log__tree {
+  margin: 0 0 0 13px;
+  padding: 0;
+  list-style: none;
 }
 
-.log__item .icon {
-  display: inline-block;
-  margin-right: 3px;
-  font-size: 12px;
-  vertical-align: -1px;
+.log__node {
+  position: relative;
+  padding: 6px 0 0 24px;
 }
 
-.log__item--hurt {
-  color: oklch(0.76 0.13 25);
+.log__node::before,
+.log__node::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  background: var(--tree-line);
 }
 
-.log__item--good {
-  color: oklch(0.8 0.12 150);
+.log__node::before {
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
 }
 
-.log__item--vp {
-  color: var(--gold);
+.log__node:last-child::before {
+  bottom: auto;
+  height: 17px;
+}
+
+.log__node::after {
+  top: 16px;
+  width: 18px;
+  height: 1.5px;
+}
+
+.log__node > .log__tree {
+  margin-left: 9px;
+}
+
+.log__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.log__dot {
+  --tone: oklch(0.86 0.03 85);
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: oklch(1 0 0 / 0.1);
+  color: var(--tone);
+}
+
+.log__dot .icon {
+  width: 11px;
+  height: 11px;
+}
+
+.log__what {
+  min-width: 0;
+  padding-top: 1px;
+  font-size: 13.5px;
+  color: oklch(0.88 0.02 85);
+}
+
+.log__node--hurt > .log__row .log__dot {
+  --tone: oklch(0.76 0.13 25);
+  background: oklch(0.6 0.16 25 / 0.2);
+}
+
+.log__node--hurt > .log__row .log__what {
+  color: oklch(0.86 0.07 25);
+}
+
+.log__node--good > .log__row .log__dot {
+  --tone: oklch(0.84 0.11 152);
+  background: oklch(0.75 0.12 152 / 0.16);
+}
+
+.log__node--good > .log__row .log__what {
+  color: oklch(0.91 0.06 152);
+}
+
+.log__node--vp > .log__row .log__dot {
+  --tone: var(--gold);
+  background: oklch(0.82 0.11 85 / 0.18);
+}
+
+.log__node--vp > .log__row .log__what {
+  color: oklch(0.9 0.08 88);
   font-weight: 700;
 }
 
-.log__item--mana {
-  color: var(--mana-text);
-  font-weight: 700;
+.log__node--info > .log__row .log__dot {
+  --tone: var(--mana-drop);
 }
 
-/* Nouveau tour : un séparateur avec le numéro, le joueur, le mana et les VP reçus. */
+/* Nouveau tour : un trait à la couleur du joueur, son numéro, le mana et les VP reçus ; puis le début de son tour. */
 .log__turn {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 3px 10px;
-  margin-top: 3px;
-  padding: 5px 9px;
-  border-radius: 8px;
-  background: oklch(1 0 0 / 0.045);
-  box-shadow: inset 3px 0 0 var(--side, oklch(0.42 0.014 60));
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
 }
 
-.log__turn .log__item {
-  margin-left: 0;
+.log__rule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.log__rule::before,
+.log__rule::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: color-mix(in oklch, var(--side, var(--line)) 60%, transparent);
 }
 
 .log__turn-label {
-  font: 800 12px/1.2 var(--font-sc);
-  letter-spacing: 0.06em;
+  font: 800 11.5px/1.2 var(--font-sc);
+  letter-spacing: 0.1em;
+  color: color-mix(in oklch, var(--side, var(--muted)) 55%, white);
+}
+
+.log__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.log__pill .icon {
+  width: 11px;
+  height: 11px;
+}
+
+.log__pill--mana {
+  border: 1px solid oklch(0.6 0.15 262 / 0.35);
+  background: oklch(0.6 0.15 262 / 0.16);
+  color: var(--mana-text);
+}
+
+.log__pill--vp {
+  border: 1px solid oklch(0.82 0.11 85 / 0.35);
+  background: oklch(0.82 0.11 85 / 0.14);
+  color: var(--gold);
 }
 
 /* --- Fiche (handoff V8, lot 9) ---

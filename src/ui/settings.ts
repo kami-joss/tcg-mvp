@@ -53,6 +53,8 @@ export interface DisplaySettings {
   readonly grimoireLayout: GrimoireLayout;
   /** Panneau du grimoire ouvert, ou replié contre le bord droit (handoff V11, lot 13 §4). */
   readonly grimoireOpen: boolean;
+  /** Journal ouvert, ou replié en une barre (refonte du 2026-11-11). */
+  readonly journalOpen: boolean;
   /** Stats sur les jetons. */
   readonly tokenStats: TokenStats;
   /**
@@ -76,6 +78,7 @@ export const DEFAULT_SETTINGS: DisplaySettings = {
   zoom: 1,
   grimoireLayout: 'list',
   grimoireOpen: true,
+  journalOpen: true,
   tokenStats: DEFAULT_TOKEN_STATS,
   edgeScroll: false,
   grid: true,
@@ -91,6 +94,7 @@ const KEYS = {
   zoom: 'tcg-plateau-zoom-v5',
   grimoireLayout: 'tcg-grimoire-affichage',
   grimoireOpen: 'tcg-grimoire-ouvert',
+  journalOpen: 'tcg-journal-ouvert',
   tokenStats: 'tcg-plateau-stats-v6',
   edgeScroll: 'tcg-plateau-defilement-bords-v2',
   grid: 'tcg-plateau-quadrillage',
@@ -136,6 +140,7 @@ export function loadSettings(): DisplaySettings {
   const zoom = Number.parseFloat(read(KEYS.zoom) ?? '');
   const grimoireLayout = read(KEYS.grimoireLayout);
   const grimoireOpen = read(KEYS.grimoireOpen);
+  const journalOpen = read(KEYS.journalOpen);
   const edgeScroll = read(KEYS.edgeScroll);
   const grid = read(KEYS.grid);
   const zoneDanger = read(KEYS.zoneDanger);
@@ -150,6 +155,7 @@ export function loadSettings(): DisplaySettings {
       GRIMOIRE_LAYOUTS.find((l) => LAYOUT_VALUES[l] === grimoireLayout) ??
       (grimoireLayout !== null && OLD_GRIDS.includes(grimoireLayout) ? 'grid2' : DEFAULT_SETTINGS.grimoireLayout),
     grimoireOpen: grimoireOpen === null ? DEFAULT_SETTINGS.grimoireOpen : grimoireOpen === '1',
+    journalOpen: journalOpen === null ? DEFAULT_SETTINGS.journalOpen : journalOpen === '1',
     tokenStats: readTokenStats(),
     edgeScroll: edgeScroll === null ? DEFAULT_SETTINGS.edgeScroll : edgeScroll === '1',
     grid: grid === null ? DEFAULT_SETTINGS.grid : grid === '1',
@@ -167,6 +173,7 @@ export function saveSettings(settings: DisplaySettings): void {
     window.localStorage.setItem(KEYS.zoom, String(settings.zoom));
     window.localStorage.setItem(KEYS.grimoireLayout, LAYOUT_VALUES[settings.grimoireLayout]);
     window.localStorage.setItem(KEYS.grimoireOpen, settings.grimoireOpen ? '1' : '0');
+    window.localStorage.setItem(KEYS.journalOpen, settings.journalOpen ? '1' : '0');
     window.localStorage.setItem(KEYS.edgeScroll, settings.edgeScroll ? '1' : '0');
     window.localStorage.setItem(KEYS.grid, settings.grid ? '1' : '0');
     window.localStorage.setItem(KEYS.zoneDanger, settings.zoneDanger ? '1' : '0');

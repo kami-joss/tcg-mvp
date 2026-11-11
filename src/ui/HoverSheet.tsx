@@ -88,15 +88,25 @@ function SheetBackground({ sheet }: { sheet: SheetData }) {
 /** L'overframe de la carte de la fiche, s'il y en a une. */
 export const sheetOverframe = (sheet: SheetData) => (sheet.art ? OVERFRAMES[sheet.art.cardId] : undefined);
 
-/** Place gardée au journal sous une fiche à overframe : sa hauteur minimale et l'écart. */
-const LOG_ROOM = 72 + 12;
+/** Écart entre la fiche et le journal. */
+const LOG_GAP = 12;
+/** Journal replié : la hauteur de sa barre. */
+export const JOURNAL_BAR = 46;
+
+/**
+ * Hauteur du journal en bas d'une colonne de `column` px : replié, sa barre ; ouvert, un tiers de la colonne, entre
+ * 180 et 300 px (refonte du 2026-11-11 : il était trop petit).
+ */
+export function journalHeight(column: number, open: boolean): number {
+  return open ? Math.round(Math.min(300, Math.max(180, column / 3))) : JOURNAL_BAR;
+}
 
 /**
  * Échelle d'une fiche à overframe (à sa taille, `SHEET_SCALE`) dans une colonne de `column` px de haut : 1 si elle tient
- * avec son débordement, sinon réduite pour laisser sa place au journal (fenêtre basse), 0,6 au moins.
+ * avec son débordement, sinon réduite pour laisser sa place au journal (`journal` px de haut), 0,6 au moins.
  */
-export function overframeFit(column: number, headroom: number): number {
-  return Math.min(1, Math.max(0.6, (column - LOG_ROOM) / ((SHEET_H + headroom) * SHEET_SCALE)));
+export function overframeFit(column: number, headroom: number, journal = 72): number {
+  return Math.min(1, Math.max(0.6, (column - journal - LOG_GAP) / ((SHEET_H + headroom) * SHEET_SCALE)));
 }
 
 /**

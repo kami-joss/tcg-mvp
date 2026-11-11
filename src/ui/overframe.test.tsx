@@ -5,7 +5,7 @@ import type { CardId, GameState } from '../engine';
 import { at, gameWith } from '../engine/test-utils';
 import { CARD_ART, CARD_ART_SHINY, cardArtFor } from './art';
 import { Grimoire } from './Grimoire';
-import { HoverSheet, SHEET_SCALE, SheetPreview, overframeFit, sheetPlacement } from './HoverSheet';
+import { HoverSheet, SHEET_SCALE, SheetPreview, journalHeight, overframeFit, sheetPlacement } from './HoverSheet';
 import { POP_FADE, RISE, popMask } from './Overframe';
 import kit from '../assets/overframe/overframes.json';
 import { MAX_HEADROOM, OVERFRAMES, PARTICLES, breathOrigin, hasShinyImages, overframeLook, overframeUrl } from './overframes';
@@ -207,6 +207,15 @@ describe('fiche à overframe', () => {
     expect(overframeFit(1000, 186)).toBe(1);
     expect(overframeFit(822, 186)).toBeCloseTo((822 - 84) / (684 * 1.3), 5);
     expect(overframeFit(300, 186)).toBe(0.6);
+  });
+
+  it('journal ouvert : un tiers de la colonne (180 à 300 px), replié : sa barre de 46 px ; la fiche lui cède la place', () => {
+    expect(journalHeight(822, true)).toBe(274);
+    expect(journalHeight(300, true)).toBe(180);
+    expect(journalHeight(2000, true)).toBe(300);
+    expect(journalHeight(822, false)).toBe(46);
+    expect(overframeFit(822, 186, 274)).toBeCloseTo((822 - 274 - 12) / (684 * 1.3), 5);
+    expect(overframeFit(1100, 186, 46)).toBe(1);
   });
 
   it('taille de la fiche : cadre, illustration et calques de l’overframe dans le repère 280 × 498, mis à l’échelle', () => {

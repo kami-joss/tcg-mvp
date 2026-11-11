@@ -31,7 +31,7 @@ import { applyEvent } from './fx/patch';
 import { playEvents } from './fx/player';
 import { cameraFocusOf } from './fx/cameraFocus';
 import { GRIMOIRE_DISPLAY, Grimoire, GrimoireTab } from './Grimoire';
-import { HoverSheet, SHEET_SCALE, SheetPreview, overframeFit, sheetOverframe, sheetPlacement } from './HoverSheet';
+import { HoverSheet, SHEET_SCALE, SheetPreview, journalHeight, overframeFit, sheetOverframe, sheetPlacement } from './HoverSheet';
 import { SHEET_W } from './Overframe';
 import {
   NO_SELECTION,
@@ -262,11 +262,12 @@ export function GameScreen(props: GameScreenProps) {
   // Une autre fiche, ou la partie qui avance : la portée survolée n'est plus la bonne.
   useEffect(() => setSheetReach(null), [focus, view]);
   // Fiche : le haut du cadre toujours au même endroit (place du plus grand débordement réservée au-dessus) ; fenêtre
-  // basse, place et overframes réduites pour laisser la sienne au journal.
+  // basse ou journal ouvert, place et overframes réduites pour laisser la sienne au journal.
   const leftRef = useRef<HTMLElement>(null);
   const leftHeight = useHeight(leftRef);
   const sheetOf = sheet ? sheetOverframe(sheet) : undefined;
-  const sheetFit = overframeFit(leftHeight, MAX_HEADROOM);
+  const journal = journalHeight(leftHeight, settings.journalOpen);
+  const sheetFit = overframeFit(leftHeight, MAX_HEADROOM, journal);
   const grimoireWidth = GRIMOIRE_DISPLAY[settings.grimoireLayout].width;
   const narrow = useNarrow(GLIDE_MIN_WIDTH);
   const glide = useMemo(
@@ -708,7 +709,13 @@ export function GameScreen(props: GameScreenProps) {
               <HoverSheet sheet={sheet} animated={animated} onOpen={() => setPreview(sheet)} onHoverReach={setSheetReach} />
             </div>
           )}
-          <ActionLog entries={log} />
+          <ActionLog
+            entries={log}
+            open={settings.journalOpen}
+            onToggle={() => changeSettings({ journalOpen: !settings.journalOpen })}
+            viewer={view.viewer}
+            style={{ height: journal }}
+          />
         </aside>
 
         {/* À droite, par-dessus le plateau : le grimoire, repliable par son onglet. */}
