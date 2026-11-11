@@ -787,11 +787,6 @@ export interface PlayerState {
    */
   readonly graveyard: readonly CardCopy[];
   /**
-   * Cartes jouées, publiques (§4.3, §10) : chaque carte sortie du grimoire (invocation, y compris par l'Invocateur, sort,
-   * terrain, dragon d'une évolution), dans l'ordre. Une transformation n'en fait sortir aucune.
-   */
-  readonly played: readonly CardCopy[];
-  /**
    * Exemplaires brillants encore dans son grimoire (purement visuel) : une carte jouée l'est d'abord dans un exemplaire
    * brillant, s'il en reste. Absent : aucun.
    */
@@ -1023,8 +1018,11 @@ export interface OpponentView {
   readonly mana: number;
   readonly vp: number;
   readonly graveyard: readonly CardCopy[];
-  /** Ses cartes jouées ; un exemplaire dont l'unité est cachée au joueur n'y est pas brillant (§10). */
-  readonly played: readonly CardCopy[];
+  /**
+   * Ses unités sur le plateau que le joueur ne voit pas (invisibles, camouflées) : leur carte seulement, jamais leur case
+   * ni leur unité, et pas brillantes (§4.3, §10). Ce qui est joué est public ; seule la position est cachée.
+   */
+  readonly onBoardHidden: readonly CardCopy[];
   readonly grimoireCount: number;
 }
 

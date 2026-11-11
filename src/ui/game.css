@@ -166,48 +166,93 @@ select {
   height: 56px;
 }
 
-/* --- Barre du haut (handoff V11, lot 12 §1) : rien à gauche, scores et « Fin du tour » au centre, tour, aide et options à droite --- */
+/* --- Haut de l'écran (refonte du 2026-11-11) : le plateau passe dessous ; l'encoche des scores au centre, l'aide et
+   les options en boutons ronds à droite. Seuls l'encoche et les boutons prennent les clics. --- */
 
 .topbar {
-  position: relative;
+  position: absolute;
   z-index: 50;
-  flex: none;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
-  align-items: center;
-  gap: 16px;
-  min-height: 50px;
-  padding: 6px 20px;
-  background: var(--bar);
-  border-bottom: 1px solid oklch(0.3 0.014 60);
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
 }
 
-.topbar__center {
-  display: flex;
+/* Une ombre douce en haut du plateau, pour lire l'encoche et les boutons sur le décor. */
+.topbar::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 140px;
+  background: linear-gradient(180deg, oklch(0.12 0.01 60 / 0.55), transparent);
+}
+
+/* L'encoche : une plaque sombre qui pend du haut, côtés en biais, liseré doré (deux calques découpés). */
+.notch {
+  --slant: 36px;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: center;
-  gap: 28px;
-  min-width: 0;
-  max-width: 100%;
+  gap: 14px;
+  /* De la place pour l'aide et les options, à droite, quelle que soit la largeur. */
+  width: min(940px, calc(100% - 232px));
+  min-height: 78px;
+  box-sizing: border-box;
+  padding: 4px calc(var(--slant) + 14px) 10px;
+  filter: drop-shadow(0 8px 16px oklch(0 0 0 / 0.5));
+  pointer-events: auto;
+}
+
+.notch::before,
+.notch::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+}
+
+.notch::before {
+  background: oklch(0.82 0.13 85 / 0.55);
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--slant)) 100%, var(--slant) 100%);
+}
+
+.notch::after {
+  background: linear-gradient(180deg, oklch(0.15 0.012 60), oklch(0.2 0.014 60));
+  clip-path: polygon(1.5px 0, calc(100% - 1.5px) 0, calc(100% - var(--slant) - 1px) calc(100% - 1.5px), calc(var(--slant) + 1px) calc(100% - 1.5px));
+}
+
+.notch__center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.notch__turn {
+  font: 800 12px/1 var(--font-sc);
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 .topbar__end {
+  position: absolute;
+  top: 12px;
+  right: 16px;
   display: flex;
-  justify-content: flex-end;
   align-items: center;
-  gap: 12px;
-}
-
-.topbar__turn {
-  font: 800 13px/1 var(--font-sc);
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  white-space: nowrap;
+  gap: 8px;
+  pointer-events: auto;
 }
 
 /* La partie se joue avec les cartes de l'atelier : leur liste au survol. */
 .topbar__workshop {
   display: inline-flex;
+  background: oklch(0.2 0.014 60 / 0.85);
   align-items: center;
   gap: 5px;
   padding: 4px 8px;
@@ -226,10 +271,71 @@ select {
 
 .topbar .btn--end-turn {
   flex: none;
+  min-width: 150px;
   padding: 8px 16px;
   border-radius: 10px;
   font-size: 17px;
   box-shadow: inset 0 -3px 0 oklch(0.6 0.12 75);
+  transition: box-shadow 0.3s;
+}
+
+/* Plus rien à jouer : « Fin du tour » s'illumine (et respire, si les animations sont permises). */
+.topbar .btn--end-turn.is-only {
+  box-shadow: inset 0 -3px 0 oklch(0.6 0.12 75), 0 0 0 3px oklch(0.85 0.13 85 / 0.35), 0 0 22px 6px oklch(0.85 0.13 85 / 0.5);
+}
+
+.game--anim .topbar .btn--end-turn.is-only {
+  animation: endTurnGlow 1.8s ease-in-out infinite;
+}
+
+@keyframes endTurnGlow {
+  50% {
+    box-shadow: inset 0 -3px 0 oklch(0.6 0.12 75), 0 0 0 4px oklch(0.85 0.13 85 / 0.45), 0 0 30px 10px oklch(0.85 0.13 85 / 0.65);
+  }
+}
+
+/* Au tour de l'IA ou de l'adversaire en ligne : « Joueur N joue », à la couleur de celui qui joue. */
+.topbar .btn--end-turn.is-waiting:disabled {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  opacity: 1;
+  background: oklch(0.3 0.04 255 / 0.5);
+  box-shadow: inset 0 0 0 1px oklch(0.7 0.1 255 / 0.5);
+  color: oklch(0.88 0.05 255);
+  font-size: 15px;
+}
+
+.end-turn__dots {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.end-turn__dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+}
+
+.game--anim .end-turn__dots i {
+  animation: endTurnDots 1.2s ease-in-out infinite;
+}
+
+.end-turn__dots i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.end-turn__dots i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes endTurnDots {
+  30% {
+    opacity: 1;
+  }
 }
 
 /* « Fin du tour » et le minuteur de tour : avec un minuteur, une place de sa taille de chaque côté du bouton, pour qu'il
@@ -290,25 +396,27 @@ select {
   }
 }
 
-/* Icônes de l'aide et des options : 32 px, liseré doré quand leur panneau est ouvert. */
+/* Aide et options : boutons ronds de 40 px, en verre sombre sur le plateau ; liseré doré quand leur panneau est ouvert. */
 .topbar__icon-btn {
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   border: none;
-  border-radius: 10px;
-  background: oklch(0.2 0.014 60);
-  box-shadow: inset 0 0 0 1px oklch(0.36 0.014 60);
+  border-radius: 50%;
+  background: oklch(0.2 0.014 60 / 0.8);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 0 0 1px oklch(0.5 0.02 70 / 0.5), 0 4px 12px oklch(0 0 0 / 0.35);
   color: oklch(0.93 0.02 85);
   cursor: pointer;
 }
 
 .topbar__icon-btn:hover {
-  background: oklch(0.26 0.014 60);
+  background: oklch(0.26 0.014 60 / 0.9);
 }
 
 .topbar__icon-btn .icon {
@@ -327,14 +435,74 @@ select {
   outline-offset: 2px;
 }
 
-/* --- Scores (lot 12 §3) : J2 en miroir ; le joueur qui ne joue pas est terni --- */
+/* --- Scores (lot 12 §3, encoche du 2026-11-11) : orbe, nom et compteurs, VP côté centre, barre de progression ; J2 en
+   miroir ; le joueur qui ne joue pas est terni --- */
 
 .score {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 9px;
-  opacity: 0.78;
+  gap: 10px;
+  min-width: 0;
+  padding-bottom: 6px;
+  opacity: 0.62;
   transition: opacity 0.4s;
+}
+
+.score .orb {
+  width: 44px;
+  height: 44px;
+}
+
+.score .orb__value {
+  font-size: 18px;
+}
+
+/* « À toi » (ou « Joue ») au joueur qui joue, à sa couleur. */
+.score__tag {
+  align-self: center;
+  padding: 2px 6px 3px;
+  border-radius: 5px;
+  background: var(--player-strong, var(--j1));
+  color: white;
+  font: 800 10.5px/1 var(--font-sc);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.score--p1 {
+  --player-strong: oklch(0.5 0.15 255);
+}
+
+.score--p2 {
+  --player-strong: oklch(0.52 0.17 25);
+}
+
+/* Progression vers la victoire : sous le score, depuis le bord extérieur ; une ligne à la couleur du joueur qui joue. */
+.score__progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: oklch(1 0 0 / 0.1);
+}
+
+.score__progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--player-strong);
+  transition: width 0.6s ease-out;
+}
+
+.score--p2 .score__progress > span {
+  margin-left: auto;
+}
+
+.score.is-active .score__progress {
+  box-shadow: 0 0 10px 1px color-mix(in oklch, var(--player-strong) 70%, transparent);
 }
 
 .score.is-active {
@@ -520,10 +688,12 @@ select {
 }
 
 .score__text {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
+  gap: 6px;
 }
 
 .score--p2 .score__text {
@@ -552,23 +722,35 @@ select {
   white-space: nowrap;
 }
 
-/* VP, puis les compteurs des cartes jouées et du cimetière (§10) : côté « Fin du tour », J2 en miroir. */
-.score__line {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.score--p2 .score__line,
+/* Compteurs « Plateau » et « Cimetière » (§10) sous le nom ; VP côté « Fin du tour ». J2 en miroir. */
 .score--p2 .score__piles {
   flex-direction: row-reverse;
 }
 
 .score__vp {
   position: relative;
+  flex: none;
   display: flex;
-  align-items: baseline;
-  gap: 3px;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1;
+}
+
+.score--p2 .score__vp {
+  align-items: flex-start;
+}
+
+.score__vp [data-vp] {
+  font: 800 27px/1 var(--font);
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.score__vp small {
+  margin-top: 3px;
+  font: 700 11px/1 var(--font-sc);
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 .score__piles {
@@ -576,13 +758,13 @@ select {
   gap: 4px;
 }
 
-/* Un compteur : icône et nombre ; liseré doré quand sa liste est ouverte, comme les icônes de la barre. */
+/* Un compteur : icône, nombre et nom ; liseré doré quand sa liste est ouverte, comme les icônes de la barre. */
 .score__pile {
   display: flex;
   align-items: center;
-  gap: 3px;
-  height: 20px;
-  padding: 0 6px 0 5px;
+  gap: 4px;
+  height: 24px;
+  padding: 0 7px 0 6px;
   border: none;
   border-radius: 7px;
   background: oklch(0.2 0.014 60);
@@ -597,8 +779,42 @@ select {
 }
 
 .score__pile .icon {
+  font-size: 15px;
+  opacity: 0.9;
+}
+
+.score__pile b {
+  font-weight: 800;
   font-size: 13px;
-  opacity: 0.85;
+}
+
+.score__pile-label {
+  font: 700 11px/1 var(--font-sc);
+  color: var(--muted);
+}
+
+/* Fenêtre étroite : l'encoche se resserre (le deck, puis le nom des compteurs, passent au survol). */
+@media (max-width: 1240px) {
+  .score__deck {
+    display: none;
+  }
+}
+
+@media (max-width: 1080px) {
+  .score__pile-label {
+    display: none;
+  }
+}
+
+@media (max-width: 820px) {
+  .score__name strong {
+    display: none;
+  }
+
+  .notch {
+    --slant: 24px;
+    gap: 8px;
+  }
 }
 
 .score__pile[aria-pressed='true'] {
@@ -903,7 +1119,7 @@ select {
 .zoom-toast {
   position: absolute;
   z-index: 25;
-  top: 14px;
+  top: 96px;
   left: 50%;
   translate: -50% 0;
   padding: 6px 14px;
@@ -1094,7 +1310,7 @@ select {
   position: absolute;
   z-index: 20;
   right: 16px;
-  top: 14px;
+  top: 66px;
   bottom: 14px;
   width: min(var(--grimoire-w, 304px), 42vw);
   display: flex;
@@ -3383,12 +3599,12 @@ select {
 .game__play > .legend {
   position: absolute;
   z-index: 30;
-  top: 14px;
+  top: 92px;
   left: 50%;
   transform: translateX(-50%);
   box-sizing: border-box;
   width: min(816px, calc(100% - 32px));
-  max-height: calc(100% - 28px);
+  max-height: calc(100% - 106px);
   overflow-y: auto;
   padding-right: 44px;
   background: oklch(0.22 0.014 60);
@@ -3402,10 +3618,10 @@ select {
 .game__play > .piles {
   position: absolute;
   z-index: 30;
-  top: 14px;
+  top: 92px;
   box-sizing: border-box;
   max-width: 816px;
-  max-height: calc(100% - 28px);
+  max-height: calc(100% - 106px);
   margin-inline: auto;
   display: flex;
   flex-direction: column;
@@ -7018,7 +7234,7 @@ select {
 /* Sous la barre du haut, par-dessus le plateau : connexion perdue, adversaire déconnecté, coup refusé. */
 .game__banner {
   position: absolute;
-  top: 58px;
+  top: 92px;
   left: 50%;
   z-index: 45;
   transform: translateX(-50%);

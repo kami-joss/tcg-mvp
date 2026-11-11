@@ -1,4 +1,4 @@
-// Cartes jouées et cimetière de chaque joueur (SPEC.md §10) : deux compteurs dans son score, en haut de l'écran, et un
+// Sur le plateau et cimetière de chaque joueur (SPEC.md §10) : deux compteurs dans son score, en haut de l'écran, et un
 // panneau flottant en haut du plateau, comme l'aide, sur la liste choisie (un onglet passe à l'autre ; fermé par sa
 // croix, Échap ou le même compteur). Une tuile par exemplaire, la plus récente en premier ; survol ou clic : sa fiche.
 // Tout vient de la vue du joueur qui regarde : rien du grimoire, rien de ce qui est caché.
@@ -17,7 +17,7 @@ interface PileCountersProps {
   onOpen: (pile: PileKind) => void;
 }
 
-/** Les deux compteurs d'un joueur, à côté de ses VP : cartes jouées et cimetière. */
+/** Les deux compteurs d'un joueur, sous son nom : sur le plateau et cimetière, chacun avec son nom écrit. */
 export function PileCounters({ view, player, open, onOpen }: PileCountersProps) {
   return (
     <span className="score__piles">
@@ -35,7 +35,8 @@ export function PileCounters({ view, player, open, onOpen }: PileCountersProps) 
             onClick={() => onOpen(pile)}
           >
             <Icon name={PILE_ICONS[pile]} />
-            {count}
+            <b>{count}</b>
+            <span className="score__pile-label">{PILE_LABELS[pile]}</span>
           </button>
         );
       })}

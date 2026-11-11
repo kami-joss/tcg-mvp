@@ -9,7 +9,7 @@ describe('getPlayerView (SPEC.md §2, §4.3)', () => {
     const state = gameWith([], {
       players: {
         1: { grimoire: ['eclaireur'], graveyard: [] },
-        2: { grimoire: ['dragonnet', 'golem'], graveyard: [{ cardId: 'charge' }], played: [{ cardId: 'charge' }], mana: 4, vp: 2 },
+        2: { grimoire: ['dragonnet', 'golem'], graveyard: [{ cardId: 'charge' }], mana: 4, vp: 2 },
       },
     });
     const view = getPlayerView(state, 1);
@@ -18,7 +18,7 @@ describe('getPlayerView (SPEC.md §2, §4.3)', () => {
       mana: 4,
       vp: 2,
       graveyard: [{ cardId: 'charge' }],
-      played: [{ cardId: 'charge' }],
+      onBoardHidden: [],
       grimoireCount: 2,
     });
     // Les cartes de la partie sont publiques : leur liste ne dit rien de ce qu'il a dans son grimoire.
@@ -36,8 +36,8 @@ describe('getPlayerView (SPEC.md §2, §4.3)', () => {
     state = applyAction(state, { type: 'playCard', cardId: 'milicien', target: { kind: 'cell', pos: at(0, 4) } });
     state = applyAction(state, { type: 'endTurn' });
     const view = getPlayerView(state, 2);
-    expect(view.opponent).toMatchObject({ id: 1, mana: 1, vp: 0, graveyard: [], played: [{ cardId: 'milicien' }], grimoireCount: 24 });
-    expect(view.me).toMatchObject({ id: 2, mana: 3, vp: 0, graveyard: [], played: [] });
+    expect(view.opponent).toMatchObject({ id: 1, mana: 1, vp: 0, graveyard: [], onBoardHidden: [], grimoireCount: 24 });
+    expect(view.me).toMatchObject({ id: 2, mana: 3, vp: 0, graveyard: [] });
   });
 
   it('le plateau, les unités, le tour, le joueur actif et le vainqueur sont publics', () => {

@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BATTLEFIELD_13, DECKS, getPlayerView } from '../engine';
-import { gameWith } from '../engine/test-utils';
+import { at, gameWith } from '../engine/test-utils';
 import { Legend } from './Legend';
 import { ManaOrb, ORB_FULL_MANA } from './ManaOrb';
 import { OptionsMenu } from './OptionsMenu';
@@ -9,7 +9,7 @@ import type { PileSelection } from './piles';
 import { DEFAULT_SETTINGS } from './settings';
 import { TopBar } from './TopBar';
 
-// Barre du haut, menu d'options et aide (handoff V11, lot 12 §1 et §2, lot 13 §5).
+// Haut de l'écran (encoche des scores, refonte du 2026-11-11), menu d'options et aide (handoff V11, lot 12 §2, lot 13 §5).
 
 const decks = { 1: DECKS.find((d) => d.id === 'archers')!, 2: DECKS.find((d) => d.id === 'pieges')! };
 const setup = { board: BATTLEFIELD_13, decks };
@@ -60,21 +60,68 @@ describe('barre du haut', () => {
     expect(html).toContain('<span class="score__deck">Maîtres des pièges</span>');
   });
 
-  it('chaque score : à côté des VP, les compteurs de ses cartes jouées et de son cimetière (§10)', () => {
-    const played = gameWith([], {
+  it('chaque score : sous le nom, les compteurs « Plateau » et « Cimetière », à leur nom (§10)', () => {
+    const game = gameWith([{ monster: 'milicien', owner: 1, at: at(0, 4) }], {
       activePlayer: 2,
-      players: { 1: { played: [{ cardId: 'milicien' }, { cardId: 'charge' }], graveyard: [{ cardId: 'charge' }] } },
+      players: { 1: { graveyard: [{ cardId: 'charge' }] } },
     });
-    const html = topBar(false, { player: 1, pile: 'graveyard' }, played);
-    expect(html).toContain('aria-label="Cartes jouées par J1 : 2"');
+    const html = topBar(false, { player: 1, pile: 'graveyard' }, game);
+    expect(html).toContain('aria-label="Sur le plateau (J1) : 1"');
     expect(html).toContain('aria-pressed="true" aria-label="Cimetière de J1 : 1"');
-    expect(html).toContain('aria-pressed="false" aria-label="Cartes jouées par J2 : 0"');
+    expect(html).toContain('aria-pressed="false" aria-label="Sur le plateau (J2) : 0"');
     expect(html).toContain('aria-pressed="false" aria-label="Cimetière de J2 : 0"');
-    expect(html.indexOf('data-vp="1"')).toBeLessThan(html.indexOf('Cartes jouées par J1'));
+    expect(html).toContain('<span class="score__pile-label">Plateau</span>');
+    expect(html).toContain('<span class="score__pile-label">Cimetière</span>');
+    expect(html.indexOf('Sur le plateau (J1)')).toBeLessThan(html.indexOf('data-vp="1"'));
     expect(html.indexOf('Cimetière de J1')).toBeLessThan(html.indexOf('Fin du tour'));
   });
 
-  it('à droite : le tour, l’icône de l’aide (allumée quand elle est ouverte), la roue des options fermée', () => {
+  it('l’encoche : « Tour N » au-dessus de « Fin du tour », « À toi » au joueur qui joue, barre de progression des VP', () => {
+    const html = topBar();
+    expect(html).toContain('<div class="notch">');
+    expect(html.indexOf('Tour 2')).toBeLessThan(html.indexOf('Fin du tour'));
+    expect(html.match(/score__tag/g)).toHaveLength(1);
+    expect(html).toMatch(/score--p2 is-active"[^]*?<span class="score__tag">À toi<\/span>/);
+    // 12 VP sur 30 : 40 % ; 3 sur 30 : 10 %.
+    expect(html).toContain('style="width:40%"');
+    expect(html).toContain('style="width:10%"');
+  });
+
+  it('plus rien à jouer : « Fin du tour » s’illumine', () => {
+    const done = gameWith([], { activePlayer: 2, players: { 2: { grimoire: [] } } });
+    expect(getPlayerView(done, 2).legalActions.map((action) => action.type)).toEqual(['endTurn']);
+    expect(topBar(false, null, done)).toContain('class="btn btn--end-turn is-only"');
+    // Encore des cartes à jouer : le bouton reste calme.
+    expect(topBar()).toContain('class="btn btn--end-turn"');
+  });
+
+  it('au tour de l’adversaire (IA, en ligne) : « Joueur N joue » à la place de « Fin du tour », et « Joue » à son nom', () => {
+    const html = renderToStaticMarkup(
+      <TopBar
+        view={getPlayerView(state, 1)}
+        setup={setup}
+        canEndTurn={false}
+        onEndTurn={noop}
+        helpOpen={false}
+        onHelp={noop}
+        settings={DEFAULT_SETTINGS}
+        boardView="iso"
+        isoAvailable
+        tiltAvailable
+        onSettings={noop}
+        onSound={noop}
+        onHome={noop}
+        pile={null}
+        onPile={noop}
+      />,
+    );
+    expect(html).toContain('is-waiting');
+    expect(html).toContain('Joueur 2 joue');
+    expect(html).not.toContain('Fin du tour');
+    expect(html).toContain('<span class="score__tag">Joue</span>');
+  });
+
+  it('à droite : l’icône de l’aide (allumée quand elle est ouverte), la roue des options fermée', () => {
     expect(topBar()).toContain('Tour 2');
     expect(topBar()).toContain('class="topbar__icon-btn btn--help" aria-pressed="false"');
     expect(topBar(true)).toContain('class="topbar__icon-btn btn--help" aria-pressed="true"');

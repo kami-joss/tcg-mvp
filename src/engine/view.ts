@@ -3,7 +3,6 @@ import { getLegalActions } from './actions';
 import { getManaZones } from './board';
 import { getVictoryVp, opponent } from './players';
 import { getHiddenUnitIds, perceivedBy } from './stealth';
-import { cardOfOrigin } from './units';
 import { getZoneStatus } from './zones';
 import type { CardCopy, GameEvent, GameState, PlayerId, PlayerView, Position, Unit, UnitId, ZoneStatus } from './types';
 
@@ -34,7 +33,7 @@ export function getPlayerView(state: GameState, player: PlayerId): PlayerView {
       mana: other.mana,
       vp: other.vp,
       graveyard: other.graveyard,
-      played: playedSeenBy(state, player),
+      onBoardHidden: onBoardHiddenFrom(state, player),
       grimoireCount: other.grimoire.length,
     },
     traps: state.traps.filter((trap) => trap.owner === player),
@@ -48,27 +47,20 @@ export function getPlayerView(state: GameState, player: PlayerId): PlayerView {
 }
 
 /**
- * Cartes jouées de l'adversaire, telles que `player` les voit : publiques (§10), mais un exemplaire brillant dont l'unité
- * lui est cachée (camouflée) n'y est pas brillant, comme cette unité. Pour chaque unité cachée brillante, l'exemplaire
- * brillant le plus récent de sa carte est montré normal : le joueur voit autant d'exemplaires brillants qu'il en a vu.
+ * Les unités de l'adversaire sur le plateau que `player` ne voit pas (invisibles, camouflées) : leur carte seulement,
+ * dans l'ordre où elles sont arrivées, jamais brillantes (§4.3, §10). Ce qui a été joué est public, pas la case.
  */
-function playedSeenBy(state: GameState, player: PlayerId): readonly CardCopy[] {
-  const { played } = state.players[opponent(player)];
-  const hidden = getHiddenUnitIds(state, player).flatMap((id) => {
-    const unit = state.units[id];
-    return unit?.shiny ? [cardOfOrigin(state.cards, unit)] : [];
-  });
-  if (hidden.length === 0) return played;
-  const seen = [...played];
-  for (const cardId of hidden) {
-    for (let i = seen.length - 1; i >= 0; i--) {
-      if (seen[i]!.cardId === cardId && seen[i]!.shiny) {
-        seen[i] = { cardId };
-        break;
-      }
-    }
-  }
-  return seen;
+function onBoardHiddenFrom(state: GameState, player: PlayerId): readonly CardCopy[] {
+  return getHiddenUnitIds(state, player)
+    .map((id) => state.units[id])
+    .filter((unit): unit is Unit => unit !== undefined)
+    .sort((a, b) => unitOrder(a.id) - unitOrder(b.id))
+    .map((unit) => ({ cardId: unit.cardId }));
+}
+
+/** Rang d'arrivée d'une unité sur le plateau : son numéro (`u12` → 12). */
+export function unitOrder(id: UnitId): number {
+  return Number(id.replace(/\D/g, '')) || 0;
 }
 
 /**

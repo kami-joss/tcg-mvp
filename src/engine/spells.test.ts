@@ -21,12 +21,11 @@ const spellActions = (state: GameState, cardId: CardId) =>
   getLegalActions(state).filter((a) => a.type === 'playCard' && a.cardId === cardId);
 
 describe('sorts (SPEC.md §4.3, §6)', () => {
-  it('un sort paie son coût, va au cimetière et compte parmi les cartes jouées', () => {
+  it('un sort paie son coût et va au cimetière', () => {
     const state = gameWith([{ monster: 'milicien', owner: 1, at: at(8, 1) }], MANA);
     const after = applyAction(state, cast('charge', 'u1'));
     expect(after.players[1].mana).toBe(9);
     expect(after.players[1].graveyard).toEqual([{ cardId: 'charge' }]);
-    expect(after.players[1].played).toEqual([{ cardId: 'charge' }]);
     expect(after.players[1].grimoire).not.toContain('charge');
   });
 

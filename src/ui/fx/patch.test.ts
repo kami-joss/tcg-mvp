@@ -67,19 +67,17 @@ describe('cartes jouées et cimetière pendant l’animation (§10)', () => {
     for (const viewer of [1, 2] as const) {
       for (const action of cases) {
         const { replayed, after } = replay(state, action, viewer);
-        expect(replayed.me.played, `${action.type} J${viewer}`).toEqual(after.me.played);
-        expect(replayed.me.graveyard).toEqual(after.me.graveyard);
-        expect(replayed.opponent.played).toEqual(after.opponent.played);
+        expect(replayed.me.graveyard, `${action.type} J${viewer}`).toEqual(after.me.graveyard);
+        expect(replayed.opponent.onBoardHidden).toEqual(after.opponent.onBoardHidden);
         expect(replayed.opponent.graveyard).toEqual(after.opponent.graveyard);
       }
     }
   });
 
-  it('la carte jouée s’ajoute avec son événement, la carte d’une unité détruite avec sa destruction', () => {
+  it('un sort va au cimetière avec son événement, la carte d’une unité détruite avec sa destruction', () => {
     const after = applyAction(state, cases[1]!);
     const played = after.events.find((event) => event.type === 'cardPlayed')!;
     const opponentView = applyEvent(getPlayerView(state, 2), played, getPlayerView(after, 2));
-    expect(opponentView.opponent.played).toEqual([{ cardId: 'charge' }]);
     expect(opponentView.opponent.graveyard).toEqual([{ cardId: 'charge' }]);
 
     const killed = applyAction(state, cases[2]!);

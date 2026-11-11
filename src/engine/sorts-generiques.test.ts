@@ -235,8 +235,6 @@ describe('Réanimation : un monstre de son cimetière · invoqué sur une de ses
     expect(monster(after, 'u2')).toMatchObject({ cardId: 'golem', owner: 1, pos: at(0, 4), hp: 7, maxHp: 7, mobilityLeft: 2, statuses: [] });
     expect(getLegalActions(after).some((a) => a.type === 'move' && a.unitId === 'u2')).toBe(true);
     expect(after.players[1].graveyard).toEqual([{ cardId: 'boule-de-feu' }, { cardId: 'reanimation' }]);
-    // Ce n'est pas une carte jouée : seule la Réanimation l'est.
-    expect(after.players[1].played).toEqual([{ cardId: 'reanimation' }]);
   });
 
   it('un exemplaire brillant revient brillant ; pas jouable sans monstre au cimetière', () => {

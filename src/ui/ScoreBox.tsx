@@ -1,7 +1,8 @@
-// Score d'un joueur dans la barre du haut (handoff V11, lot 12 §1 et §3) : l'orbe de mana (`ManaOrb`), puis le nom, le
-// deck et les VP, et à côté des VP les compteurs de ses cartes jouées et de son cimetière, qui ouvrent ces listes
-// (SPEC.md §10, `CardPiles`). J1 toujours à gauche de « Fin du tour », J2 à droite en miroir ; le joueur qui ne joue pas
-// est un peu terni. Le mana porte `data-mana` et les VP `data-vp` : les animations y font voler les gains. Mana dépensé :
+// Score d'un joueur dans l'encoche du haut (refonte du 2026-11-11) : l'orbe de mana (`ManaOrb`), le nom et le deck
+// (avec « À toi », ou « Joue » pour l'IA ou l'adversaire en ligne, au joueur qui joue), dessous ses compteurs « Plateau »
+// et « Cimetière » qui ouvrent ces listes (SPEC.md §10, `CardPiles`), puis ses VP, côté centre, et une barre de
+// progression vers la victoire. J1 toujours à gauche de « Fin du tour », J2 à droite en miroir ; le joueur qui ne joue
+// pas est terni. Le mana porte `data-mana` et les VP `data-vp` : les animations y font voler les gains. Mana dépensé :
 // des éclats cyan et de la brume s'échappent de l'orbe ; points gagnés : des étincelles dorées jaillissent des VP.
 import { useEffect, useRef, useState } from 'react';
 import { getManaLimit } from '../engine';
@@ -42,7 +43,7 @@ interface ScoreBoxProps {
   ai?: boolean;
   /** Animations permises (réglage, et pas de « mouvements réduits » demandés par le système). */
   animated?: boolean;
-  /** Sa liste ouverte dans le panneau des cartes jouées et du cimetière, s'il y en a une. */
+  /** Sa liste ouverte dans le panneau « Sur le plateau » et cimetière, s'il y en a une. */
   pile: PileKind | null;
   /** Clic sur un de ses compteurs. */
   onPile: (pile: PileKind) => void;
@@ -94,16 +95,18 @@ export function ScoreBox({ view, player, deckName, ai = false, animated = true, 
             {ai && ' · IA'}
           </strong>
           <span className="score__deck">{deckName}</span>
+          {active && view.winner === null && <span className="score__tag">{mine ? 'À toi' : 'Joue'}</span>}
         </div>
-        <div className="score__line">
-          <div className="score__vp">
-            <span data-vp={player}>{vp}</span>
-            <small>/{view.victoryVp} VP</small>
-            <span className="score__spark" data-spark={player} />
-          </div>
-          <PileCounters view={view} player={player} open={pile} onOpen={onPile} />
-        </div>
+        <PileCounters view={view} player={player} open={pile} onOpen={onPile} />
       </div>
+      <div className="score__vp">
+        <span data-vp={player}>{vp}</span>
+        <small>/{view.victoryVp} VP</small>
+        <span className="score__spark" data-spark={player} />
+      </div>
+      <span className="score__progress" aria-hidden="true">
+        <span style={{ width: `${Math.min(100, (real.vp / Math.max(1, view.victoryVp)) * 100)}%` }} />
+      </span>
     </section>
   );
 }

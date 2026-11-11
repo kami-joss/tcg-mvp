@@ -7,7 +7,7 @@ export { createGame } from './game';
 export { getManaLimit, getVictoryVp } from './players';
 export { applyAction, getLegalActions } from './actions';
 export { concede } from './concede';
-export { getPlayerView, getViewZoneController, getViewZoneStatus } from './view';
+export { getPlayerView, getViewZoneController, getViewZoneStatus, unitOrder } from './view';
 export { IllegalActionError } from './errors';
 export { canAdvance, getAttackCells, getAttackTargets, getDiagonalCells, getLineOfSightCells, getStrikeCells } from './combat';
 export { getAreaCells, getAreaTargets, getEffectTargets, getPushDestination } from './effects';
