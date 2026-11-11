@@ -4,11 +4,11 @@
 import { MANA_ZONE_NAMES, allPositions, getCell, getUnitsAt, getViewZoneStatus, samePos } from '../../engine';
 import type { PlayerView, Position, UnitId } from '../../engine';
 import { trapLabel } from '../cardText';
-import { FLIP_EDGE, getZoneTiles } from '../contestZones';
-import type { ZoneEdge, ZoneLook } from '../contestZones';
+import type { IconName } from '../Icon';
 import type { AttackPreview, Highlight, ZoneView } from '../interaction';
 import type { DangerEdges } from '../zones';
 import { ISO, waterKind } from '../iso/scenery';
+import { ZONE_ICONS } from '../sheet';
 import { getZoneMarks } from '../zoneMarks';
 import type { ZoneMark } from '../zoneMarks';
 
@@ -42,14 +42,12 @@ export interface CellVisual {
   readonly x: number;
   readonly y: number;
   readonly base: CellBase;
-  /** Bord intérieur : mana zone (3 px, couleur de celui qui la tient) ou case d'invocation (2 px). */
+  /** Bord intérieur d'une case d'invocation (2 px, couleur du joueur). */
   readonly edge: { readonly color: string; readonly width: number } | null;
-  /** Lueur qui pulse d'une mana zone (animations permises), à la couleur de celui qui la tient. */
-  readonly glow: string | null;
   /** Case d'invocation : « J1 » ou « J2 ». */
   readonly summon: 1 | 2 | null;
-  /** Mode contestation : la case d'une zone de 9 cases, l'état de sa zone et ses côtés de bord (affichés). */
-  readonly area: { readonly look: ZoneLook; readonly edges: readonly ZoneEdge[] } | null;
+  /** Mana zone, portée par sa case centrale (refonte du 2026-11-11) : voir `ManaZoneVisual`. */
+  readonly manaZone: ManaZoneVisual | null;
   /** Marques au sol des terrains « Passage » et des cases brûlées. */
   readonly marks: readonly ZoneMark[];
   readonly dim: boolean;
@@ -75,8 +73,47 @@ export interface CellVisual {
   readonly trap: string | null;
   /** Cible d'attaque posée sur la case (un terrain seul) : son cadre, et les dégâts annoncés. */
   readonly attack: { readonly damage: string | null } | null;
-  /** Nom de la mana zone, à la couleur de celui qui la tient. */
-  readonly zoneLabel: { readonly text: string; readonly color: string } | null;
+}
+
+/**
+ * Une mana zone (refonte du 2026-11-11) : au repos, une lueur dans son carré (3 × 3 en contestation, sa case sinon) et
+ * la case centrale éclairée ; quand la souris passe sur la zone ou sur son nom, un trait fin au bord, les quatre coins et
+ * un cercle fin autour de la case centrale. Son nom, avec son icône et ce qu'elle rapporte ou qui la tient, passe
+ * toujours au-dessus du décor.
+ */
+export interface ManaZoneVisual {
+  readonly look: 'neutral' | 'p1' | 'p2' | 'contested';
+  /** Couleur de la zone : neutre (or), du joueur qui la tient, ou contestée. */
+  readonly color: string;
+  /** Son carré dans le plan affiché (coin haut-gauche, côté). */
+  readonly x: number;
+  readonly y: number;
+  readonly size: number;
+  /** La souris est sur une de ses cases (ou sur son nom) : le trait fin s'affiche. */
+  readonly hovered: boolean;
+  /** La lueur respire (animations permises). */
+  readonly pulse: boolean;
+  readonly name: string;
+  readonly icon: IconName;
+  /** À droite du nom : « +1 VP » (neutre), « J1 », « J2 », « Contestée ». */
+  readonly holder: string;
+}
+
+/**
+ * La mana zone dont `pos` fait partie : la case de la mana zone elle-même, ou en mode contestation une case de son
+ * carré 3 × 3. `null` hors des zones.
+ */
+export function manaZoneAt(view: Pick<PlayerView, 'board' | 'mode'>, pos: Position): Position | null {
+  const reach = view.mode === 'contestation' ? 1 : 0;
+  for (let dr = -reach; dr <= reach; dr++) {
+    for (let dc = -reach; dc <= reach; dc++) {
+      const at = { row: pos.row + dr, col: pos.col + dc };
+      if (at.row < 0 || at.col < 0 || at.row >= view.board.rows || at.col >= view.board.cols) continue;
+      const cell = getCell(view.board, at);
+      if (cell.kind === 'plain' && cell.manaZone) return at;
+    }
+  }
+  return null;
 }
 
 export interface CellInputs {
@@ -118,20 +155,20 @@ export function cellVisuals(inputs: CellInputs): CellVisual[] {
   const steps = new Set(path.slice(0, -1).map((pos) => `${pos.row},${pos.col}`));
   const hoveredKey = hovered ? `${hovered.row},${hovered.col}` : null;
   const marksByCell = getZoneMarks(view);
-  const tiles = getZoneTiles(view);
+  const hoveredZone = hovered ? manaZoneAt(view, hovered) : null;
+  // Côté du carré d'une zone de contestation, dans le plan : trois cases et les deux espaces entre elles.
+  const span = view.mode === 'contestation' ? 1 : 0;
   const out: CellVisual[] = [];
   for (const pos of allPositions(view.board)) {
     const cell = getCell(view.board, pos);
     if (cell.kind === 'offBoard') continue;
     const key = `${pos.row},${pos.col}`;
     const [r, c] = flipped ? [rows - 1 - pos.row, cols - 1 - pos.col] : [pos.row, pos.col];
-    const tile = tiles.get(key);
     const common = {
       key,
       pos,
       x: ISO.pad + c * ISO.pitch,
       y: ISO.pad + r * ISO.pitch,
-      area: tile ? { look: tile.look, edges: tile.edges.map((edge) => (flipped ? FLIP_EDGE[edge] : edge)) } : null,
       marks: marksByCell.get(key) ?? [],
     };
     if (cell.kind === 'blocked') {
@@ -139,8 +176,8 @@ export function cellVisuals(inputs: CellInputs): CellVisual[] {
         ...common,
         base: waterKind(view.board, pos) ? 'water' : grid ? 'blocked' : 'bare',
         edge: null,
-        glow: null,
         summon: null,
+        manaZone: null,
         dim: false,
         reach: null,
         reachOnMana: false,
@@ -152,7 +189,6 @@ export function cellVisuals(inputs: CellInputs): CellVisual[] {
         target: false,
         trap: null,
         attack: null,
-        zoneLabel: null,
       });
       continue;
     }
@@ -174,13 +210,22 @@ export function cellVisuals(inputs: CellInputs): CellVisual[] {
     out.push({
       ...common,
       base: zone ? 'mana' : cell.summonZoneOf === 1 ? 'summon1' : cell.summonZoneOf === 2 ? 'summon2' : !grid ? 'bare' : (pos.row + pos.col) % 2 ? 'odd' : 'plain',
-      edge: zone
-        ? { color: holderColor(controller, contested, CELL_COLORS.zone), width: 3 }
-        : cell.summonZoneOf !== null
-          ? { color: cell.summonZoneOf === 1 ? CELL_COLORS.j1 : CELL_COLORS.j2, width: 2 }
-          : null,
-      glow: zone && animated ? holderColor(controller, contested, CELL_COLORS.zone) : null,
+      edge: cell.summonZoneOf !== null ? { color: cell.summonZoneOf === 1 ? CELL_COLORS.j1 : CELL_COLORS.j2, width: 2 } : null,
       summon: cell.summonZoneOf,
+      manaZone: zone
+        ? {
+            look: contested ? 'contested' : controller === 1 ? 'p1' : controller === 2 ? 'p2' : 'neutral',
+            color: holderColor(controller, contested, CELL_COLORS.zone),
+            x: common.x - span * ISO.pitch,
+            y: common.y - span * ISO.pitch,
+            size: CELL_SIZE + 2 * span * ISO.pitch,
+            hovered: hoveredZone !== null && samePos(hoveredZone, pos),
+            pulse: animated,
+            name: MANA_ZONE_NAMES[zone],
+            icon: ZONE_ICONS[zone],
+            holder: contested ? 'Contestée' : controller ? `J${controller}` : '+1 VP',
+          }
+        : null,
       dim: focused && !highlight && !reach && !step && !selected(monster?.id) && !selected(terrain?.id),
       reach,
       reachOnMana: reach !== null && zone !== null,
@@ -192,12 +237,6 @@ export function cellVisuals(inputs: CellInputs): CellVisual[] {
       target: highlight === 'target' && !onToken,
       trap: trap && !monster ? trapLabel(trap) : null,
       attack: (highlight === 'attack' || attack) && !onToken ? { damage: attack ? `−${attack.damage}${attack.behind ? ' dos' : ''}` : null } : null,
-      zoneLabel: zone
-        ? {
-            text: `${controller ? `J${controller} · ` : ''}${contested ? 'Contestée · ' : ''}${MANA_ZONE_NAMES[zone]}`,
-            color: holderColor(controller, contested, CELL_COLORS.zoneLabel),
-          }
-        : null,
     });
   }
   return out;

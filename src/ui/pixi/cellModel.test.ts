@@ -5,7 +5,7 @@ import { at, gameWith } from '../../engine/test-utils';
 import type { UnitSpec } from '../../engine/test-utils';
 import { NO_ZONE_VIEW } from '../interaction';
 import type { Highlight, ZoneView } from '../interaction';
-import { CELL_COLORS, cellVisuals } from './cellModel';
+import { CELL_COLORS, cellVisuals, manaZoneAt } from './cellModel';
 import type { CellInputs, CellVisual } from './cellModel';
 
 // Le dessin des cases du plateau PixiJS reprend les règles de `BoardCell` en vue isométrique. 15 × 15 : la Forge en
@@ -50,17 +50,37 @@ describe('cases du plateau PixiJS : fond et repères', () => {
     expect(cellAt(list, at(6, 7)).base).toBe('odd');
   });
 
-  it('mana zone : bord de 3 px et nom à la couleur de celui qui la tient, lueur seulement avec les animations', () => {
+  it('mana zone (refonte du 2026-11-11) : sa couleur, son nom, son icône, ce qu’elle rapporte ou qui la tient ; la lueur respire avec les animations', () => {
     const neutral = cellAt(visuals(), FORGE);
-    expect(neutral).toMatchObject({
-      base: 'mana',
-      edge: { color: CELL_COLORS.zone, width: 3 },
-      glow: CELL_COLORS.zone,
-      zoneLabel: { text: 'Forge', color: CELL_COLORS.zoneLabel },
+    expect(neutral.edge).toBeNull();
+    expect(neutral.manaZone).toMatchObject({
+      look: 'neutral',
+      color: CELL_COLORS.zone,
+      name: 'Forge',
+      icon: 'anvil',
+      holder: '+1 VP',
+      hovered: false,
+      pulse: true,
+      // Mode Normal : la zone est sa case.
+      x: neutral.x,
+      y: neutral.y,
+      size: 68,
     });
-    expect(cellAt(visuals({ animated: false }), FORGE).glow).toBeNull();
+    expect(cellAt(visuals({ animated: false }), FORGE).manaZone?.pulse).toBe(false);
     const held = cellAt(visuals({ view: view([{ monster: 'chevalier', owner: 1, at: FORGE }]) }), FORGE);
-    expect(held).toMatchObject({ edge: { color: CELL_COLORS.j1 }, glow: CELL_COLORS.j1, zoneLabel: { text: 'J1 · Forge', color: CELL_COLORS.j1 } });
+    expect(held.manaZone).toMatchObject({ look: 'p1', color: CELL_COLORS.j1, holder: 'J1' });
+    expect(cellAt(visuals(), at(7, 8)).manaZone).toBeNull();
+  });
+
+  it('mana zone : la souris sur la zone allume son trait fin ; en contestation, sur une des 9 cases de son carré', () => {
+    expect(cellAt(visuals({ hovered: FORGE }), FORGE).manaZone?.hovered).toBe(true);
+    expect(cellAt(visuals({ hovered: at(7, 8) }), FORGE).manaZone?.hovered).toBe(false);
+    const contest = { ...view(), mode: 'contestation' as const };
+    expect(manaZoneAt(contest, at(8, 8))).toEqual(FORGE);
+    expect(manaZoneAt(contest, at(9, 9))).toBeNull();
+    expect(manaZoneAt(view(), at(8, 8))).toBeNull();
+    const square = cellAt(visuals({ view: contest, hovered: at(6, 8) }), FORGE);
+    expect(square.manaZone).toMatchObject({ hovered: true, x: square.x - 72, y: square.y - 72, size: 68 + 2 * 72 });
   });
 
   it('cases d’invocation : fond et bord de 2 px du joueur, « J1 » ou « J2 »', () => {

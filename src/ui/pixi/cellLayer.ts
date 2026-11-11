@@ -5,14 +5,13 @@
 // droits et à taille fixe comme les « textes au sol » du CSS (contre-rotation, `--qz`) : J1/J2, dégâts annoncés, noms
 // des pièges, icônes des marques ; et debout devant, le nom des mana zones.
 import type { Container as PixiContainer, Graphics, Sprite, Texture } from 'pixi.js';
-import type { ZoneEdge } from '../contestZones';
 import type { IconName } from '../Icon';
 import { ICON_PATHS, MDI_PATHS } from '../iconPaths';
 import type { IsoCamera } from '../iso/scenery';
 import { diceLayout } from '../zoneMarks';
 import { CELL_COLORS, CELL_SIZE } from './cellModel';
 import { ISO } from '../iso/scenery';
-import type { CellVisual } from './cellModel';
+import type { CellVisual, ManaZoneVisual } from './cellModel';
 import { painted } from './groundFx';
 import type { Pixi } from './groundFx';
 import { isoDepth, isoProject } from './isoProjection';
@@ -215,6 +214,62 @@ function pill(
   return node;
 }
 
+/** Profondeur des noms de zone : devant tout le décor debout, comme une étiquette posée sur l'image. */
+const ZONE_TAG_DEPTH = 100_000;
+
+/** Disque flou, blanc au centre et transparent au bord (`edge` : où l'opacité tombe à 0), à teinter. */
+function radialTexture(pixi: Pixi, edge: number): Texture {
+  return painted(pixi, 128, 128, (ctx) => {
+    const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gradient.addColorStop(0, 'rgba(255,255,255,0.9)');
+    gradient.addColorStop(edge * 0.6, 'rgba(255,255,255,0.55)');
+    gradient.addColorStop(edge, 'rgba(255,255,255,0.25)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 128, 128);
+  });
+}
+
+/** Le nom d'une mana zone (taille fixe à l'écran) : icône, nom, puis « +1 VP », « J1 », « J2 » ou « Contestée ». */
+function zoneTag(pixi: Pixi, zone: ManaZoneVisual): PixiContainer {
+  const s = TEXT_SCALE;
+  const node = new pixi.Container();
+  const resolution = Math.min(2, window.devicePixelRatio || 1) * 1.5;
+  const text = (value: string, size: number, color: string, sc: boolean) =>
+    new pixi.Text({
+      text: value,
+      resolution,
+      style: {
+        fontFamily: sc ? ['Alegreya Sans SC', 'Alegreya Sans', 'sans-serif'] : ['Alegreya Sans', 'sans-serif'],
+        fontWeight: '800',
+        fontSize: size,
+        fill: cssColor(color).color,
+        letterSpacing: sc ? size * 0.05 : 0,
+      },
+    });
+  const light = mix(zone.color, 55, 'white');
+  const name = text(zone.name, 12.5 * s, CELL_COLORS.paper, true);
+  const holder = text(zone.holder, 11.5 * s, light, false);
+  const icon = new pixi.Sprite({ texture: iconTexture(pixi, zone.icon), anchor: 0.5, width: 13 * s, height: 13 * s, tint: cssColor(light).color });
+  const [padX, gap, h] = [8 * s, 6 * s, 22 * s];
+  const w = padX + icon.width + gap + name.width + gap + 1 + gap + holder.width + padX;
+  const back = new pixi.Graphics();
+  back.roundRect(-w / 2, -h / 2, w, h, h / 2).fill({ color: cssColor('oklch(0.17 0.012 60)').color, alpha: 0.9 });
+  back.roundRect(-w / 2, -h / 2, w, h, h / 2).stroke({ ...cssColor(mix(zone.color, 75)), width: 1, alignment: 0 });
+  let x = -w / 2 + padX;
+  icon.position.set(x + icon.width / 2, 0);
+  x += icon.width + gap;
+  name.anchor.set(0, 0.5);
+  name.position.set(x, -0.5);
+  x += name.width + gap;
+  const separator = new pixi.Graphics().rect(x, -h * 0.25, 1, h * 0.5).fill({ ...cssColor(mix(zone.color, 40)) });
+  x += 1 + gap;
+  holder.anchor.set(0, 0.5);
+  holder.position.set(x, -0.5);
+  node.addChild(back, icon, name, separator, holder);
+  return node;
+}
+
 /** Un élément à l'écran, posé sur un point du plan. */
 interface Placed {
   readonly node: PixiContainer;
@@ -254,7 +309,11 @@ export class CellLayer {
   private zoneTextures: { halo: Texture; dot: Texture } | null = null;
   private readonly glows: Sprite[] = [];
   private readonly placed: Placed[] = [];
-  private glowTexture: Texture | null = null;
+  private manaTextures: { halo: Texture; well: Texture } | null = null;
+  /** Lueurs des mana zones sans animation : elles ne respirent pas. */
+  private readonly still: Sprite[] = [];
+  /** Opacité de repos de chaque lueur qui respire. */
+  private readonly glowBase: number[] = [];
 
   constructor(
     private readonly pixi: Pixi,
@@ -286,8 +345,10 @@ export class CellLayer {
     this.dangerLine.clear();
     for (const child of this.halos.removeChildren()) child.destroy();
     for (const child of this.dots.removeChildren()) child.destroy();
-    for (const sprite of this.glows) sprite.destroy();
+    for (const sprite of [...this.glows, ...this.still]) sprite.destroy();
     this.glows.length = 0;
+    this.glowBase.length = 0;
+    this.still.length = 0;
     for (const item of this.placed) item.node.destroy({ children: true });
     this.placed.length = 0;
     const { layers } = this;
@@ -306,62 +367,45 @@ export class CellLayer {
       const fill = {
         plain: 'oklch(0.25 0.04 165 / 0.03)',
         odd: 'oklch(1 0 0 / 0.035)',
-        mana: 'oklch(0.86 0.13 88 / 0.34)',
+        mana: 'oklch(0.25 0.04 165 / 0.03)',
         summon1: 'oklch(0.56 0.15 255 / 0.42)',
         summon2: 'oklch(0.56 0.18 25 / 0.42)',
       }[v.base];
       cellRect(g, v.x, v.y, 0, R, fill, v.edge ? { css: v.edge.color, width: v.edge.width } : { css: 'oklch(0.28 0.04 165 / 0.2)', width: 1 });
     }
 
-    // Zones de contestation : un voile qui déborde de la moitié de l'espace entre les cases, et le bord du carré.
+    // Mana zones (refonte du 2026-11-11). Au repos : une lueur dans le carré de la zone, la case centrale éclairée (elles
+    // respirent si les animations sont permises). La souris sur la zone : un trait fin au bord, les quatre coins, un
+    // cercle fin autour de la case centrale.
+    const textures = (this.manaTextures ??= { halo: radialTexture(pixi, 0.85), well: radialTexture(pixi, 0.9) });
     for (const v of cells) {
-      if (!v.area) continue;
-      const [x, y, w] = [v.x - 2, v.y - 2, S + 4];
-      const tone = v.area.look === 'p1' ? CELL_COLORS.j1 : v.area.look === 'p2' ? CELL_COLORS.j2 : v.area.look === 'contested' ? CELL_COLORS.contested : CELL_COLORS.zone;
-      if (v.area.look === 'contested') {
-        this.pulsing.rect(x, y, w, w).fill(cssColor(mix(CELL_COLORS.j2, 38)));
-        hatch(this.pulsing, x, y, w, 14, 7, false, mix(CELL_COLORS.j1, 38));
-      } else {
-        g.rect(x, y, w, w).fill(cssColor(mix(tone, v.area.look === 'neutral' ? 12 : 22)));
+      const z = v.manaZone;
+      if (!z) continue;
+      const pad = z.size > S ? 10 : 6;
+      const halo = new pixi.Sprite({ texture: textures.halo, x: z.x - pad, y: z.y - pad, width: z.size + 2 * pad, height: z.size + 2 * pad, tint: cssColor(z.color).color });
+      halo.alpha = z.look === 'neutral' ? 0.7 : 0.85;
+      const well = new pixi.Sprite({ texture: textures.well, x: v.x - 6, y: v.y - 6, width: S + 12, height: S + 12, tint: cssColor(mix(z.color, 55, 'white')).color });
+      well.alpha = 0.8;
+      this.glowLayer.addChild(halo, well);
+      if (z.pulse) {
+        this.glows.push(halo, well);
+        this.glowBase.push(halo.alpha, well.alpha);
+      } else this.still.push(halo, well);
+      if (!z.hovered) continue;
+      const light = cssColor(mix(z.color, 55, 'white'));
+      // Le bord passe au milieu de l'espace entre les cases.
+      const [x0, y0, size] = z.size > S ? [z.x - 2, z.y - 2, z.size + 4] : [z.x, z.y, z.size];
+      g.rect(x0, y0, size, size).stroke({ width: 1.6, color: light.color, alpha: 0.9 });
+      const arm = size * 0.2;
+      for (const [cx, cy, dx, dy] of [
+        [x0, y0, 1, 1],
+        [x0 + size, y0, -1, 1],
+        [x0 + size, y0 + size, -1, -1],
+        [x0, y0 + size, 1, -1],
+      ] as const) {
+        g.moveTo(cx + dx * arm, cy).lineTo(cx, cy).lineTo(cx, cy + dy * arm).stroke({ width: 4.5, color: light.color, alpha: 1, cap: 'round', join: 'round' });
       }
-      const width = v.area.look === 'neutral' ? 2 : 2.5;
-      const sides: Readonly<Record<ZoneEdge, readonly [number, number, number, number]>> = {
-        top: [x, y, x + w, y],
-        right: [x + w, y, x + w, y + w],
-        bottom: [x, y + w, x + w, y + w],
-        left: [x, y, x, y + w],
-      };
-      for (const edge of v.area.edges) {
-        const [x0, y0, x1, y1] = sides[edge];
-        if (v.area.look === 'neutral') {
-          const length = w;
-          for (let d = 0; d < length; d += 9) {
-            const e = Math.min(length, d + 5);
-            g.moveTo(x0 + ((x1 - x0) * d) / length, y0 + ((y1 - y0) * d) / length).lineTo(x0 + ((x1 - x0) * e) / length, y0 + ((y1 - y0) * e) / length);
-          }
-          g.stroke({ width, ...cssColor(tone) });
-        } else {
-          g.moveTo(x0, y0).lineTo(x1, y1).stroke({ width, ...cssColor(tone) });
-        }
-      }
-    }
-
-    // Lueur des mana zones (animations permises), dessinée par une texture floue, teintée.
-    const glowTexture = (this.glowTexture ??= painted(pixi, 128, 128, (ctx) => {
-      ctx.shadowColor = 'white';
-      ctx.shadowBlur = 14;
-      ctx.strokeStyle = 'white';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.roundRect(30, 30, 68, 68, 7);
-      ctx.stroke();
-      ctx.stroke();
-    }));
-    for (const v of cells) {
-      if (!v.glow) continue;
-      const sprite = new pixi.Sprite({ texture: glowTexture, x: v.x - 30, y: v.y - 30, width: 128, height: 128, tint: cssColor(v.glow).color });
-      this.glowLayer.addChild(sprite);
-      this.glows.push(sprite);
+      g.roundRect(v.x + 3, v.y + 3, S - 6, S - 6, 6).stroke({ width: 1.8, color: light.color, alpha: 0.9 });
     }
 
     // Marques des « Passage » et cases brûlées : cercle au sol (pointillés, ou plein de braise), icône redressée.
@@ -465,21 +509,11 @@ export class CellLayer {
       place(pill(pixi, `J${v.summon}`, { fontSize: S * 0.16 * s, family: 'sc', fill, color: 'white', ring: { css: 'white', width: 1.5 }, padX: 4 * s, padY: 1 * s, radius: 4 * s }), v.x + 0.76 * S, v.y + 0.76 * S, { under: true });
     }
 
-    // Noms des mana zones : debout à la pointe avant de la case, bien avancés vers la caméra (devant les rochers voisins).
+    // Noms des mana zones, à la pointe avant de la case centrale : leur icône, leur nom, et ce qu'elles rapportent ou qui
+    // les tient. Toujours devant le décor (refonte du 2026-11-11).
     for (const v of cells) {
-      if (!v.zoneLabel) continue;
-      const s = TEXT_SCALE;
-      const label = pill(pixi, v.zoneLabel.text, {
-        fontSize: 10 * s,
-        family: 'sc',
-        fill: v.zoneLabel.color,
-        color: CELL_COLORS.paper,
-        ring: { css: 'oklch(0.8 0.12 85)', width: 1.5 },
-        padX: 6 * s,
-        padY: 1 * s,
-        radius: 6 * s,
-      });
-      place(label, v.x + S + 2, v.y + S + 2, { dz: 48 });
+      if (!v.manaZone) continue;
+      place(zoneTag(pixi, v.manaZone), v.x + S + 2, v.y + S + 2, { dz: ZONE_TAG_DEPTH });
     }
   }
 
@@ -543,8 +577,9 @@ export class CellLayer {
       const x = f < 0.5 ? f * 2 : 2 - f * 2;
       return x * x * (3 - 2 * x);
     };
-    const glow = 0.12 + 0.78 * wave(2.4);
-    for (const sprite of this.glows) sprite.alpha = glow;
+    // La lueur des mana zones respire doucement, autour de son opacité de repos.
+    const breath = 0.8 + 0.2 * wave(3.2);
+    this.glows.forEach((sprite, i) => (sprite.alpha = (this.glowBase[i] ?? 1) * breath));
     this.pulsing.alpha = 1 - 0.45 * wave(1.4);
   }
 
@@ -565,7 +600,8 @@ export class CellLayer {
     this.pulsing.destroy();
     for (const sprite of this.glows) sprite.destroy();
     for (const item of this.placed) item.node.destroy({ children: true });
-    this.glowTexture?.destroy(true);
+    this.manaTextures?.halo.destroy(true);
+    this.manaTextures?.well.destroy(true);
     this.zoneTextures?.halo.destroy(true);
     this.zoneTextures?.dot.destroy(true);
   }

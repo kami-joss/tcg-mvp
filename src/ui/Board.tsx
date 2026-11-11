@@ -30,6 +30,7 @@ import type { Board as BoardData, CardSet, Direction, MonsterCard, MonsterUnit, 
 import { CARD_ART, boardArt, fitBackground, shortName, tokenFit } from './art';
 import { Icon } from './Icon';
 import { isExhausted, posKey } from './interaction';
+import { manaZoneAt } from './pixi/cellModel';
 import { PixiBoard } from './pixi/PixiBoard';
 import { NO_ZONE_VIEW } from './interaction';
 import type { AttackPreview, Highlight, ZoneView } from './interaction';
@@ -607,7 +608,9 @@ export function Board(props: BoardProps) {
   const reveal = revealCells(view, props.hovered ?? null);
   const zones = props.zones ?? NO_ZONE_VIEW;
   const hoveredKey = props.hovered ? posKey(props.hovered) : null;
-  const zoneHovered = hoveredKey && (zones.moves.has(hoveredKey) || zones.attacks.has(hoveredKey)) ? props.hovered! : null;
+  // Seul le survol d'une case de zone (aller, attaque) ou de mana zone (son trait fin) change le dessin des cases.
+  const zoneHovered =
+    hoveredKey && (zones.moves.has(hoveredKey) || zones.attacks.has(hoveredKey) || manaZoneAt(view, props.hovered!) !== null) ? props.hovered! : null;
 
   return (
     <div
