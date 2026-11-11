@@ -1,5 +1,6 @@
 // Infobulle d'un jeton au survol (option J de la refonte de la fiche, validée le 2026-11-11) : l'état de l'unité dans la
-// partie, que la fiche ne montre plus. En tête, son nom et le moment (« ton tour », « adversaire ») ; puis ce qu'il peut
+// partie, que la fiche ne montre plus. En tête, son nom et le moment (« ton tour », « adversaire ») ; ses stats du
+// moment, comme sur la fiche (2026-11-12) ; puis ce qu'il peut
 // encore faire ce tour (attaque, chaque effet actif, riposte) ou sa menace ; ses statuts en pastilles avec les tours
 // qu'il leur reste ; enfin les effets en cours, chacun sur une ligne (bonus du tour, aura, zone tenue…). Elle ne prend
 // pas la souris : posée à droite de la case survolée (à gauche si elle n'y tient pas), dans la fenêtre. Le contenu
@@ -50,6 +51,24 @@ export function UnitTooltip({ tip, style }: { tip: UnitTip; style?: CSSPropertie
         <b>{tip.title}</b>
         <span className="unit-tip__when">{tip.when}</span>
       </p>
+      {tip.stats.length > 0 && (
+        <div className="unit-tip__stats">
+          {tip.stats.map((stat) => (
+            <div key={stat.label} className={`unit-tip__stat sheet__stat--${stat.icon}${stat.hurt ? ' is-hurt' : ''}`}>
+              <span className="unit-tip__stat-value">
+                <Icon name={stat.icon} />
+                <strong>{stat.value}</strong>
+                {stat.delta !== 0 && (
+                  <em className={`sheet__delta ${stat.delta > 0 ? 'is-up' : 'is-down'}`}>
+                    {stat.delta > 0 ? `+${stat.delta}` : `−${-stat.delta}`}
+                  </em>
+                )}
+              </span>
+              <span className="unit-tip__stat-label">{stat.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
       {tip.lines.map((line) => (
         <p key={line.label} className={`unit-tip__line unit-tip__line--${line.icon}`}>
           <Icon name={line.icon} />

@@ -1,7 +1,8 @@
 // Infobulle d'un jeton (refonte de la fiche, option J validée le 2026-11-11) : l'état de l'unité dans la partie, que la
 // fiche ne montre plus (elle ne dit que ce que fait la carte). Au survol du jeton : ce qu'il peut encore faire ce tour
 // (attaque, chaque effet actif, riposte), sa menace s'il est à l'adversaire, ses statuts avec leur durée, puis les
-// effets en cours (bonus du tour, aura, armé, camouflage, zone tenue, terrain…). Pure et testée ; tirée de la vue du
+// effets en cours (bonus du tour, aura, armé, camouflage, zone tenue, terrain…), et ses stats du moment comme sur la
+// fiche (2026-11-12). Pure et testée ; tirée de la vue du
 // joueur seulement. La pastille au-dessus du jeton (`readiness`) résume les deux premières lignes.
 import {
   MANA_ZONE_NAMES,
@@ -30,8 +31,8 @@ import {
 import type { CardSet, EffectSource, MonsterUnit, PlayerId, PlayerView, Position, Status, TerrainUnit, TurnBonus, Unit, UnitId } from '../engine';
 import { auraBonusText, cardTitle, durationText, splitCardName } from './cardText';
 import type { IconName } from './Icon';
-import { OK, ZONE_ICONS, activeName, availabilityStatus, reasonStatus, subjectAt, zoneIncome } from './sheet';
-import type { ChipKind, SheetChip, SheetLine } from './sheet';
+import { OK, ZONE_ICONS, activeName, availabilityStatus, getSheet, reasonStatus, subjectAt, zoneIncome } from './sheet';
+import type { ChipKind, SheetChip, SheetLine, SheetStat } from './sheet';
 import { isBonus, statusEffect, statusIcon, statusLabel } from './statusInfo';
 
 export interface UnitTip {
@@ -40,6 +41,8 @@ export interface UnitTip {
   readonly owner: PlayerId;
   /** « ton tour », « tour adverse », « adversaire ». */
   readonly when: string;
+  /** Ses stats du moment, comme sur la fiche (bonus et malus par rapport à la carte) ; un terrain : ses PV. */
+  readonly stats: readonly SheetStat[];
   /** Attaque, effets actifs, riposte ; menace d'un monstre adverse. */
   readonly lines: readonly SheetLine[];
   /** Statuts (avec les tours qu'il leur reste), puis effets en cours. */
@@ -72,8 +75,9 @@ export function getUnitTip(view: PlayerView, unitId: UnitId): UnitTip | null {
   const { title } = splitCardName(getCard(view.cards, unit.cardId).name);
   const mine = unit.owner === view.viewer;
   const when = mine ? (view.activePlayer === view.viewer ? 'ton tour' : 'tour adverse') : 'adversaire';
-  if (unit.kind === 'terrain') return { title, owner: unit.owner, when, lines: [], chips: terrainChips(view, unit) };
-  return { title, owner: unit.owner, when, lines: monsterLines(view, unit), chips: monsterChips(view, unit) };
+  const stats = getSheet(view, { kind: 'unit', unitId })?.stats ?? [];
+  if (unit.kind === 'terrain') return { title, owner: unit.owner, when, stats, lines: [], chips: terrainChips(view, unit) };
+  return { title, owner: unit.owner, when, stats, lines: monsterLines(view, unit), chips: monsterChips(view, unit) };
 }
 
 /** Attaque et effets actifs (à son tour), riposte ; menace d'un monstre adverse au prochain tour. */

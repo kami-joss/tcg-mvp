@@ -319,6 +319,45 @@ function PlainSheet({ sheet }: { sheet: SheetData }) {
   );
 }
 
+/** Carte survolée dans le grimoire : écart au panneau, et marges en haut (sous la barre du haut) et en bas de la fenêtre. */
+export const PEEK_GAP = 10;
+const PEEK_TOP = 66;
+const PEEK_BOTTOM = 14;
+
+/**
+ * Place de la carte survolée dans le grimoire (2026-11-12) : collée à gauche du panneau du grimoire (`panelLeft`), à
+ * hauteur de la tuile survolée, sans sortir de la fenêtre ; réduite (`fit`, 0,5 au moins) si elle n'y tient pas en
+ * hauteur, débordement d'overframe (`headroom`) compris.
+ */
+export function peekPlacement(
+  tile: { readonly top: number; readonly height: number },
+  panelLeft: number,
+  viewport: { readonly width: number; readonly height: number },
+  headroom: number,
+): { left: number; top: number; fit: number } {
+  const height = (SHEET_H + headroom) * SHEET_SCALE;
+  const fit = Math.min(1, Math.max(0.5, (viewport.height - PEEK_TOP - PEEK_BOTTOM) / height));
+  const [w, h] = [SHEET_WIDTH * SHEET_SCALE * fit, height * fit];
+  const left = Math.max(8, panelLeft - PEEK_GAP - w);
+  const top = Math.max(PEEK_TOP, Math.min(tile.top + tile.height / 2 - h / 2, viewport.height - PEEK_BOTTOM - h));
+  return { left: Math.round(left), top: Math.round(top), fit: Number(fit.toFixed(3)) };
+}
+
+/**
+ * La carte survolée dans le grimoire, collée à gauche de son panneau : le regard reste près du grimoire au lieu de
+ * passer à la fiche, à l'autre bout de l'écran. Elle ne prend pas la souris.
+ */
+export function GrimoirePeek({ sheet, tile, panelLeft, animated }: { sheet: SheetData; tile: DOMRect; panelLeft: number; animated: boolean }) {
+  const viewport = typeof window === 'undefined' ? { width: 1280, height: 800 } : { width: window.innerWidth, height: window.innerHeight };
+  const { left, top, fit } = peekPlacement(tile, panelLeft, viewport, sheetOverframe(sheet)?.headroom ?? 0);
+  const style = { left, top, '--sheet-k': SHEET_SCALE, '--sheet-fit': fit } as CSSProperties;
+  return (
+    <div className="grimoire-peek" style={style}>
+      <HoverSheet sheet={sheet} animated={animated} />
+    </div>
+  );
+}
+
 /**
  * Aperçu plein écran d'une fiche à overframe (§6.3 du handoff overframe) : rendu complet avec le débordement, centré,
  * à l'échelle min(1,8 ; (hauteur de la fenêtre − 80) / (498 + débordement)), sur un fond assombri et flouté. Échap

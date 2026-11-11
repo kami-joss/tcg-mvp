@@ -19,6 +19,13 @@ describe('infobulle d’un jeton (option J du 2026-11-11)', () => {
       title: 'Chevalier',
       owner: 1,
       when: 'ton tour',
+      // Ses stats du moment, comme sur la fiche : pas restants sur le maximum de ce tour.
+      stats: [
+        { icon: 'broadsword', label: 'ATK', value: '3', delta: 0, hurt: false },
+        { icon: 'hearts', label: 'PV', value: '4/4', delta: 0, hurt: false },
+        { icon: 'walking-boot', label: 'Pas rest.', value: '1/3', delta: 0, hurt: false },
+        { icon: 'high-shot', label: 'Portée', value: '1', delta: 0, hurt: false },
+      ],
       lines: [{ icon: 'broadsword', label: 'Attaque', status: { text: 'Disponible', tone: 'ok' } }],
       chips: [],
     });
@@ -39,6 +46,7 @@ describe('infobulle d’un jeton (option J du 2026-11-11)', () => {
   it('monstre adverse : sa menace au prochain tour, jamais de pastille', () => {
     expect(tip(state, 1, 'u2')).toMatchObject({ title: 'Golem', owner: 2, when: 'adversaire' });
     expect(lines(state, 1, 'u2')).toEqual([['Menace', 'Prochain tour : mobilité 2, portée 1']]);
+    expect(tip(state, 1, 'u2')?.stats).toContainEqual({ icon: 'hearts', label: 'PV', value: '5/7', delta: 0, hurt: true });
     expect(readiness(getPlayerView(state, 1), 'u2')).toBeNull();
   });
 
@@ -80,6 +88,7 @@ describe('infobulle d’un jeton (option J du 2026-11-11)', () => {
   it('un terrain : la mana zone qu’il tient et le monstre posé dessus ; jamais de pastille', () => {
     const held = gameWith([{ terrain: 'bastion', owner: 1, at: at(5, 4) }, { monster: 'golem', owner: 1, at: at(5, 4) }]);
     expect(tip(held, 1, 'u1')).toMatchObject({ title: 'Bastion', lines: [] });
+    expect(tip(held, 1, 'u1')?.stats.map((s) => s.label)).toEqual(['PV']);
     expect(tip(held, 1, 'u1')?.chips.map((c) => c.text)).toEqual(['Forge', 'Golem']);
     expect(readiness(getPlayerView(held, 1), 'u1')).toBeNull();
     expect(tip(held, 1, 'u9')).toBeNull();

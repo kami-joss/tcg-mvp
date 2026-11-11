@@ -24,6 +24,8 @@ describe('infobulle d’un jeton : rendu', () => {
     expect(html).toContain('role="tooltip"');
     expect(html).toMatch(/unit-tip__dot--p1.*<b>Chevalier<\/b>.*ton tour/);
     expect(html).toMatch(/<b>Attaque<\/b><span class="unit-tip__state tone--ok">.*Disponible/);
+    // Ses stats du moment, sous son nom.
+    expect(html).toMatch(/unit-tip__head.*class="unit-tip__stats".*<strong>3<\/strong>.*ATK.*<strong>4\/4<\/strong>.*PV.*Pas rest\..*Portée.*<b>Attaque/);
     // Son tour : celui-ci compte (« jusqu’à la fin de ce tour et de ses 2 prochains »).
     expect(html).toMatch(/class="chip chip--burn">.*Burn 1<small class="unit-tip__turns"> · 3 tours<\/small>/);
     // La zone tenue : la phrase dit déjà son nom, il n'est pas répété devant.

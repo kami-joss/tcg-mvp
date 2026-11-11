@@ -31,7 +31,7 @@ import { applyEvent } from './fx/patch';
 import { playEvents } from './fx/player';
 import { cameraFocusOf } from './fx/cameraFocus';
 import { GRIMOIRE_DISPLAY, Grimoire, GrimoireTab } from './Grimoire';
-import { HoverSheet, SHEET_SCALE, SheetPreview, journalHeight, overframeFit, sheetOverframe, sheetPlacement } from './HoverSheet';
+import { GrimoirePeek, HoverSheet, SHEET_SCALE, SheetPreview, journalHeight, overframeFit, sheetOverframe, sheetPlacement } from './HoverSheet';
 import { SHEET_W } from './Overframe';
 import {
   NO_SELECTION,
@@ -196,6 +196,9 @@ export function GameScreen(props: GameScreenProps) {
   const [pile, setPile] = useState<PileSelection | null>(null);
   /** Fiche à overframe ouverte en grand (clic sur la fiche) ; Échap ou un clic sur le fond la referme. */
   const [preview, setPreview] = useState<SheetData | null>(null);
+  /** Carte du grimoire survolée, montrée collée à gauche du grimoire : sa tuile et le bord gauche du panneau. */
+  const [cardPeek, setCardPeek] = useState<{ cardId: CardId; tile: DOMRect; panelLeft: number } | null>(null);
+  const sideRef = useRef<HTMLElement>(null);
   const previewRef = useRef(preview);
   previewRef.current = preview;
   /** Trajet montré au survol d'une ligne de la bulle (« Attaquer et avancer »), pour la sélection où il a été montré. */
@@ -613,9 +616,14 @@ export function GameScreen(props: GameScreenProps) {
     if (busy) return;
     select(contextCard(view, cardId));
   };
+  /**
+   * Survol d'une carte du grimoire : elle se montre collée à gauche du grimoire (`GrimoirePeek`, 2026-11-12), la fiche
+   * de la colonne ne change pas (un clic l'y montre toujours).
+   */
   const handleCardHover = (cardId: CardId | null, rect?: DOMRect) => {
     setHover(cardId && rect ? { subject: { kind: 'card', cardId }, rect } : null);
-    aimAt(cardId ? { kind: 'card', cardId } : null);
+    const panel = sideRef.current?.querySelector('.panel--grimoire')?.getBoundingClientRect();
+    setCardPeek(cardId && rect && panel ? { cardId, tile: rect, panelLeft: panel.left } : null);
   };
   /** Un compteur ouvre sa liste (ou la referme) et ferme l'aide, qui flotte au même endroit. */
   const openPile = (next: PileSelection) => {
@@ -750,7 +758,7 @@ export function GameScreen(props: GameScreenProps) {
         </aside>
 
         {/* À droite, par-dessus le plateau : le grimoire, repliable par son onglet. */}
-        <aside className={`game__side${settings.grimoireOpen ? '' : ' is-collapsed'}`}>
+        <aside ref={sideRef} className={`game__side${settings.grimoireOpen ? '' : ' is-collapsed'}`}>
           <GrimoireTab
             open={settings.grimoireOpen}
             onToggle={() => changeSettings({ grimoireOpen: !settings.grimoireOpen })}
@@ -787,6 +795,10 @@ export function GameScreen(props: GameScreenProps) {
           style={tipPosition(tipCell.rect, { width: window.innerWidth, height: window.innerHeight })}
         />
       )}
+      {cardPeek && !preview && !bubble && settings.grimoireOpen && (() => {
+        const peekSheet = getSheet(display, { kind: 'card', cardId: cardPeek.cardId });
+        return peekSheet && <GrimoirePeek sheet={peekSheet} tile={cardPeek.tile} panelLeft={cardPeek.panelLeft} animated={animated} />;
+      })()}
       {cutIn && <CutInOverlay key={cutIn.id} cutIn={cutIn.cutIn} target={cutIn.target} onDone={cutIn.done} />}
       {preview && (
         <SheetPreview sheet={preview} animated={animated} onClose={() => setPreview(null)} />

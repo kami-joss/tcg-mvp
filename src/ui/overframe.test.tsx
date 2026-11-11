@@ -5,7 +5,7 @@ import type { CardId, GameState } from '../engine';
 import { at, gameWith } from '../engine/test-utils';
 import { CARD_ART, CARD_ART_SHINY, cardArtFor } from './art';
 import { Grimoire } from './Grimoire';
-import { HoverSheet, SHEET_SCALE, SheetPreview, journalHeight, overframeFit, sheetPlacement } from './HoverSheet';
+import { HoverSheet, SHEET_SCALE, SheetPreview, journalHeight, overframeFit, sheetPlacement, PEEK_GAP, peekPlacement } from './HoverSheet';
 import { POP_FADE, RISE, popMask } from './Overframe';
 import kit from '../assets/overframe/overframes.json';
 import { MAX_HEADROOM, OVERFRAMES, PARTICLES, breathOrigin, hasShinyImages, overframeLook, overframeUrl } from './overframes';
@@ -269,5 +269,25 @@ describe('tuiles du grimoire', () => {
     expect(html).not.toContain('tile--shiny');
     expect(html).not.toContain('tile__star');
     expect(html).not.toContain('of__holo');
+  });
+});
+
+describe('carte survolée dans le grimoire (2026-11-12)', () => {
+  const viewport = { width: 1440, height: 900 };
+
+  it('collée à gauche du panneau du grimoire, à hauteur de la tuile, sans sortir de la fenêtre', () => {
+    const { left, top, fit } = peekPlacement({ top: 300, height: 50 }, 1100, viewport, 0);
+    expect(fit).toBe(1);
+    // 280 × 1,3 = 364 px de large, à 10 px du panneau.
+    expect(left).toBe(1100 - PEEK_GAP - 364);
+    // Centrée sur la tuile tant qu'elle tient : 498 × 1,3 = 647 px de haut, sous la barre du haut (66 px).
+    expect(top).toBe(66);
+    expect(peekPlacement({ top: 820, height: 50 }, 1100, viewport, 0).top).toBe(900 - 14 - 647);
+  });
+
+  it('réduite si elle ne tient pas en hauteur, débordement d’overframe compris ; jamais hors de la fenêtre à gauche', () => {
+    const small = peekPlacement({ top: 300, height: 50 }, 1100, { width: 1024, height: 700 }, 186);
+    expect(small.fit).toBeCloseTo((700 - 66 - 14) / ((498 + 186) * 1.3), 3);
+    expect(peekPlacement({ top: 300, height: 50 }, 200, viewport, 0).left).toBe(8);
   });
 });
