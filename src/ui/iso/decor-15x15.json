@@ -4482,15 +4482,15 @@
     ]
    ],
    "tuiles": [
-    "sciure_1",
-    "sciure_2",
-    "sciure_3",
-    "sciure_4",
-    "sciure_5",
-    "sciure_6",
-    "sciure_7",
-    "sciure_8",
-    "sciure_9"
+    "chemin_1",
+    "chemin_2",
+    "chemin_3",
+    "chemin_4",
+    "chemin_5",
+    "chemin_6",
+    "chemin_7",
+    "chemin_8",
+    "chemin_9"
    ],
    "poids": [
     1,
@@ -4510,16 +4510,10 @@
     35
    ],
    "forceBande": 0.3,
-   "motif": [
-    "sciure_1",
-    "sciure_2",
-    "sciure_3",
-    "sciure_4",
-    "sciure_5",
-    "sciure_6",
-    "sciure_7",
-    "sciure_8",
-    "sciure_9"
+   "teinte": [
+    0.82,
+    0.76,
+    0.68
    ]
   },
   {
@@ -4627,12 +4621,26 @@
     ]
    ],
    "tuiles": [
-    "terre_unie",
-    "terre_herbe"
+    "chemin_1",
+    "chemin_2",
+    "chemin_3",
+    "chemin_4",
+    "chemin_5",
+    "chemin_6",
+    "chemin_7",
+    "chemin_8",
+    "chemin_9"
    ],
    "poids": [
-    60,
-    40
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
    ],
    "plaques": 0.2,
    "bande": [
@@ -4640,7 +4648,12 @@
     60,
     35
    ],
-   "forceBande": 0.3
+   "forceBande": 0.3,
+   "teinte": [
+    0.82,
+    0.76,
+    0.68
+   ]
   },
   {
    "sol": "chemin",
@@ -5768,13 +5781,14 @@
  ],
  "sprites": [
   {
-   "id": "hd_cristal_amas",
+   "id": "hd_jeune_sapin",
    "case": [
     0,
     9
    ],
    "miroir": false,
-   "ombre": "basse"
+   "ombre": "moyenne",
+   "echelle": 0.8
   },
   {
    "id": "cadre_mine_1",
@@ -6103,14 +6117,13 @@
    "echelle": 1.04
   },
   {
-   "id": "hd_cristal_gros",
+   "id": "hd_cristal_amas",
    "case": [
     -1,
     14
    ],
    "miroir": false,
-   "ombre": "basse",
-   "echelle": 0.91
+   "ombre": "basse"
   },
   {
    "id": "hd_jeune_sapin",
@@ -6163,54 +6176,154 @@
    "echelle": 0.85
   },
   {
-   "id": "hd_cristal_eclat",
+   "id": "hd_sapin_sombre",
    "case": [
-    2,
-    16
+    1.1,
+    17.1
    ],
    "miroir": false,
-   "ombre": "basse",
-   "echelle": 1.06
+   "ombre": "arbre",
+   "echelle": 0.9
   },
   {
-   "id": "hd_montagne_3_sans",
+   "id": "hd_sapin_haut",
    "case": [
-    2.5,
-    17
+    0.9,
+    19.2
    ],
    "miroir": false,
-   "ombre": "haute",
+   "ombre": "arbre",
    "echelle": 1.0
   },
   {
-   "id": "hd_montagne_2_sans",
+   "id": "hd_sapin_large",
    "case": [
-    4.6,
-    17
+    2.1,
+    18.3
    ],
    "miroir": false,
-   "ombre": "haute",
+   "ombre": "arbre",
+   "echelle": 0.9
+  },
+  {
+   "id": "hd_sapin_sombre",
+   "case": [
+    2.2,
+    20.1
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.05
+  },
+  {
+   "id": "hd_jeune_sapin_b",
+   "case": [
+    3.2,
+    17.2
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.8
+  },
+  {
+   "id": "hd_sapin_haut",
+   "case": [
+    3.1,
+    19.3
+   ],
+   "miroir": false,
+   "ombre": "arbre",
    "echelle": 0.95
   },
   {
-   "id": "hd_montagne_4_sans",
+   "id": "hd_sapin_sombre",
    "case": [
-    -5,
-    9
+    4.2,
+    18.2
    ],
    "miroir": false,
-   "ombre": "haute",
-   "echelle": 0.97
+   "ombre": "arbre",
+   "echelle": 0.9
   },
   {
-   "id": "hd_montagne_1",
+   "id": "hd_sapin_large",
    "case": [
-    -6,
-    11
+    4.1,
+    20.2
    ],
    "miroir": false,
-   "ombre": "haute",
-   "echelle": 0.93
+   "ombre": "arbre",
+   "echelle": 1.0
+  },
+  {
+   "id": "hd_sapin_haut",
+   "case": [
+    5.1,
+    17.4
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.85
+  },
+  {
+   "id": "hd_sapin_sombre",
+   "case": [
+    5.2,
+    19.3
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.95
+  },
+  {
+   "id": "hd_sapin_haut",
+   "case": [
+    -5.0,
+    8.8
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.05
+  },
+  {
+   "id": "hd_sapin_large",
+   "case": [
+    -6.0,
+    10.5
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.0
+  },
+  {
+   "id": "hd_sapin_sombre",
+   "case": [
+    -4.2,
+    10.2
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.0
+  },
+  {
+   "id": "hd_sapin_sombre",
+   "case": [
+    -5.1,
+    11.7
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 0.95
+  },
+  {
+   "id": "hd_sapin_haut",
+   "case": [
+    -4.3,
+    12.4
+   ],
+   "miroir": false,
+   "ombre": "arbre",
+   "echelle": 1.0
   },
   {
    "id": "hd_montagne_3_sans",
@@ -6221,16 +6334,6 @@
    "miroir": false,
    "ombre": "haute",
    "echelle": 1.01
-  },
-  {
-   "id": "hd_montagne_3_sans",
-   "case": [
-    -4,
-    11
-   ],
-   "miroir": false,
-   "ombre": "haute",
-   "echelle": 1.02
   },
   {
    "id": "hd_montagne_4",
@@ -6301,56 +6404,6 @@
    "miroir": false,
    "ombre": "haute",
    "echelle": 0.93
-  },
-  {
-   "id": "hd_montagne_3",
-   "case": [
-    1,
-    18
-   ],
-   "miroir": false,
-   "ombre": "haute",
-   "echelle": 0.99
-  },
-  {
-   "id": "hd_montagne_2_sans",
-   "case": [
-    3,
-    18
-   ],
-   "miroir": false,
-   "ombre": "haute",
-   "echelle": 0.94
-  },
-  {
-   "id": "hd_montagne_3_sans",
-   "case": [
-    2,
-    20
-   ],
-   "miroir": false,
-   "ombre": "haute",
-   "echelle": 1.06
-  },
-  {
-   "id": "hd_montagne_3_sans",
-   "case": [
-    5,
-    18
-   ],
-   "miroir": false,
-   "ombre": "haute",
-   "echelle": 1.01
-  },
-  {
-   "id": "hd_montagne_4_sans",
-   "case": [
-    4,
-    20
-   ],
-   "miroir": false,
-   "ombre": "haute",
-   "echelle": 1.09
   },
   {
    "id": "hd_sapin_large",

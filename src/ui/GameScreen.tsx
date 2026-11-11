@@ -118,6 +118,11 @@ interface GameScreenProps {
  */
 const GLIDE_LEFT = 16;
 const GLIDE_GAP = 12;
+/**
+ * Air entre un panneau et le bord du plateau qu'on a fait glisser : le cadre du plateau va jusqu'aux bords de la fenêtre
+ * (plein écran, 2026-11-12), les marges de glisse gardent le retrait qu'il avait.
+ */
+const BOARD_AIR = 16;
 const GLIDE_COLLAPSED = 20;
 const GLIDE_MIN_WIDTH = 900;
 
@@ -291,20 +296,22 @@ export function GameScreen(props: GameScreenProps) {
   const sheetFit = overframeFit(leftHeight, MAX_HEADROOM, journal);
   const grimoireWidth = GRIMOIRE_DISPLAY[settings.grimoireLayout].width;
   const narrow = useNarrow(GLIDE_MIN_WIDTH);
+  /** Bord droit de la colonne de la fiche et du journal. */
+  const column = Math.round(GLIDE_LEFT + SHEET_W * SHEET_SCALE);
   const glide = useMemo(
     () =>
       narrow
         ? { left: 0, right: 0 }
         : {
-            left: Math.round(GLIDE_LEFT + SHEET_W * SHEET_SCALE),
-            right: settings.grimoireOpen ? grimoireWidth + GLIDE_GAP : GLIDE_COLLAPSED,
+            left: column + BOARD_AIR,
+            right: (settings.grimoireOpen ? grimoireWidth + GLIDE_GAP : GLIDE_COLLAPSED) + BOARD_AIR,
           },
-    [narrow, settings.grimoireOpen, grimoireWidth],
+    [narrow, column, settings.grimoireOpen, grimoireWidth],
   );
   const pilesBox = narrow
     ? { left: GLIDE_LEFT, right: GLIDE_LEFT }
     : {
-        left: glide.left + PILES_GAP,
+        left: column + PILES_GAP,
         right: (settings.grimoireOpen ? GLIDE_LEFT + grimoireWidth : GRIMOIRE_TAB_W) + PILES_GAP,
       };
   const myTurn = view.activePlayer === view.viewer && view.winner === null;
@@ -705,7 +712,7 @@ export function GameScreen(props: GameScreenProps) {
               hint={hovered !== null && zones.danger.has(posKey(hovered))}
               onToggleDanger={() => changeSettings({ zoneDanger: !settings.zoneDanger })}
               onTogglePath={() => changeSettings({ zonePath: !settings.zonePath })}
-              style={{ left: (glide.left || GLIDE_LEFT) + (glide.left ? PILES_GAP : 0) }}
+              style={{ left: narrow ? GLIDE_LEFT : column + PILES_GAP }}
             />
           )}
           {pile && (

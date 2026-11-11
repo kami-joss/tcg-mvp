@@ -1120,14 +1120,24 @@ select {
   min-height: 0;
 }
 
-/* Le plateau sur toute la largeur ; c'est son cadre qui défile (marges de glisse comprises). */
+/* Le plateau sur toute la largeur ; c'est son cadre qui défile (marges de glisse comprises). Plein écran (2026-11-12) :
+   le cadre va jusqu'aux bords de la fenêtre, sans coins arrondis ni barres de défilement (on le fait glisser, à la
+   molette ou au pavé tactile). */
 .game__play {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
-  padding: 14px 16px;
   overflow: hidden;
+}
+
+.game__play > .board-viewport {
+  border-radius: 0;
+  scrollbar-width: none;
+}
+
+.game__play > .board-viewport::-webkit-scrollbar {
+  display: none;
 }
 
 /* Pastille du zoom, un instant après un raccourci (+, −, 0, Ctrl ou ⌘ + molette) : en haut au milieu du plateau. */

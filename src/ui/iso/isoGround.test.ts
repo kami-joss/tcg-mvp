@@ -125,11 +125,12 @@ describe('décor peint du 15 × 15 (rendu seulement)', () => {
     expect(2 * marge + 15 * pas - (pas - cell)).toBe(planSize(15));
   });
 
-  it('décor complet : 6 cases de décor tout autour (plan de 1968 px), 201 sprites (18 grandes montagnes au lieu de 64 petites) ; le plateau seul : 29 sprites, 6 pièces d’eau', () => {
+  it('décor complet : 6 cases de décor tout autour (plan de 1968 px), 205 sprites (8 grandes montagnes autour de l’entrée de la Mine et derrière, des sapins ailleurs) ; le plateau seul : 29 sprites, 6 pièces d’eau', () => {
     expect(full.plan.bordure).toBe(6);
     expect(worldPlan(full, 15)).toBe(1968);
     // Le carré de cases bloquées (9, 9)–(10, 10) porte un jeune sapin par case, à la place des quatre rochers.
-    expect(full.sprites).toHaveLength(201);
+    expect(full.sprites).toHaveLength(205);
+    expect(full.sprites.filter((s) => s.id.startsWith('hd_montagne'))).toHaveLength(8);
     expect(board.plan.bordure).toBe(0);
     expect(worldPlan(board, 15)).toBe(planSize(15));
     expect(board.sprites).toHaveLength(29);
@@ -189,7 +190,9 @@ describe('sprites peints du 15 × 15 (rendu seulement)', () => {
 
   it('au centre de leur case, au milieu de deux cases pour un cadre de mine ; miroir conservé', () => {
     const placed = placePaintedSprites(board, 15, 15, false);
-    expect(placed[0]).toMatchObject({ key: 'p0', id: 'hd_cristal_amas', x: center(9), y: center(0), mirror: false, flat: false, inBoard: true });
+    // Entrée nord de la Mine : un jeune sapin à la place du cristal (2026-11-12), parti à droite de la maison du mineur.
+    expect(placed[0]).toMatchObject({ key: 'p0', id: 'hd_jeune_sapin', x: center(9), y: center(0), mirror: false, flat: false, inBoard: true });
+    expect(placePaintedSprites(full, 15, 15, false).find((s) => s.id === 'hd_cristal_amas')).toMatchObject({ x: center(14), y: center(-1), inBoard: false });
     expect(placed.find((s) => s.id === 'cadre_mine_1')).toMatchObject({ x: (center(8) + center(9)) / 2, y: center(1) });
     expect(placed.find((s) => s.topDown === 'colonnes')).toMatchObject({ id: 'hd_pont', x: center(5), y: center(13), mirror: false });
   });
