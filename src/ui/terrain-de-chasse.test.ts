@@ -1,40 +1,46 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getCard, getPlayerView } from '../engine';
 import type { Action, GameState } from '../engine';
-import { at, gameWith, withStatus } from '../engine/test-utils';
+import { at, gameWith as plainGame, withStatus } from '../engine/test-utils';
+import { TEST_CARDS } from '../engine/test-cards';
+import type { CardSet, MonsterCard } from '../engine';
 import type { UnitSpec } from '../engine/test-utils';
 import { cardEffectLine, describeCard } from './cardText';
 import { getUnitZones } from './zones';
 import { logEntry } from './log';
 import { passiveRules, plainRules, rulesSegments } from './rulesText';
 import { getSheet } from './sheet';
+import { CARDS } from '../engine';
 
 // Terrain de chasse dans l'interface : texte de la carte, journal, fiche (pas restants, puce), menace au survol.
 // Plateau classique : Forge en (5, 4) ; (5, 3) lui est adjacente.
 
 const FORGE = at(5, 4);
+/** Terrain de l'archétype Vampire (2026-11-10) : le Milicien des tests en devient un vampire (cartes d'essai). */
+const VAMPIRE_CARDS: CardSet = { ...TEST_CARDS, milicien: { ...(TEST_CARDS.milicien as MonsterCard), archetype: 'vampire' } };
+const gameWith = (...[units, options = {}]: Parameters<typeof plainGame>) => plainGame(units, { ...options, cards: VAMPIRE_CARDS });
 const view = (state: GameState, player: 1 | 2 = state.activePlayer) => getPlayerView(state, player);
 const hunting = (units: readonly UnitSpec[], options: Parameters<typeof gameWith>[1] = {}) =>
   gameWith([{ terrain: 'terrain-de-chasse', owner: 1, at: FORGE }, ...units], options);
 const move: Action = { type: 'move', unitId: 'u2', to: at(4, 3) };
 
 describe('Terrain de chasse : texte de la carte', () => {
-  const card = getCard('terrain-de-chasse');
+  const card = getCard(CARDS, 'terrain-de-chasse');
 
   it('« Au déplacement », en phrase naturelle ; « déplacement » et « adjacente » sont des mots du lexique', () => {
     const [item] = passiveRules(card);
     expect(item!.name).toBe('Au déplacement');
     expect(plainRules(item!.text)).toBe(
-      'Quand un de tes monstres commence un déplacement sur sa case ou dans un carré de 1, il a +1 mobilité ce tour. Une fois par tour par monstre.',
+      'Quand un de tes vampires commence un déplacement sur sa case ou dans un carré de 1, il a +1 mobilité ce tour. Une fois par tour par monstre.',
     );
     expect(rulesSegments(item!.text).flatMap((s) => (s.term ? [s.term] : []))).toEqual(['deplacement', 'carre']);
   });
 
   it('notation du lexique (tableau §6 ter de SPEC.md)', () => {
-    expect(cardEffectLine(card)).toBe('Au déplacement · sa case et carré de 1 · +1 mobilité (pour ce tour)');
-    expect(describeCard(card)).toEqual([
+    expect(cardEffectLine(CARDS, card)).toBe('Au déplacement · vampires alliés, sa case et carré de 1 · +1 mobilité (pour ce tour)');
+    expect(describeCard(CARDS, card)).toEqual([
       'PV 3 · se pose sur une mana zone occupée par un de vos monstres.',
-      'Passif · Au déplacement · sa case et carré de 1 · +1 mobilité (pour ce tour) : un de vos monstres qui commence un déplacement sur sa case ou dans un carré de 1 a +1 mobilité ce tour, une fois par tour.',
+      'Passif · Au déplacement · vampires alliés, sa case et carré de 1 · +1 mobilité (pour ce tour) : un de vos vampires qui commence un déplacement sur sa case ou dans un carré de 1 a +1 mobilité ce tour, une fois par tour.',
     ]);
   });
 });
@@ -43,7 +49,7 @@ describe('Terrain de chasse : journal', () => {
   it('« +1 mobilité ce tour (Terrain de chasse) » dans les conséquences du déplacement', () => {
     const state = hunting([{ monster: 'milicien', owner: 1, at: at(5, 3) }]);
     const entry = logEntry(view(state), move, view(applyAction(state, move)));
-    expect(entry.items).toContainEqual({ icon: 'walking-boot', text: 'Milicien de J1 : +1 mobilité ce tour (Terrain de chasse).', tone: 'good' });
+    expect(entry.items).toContainEqual({ icon: 'walking-boot', text: 'Milicien de J1 : +1 mobilité ce tour (Terrain de chasse - Vampire).', tone: 'good' });
   });
 
   it('pas un mot pour un monstre caché à l’adversaire : ce serait dire où il était', () => {
@@ -81,9 +87,9 @@ describe('Terrain de chasse : fiche', () => {
     const state = hunting([{ monster: 'milicien', owner: 1, at: at(1, 1) }]);
     const sheet = getSheet(view(state), { kind: 'cell', pos: at(1, 1) })!;
     expect(sheet.stats.find((s) => s.label === 'Pas rest.')).toMatchObject({ value: '2/2' });
-    expect(sheet.status!.some((c) => c.text === 'Terrain de chasse')).toBe(false);
+    expect(sheet.status!.some((c) => c.text.startsWith('Terrain de chasse'))).toBe(false);
     const theirs = hunting([{ monster: 'milicien', owner: 1, at: at(5, 3) }], { activePlayer: 2 });
-    expect(getSheet(view(theirs), { kind: 'cell', pos: at(5, 3) })!.status!.some((c) => c.text === 'Terrain de chasse')).toBe(false);
+    expect(getSheet(view(theirs), { kind: 'cell', pos: at(5, 3) })!.status!.some((c) => c.text.startsWith('Terrain de chasse'))).toBe(false);
   });
 });
 

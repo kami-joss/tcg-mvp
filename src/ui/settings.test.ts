@@ -27,7 +27,7 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
       grimoireLayout: 'grid2',
       grimoireOpen: true,
       tokenStats: { hp: true, mobility: true, enemyMobility: false, atk: false, statuses: true },
-      edgeScroll: true,
+      edgeScroll: false,
       grid: true,
       zoneDanger: true,
       zonePath: true,
@@ -45,7 +45,7 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
       grimoireLayout: 'list',
       grimoireOpen: false,
       tokenStats: { ...DEFAULT_TOKEN_STATS, atk: true, statuses: false },
-      edgeScroll: false,
+      edgeScroll: true,
       grid: false,
       zoneDanger: false,
       zonePath: false,
@@ -56,7 +56,7 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
     expect(data.get('tcg-plateau-zoom-v5')).toBe('1.5');
     expect(data.get('tcg-grimoire-affichage')).toBe('liste');
     expect(data.get('tcg-grimoire-ouvert')).toBe('0');
-    expect(data.get('tcg-plateau-defilement-bords')).toBe('0');
+    expect(data.get('tcg-plateau-defilement-bords-v2')).toBe('1');
     expect(data.get('tcg-plateau-quadrillage')).toBe('0');
     expect(data.get('tcg-zones-menace')).toBe('0');
     expect(data.get('tcg-zones-chemin')).toBe('0');
@@ -64,14 +64,17 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
     expect(loadSettings()).toEqual(saved);
   });
 
-  it('défilement aux bords : activé par défaut, désactivable et retrouvé tel quel', () => {
+  it('défilement aux bords : désactivé par défaut, activable et retrouvé tel quel ; l’ancien choix mémorisé ne compte plus', () => {
     const data = fakeStorage();
-    expect(loadSettings().edgeScroll).toBe(true);
-    saveSettings({ ...DEFAULT_SETTINGS, edgeScroll: false });
-    expect(data.get('tcg-plateau-defilement-bords')).toBe('0');
+    expect(loadSettings().edgeScroll).toBe(false);
+    // Activé sous l'ancienne clé, quand il l'était par défaut : il repart désactivé.
+    data.set('tcg-plateau-defilement-bords', '1');
     expect(loadSettings().edgeScroll).toBe(false);
     saveSettings({ ...DEFAULT_SETTINGS, edgeScroll: true });
+    expect(data.get('tcg-plateau-defilement-bords-v2')).toBe('1');
     expect(loadSettings().edgeScroll).toBe(true);
+    saveSettings({ ...DEFAULT_SETTINGS, edgeScroll: false });
+    expect(loadSettings().edgeScroll).toBe(false);
   });
 
   it('une valeur inconnue revient à la valeur par défaut', () => {

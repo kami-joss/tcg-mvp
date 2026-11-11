@@ -2,6 +2,7 @@
 import { VP_PER_MONSTER_DESTROYED } from './config';
 import { emit } from './events';
 import { addVp } from './players';
+import { hasCarapace } from './statuses';
 import { removeUnit, setUnit } from './units';
 import type { DamageCause, GameState, PlayerId, UnitId } from './types';
 
@@ -16,15 +17,15 @@ export function dealDamage(
   by: PlayerId,
   cause: DamageCause,
 ): GameState {
-  let target = state.units[targetId];
+  const target = state.units[targetId];
   if (!target) throw new Error(`Unité inconnue : ${targetId}`);
 
-  // Carapace (Tibo) : la prochaine attaque ou riposte subie n'inflige que 1 PV, puis le statut est consommé (§10).
-  const shielded = (cause === 'attack' || cause === 'riposte') && target.statuses.some((s) => s.kind === 'carapace');
-  const dealt = shielded ? Math.min(amount, 1) : amount;
+  // Carapace (§5 bis) : ses PV ne descendent pas sous 1, quels que soient les dégâts (attaque, sort, effet, piège, burn…) ;
+  // elle tient jusqu'à la fin de sa durée.
+  const held = hasCarapace(target) && amount >= target.hp;
+  const dealt = held ? Math.max(0, target.hp - 1) : amount;
   const hp = target.hp - dealt;
-  const hit = emit(state, { type: 'damage', unitId: targetId, pos: target.pos, amount: dealt, hp: Math.max(0, hp), cause });
-  if (shielded) target = { ...target, statuses: target.statuses.filter((s) => s.kind !== 'carapace') };
+  const hit = emit(state, { type: 'damage', unitId: targetId, pos: target.pos, amount: dealt, hp: Math.max(0, hp), cause, ...(held ? { held: true } : {}) });
   if (hp > 0) return setUnit(hit, { ...target, hp });
 
   const destroyed = removeUnit(emit(hit, { type: 'destroyed', unitId: targetId, pos: target.pos }), targetId);

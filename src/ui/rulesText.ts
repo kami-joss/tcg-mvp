@@ -9,6 +9,7 @@ import type {
   AreaZone,
   Archetype,
   Card,
+  CardSet,
   Effect,
   KeywordSpec,
   MonsterCard,
@@ -34,7 +35,10 @@ export const GLOSSARY = {
   auContact: 'Au contact : à 1 case en ligne droite, sans diagonale.',
   parDerriere: 'Par derrière : l’attaquant frappe dans le sens où regarde sa cible.',
   pas: 'À N pas : à N cases au plus par un chemin orthogonal, en L possible, sans ligne de vue.',
-  invoquer: 'Invoquer : poser un monstre de ton grimoire sur une case. Il entre sur la case.',
+  invoquer: 'Invoquer : poser un monstre de ton grimoire (ou de ton cimetière, si la carte le dit) sur une case. Il entre sur la case.',
+  caseInvocation: 'Case d’invocation : une case de ton camp où tu invoques tes monstres, et la case de tes terrains Point d’invocation (Zone d’invocation) tant qu’aucun monstre ne s’y trouve.',
+  cimetiere: 'Cimetière : les sorts lancés et les unités qui ont quitté le plateau, visibles des deux joueurs.',
+  malus: 'Malus : un statut qui gêne : burn, slow, immobilisé, absorbé, stun, stat −X (ATK, portée, PV max), silence, désarmé, requiem.',
   sacrifier: 'Sacrifier : le monstre quitte le plateau sans être détruit. Personne ne gagne de VP ; il va au cimetière.',
   caseBrulee: 'Case brûlée : visible des deux joueurs. Chaque monstre ennemi qui y entre en subit les effets ; elle reste jusqu’à la fin de sa durée.',
   passage: 'Passage : se déclenche à chaque case où l’ennemi entre en se déplaçant, une fois par recul, et à l’arrivée d’une téléportation.',
@@ -53,7 +57,7 @@ export const GLOSSARY = {
   contreCoup: 'Contre-coup : ce que le monstre subit en retour de son effet, une fois l’effet joué, même si sa cible n’a rien subi.',
   arme: 'Armé : la prochaine attaque de ce monstre ce tour porte l’effet noté, puis il n’est plus armé. Un seul effet armé à la fois, et seulement s’il lui reste une attaque ; si l’attaque n’a pas lieu, le bonus est perdu à la fin du tour.',
   silence: 'Silence : le monstre ne peut plus activer ses effets actifs. Il peut encore attaquer, se déplacer, et ses mots-clés et passifs agissent.',
-  carapace: 'Carapace : la prochaine attaque (ou riposte) subie n’inflige que 1 PV au monstre, puis la carapace disparaît. Les autres dégâts (sorts, effets, pièges, burn) ne sont pas touchés.',
+  carapace: 'Carapace : ses PV ne descendent pas sous 1, quels que soient les dégâts (attaque, riposte, sort, effet, piège, burn…), jusqu’à la fin de sa durée ; le burn du début du tour où elle tombe compris. Requiem le tue quand même.',
   camouflage: 'Camouflage : caché à l’adversaire à plus de 2 cases (tant qu’aucun de ses monstres ni terrains n’est dans un carré de 2).',
   absorber: 'Absorber : retirer des PV au monstre visé ; ce monstre-ci récupère les PV retirés, sans dépasser ses PV max. Ce n’est pas une attaque.',
   deplacement: 'Déplacement : le monstre marche de case en case, 1 mobilité par case ; il peut en faire plusieurs par tour avec sa mobilité restante. Un recul, une avancée ou une téléportation n’en est pas un.',
@@ -148,9 +152,18 @@ function targetOf(targeting: Targeting): Target {
           return one(`${who} ${t('enLigne', 'en ligne')}, portée ${reach.range}`);
         case 'nearOwnMonster':
           return one(`${who} à ${t('pas', `${reach.steps} pas`)} d’un de tes monstres`);
+        case 'nearOwnUnit':
+          return one(`${who} dans un ${t('carre', 'carré')} de ${reach.square} d’une de tes unités`);
       }
       break;
     }
+    case 'terrain':
+      // Un terrain est à toi : sa durée se dit « jusqu’à ton prochain tour ».
+      return { ...one('un de tes terrains'), its: 'ton' };
+    case 'graveyard':
+      return one(`un monstre de ton ${t('cimetiere', 'cimetière')}`);
+    case 'none':
+      return one('toi');
     case 'zone':
       return many(`les ennemis ${ZONES[targeting.zone]}`);
     case 'allies':
@@ -319,9 +332,9 @@ const EACH_IN_ZONE: Readonly<Record<AreaZone, string>> = {
 };
 
 /** Nom d'une forme dans une phrase : « chauve-souris » pour Emma chauve-souris (forme d'Emma), sinon le nom de la carte. */
-function formLabel(card: MonsterCard): string {
-  const title = cardTitle(card.id);
-  const base = card.formOf ? cardTitle(card.formOf) : null;
+function formLabel(cards: CardSet, card: MonsterCard): string {
+  const title = cardTitle(cards, card.id);
+  const base = card.formOf ? cardTitle(cards, card.formOf) : null;
   return base && title.startsWith(`${base} `) ? title.slice(base.length + 1) : title;
 }
 
@@ -330,10 +343,10 @@ function formLabel(card: MonsterCard): string {
  * portée 2. », « Pose un piège sur une case libre dans un carré de 1 : l’ennemi qui y entre subit 3 dégâts. ». Un effet actif
  * dit aussi ses limites : « Il ne peut plus attaquer ce tour. » (Zoldik), « Sans limite par tour. » (Emma).
  */
-export function abilityRules(ability: Ability): string {
+export function abilityRules(cards: CardSet, ability: Ability): string {
   const active: Partial<ActivatedAbility> = ability;
   const limits = [active.endsAttack ? 'Il ne peut plus attaquer ce tour.' : null, active.unlimited ? 'Sans limite par tour.' : null];
-  return [abilityBody(ability), backlashRules(ability), ...limits].filter(Boolean).join(' ');
+  return [abilityBody(cards, ability), backlashRules(ability), ...limits].filter(Boolean).join(' ');
 }
 
 /** Contre-coup (SPEC §5.2) : « Contre-coup : il s’inflige silence pendant 1 tour. » */
@@ -347,7 +360,7 @@ function backlashRules(ability: Ability): string | null {
   return `${capitalize(t('contreCoup', 'contre-coup'))} : il ${parts.join(' et ')}.`;
 }
 
-function abilityBody(ability: Ability): string {
+function abilityBody(cards: CardSet, ability: Ability): string {
   const { targeting, effects } = ability;
   const first = effects[0];
   switch (first?.type) {
@@ -357,24 +370,44 @@ function abilityBody(ability: Ability): string {
       return `Fait d’une case libre dans un ${t('carre', 'carré')} de 2 une ${t('caseBrulee', 'case brûlée')} pendant ${plural(first.turns, 'tour')} : ${ENEMY_ENTERS} ${suffers(first.effects)}.`;
     case 'summon':
       return `${capitalize(t('invoquer', 'invoque'))} sur une case libre dans un ${t('carre', 'carré')} de 1 un monstre de ton grimoire, en payant son coût. Il peut agir aussitôt.`;
-    case 'teleport':
-      return `${capitalize(t('teleporter', 'téléporte'))} ${targetOf(targeting).noun} sur une case libre dans un ${t('carre', 'carré')} de 1.`;
+    case 'teleport': {
+      const verb = `${capitalize(t('teleporter', 'téléporte'))} ${targetOf(targeting).noun}`;
+      switch (first.to?.type) {
+        case undefined:
+          return `${verb} sur une case libre dans un ${t('carre', 'carré')} de 1.`;
+        case 'around':
+          return `${verb} sur une case libre à ${first.to.square} cases au plus de lui, diagonales comprises, même de l’autre côté d’une case X ou d’une falaise.`;
+        case 'summonCell':
+          return `${verb} sur une de tes ${t('caseInvocation', 'cases d’invocation')} libres.`;
+        case 'ownTerrain':
+          return `${verb} sur un de tes terrains où aucun monstre ne se trouve.`;
+      }
+      break;
+    }
+    case 'gainMana':
+      return `Tu gagnes ${first.amount} mana.`;
+    case 'cleanse':
+      return `Retire tous les ${t('malus', 'malus')} ${targetOf(targeting).of} : il retrouve la mobilité qu’ils lui avaient prise ce tour.`;
+    case 'reanimate':
+      return `${capitalize(t('invoquer', 'invoque'))} un monstre de ton ${t('cimetiere', 'cimetière')} sur une de tes ${t('caseInvocation', 'cases d’invocation')} libres, sans payer son coût. Il revient avec tous ses PV et peut agir aussitôt.`;
     case 'arm': {
       const bonus = [
         first.atk ? `a +${first.atk} ATK` : null,
         first.splash ? `inflige aussi ${plural(first.splash, 'dégât')} à chaque ennemi dans un ${t('carre', 'carré')} de 1 de sa cible` : null,
       ];
-      return `${capitalize(t('arme', 'arme'))} ce monstre : sa prochaine attaque ce tour ${bonus.filter(Boolean).join(' et ')}.`;
+      // Avec des éclats, il peut aussi viser une case vide à sa portée (2026-11-10).
+      const empty = first.splash ? ' Il peut aussi tirer sur une case vide à sa portée : les éclats touchent les ennemis autour.' : '';
+      return `${capitalize(t('arme', 'arme'))} ce monstre : sa prochaine attaque ce tour ${bonus.filter(Boolean).join(' et ')}.${empty}`;
     }
     case 'returnOnTrail':
-      return `${capitalize(t('teleporter', 'téléporte'))} ce monstre sur une case libre de son ${t('chemin', 'chemin du tour')}. Il ne peut plus se déplacer ce tour.`;
+      return `${capitalize(t('teleporter', 'téléporte'))} ce monstre sur une case libre de son ${t('chemin', 'chemin du tour')}. Il garde sa mobilité restante.`;
     case 'evolve':
       return `${capitalize(t('sacrifier', 'sacrifie'))} ce monstre pour ${t('invoquer', 'invoquer')} à sa place, sans payer son coût, un monstre de ton grimoire qui en évolue. Le nouveau monstre ne peut pas agir ce tour. Pas le tour où ce monstre arrive.`;
     case 'transform': {
       // Vers une forme hors grimoire, ses stats ; vers la carte d'origine, son nom suffit.
-      const form = getMonsterCard(first.into);
+      const form = getMonsterCard(cards, first.into);
       const stats = form.formOf ? ` (ATK ${form.atk}, PV ${form.hp}, mobilité ${form.mobility}, portée ${form.range})` : '';
-      return `${capitalize(t('transformer', 'se transforme'))} en ${formLabel(form)}${stats}.`;
+      return `${capitalize(t('transformer', 'se transforme'))} en ${formLabel(cards, form)}${stats}.`;
     }
     case 'absorb': {
       const verb = capitalize(t('absorber', 'absorbe'));
@@ -431,7 +464,7 @@ export function keywordRules(spec: KeywordSpec): string {
     case 'camouflage':
       return `Caché à l’adversaire tant qu’aucun de ses monstres ni terrains n’est dans un ${t('carre', 'carré de 2')}.`;
     case 'soif':
-      return `À l’attaque, il récupère ${spec.amount} PV.`;
+      return `En attaquant un monstre, il récupère ${spec.amount} PV.`;
   }
 }
 
@@ -484,7 +517,7 @@ function auraRules(aura: StatAura): string {
 /** Au déplacement (Terrain de chasse) : « Quand un de tes monstres commence un déplacement sur sa case… ». */
 const onMoveRules = (card: TerrainCard) =>
   card.onMove
-    ? `Quand un de tes monstres commence un ${t('deplacement', 'déplacement')} sur sa case ou dans un ${t('carre', 'carré')} de 1, ` +
+    ? `Quand un de tes ${card.onMove.archetype ? ARCHETYPE_NAMES[card.onMove.archetype].many : 'monstres'} commence un ${t('deplacement', 'déplacement')} sur sa case ou dans un ${t('carre', 'carré')} de 1, ` +
       `il a +${card.onMove.mobility} mobilité ce tour. Une fois par tour par monstre.`
     : null;
 

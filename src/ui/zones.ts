@@ -34,7 +34,7 @@ function moverOf(view: PlayerView, unit: MonsterUnit): MonsterUnit | null {
   const next = ownerNextTurn(view.turn, view.activePlayer, unit.owner);
   if (unit.statuses.some((s) => s.kind === 'stun' && s.expiresAtTurn > next)) return null;
   // Le +1 d'un Terrain de chasse est déjà compté : pas une deuxième fois.
-  const mobility = getNextTurnMobility(unit, view.turn, view.activePlayer) + getNextTurnOnMoveBonus(view, unit, view.turn, view.activePlayer);
+  const mobility = getNextTurnMobility(view.cards, unit, view.turn, view.activePlayer) + getNextTurnOnMoveBonus(view, unit, view.turn, view.activePlayer);
   return { ...unit, mobilityLeft: mobility, onMoveTaken: true };
 }
 
@@ -63,11 +63,11 @@ export function getUnitZones(view: PlayerView, unitId: UnitId): UnitZones {
   const moves = mover ? destinations(view, unit, mover) : [];
   if (!canStrike(view, unit)) return { moves, attacks: [] };
 
-  const card = getMonsterCard(unit.cardId);
+  const card = getMonsterCard(view.cards, unit.cardId);
   const range = isNow(view, unit) ? getRange(view, unit) : card.range;
   // Il ne se gêne pas lui-même : son tir part de chaque case possible comme si la sienne était libre.
   const { [unitId]: _self, ...others } = view.units;
-  const board = { board: view.board, units: others };
+  const board = { board: view.board, units: others, cards: view.cards };
   const taken = new Set([unit.pos, ...moves].map(key));
   const attacks = new Map<string, Position>();
   for (const from of [unit.pos, ...moves]) {

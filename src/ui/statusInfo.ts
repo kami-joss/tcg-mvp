@@ -72,7 +72,7 @@ export function statusEffect(posed: StatusSpec): string {
     case 'invisible':
       return 'invisible pour l’adversaire à plus de 1 case';
     case 'carapace':
-      return 'la prochaine attaque subie n’inflige que 1 PV, puis la carapace disparaît';
+      return 'ses PV ne descendent pas sous 1, quels que soient les dégâts';
     case 'silence':
       return 'ne peut plus activer ses effets actifs';
     case 'desarme':

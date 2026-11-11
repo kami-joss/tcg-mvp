@@ -6,7 +6,7 @@ Ce document est la référence pour implémenter le MVP. En cas de doute, demand
 
 **Dans le MVP**
 - Jeu à 2 joueurs en local, sur le même écran (« hotseat »), dans le navigateur.
-- Les deux joueurs utilisent le même grimoire de 25 cartes (section 6), ou chacun un deck pré-construit (§6 bis).
+- Les deux joueurs utilisent le même grimoire de 25 cartes (section 6), ou chacun un deck pré-construit de 30 cartes (§6 bis).
 - Toutes les règles de la section 4.
 - Une IA d'entraînement simple, pour tester le jeu seul (§7 bis).
 
@@ -23,7 +23,8 @@ Ce document est la référence pour implémenter le MVP. En cas de doute, demand
   - `getLegalActions(state): Action[]`
   - `applyAction(state, action): GameState` — déterministe, ne mute pas `state`, lève une erreur si l'action est illégale.
   - `getPlayerView(state, player): PlayerView` — retire les informations cachées (grimoire adverse). L'UI n'affiche que des `PlayerView`. C'est ce qui permettra plus tard un serveur qui fait autorité.
-- **Cartes décrites en données** (`src/engine/cards.ts`) : stats + mots-clés + effets paramétrés. Pas de code spécifique par carte quand un mot-clé générique suffit.
+- **Cartes décrites en données** (`src/engine/cards.data.ts`, le fichier qui fait foi pour les données des cartes ; `src/engine/cards.ts` : accès aux cartes et composition des decks) : stats + mots-clés + effets paramétrés. Pas de code spécifique par carte quand un mot-clé générique suffit.
+- **Chaque partie garde ses cartes** (`GameState.cards`, publiques dans la vue) : celles de `cards.ts` par défaut, d'autres pour essayer des réglages (atelier de cartes). Le moteur, l'IA et l'écran de jeu ne lisent que les cartes de la partie ; les pages hors partie (Decks, Barèmes) lisent celles de `cards.ts`. L'atelier de cartes (`/atelier`) règle le coût, les stats, la valeur des mots-clés et le coût des effets actifs (un clic sur le prix d'un barème en fait le coût de la carte ; les tranches et les valeurs des barèmes se règlent sur la page Barèmes), sans toucher aux données des cartes : ses réglages restent dans le navigateur et passent par un fichier (export, import) ; des effets, seul le coût des effets actifs s'y règle (§9). « Tester en partie », ou « Cartes : De l'atelier » à l'accueil, lance une partie avec ces cartes, fixées à son lancement ; la partie le dit en jeu (repère « Atelier » de la barre du haut) et dès la première ligne du journal. En développement (`npm run dev`), « Enregistrer dans le projet » écrit ses réglages dans `cards.data.ts` et dans les lignes de ces cartes des tableaux de §6 et §6 bis : ce sont alors les cartes d'origine.
 - Chaque règle de la section 4 a au moins un test unitaire.
 
 ## 3. Plateau
@@ -155,7 +156,7 @@ r14   P  P  P  P  P  B  P  P  P  P  P  P  P  2  2
 ### 4.2 Déroulé d'un tour
 1. **Début de tour** du joueur actif, dans cet ordre (§10) :
    - Les statuts, pièges et cases brûlées arrivés à échéance disparaissent.
-   - **Revenus** : son mana non dépensé est d'abord perdu ; puis le **mana de base de son tour** (3 à son premier tour, +1 à chacun de ses tours suivants, **10 au plus** : 3, 3, 4, 4, 5, 5… 10, 10 en comptant les deux joueurs ; au-delà de 10, seuls les terrains donnent du mana de plus) + 1 mana par mana zone qu'il contrôle **où il a un terrain** (+ bonus éventuels : Autel de mana, Porte-étendard ; un monstre seul sur une zone ne génère pas de mana) ; 1 VP par mana zone qu'il contrôle (mode contestation : une zone contestée ne rapporte rien, §4.4 bis) ; aucun bonus pour le second joueur.
+   - **Revenus** : en économie Classique, son mana non dépensé est d'abord perdu (en Réserve, il le garde, ci-dessous) ; puis le **mana de base de son tour** (3 à son premier tour, +1 à chacun de ses tours suivants, **jusqu'à la génération max** de la partie, 5 par défaut : 3, 3, 4, 4, 5, 5, 5… en comptant les deux joueurs) + 1 mana par mana zone qu'il contrôle **où il a un terrain** (+ bonus éventuels : Autel de mana, Porte-étendard ; un monstre seul sur une zone ne génère pas de mana) ; tout gain s'arrête à la **limite** de la partie (10 par défaut) ; 1 VP par mana zone qu'il contrôle (mode contestation : une zone contestée ne rapporte rien, §4.4 bis) ; aucun bonus pour le second joueur.
    - **Effets passifs** de début de tour (Ki né).
    - **Statuts** : requiem (le monstre meurt, sans VP), puis burn.
    - Ses monstres récupèrent toute leur mobilité, leur attaque et leurs effets actifs.
@@ -166,14 +167,17 @@ r14   P  P  P  P  P  B  P  P  P  P  P  P  P  2  2
    - utiliser l'effet activé d'un monstre.
 3. **Fin de tour** : le joueur clique sur « Fin du tour ».
 
-Le mana ne se cumule pas d'un tour à l'autre : ce qu'on n'a pas dépensé est perdu au début de son tour suivant (§10).
+**Option « Minuteur »** (choisie à l'accueil, validée le 2026-11-10) : chaque joueur a **3 minutes de réflexion** par tour. Seul compte le temps où il réfléchit, sans rien qui se passe : les actions et leurs animations ne comptent pas. À 0:00, son tour finit, comme s'il avait cliqué « Fin du tour » (ce qu'il avait commencé, une sélection ou une bulle ouverte, est annulé) ; le journal le dit. Contre l'IA, seul le joueur humain est minuté ; en hotseat, l'écran de passage ne compte pas. Le temps restant s'affiche à côté de « Fin du tour », en alerte sous 30 secondes. Le minuteur vaudra aussi pour les parties en ligne (§9).
 
-**Option « Économie : Réserve »** (choisie à l'accueil, validée le 2026-11-08 ; l'économie **Classique** ci-dessus reste la règle par défaut) :
-- **Mana de base** : 3 à son premier tour, 4, 5, puis **6** à chacun de ses tours suivants.
-- **Le mana se garde** d'un tour à l'autre : les revenus du début de tour (mana de base et mana des zones) s'ajoutent à la réserve.
-- **Limite de la réserve** : 10, **+1 par terrain** du joueur sur le plateau (15 en théorie, avec les 5 mana zones). Tout gain de mana s'arrête à la limite, au début du tour comme pendant le tour (le surplus est perdu) ; une dépense n'est pas touchée.
-- **Terrains** : chacun rapporte son mana de zone comme d'habitude (+1, l'Autel de mana +2) et monte la limite de **1**, Autel compris ; l'Étendard (un monstre) ne la monte pas.
-- **Terrain détruit** : la limite baisse aussitôt, et la réserve qui la dépasse y est ramenée tout de suite.
+**Réglages du mana** (choisis à l'accueil, dans les deux économies, validés le 2026-11-08) :
+- **Génération max** (5 par défaut, de 3 à 10) : le plafond du mana de base ; le mana des mana zones s'ajoute par-dessus.
+- **Limite** (10 par défaut, de 5 à 20) : le mana qu'un joueur peut avoir **au total, à tout moment**. Tout gain s'y arrête (mana de base, mana des zones, gains pendant le tour) et le surplus est perdu ; une dépense n'est pas touchée. Les terrains ne changent pas la limite.
+
+**Économie Classique** (règle par défaut) : le mana ne se cumule pas d'un tour à l'autre : ce qu'on n'a pas dépensé est perdu au début de son tour suivant (§10).
+
+**Option « Économie : Réserve »** (choisie à l'accueil, validée le 2026-11-08) :
+- **Le mana se garde** d'un tour à l'autre : les revenus du début de tour (mana de base et mana des zones) s'ajoutent à la réserve, jusqu'à la limite.
+- Mana de base et limite : les réglages du mana ci-dessus, comme en Classique.
 - En gardant son mana, on peut poser une carte à 7 dès son 2e tour (3 + 4) : voulu.
 
 ### 4.3 Grimoire
@@ -238,7 +242,7 @@ Un second mode de jeu, choisi à l'accueil à côté de la carte : « Normal » 
 - Un terrain n'a ni ATK ni mobilité. Les ennemis ne peuvent pas entrer sur sa case tant qu'il n'est pas détruit.
 
 ### 4.10 Victoire
-- Le premier joueur à atteindre **30 VP** gagne immédiatement.
+- Le premier joueur à atteindre **30 VP** gagne immédiatement. Le nombre de VP pour gagner se choisit à l'accueil avant la partie : de 10 à 50, de 5 en 5, 30 par défaut (validé le 2026-11-10).
 - Les valeurs (30 VP, 3 mana) sont des constantes dans `src/engine/config.ts`, pour pouvoir les ajuster facilement.
 
 ## 5. Lexique
@@ -267,6 +271,7 @@ Le vocabulaire des cartes : un mot = une notion, la même dans les textes de car
 | Rayon N | `radius` | Les cases autour d'une carte : rayon 1 = les 8 cases adjacentes, rayon 2 = 24 cases (le carré 5 × 5 sans la case centrale) ; falaises et cases `X` coupent la zone comme pour « adjacent ». À ne pas confondre avec la portée. |
 | Une fois par tour/carte | — | Chaque exemplaire une fois par tour. C'est la règle de tous les effets de monstres (effet actif, riposte), sauf un effet actif « sans limite par tour » (§5.2). Jouer une carte (sort, monstre, terrain) n'a pas de limite : seul le mana compte (§4.3). Les effets des terrains n'en ont pas non plus (Passage : à chaque case), sauf Au déplacement : une fois par tour pour chaque monstre, tous exemplaires confondus (§5.2). |
 | Cimetière | `graveyard` | Zone publique hors du plateau : sorts lancés, monstres et terrains qui ont quitté le plateau (§4.3). |
+| Case d'invocation | `summonCell` | Une case de son camp où il invoque (§3), et la case d'un de ses terrains Point d'invocation (Zone d'invocation) tant qu'aucun monstre ne s'y trouve (§4.5). « Zone d'invocation » reste le nom du terrain (§10, 2026-11-10). |
 | Cartes jouées | `played` | Liste publique des cartes sorties du grimoire, dans l'ordre (invocation, y compris par l'Invocateur, sort, terrain, évolution) ; une transformation n'en fait sortir aucune (§4.3, §10). |
 | Chemin du tour | `trail` | Les cases où un monstre a été depuis le début du tour de son camp (ou son arrivée), dans l'ordre, sa case de départ comprise ; tout mouvement l'allonge (déplacement, recul, avancée, téléportation). Retour et sablier s'en servent (§10). |
 | Devant · par derrière | `facing` | Un monstre regarde dans le sens de son dernier pas (§10). « Devant » : la case dans ce sens. « Par derrière » : l'attaquant frappe dans le sens où regarde sa cible. |
@@ -316,12 +321,16 @@ Un champ absent est nul, jamais deviné. **Quand l'utilisateur donne un nouvel e
 | un allié / un ennemi | `anywhere` | N'importe où sur le plateau. |
 | … dans un carré de 1 | `square1` | Sur une des 8 cases autour de la source. |
 | … en ligne, portée N | `line`, `range` | Comme une attaque de portée N (ligne droite, ligne de vue). |
-| … à N pas d'un de vos monstres | `nearOwnMonster`, `steps` | Voir « À N pas ». |
+| … à N pas d'un de vos monstres | `nearOwnMonster`, `steps` | Voir « À N pas ». Plus aucune carte ne l'emploie (Boule de feu : carré de 3, 2026-11-10). |
+| … dans un carré de N d'une de vos unités | `nearOwnUnit`, `square` | Dans le carré de N d'un de ses monstres ou terrains ; falaises et cases `X` coupent le carré (Boule de feu, §10). |
 | un allié bodybuilder · un allié archer impérial | `archetype` | Un de ses monstres de cet archétype, n'importe où. |
 | lui-même | `self` | Le monstre source (Dopage de Jean Bon). |
 | une case libre, carré de 1 | `emptySquareCell` | Case jouable du carré de 1, sans unité (pose de piège, invocation, téléportation). |
 | une case libre, carré de 2 | `emptyCell`, `square2` | Case jouable sans unité ni case brûlée, dans le carré de 2 de la source (Lutin brasier). |
 | une case de son chemin du tour | `trail` | Case libre (sans monstre ni terrain adverse) du chemin du tour de la source, sauf sa case actuelle (retour). |
+| un de ses terrains | `terrain` | Un de ses terrains, n'importe où (Fortification). « Allié » reste un monstre (§5.1). |
+| un monstre de son cimetière | `graveyard` | Une carte de monstre de son cimetière, au choix, et une de ses cases d'invocation libres (Réanimation). |
+| sans cible | `none` | L'effet est pour le joueur (Élixir de mana). |
 
 **Zone** : l'effet touche tous les monstres ennemis de la zone, **invisibles compris** (validé le 2026-11-08 : être caché empêche l'adversaire de voir le monstre, ça ne le protège de rien), jamais un terrain ni un allié. Il n'est jouable que si le lanceur y voit au moins un ennemi (sauf mention contraire, comme Hurlements).
 
@@ -353,13 +362,15 @@ Un champ absent est nul, jamais deviné. **Quand l'utilisateur donne un nouvel e
 | +N ATK (pour ce tour) | `addAtkThisTurn` | `amount` | Jusqu'à la fin du tour en cours. |
 | +N portée (pour ce tour) | `addRangeThisTurn` | `amount` | Jusqu'à la fin du tour en cours : il attaque plus loin, avec les règles de tir habituelles (ligne droite, ligne de vue, falaises). Avec un bonus d'ATK, s'écrit d'un bloc : « +1 ATK +1 portée (pour ce tour) ». |
 | ATK ×N (pour ce tour) | `multiplyAtkThisTurn` | `multiplier` | Son ATK du moment (bonus du tour compris, auras non comprises) est multipliée jusqu'à la fin du tour en cours. |
-| +N VP · +N mana | `gainVp` · `gainMana` | `amount` | Pour le joueur de la source. |
+| +N VP · +N mana | `gainVp` · `gainMana` | `amount` | Pour le joueur de la source, ou du sort. Un gain de mana s'arrête à la limite (§4.2) ; un sort qui ne ferait que ce gain n'est pas jouable à la limite (Élixir de mana). |
+| Retire ses malus | `cleanse` | — | Retire tous ses statuts malus (§5 bis), requiem compris ; ses bonus restent. Il retrouve la mobilité que ses malus lui avaient prise ce tour (slow, stun, immobilisé : au début de son tour ou pendant), sauf si son déplacement est fini sans statut (sablier, arrêt forcé). Impossible sur un monstre sans malus (Cure, §10). |
+| Réanimation | `reanimate` | — | Le monstre choisi dans son cimetière est invoqué sur la case visée (une de ses cases d'invocation libres), **sans payer son coût**, avec tous ses PV et sans statut ; il peut agir aussitôt (§4.5) et entre sur sa case. Il quitte le cimetière ; ce n'est pas une carte jouée (§10). |
 | Piège | `placeTrap` | `effects` | Piège une case libre, carré de 1 ; ses effets s'appliquent au monstre ennemi qui y entre (§10). Il reste « N tours adverses » (§5.5, 1 par défaut) ; « un seul à la fois » : un nouveau piège du même monstre fait disparaître l'ancien (Sablier du temps). Selon ses effets, l'interface l'appelle bombe (dégâts), filet (immobilisé) ou sablier (remonte N cases). |
 | Case brûlée pendant N tours : effets | `burnCell` | `turns`, `effects` | La case visée brûle, visible des deux joueurs, pendant N tours du camp du lanceur (§5.5) ; chaque monstre ennemi qui y entre subit les effets, et la case reste (§10). |
 | Évolution | `evolve` | — | Sacrifie la source pour invoquer à sa place un monstre de son grimoire qui en évolue, sans payer son coût ; le nouveau monstre n'agit pas ce tour. Pas le tour où la source est arrivée (§10). |
 | Invocation | `summon` | — | Invoque sur la case visée un monstre de son grimoire, choisi par le joueur, en payant aussi son coût ; il peut agir aussitôt (§4.5). |
-| Téléportation | `teleport` | — | Pose le monstre ciblé sur une case libre du carré de 1 de la source, choisie par le joueur. Ce n'est pas un déplacement : il garde sa mobilité, son attaque et son orientation, même immobilisé ou stun. Il entre sur la case d'arrivée : piège, Passage, case brûlée et Zone s'y déclenchent (§10). |
-| Retour | `returnOnTrail` | — | La source se téléporte sur une case libre où elle a été ce tour (son chemin du tour, sa case de départ comprise), choisie par le joueur ; ce qui est sur cette case se déclenche (§10). Elle garde son orientation et son attaque (une seule par tour), mais ne peut plus se déplacer après l'activation de cet effet. |
+| Téléportation | `teleport` | `to` | Pose le monstre ciblé sur une case choisie par le joueur : sans précision, une case libre du carré de 1 de la source (Téléporteur) ; « à N cases au plus de la cible, sans obstacle » (`around`, Flash) : une case libre à N cases au plus du monstre, diagonales comprises, sans regarder ce qu'il y a entre les deux (ni case `X`, ni falaise) ; « sur une case d'invocation libre de son camp » (`summonCell`, Repli) ; « sur un de ses terrains sans monstre » (`ownTerrain`, Téléportation). Ce n'est pas un déplacement : il garde sa mobilité, son attaque et son orientation, même immobilisé ou stun. Il entre sur la case d'arrivée : piège, Passage, case brûlée et Zone s'y déclenchent (§10). |
+| Retour | `returnOnTrail` | — | La source se téléporte sur une case libre où elle a été ce tour (son chemin du tour, sa case de départ comprise), choisie par le joueur ; ce qui est sur cette case se déclenche (§10). Elle garde son orientation, son attaque (une seule par tour) et sa mobilité restante : elle peut encore se déplacer (2026-11-10, §10 ; avant, plus de déplacement après le retour). |
 | Remonte N cases | `rewind` | `steps` | Effet d'un piège (sablier) : le monstre revient de N cases en arrière sur son chemin du tour (à son départ s'il est plus court), en téléportation (ce qui est sur la case d'arrivée se déclenche) ; son déplacement s'arrête, sans plus de mobilité ce tour (§10). |
 | Absorbe N PV · absorbe tous ses PV sauf N | `absorb` | `amount` · `downTo` | Retire N PV à la cible (ou tous ses PV sauf N, sans la détruire) ; la source récupère les PV retirés, sans dépasser ses PV max. Une destruction rapporte le VP au joueur de la source. Ce n'est pas une attaque (pas de riposte). « Tous ses PV sauf N » : impossible sur une cible qui a N PV ou moins. Sur une zone, chaque ennemi touché perd N PV (Vladimir, §10). |
 | Perd tous ses PV sauf N | `loseHp` | `downTo` | La cible tombe à N PV, sans être détruite ; ses PV max ne changent pas. Impossible sur une cible qui a N PV ou moins. |
@@ -399,7 +410,7 @@ Un mot-clé est un raccourci : un nom, parfois un nombre, et une définition éc
 | Sournois +N | `sournois` | En attaquant un monstre par derrière : +N ATK pour cette attaque. |
 | Attaque par surprise ×N | `assassin` | En attaquant un monstre par derrière : dégâts ×N. Anciennement « Assassin ×N » (renommé le 2026-11-08 : « Assassin » est aussi un rôle de fiche, sans règle). |
 | Camouflage | `camouflage` | Invisible à plus de 2 cases : invisible pour l'adversaire tant qu'aucun monstre ni terrain adverse n'est dans un carré de 2 autour de lui (§10, §5 bis). Sans valeur (ancien « Camouflage N » : seul N = 2 servait). |
-| Soif N | `soif` | À l'attaque : il récupère N PV (soin N sur lui-même, sans dépasser ses PV max), après les dégâts et avant une riposte ou une avancée ; aussi contre un terrain, et quand la cible est détruite (§10). |
+| Soif N | `soif` | À l'attaque d'un monstre : il récupère N PV (soin N sur lui-même, sans dépasser ses PV max), après les dégâts et avant une riposte ou une avancée ; aussi quand la cible est détruite, **jamais contre un terrain** (2026-11-10, §10). |
 | Point d'invocation | `summonPoint` | Terrain : sa case est une case d'invocation de son camp, tant qu'aucun monstre ne s'y trouve (§4.5). |
 
 ### 5.7 Conventions du code
@@ -437,7 +448,7 @@ Norme des statuts (validée le 2026-11-08). Un statut est posé sur une unité p
 | `<stat>` +X | `stat` (`amount` > 0) | Gagne X dans une stat : ATK, mobilité, portée ou PV max, pendant la durée. |
 | Récupération X | `recuperation` | Gagne X PV au début de son tour, jusqu'à ses PV max. |
 | Vol | `vol` | **Peut survoler les cases X**, comme le mot-clé Vol (§5.6) : survole les cases `X` et les falaises de la Scierie (pas celles de la Mine), mais pas les ennemis, et ne termine jamais sur une case `X` (§10). Un mot, une notion : le mot-clé est la version permanente d'une carte, le statut la version posée pour une durée. |
-| Carapace | `carapace` | La prochaine attaque ou riposte subie n'inflige que 1 PV, puis la carapace disparaît (Tibo). Les autres dégâts (sorts, effets, pièges, Passage, Zone, burn) ne la touchent pas. |
+| Carapace | `carapace` | **Ses PV ne descendent pas sous 1**, quels que soient les dégâts (attaque, riposte, sort, effet, piège, Passage, Zone, burn, absorbé), pendant toute sa durée ; le burn du début du tour où elle tombe compris (elle tombe juste après les statuts du début de tour). Requiem le tue quand même. Aussi sur un terrain (Fortification). Nouveau sens du 2026-11-10 (Carapace, Fortification, Tortank de Tibo), §10. |
 
 Un **bonus ou malus de stat** s'écrit « ATK +2 », « mobilité +1 », « portée −1 », « PV max +3 » (`StatKey` : `atk`, `mobility`, `range`, `maxHp`) ; la mobilité n'a que le bonus, son malus est le slow. PV max +X / −X change aussi les PV de X (sans descendre sous 1) ; à la fin, les PV max reviennent et les PV sont plafonnés, sans jamais tuer. Mobilité +X pris pendant son tour compte aussitôt.
 
@@ -445,21 +456,22 @@ Un **bonus ou malus de stat** s'écrit « ATK +2 », « mobilité +1 », « port
 - **Ordre du début de tour** (§4.2) : échéances, revenus, passifs (Ki né), zones, puis **Récupération et Absorbation** (+PV), puis les statuts : requiem, burn, **Absorbé**, puis la mobilité.
 - **Cumul** : les statuts du même type se cumulent (deux burn 1 : 2 PV ; deux slow 1 : 2 de mobilité ; deux Absorbé : deux pertes). **Exception : Camouflage et Invisible** (statuts, mot-clé du Farceur, aura du Terrain de jeu) : on garde la plus grande portée, sans somme.
 - Un monstre stun ou immobilisé perd aussitôt sa mobilité restante. Au début de son tour, sa mobilité est celle de sa carte, plus ses auras et ses mobilité +X, moins ses slow, ou 0 s'il est stun ou immobilisé. Un slow pris pendant son tour réduit aussitôt sa mobilité restante, sans descendre sous 0.
-- Sur un terrain, seul burn s'applique.
+- Sur un terrain, seuls burn et carapace s'appliquent (Fortification).
+- **Malus** : la catégorie des statuts qui gênent (le tableau « Malus » ci-dessus). « Retire ses malus » (Cure) les retire tous (§5.4).
 - Ne sont **pas** des statuts : les bonus de tour (Dopage, Seringue, Flèche divine, Charge, Terrain de chasse : « jusqu'à la fin du tour », avec leur source), les bonus définitifs (Bénédiction), les auras (tant qu'on est dans la zone, sans durée), et l'état **Armé** (Archers impériaux : la prochaine attaque porte un bonus, un seul à la fois). Les effets instantanés « Absorbe N PV », les soins et la Soif ne changent pas.
-- Aucune carte n'utilise encore Absorbé, Absorbation, Récupération, Désarmé, Vol (statut) ni les statuts de stat : ils sont dans le moteur (`addStatus`, effet `status`) pour les prochaines cartes.
+- Aucune carte n'utilise encore Absorbé, Absorbation, Récupération, Désarmé ni Vol (statut) : ils sont dans le moteur (`addStatus`, effet `status`) pour les prochaines cartes. Hurlements pose ATK −1.
 
 ## 6. Grimoire de test (25 cartes)
 
 Les tableaux de cartes (§6, §6 bis, §6 ter) s'écrivent avec le lexique (§5). Un test compare chaque ligne aux données du moteur (coût, stats, colonne « Effet ») : une carte modifiée ici doit l'être aussi dans `src/engine/cards.ts`, et inversement.
 
-Les 20 cartes ci-dessous, plus 5 cartes communes (§6 ter : toutes sauf le Terrain de chasse) en 1 exemplaire : c'est le deck Classique.
+Les 20 cartes ci-dessous, plus les 5 premières cartes communes (§6 ter : Invocateur, Téléporteur, Terrain drainant, Terrain piégé, Zone d'invocation) en 1 exemplaire : c'est le deck Classique, le deck d'essai, qui garde 25 cartes (§10, 2026-11-10).
 
 ### Monstres (14)
 
 | Carte | Qté | Coût | ATK | PV | Mob. | Portée | Effet |
 |---|---|---|---|---|---|---|---|
-| Éclaireur | 2 | 1 | 1 | 1 | 3 | 1 | — |
+| Éclaireur | 2 | 3 | 5 | 6 | 3 | 1 | — |
 | Milicien | 2 | 2 | 2 | 3 | 2 | 1 | — |
 | Archer | 2 | 2 | 2 | 1 | 2 | 2 | — |
 | Chaman | 1 | 2 | 1 | 3 | 2 | 1 | Actif (1 mana) · un allié dans un carré de 1 · soin 2 |
@@ -475,9 +487,9 @@ Les 20 cartes ci-dessous, plus 5 cartes communes (§6 ter : toutes sauf le Terra
 
 | Carte | Coût | Effet |
 |---|---|---|
-| Boule de feu | 2 | Un ennemi à 3 pas d'un de vos monstres · 2 dégâts |
+| Boule de feu | 2 | Un ennemi dans un carré de 3 d'une de vos unités · 1 dégât |
 | Charge | 1 | Un allié · +2 mobilité (pour ce tour) |
-| Bourrasque | 2 | Un ennemi · recul 2, direction au choix |
+| Bourrasque | 1 | Un ennemi · recul 2, direction au choix |
 | Bénédiction | 1 | Un allié · +1 ATK +1 PV (définitivement) |
 
 ### Terrains (2)
@@ -489,7 +501,7 @@ Les 20 cartes ci-dessous, plus 5 cartes communes (§6 ter : toutes sauf le Terra
 
 ## 6 bis. Decks pré-construits
 
-Chaque joueur choisit son deck avant la partie, parmi : **Classique** (le grimoire de test du §6), **Archers impériaux**, **Maîtres des pièges**, **Dragons élémentaires**, **Bodybuilder**, **Sorciers du feu**, **Explorateur du temps** et **Vampire**. Pas de deckbuilding. Chaque deck fait 25 cartes (exception : Archers impériaux, 26, §10), 3 exemplaires au plus d'une même carte : ses cartes propres, un complément de cartes du grimoire de test (§6) et des cartes communes (§6 ter), avec les quantités de sa composition ci-dessous (tableau « Composition » du doc « Cartes du TCG »). Ses cartes propres s'appellent « Nom - Archétype », l'archétype étant le nom du deck (§5.1) ; dans les compositions, on les écrit par leur nom seul.
+Chaque joueur choisit son deck avant la partie, parmi : **Classique** (le grimoire de test du §6), **Archers impériaux**, **Maîtres des pièges**, **Dragons élémentaires**, **Sorciers du feu**, **Explorateur du temps** et **Vampire** (plus de deck Bodybuilder depuis le 2026-11-10 : ses cartes gardent leurs données). Pas de deckbuilding. Chaque deck fait **30 cartes** (le Classique, deck d'essai : 25), 3 exemplaires au plus d'une même carte : ses cartes propres (l'archétype, chacune ×3), puis des cartes de base (§6) et des cartes communes (§6 ter), avec les quantités de sa composition ci-dessous (tableau « Composition » du doc « Cartes du TCG », donnée le 2026-11-10). Ses cartes propres s'appellent « Nom - Archétype », l'archétype étant le nom du deck (§5.1) ; dans les compositions, on les écrit par leur nom seul.
 
 ### Deck Archers impériaux
 
@@ -498,7 +510,7 @@ Remplace entièrement l'ancien deck Archers (remaniement du 2026-11-08, §10). L
 | Carte | Coût | ATK | PV | Mob. | Portée | Effet |
 |---|---|---|---|---|---|---|
 | Écuyer des archers - Archers impériaux | 1 | 0 | 3 | 6 | 0 | Aura · Carquois prêt ! · archers impériaux alliés, carré de 1 · 2 attaques par tour |
-| Archer impérial - Archers impériaux | 2 | 2 | 2 | 3 | 4 | Actif (1 mana, sans limite par tour) · Flèche explosive · armé : prochaine attaque, 1 dégât aux ennemis, carré de 1 de la cible |
+| Archer impérial - Archers impériaux | 2 | 2 | 2 | 3 | 4 | Actif (1 mana, sans limite par tour) · Flèche explosive · armé : prochaine attaque, 1 dégât aux ennemis, carré de 1 de la cible (ou d'une case vide visée) |
 | Arbalétrier impérial - Archers impériaux | 3 | 4 | 2 | 3 | 3 | Actif (1 mana, sans limite par tour) · Carreau perforant · armé : prochaine attaque, +2 ATK |
 | Trébuchet des archers - Archers impériaux | 4 | 5 | 2 | 2 | 6 | Siège ×2 ; ne peut pas attaquer au contact |
 
@@ -510,7 +522,7 @@ Remplace entièrement l'ancien deck Archers (remaniement du 2026-11-08, §10). L
 |---|---|---|---|
 | Camps de tir - Archers impériaux | 2 | 5 | Aura · archers impériaux alliés, sa case et carré de 1 · +1 portée |
 
-Composition (26, par exception) : Écuyer ×3, Archer impérial ×3, Arbalétrier impérial ×3, Trébuchet des archers ×2, Flèche divine ×3, Camps de tir ×3 ; complément : Charge, Bénédiction, Bourrasque ×3, Bastion (×1) ; communes : Téléporteur, Zone d'invocation, Terrain piégé (×1).
+Composition (30, donnée le 2026-11-10) : Écuyer, Archer impérial, Arbalétrier impérial, Trébuchet des archers, Flèche divine, Camps de tir (×3) ; base : Bourrasque ×3, Charge ×3, Bastion ×1 ; communes : Zone d'invocation, Terrain piégé, Téléporteur, Flash, Carapace (×1).
 
 Cartes sans deck, gardées pour leurs mécaniques (Trophée, Pillage, Givre, Brûlure, Siège) et les tests, comme Jean Bon (§10) :
 
@@ -544,7 +556,7 @@ Anciennement « Pièges » (renommé le 2026-11-08, id technique `pieges` inchan
 |---|---|---|---|
 | Terrain de jeu - Maîtres des pièges | 3 | 5 | Aura · maîtres des pièges alliés, sa case et carré de 1 · invisible |
 
-Composition (25, remaniée le 2026-11-08) : Poseur de piège ×3, Farceur ×3, Poseur de bombe ×3, Clown assassin ×3, Pénombre ×3, Terrain de jeu ×3 ; complément : Boule de feu ×3, Bénédiction ×1 (plus de Charge ni de Bourrasque) ; communes : Terrain piégé ×1, Zone d'invocation ×2, pas de Téléporteur, d'Invocateur ni de Terrain drainant (sortis pour les 3 Terrains de jeu, comme l'Autel de mana).
+Composition (30, donnée le 2026-11-10) : Poseur de piège, Farceur, Poseur de bombe, Clown assassin, Pénombre, Terrain de jeu (×3) ; communes : Repli ×3, Carapace ×3, Terrain piégé ×2, Flash ×1, Réanimation ×1, Zone d'invocation ×1, Fatigue ×1 (plus de Boule de feu ni de Bénédiction).
 
 ### Deck Dragons élémentaires
 
@@ -553,10 +565,10 @@ Refait le 2026-11-08 (§10). Les 5 monstres, Hurlements et le Nid de dragons son
 | Carte | Coût | ATK | PV | Mob. | Portée | Effet |
 |---|---|---|---|---|---|---|
 | Jeune dragon - Dragons élémentaires | 2 | 3 | 2 | 4 | 1 | Actif (3 mana) · Évolution draconique |
-| Ignis - Dragons élémentaires | 7 | 5 | 5 | 5 | 3 | Vol ; Actif (3 mana) · Lance-flamme · 3 cases en ligne et 2 diagonales devant, direction au choix · 2 dégâts + burn 2 pendant 1 tour |
-| Aqua - Dragons élémentaires | 7 | 4 | 9 | 4 | 1 | Vol ; Actif (3 mana) · Tsunami · 3 cases en ligne et 2 diagonales devant, direction au choix · 2 dégâts + slow 2 pendant 1 tour |
-| Ventus - Dragons élémentaires | 7 | 4 | 4 | 9 | 1 | Vol ; Actif (3 mana) · Tempête · 3 cases en ligne et 2 diagonales devant, direction au choix · 2 dégâts + recul 2, vers l'avant |
-| Terra - Dragons élémentaires | 7 | 9 | 4 | 4 | 1 | Vol ; Actif (3 mana) · Séisme · carré de 2 · 3 dégâts |
+| Ignis - Dragons élémentaires | 7 | 6 | 6 | 6 | 1 | Vol ; Actif (3 mana) · Lance-flamme · 3 cases en ligne et 2 diagonales devant, direction au choix · 2 dégâts + burn 2 pendant 1 tour |
+| Aqua - Dragons élémentaires | 7 | 5 | 10 | 5 | 1 | Vol ; Actif (3 mana) · Tsunami · 3 cases en ligne et 2 diagonales devant, direction au choix · 2 dégâts + slow 2 pendant 1 tour |
+| Ventus - Dragons élémentaires | 7 | 5 | 5 | 8 | 1 | Vol ; Actif (3 mana) · Tempête · 3 cases en ligne et 2 diagonales devant, direction au choix · 2 dégâts + recul 2, vers l'avant |
+| Terra - Dragons élémentaires | 7 | 9 | 5 | 5 | 1 | Vol ; Actif (3 mana) · Séisme · carré de 2 · 3 dégâts |
 
 | Carte | Coût | Effet |
 |---|---|---|
@@ -568,7 +580,7 @@ Refait le 2026-11-08 (§10). Les 5 monstres, Hurlements et le Nid de dragons son
 
 Un dragon élémentaire s'invoque normalement pour 7 mana, ou par l'Évolution draconique d'un Jeune dragon (3 mana, §5.4, §10) : le Jeune dragon se sacrifie et le dragon choisi apparaît à sa place, sans payer son coût, stun jusqu'à son prochain tour.
 
-Composition (25, donnée le 2026-11-08) : Jeune dragon, Ignis, Aqua, Ventus, Terra, Hurlements, Nid de dragons (×3) ; complément : Autel de mana ×3 ; communes : Invocateur ×1.
+Composition (30, donnée le 2026-11-10) : Jeune dragon, Ignis, Aqua, Ventus, Terra, Hurlements, Nid de dragons (×3) ; base : Autel de mana ×3 ; communes : Fortification ×3, Élixir de mana ×2, Invocateur ×1.
 
 Carte sans deck depuis le 2026-11-08, gardée pour ses mécaniques (Vol, aura) et les tests :
 
@@ -576,9 +588,9 @@ Carte sans deck depuis le 2026-11-08, gardée pour ses mécaniques (Vol, aura) e
 |---|---|---|---|---|---|---|
 | Origine - Dragons élémentaires | 10 | 7 | 7 | 7 | 1 | Vol ; Aura · dragons élémentaires alliés, carré de 1 · +1 ATK +1 PV +1 mobilité |
 
-### Deck Bodybuilder
+### Cartes Bodybuilder (plus de deck depuis le 2026-11-10)
 
-Remanié le 2026-11-06 (validé) : Jeune Gomuscu et Jean Bon quittent le deck, Rudy et Tibo arrivent. Les 4 monstres sont de l'archétype Bodybuilder. Les auras et le soin de début de tour portent sur le carré de 2.
+Le deck Bodybuilder est retiré le 2026-11-10 (§10) : ses cartes ne sont plus dans aucun deck, mais gardent leurs données pour leurs mécaniques (auras de PV et de mobilité, soin de début de tour, carapace, requiem de la Seringue) et les tests. Remanié le 2026-11-06 (validé) : Jeune Gomuscu et Jean Bon quittent le deck, Rudy et Tibo arrivent. Les 4 monstres sont de l'archétype Bodybuilder. Les auras et le soin de début de tour portent sur le carré de 2.
 
 | Carte | Coût | ATK | PV | Mob. | Portée | Effet |
 |---|---|---|---|---|---|---|
@@ -602,7 +614,7 @@ Cartes hors deck (données gardées pour les mécaniques « Quand il détruit un
 |---|---|---|---|
 | Salle de sport - Bodybuilder | 2 | 4 | Aura · bodybuilders alliés, sa case et carré de 1 · +1 ATK +1 PV |
 
-Composition (25) : Rudy ×3, Arnold ×3, Tibo ×3, Ki né ×3, Seringue ×2, Salle de sport ×1 ; complément : Charge ×3, Bénédiction, Bastion (×1) ; communes : Invocateur, Téléporteur, Terrain drainant, Terrain piégé, Zone d'invocation (×1).
+Ancienne composition (25, jusqu'au 2026-11-10) : Rudy ×3, Arnold ×3, Tibo ×3, Ki né ×3, Seringue ×2, Salle de sport ×1 ; complément : Charge ×3, Bénédiction, Bastion (×1) ; communes : Invocateur, Téléporteur, Terrain drainant, Terrain piégé, Zone d'invocation (×1).
 
 ### Deck Sorciers du feu
 
@@ -610,16 +622,16 @@ Les 4 monstres sont de l'archétype Sorcier du feu. Brûlure 1, 2 tours : à l'a
 
 | Carte | Coût | ATK | PV | Mob. | Portée | Effet |
 |---|---|---|---|---|---|---|
-| Feria - Sorciers du feu | 3 | 1 | 3 | 5 | 2 | Brûlure 1, 2 tours |
+| Feria - Sorciers du feu | 2 | 1 | 3 | 5 | 2 | Brûlure 1, 2 tours |
 | Lutin brasier - Sorciers du feu | 2 | 1 | 3 | 6 | 1 | Actif (1 mana) · une case libre, carré de 2 · case brûlée pendant 3 tours : 1 dégât + burn 1 pendant 1 tour |
 | Archimage - Sorciers du feu | 6 | 3 | 7 | 5 | 2 | Brûlure 1, 2 tours ; Actif (1 mana) · carré de 2 · burn 2 pendant 2 tours |
-| Golem de lave - Sorciers du feu | 4 | 2 | 10 | 2 | 1 | Zone · carré de 1 · burn 1 pendant 1 tour |
+| Golem de lave - Sorciers du feu | 4 | 2 | 12 | 3 | 1 | Zone · carré de 1 · burn 1 pendant 1 tour |
 
 | Carte | Coût | Effet |
 |---|---|---|
 | Brûlure en chaîne - Sorciers du feu | 2 | Tous les ennemis dans un carré de 1 d'une de tes unités · burn 1 pendant 2 tours |
 
-Composition (25, proposée) : Feria ×3, Lutin brasier ×3, Archimage ×2, Golem de lave ×3, Brûlure en chaîne ×2 ; complément : Boule de feu ×2, Charge ×2, Bénédiction, Autel de mana, Bastion (×1) ; communes : Invocateur, Téléporteur, Terrain drainant, Terrain piégé, Zone d'invocation (×1).
+Composition (30, donnée le 2026-11-10) : Feria, Lutin brasier, Archimage, Golem de lave, Brûlure en chaîne (×3) ; communes : Terrain drainant ×3, Zone d'invocation ×3, Téléportation ×3, Fatigue ×3, Puissance ×2, Flash ×1.
 
 ### Deck Explorateur du temps
 
@@ -627,22 +639,22 @@ Les 4 monstres sont de l'archétype Explorateur du temps. Ils ont tous « Retour
 
 | Carte | Coût | ATK | PV | Mob. | Portée | Effet |
 |---|---|---|---|---|---|---|
-| Apprenti - Explorateur du temps | 1 | 1 | 2 | 5 | 1 | Actif (1 mana) · Retour vers le futur · retour |
+| Apprenti - Explorateur du temps | 2 | 2 | 4 | 4 | 1 | Actif (1 mana) · Retour vers le futur · retour |
 | Chronomancienne - Explorateur du temps | 4 | 3 | 3 | 7 | 1 | Actif (1 mana) · Retour vers le futur · retour ; Actif (1 mana) · Sablier du temps · piège une case libre, carré de 1 (3 tours adverses, un seul à la fois) · remonte 3 cases |
-| Dragonnet - Explorateur du temps | 3 | 3 | 3 | 6 | 1 | Actif (1 mana) · Retour vers le futur · retour ; Actif (1 mana) · Miroir de souvenirs · un ennemi dans un carré de 1 · stun pendant 1 tour · contre-coup : silence pendant 1 tour |
-| Maître du temps - Explorateur du temps | 6 | 5 | 5 | 7 | 1 | Actif (1 mana) · Retour vers le futur · retour ; Actif (2 mana) · Requiem · un ennemi dans un carré de 1 · requiem |
+| Dragonnet - Explorateur du temps | 4 | 4 | 4 | 5 | 1 | Actif (1 mana) · Retour vers le futur · retour ; Actif (3 mana) · Miroir de souvenirs · un ennemi dans un carré de 1 · stun pendant 1 tour · contre-coup : silence pendant 1 tour |
+| Maître du temps - Explorateur du temps | 7 | 5 | 5 | 7 | 1 | Actif (1 mana) · Retour vers le futur · retour ; Actif (2 mana) · Requiem · un ennemi dans un carré de 1 · requiem |
 
 Maître du temps : « Un ancien explorateur, qui s'est perdu entre les époques. Physiquement jeune, mais très vieux dans les faits. » (texte d'ambiance).
 
 | Carte | Coût | Effet |
 |---|---|---|
-| Piège temporel - Explorateur du temps | 3 | Tous les ennemis · immobilisé pendant 1 tour |
+| Piège temporel - Explorateur du temps | 5 | Tous les ennemis · immobilisé pendant 1 tour |
 
 | Carte | Coût | PV | Effet |
 |---|---|---|---|
 | Fissure temporelle - Explorateur du temps | 3 | 4 | Passage · carré de 1 · immobilisé jusqu'à son prochain tour |
 
-Composition (25, inchangée) : Apprenti ×3, Chronomancienne ×3, Dragonnet ×3, Maître du temps ×2, Piège temporel ×2, Fissure temporelle ×2 ; complément : Charge ×2, Boule de feu, Bénédiction, Autel de mana (×1) ; communes : Invocateur, Téléporteur, Terrain drainant, Terrain piégé, Zone d'invocation (×1).
+Composition (30, donnée le 2026-11-10) : Apprenti, Chronomancienne, Dragonnet, Maître du temps, Piège temporel, Fissure temporelle (×3) ; communes : Fatigue ×3, Puissance ×3, Téléportation ×2, Terrain piégé ×2, Flash ×1, Zone d'invocation ×1.
 
 ### Deck Vampire
 
@@ -650,10 +662,10 @@ Les 4 monstres (et la forme chauve-souris d'Emma) sont de l'archétype Vampire. 
 
 | Carte | Coût | ATK | PV | Mob. | Portée | Effet |
 |---|---|---|---|---|---|---|
-| Delta - Vampire | 3 | 3 | 3 | 4 | 1 | Soif 1 |
-| Emma - Vampire | 1 | 2 | 3 | 3 | 1 | Soif 1 ; Actif (1 mana, sans limite par tour) · se transforme en Emma chauve-souris |
-| Vladimir - Vampire | 4 | 3 | 5 | 5 | 1 | Soif 1 ; Actif (1 mana) · carré de 1 · absorbe 1 PV |
-| Zoldik - Vampire | 6 | 3 | 8 | 5 | 1 | Soif 1 ; Actif (2 mana, puis plus d'attaque ce tour) · un ennemi dans un carré de 1 · absorbe tous ses PV sauf 1 |
+| Delta - Vampire | 3 | 4 | 4 | 4 | 1 | Soif 1 |
+| Emma - Vampire | 2 | 3 | 4 | 3 | 1 | Soif 1 ; Actif (1 mana, sans limite par tour) · se transforme en Emma chauve-souris |
+| Vladimir - Vampire | 5 | 4 | 7 | 5 | 1 | Soif 1 ; Actif (1 mana) · carré de 1 · absorbe 1 PV |
+| Zoldik - Vampire | 6 | 4 | 8 | 5 | 1 | Soif 1 ; Actif (3 mana, puis plus d'attaque ce tour) · un ennemi dans un carré de 1 · absorbe tous ses PV sauf 1 |
 
 Forme d'Emma, hors grimoire (elle n'apparaît que par la transformation, §10) :
 
@@ -664,13 +676,19 @@ Forme d'Emma, hors grimoire (elle n'apparaît que par la transformation, §10) :
 | Carte | Coût | Effet |
 |---|---|---|
 | Appel du sang - Vampire | 3 | Tous les vampires alliés · +2 mobilité (pour ce tour) |
-| Sacrifice sanguinaire - Vampire | 2 | Un allié vampire · perd tous ses PV sauf 1 + +1 ATK par PV perdu (pour ce tour) |
+| Sacrifice sanguinaire - Vampire | 1 | Un allié vampire · perd tous ses PV sauf 1 + +1 ATK par PV perdu (pour ce tour) |
 
-Composition (25, proposée) : Delta ×3, Emma ×3, Vladimir ×3, Zoldik ×2, Appel du sang ×2, Sacrifice sanguinaire ×2 ; complément : Charge ×2, Boule de feu, Bénédiction, Autel de mana (×1) ; communes : Invocateur, Téléporteur, Terrain piégé, Zone d'invocation, Terrain de chasse (×1).
+| Carte | Coût | PV | Effet |
+|---|---|---|---|
+| Terrain de chasse - Vampire | 1 | 3 | Au déplacement · vampires alliés, sa case et carré de 1 · +1 mobilité (pour ce tour) |
+
+Le Terrain de chasse est un terrain de l'archétype Vampire depuis le 2026-11-10 (ex-carte commune) : son bonus ne vaut que pour ses vampires (§10).
+
+Composition (30, donnée le 2026-11-10) : Delta, Emma, Vladimir, Zoldik, Appel du sang, Sacrifice sanguinaire, Terrain de chasse (×3) ; communes : Cure ×3, Carapace ×3, Puissance ×2, Flash ×1.
 
 ## 6 ter. Cartes communes
 
-Elles complètent les decks, chacun avec ses propres quantités (composition du §6 bis).
+Génériques (sans archétype), elles complètent les decks, chacun avec ses propres quantités (composition du §6 bis). Les 11 sorts génériques sont arrivés le 2026-11-10 (§10) ; Soin n'est dans aucun deck pour l'instant.
 
 | Carte | Coût | ATK | PV | Mob. | Portée | Effet |
 |---|---|---|---|---|---|---|
@@ -682,11 +700,24 @@ Elles complètent les decks, chacun avec ses propres quantités (composition du 
 | Terrain drainant | 1 | 4 | Passage · carré de 1 · 1 dégât |
 | Terrain piégé | 1 | 4 | Passage · carré de 1 · slow 1 jusqu'à son prochain tour |
 | Zone d'invocation | 1 | 4 | Point d'invocation |
-| Terrain de chasse | 1 | 3 | Au déplacement · sa case et carré de 1 · +1 mobilité (pour ce tour) |
+
+| Carte | Coût | Effet |
+|---|---|---|
+| Puissance | 2 | Un allié · +2 ATK (pour ce tour) |
+| Soin | 2 | Un allié · soin 5 |
+| Flash | 3 | Un allié · téléportation sur une case libre à 2 cases au plus de la cible, sans obstacle |
+| Fatigue | 2 | Un ennemi · slow 2 pendant 1 tour |
+| Carapace | 2 | Un allié · carapace jusqu'à son prochain tour |
+| Élixir de mana | 0 | +1 mana |
+| Cure | 1 | Un allié · retire ses malus |
+| Repli | 1 | Un allié · téléportation sur une case d'invocation libre de son camp |
+| Téléportation | 3 | Un allié · téléportation sur un de ses terrains sans monstre |
+| Réanimation | 5 | Un monstre de son cimetière · invoqué sur une case d'invocation libre de son camp, sans payer son coût |
+| Fortification | 3 | Un de ses terrains · carapace jusqu'à son prochain tour |
 
 ## 7. Interface (minimale)
 
-- Accueil (`/`) : choix de la carte, du mode (Normal ou Contestation, §4.4 bis, sur les cartes qui le proposent), du deck de chaque joueur et de qui joue J2 (un humain ou l'IA), puis la partie se lance sur `/game` (réglages dans l'adresse : recharger la page relance une partie avec les mêmes). En jeu, « Nouvelle partie » ramène à l'accueil ; l'écran de victoire propose de rejouer avec les mêmes réglages.
+- Accueil (`/`) : choix de la carte, du mode (Normal ou Contestation, §4.4 bis, sur les cartes qui le proposent), des VP pour gagner (§4.10), de l'économie (Classique ou Réserve) et des réglages du mana (génération max, limite, §4.2), du minuteur (sans, ou 3 minutes de réflexion par tour, §4.2), des cartes (d'origine, ou celles de l'atelier s'il a des réglages, §2), du deck de chaque joueur et de qui joue J2 (un humain ou l'IA), puis la partie se lance sur `/game` (réglages dans l'adresse : recharger la page relance une partie avec les mêmes). En jeu, « Nouvelle partie » ramène à l'accueil ; l'écran de victoire propose de rejouer avec les mêmes réglages.
 - Plateau au centre, cases cliquables, unités affichées avec ATK / PV actuels / mobilité restante.
 - Panneau du joueur actif : mana, VP, grimoire (cartes jouables en surbrillance, coût visible).
 - Score de chaque joueur (barre du haut) : mana, VP, nombre de cartes restantes (au survol), et deux compteurs, cartes jouées et cimetière, qui ouvrent ces listes (§10).
@@ -695,6 +726,7 @@ Elles complètent les decks, chacun avec ses propres quantités (composition du 
 - Sélection d'une carte → surbrillance des cibles valides.
 - Journal des actions.
 - Bouton « Fin du tour » et écran de passage hotseat.
+- Écran de chargement du plateau (2026-11-10) : il couvre l'écran de jeu tant que le plateau n'est pas dessiné (sol peint, cases, unités), et attend jusqu'à 8 secondes le décor autour du plateau ; pendant ce temps, rien ne se joue (animations, IA, minuteur). Le plateau se prépare dès que la carte est connue (accueil, lancer de dés, salle en ligne).
 - Écran de victoire.
 
 ## 7 bis. IA d'entraînement
@@ -703,16 +735,33 @@ Pour tester le jeu seul : au lancement d'une partie, « J2 joué par : l'IA ». 
 
 - L'écran montre toujours la vue de J1 ; pas d'écran de passage. Pendant le tour de l'IA, on la regarde jouer : une action à la fois, animée, avec une courte pause entre deux.
 - À chaque action, l'IA note toutes ses actions légales : une action vaut la position après elle, ou après la meilleure action suivante du même monstre (un sort ou un effet qui le renforce puis son attaque, un déplacement ou une invocation puis une attaque, une attaque puis un repli). Puis elle cherche : pour les meilleures, elle joue la suite de son tour dans sa tête et garde celle qui finit le mieux, dans un budget de calcul fixe (pour rester rapide sur téléphone). Quand plus rien ne l'améliore, elle finit son tour. Elle ne compte pas comme menacées les unités que l'adversaire ne voit pas (Farceur, Pénombre).
-- Ce que chaque camp risque au prochain tour adverse : chaque monstre ne frappe qu'une fois, après s'être déplacé ; il détruit d'abord ce qui rapporte le plus, puis entame ce qui reste. Les distances se comptent en cases de marche (murs et falaises font faire le tour).
+- Ce que chaque camp risque au prochain tour adverse : chaque monstre frappe une fois par attaque qu'il a (deux pour un archer que couvre un Écuyer), après s'être déplacé ; il détruit d'abord ce qui rapporte le plus, puis entame ce qui reste. Les distances se comptent en cases de marche (murs et falaises font faire le tour). Une attaque compte avec ce qu'elle fera perdre ensuite (la Brûlure de l'attaquant, la Zone du Golem de lave au contact), et avec la portée du Camps de tir depuis les cases qu'il couvre ; le Trébuchet ne frappe jamais au contact.
+- Burn : l'IA compte les PV que les burn d'une unité lui feront encore perdre, au début des tours de son camp, jusqu'à leur fin. Un monstre que ses burn vont détruire compte déjà comme perdu, et son VP comme gagné par l'autre camp (un peu moins qu'un VP, un soin pouvant le sauver) : elle ne gaspille ni une attaque ni une Boule de feu sur lui. Une case brûlée ne vaut presque rien si aucun ennemi ne peut y entrer à son prochain tour, et vaut plus dans la zone d'une mana zone.
+- Un bonus du tour (Flèche divine, Dopage) ou un carreau armé (Carreau perforant, Flèche explosive) se perd à la fin du tour : il n'entre pas dans la valeur d'un monstre. L'IA n'arme donc un archer que pour un tir du même tour qui en profite.
 - Effets actifs : un effet inutilisé est perdu pour le tour, une carte reste au grimoire. L'IA pose donc ses monstres et terrains après ses déplacements, attaques et effets utiles, et un effet utile passe avant un monstre ou un terrain qui lui prendrait son mana. Après un déplacement, elle regarde aussi l'effet que le monstre pourrait lancer de sa nouvelle case (Mage, Chaman, dragons). Les sorts se jouent quand ils sont les meilleurs. La position se juge sur les VP, la valeur des unités, les mana zones tenues, la marche vers les zones à prendre, ce que chaque camp risque de perdre au prochain tour adverse, et un peu le mana en réserve.
 - Mana zones : une zone que l'adversaire tient à la fin du tour de l'IA lui rapporte aussitôt (VP et mana, au début de son tour) ; une zone que l'IA tient ne lui rapporte qu'au début de son tour suivant, et moins sûrement si un monstre adverse peut venir la contester d'ici là. Contester une zone adverse vaut donc à peu près un VP : elle y envoie volontiers un petit monstre, même s'il risque d'y être détruit. Une zone que tient un de ses terrains n'a pas besoin de gardien : ses monstres repartent vers les autres.
 - Échanges : un monstre qu'un allié pourra venger (détruire son tueur au tour suivant) coûte moins à perdre ; l'IA se risque donc plus volontiers, et l'adversaire n'est pas censé faire un échange perdant.
-- Sorts et effets : un effet actif ou un sort doit rapporter plus que son mana. Un sort gardé au grimoire garde une valeur (il servira à un moment décisif) : l'IA ne le lance que s'il rapporte davantage, une destruction, une zone prise ou contestée, une unité sauvée, pas pour un bonus sans suite (pas de Bénédiction au premier tour, pas de Boule de feu qui ne fait qu'entamer). Un sort ou un effet ne prend pas à son compte ce que l'action suivante aurait rapporté sans lui.
+- Sorts et effets : un effet actif ou un sort doit rapporter plus que son mana. Un sort gardé au grimoire garde une valeur (il servira à un moment décisif) : l'IA ne le lance que s'il rapporte davantage, une destruction, une zone prise ou contestée, une unité sauvée, pas pour un bonus sans suite (pas de Bénédiction au premier tour, pas de Boule de feu qui ne fait qu'entamer). Un sort ou un effet ne prend pas à son compte ce que l'action suivante aurait rapporté sans lui. Un sort ou un effet qui touche plusieurs monstres à la fois (Appel du sang, Pénombre, Piège temporel, Brûlure en chaîne) ne rapporte souvent qu'après les actions de plusieurs monstres : l'IA l'essaie toujours dans sa recherche, avec la suite de son tour, au lieu de le juger sur la position juste après lui (2 au plus par action, §10).
 - Pièges : un piège ne vaut rien si aucun monstre adverse ne peut marcher dessus avant qu'il disparaisse (à la fin de sa durée, 3 tours adverses pour Filet, Bombe et Sablier) ; il vaut d'autant plus qu'il est près d'une mana zone.
 - Pas d'allers-retours : une action n'est notée avec l'effet qui la suivrait que si cet effet serait joué, et deux actions valent un peu moins que le même résultat en une seule.
 - Un monstre qui change de forme (Emma) vaut la meilleure de ses deux formes : il y revient quand il veut, en payant le mana.
 - Elle ne triche pas : elle ne voit ni les monstres invisibles adverses, ni les pièges adverses, ni le grimoire adverse.
 - Elle est dans `src/ai/`, hors du moteur, qu'elle utilise comme l'interface.
+
+## 7 ter. Parties en ligne (en cours)
+
+Jouer à deux à distance, sans compte ni matchmaking : un lien d'invitation à envoyer (décidé et validé le 2026-11-10). Plan en 6 lots : (1) moteur et écran prêts, sans serveur — **fait** ; (2) la salle de jeu, logique pure et testée — **faite** ; (3) le serveur Cloudflare (Workers et Durable Objects, offre gratuite : une salle par partie) — **fait**, essayé en local ; (4) l'écran en ligne — **fait**, essayé en local à deux onglets ; (5) les cartes de l'atelier en ligne ; (6) la mise en ligne — **faite le 2026-11-10** : le jeu est en ligne sur https://tcg-tactique.kami-joss.workers.dev (Cloudflare, offre gratuite, compte de l'utilisateur), par `npm run deploy` (tout est vérifié avant l'envoi ; rien n'est en ligne sans cette commande, une modification du code n'y part pas toute seule) ; l'essai de bout en bout y passe (`node scripts/online-check.mjs <adresse> <version>`).
+
+- **Un serveur fait autorité**, avec le même moteur : il vérifie et applique chaque coup, et n'envoie à chaque joueur que sa vue (§2), les animations de cette vue et la ligne du journal ; jamais l'action d'un coup adverse, qui peut contenir la case d'un piège ou d'un monstre invisible.
+- **Parcours** : à l'accueil, « Joueur 2 : en ligne » (le deck de J2 n'y est pas : l'invité le choisit), puis « Créer la partie en ligne » ; l'hôte arrive dans sa salle d'attente, avec le lien à copier et les réglages. L'invité qui ouvre le lien voit les réglages et le deck de l'hôte, choisit son deck et « Rejoindre la partie ». Les deux voient le lancer de dés : seul le gagnant choisit qui commence. En partie, l'écran de jeu habituel : les coups adverses s'animent comme ceux de l'IA, un bandeau dit « Connexion perdue : reconnexion… » ou « Ton adversaire s'est déconnecté », les options proposent « Abandonner la partie » (confirmée), et « Nouvelle partie » prévient que la partie continue sans lui. Pages d'erreur : lien déjà utilisé, jeu mis à jour (recharger la page), partie introuvable. En ligne, la partie se joue avec les cartes d'origine pour l'instant (lot 5).
+- **Lien d'invitation à usage unique** : le premier qui l'ouvre prend la place. L'invité choisit son deck en arrivant. L'hôte est J1, l'invité J2 (mêmes places qu'en local) ; le lancer de dés décide qui commence (§4.1). À l'accueil : « Joueur 2 : en ligne (lien) ».
+- **Serveur** : un Worker Cloudflare sert le site et une salle par partie (Durable Object). Créer une partie : `POST /api/parties` (réglages et deck de l'hôte → identifiant de la partie et jeton de l'hôte) ; chaque joueur se connecte à `/api/parties/<id>/ws` ; le lien d'invitation est `/partie/<id>`. Les connexions restent ouvertes pendant la veille de la salle, qui garde la partie dans son stockage à chaque message ; une alarme la réveille pour le chrono et pour le ménage.
+- Une partie n'a pas à survivre à un redémarrage du serveur (le stockage de la salle la garde quand même) ; une salle sans message depuis 24 heures est effacée.
+- **Places et jetons** : chaque joueur reçoit un jeton secret, gardé par son navigateur, qui le reconnaît s'il se reconnecte (un deuxième onglet du même joueur est accepté). Sans jeton, on ne peut que voir la salle d'attente (réglages et deck de l'hôte) et rejoindre la place libre. Un écran d'une autre version du jeu est refusé : il faut recharger la page. Un coup refusé n'est dit qu'à son auteur. Chacun sait quand l'autre se déconnecte ou revient.
+- **Minuteur** (option « Minuteur », §4.2) : le serveur tient l'horloge et finit le tour à 0:00. Il ne voit pas les animations : après chaque coup, et au début de chaque tour, le chrono attend que l'écran du joueur actif signale leur fin, 10 secondes au plus. Les deux joueurs voient le temps du joueur actif.
+- **Abandon** : seulement en ligne (en local, « Nouvelle partie » suffit), à tout moment, même pendant le tour adverse : l'adversaire gagne aussitôt, et l'écran de victoire le dit (« Le Joueur 2 abandonne. »).
+- **Absence** : un joueur déconnecté voit ses tours passer à la fin de son temps ; il perd la partie après 2 tours de suite passés ainsi sans être connecté, et l'écran de victoire le dit (« Le Joueur 2 a quitté la partie. »).
+- **Info cachée** : tout ce que reçoit un joueur se lit dans son navigateur. Un test permanent vérifie, sur des parties jouées au hasard avec les decks qui cachent le plus, que les actions légales du joueur actif sont les mêmes avec ou sans ce qu'il ne voit pas, et que sa vue ne contient ni un monstre qui lui est invisible ni sa case, ni les pièges ni le grimoire adverses. Un événement peut nommer un monstre invisible sans sa case : une carte jouée vers lui, l'effet d'un monstre visible sur lui, le poseur du piège où un monstre vient d'entrer. Les VP et le mana d'une mana zone tenue par un monstre invisible restent publics (§10).
 
 ## 8. Ordre d'implémentation conseillé
 
@@ -730,9 +779,10 @@ Une étape à la fois, tests verts avant de passer à la suivante.
 
 - Terrains « hauteur » (+1 portée) autour de la Scierie et « fosse » (pas de tir entrant) autour de la Mine. Les falaises qui les entourent sont déjà dans le MVP.
 - Sorts d'invocateur : 2 par joueur, choisis avant la partie, cachés jusqu'à utilisation, utilisables une fois.
-- Multijoueur en ligne avec serveur qui fait autorité, basé sur le même moteur.
+- Multijoueur en ligne : en cours, voir §7 ter.
 - Règle de priorité entre effets qui se déclenchent en même temps. En attendant : sur une case où entre un monstre, les pièges de la case passent avant les terrains « Passage » (§10).
 - Plusieurs cartes de plateau. (Trois autres cartes, « Champ de bataille » 11 × 11, 13 × 13 et 15 × 15, sont déjà jouables : voir §3.)
+- Régler les effets des cartes dans l'atelier de cartes (ciblages, types d'effets, statuts et leurs valeurs) : trop de mécaniques pour l'instant (décision du 2026-11-09). L'atelier règle le coût, les stats, la valeur des mots-clés et, depuis le 2026-11-10, le coût de chaque effet actif.
 
 ## 10. Clarifications validées
 
@@ -748,7 +798,7 @@ Réponses aux questions posées pendant le développement. Elles font autorité 
 - **§5 / §6 — Autel de mana + `etendard`** : les bonus se cumulent. Un Porte-étendard sur la case de son propre Autel de mana fait rapporter 3 mana à la zone (2 grâce à l'Autel, +1 grâce à l'étendard).
 - **§6 — Chaman et Mage** : « un allié » / « un ennemi » désigne un monstre. Un terrain n'est pas un monstre : bien différencier les types de cartes.
 - **§6 — Chaman** : on ne peut pas soigner un allié qui a déjà tous ses PV.
-- **§6 — Boule de feu** : « 3 cases max (distance orthogonale) » = 3 pas au maximum depuis un de ses monstres, chemin en L possible, sans ligne de vue.
+- **§6 — Boule de feu** : « 3 cases max (distance orthogonale) » = 3 pas au maximum depuis un de ses monstres, chemin en L possible, sans ligne de vue. **Remplacé le 2026-11-10** : carré de 3 d'une de ses unités, 1 dégât (voir plus bas).
 - **§6 — Bourrasque** : un terrain du camp du monstre poussé n'arrête pas le recul ; le monstre peut finir dessus ou le traverser, comme pour un déplacement. La carte ne peut être jouée que dans une direction où le monstre recule d'au moins une case.
 - **§5 — `riposte`** : ne se déclenche que contre une attaque, pas contre un effet activé (par exemple celui du Mage) ni contre un sort. Une seule riposte par tour : seule la première attaque adjacente du tour la déclenche.
 - **§5 — `vol`** : survole uniquement les cases X ; les monstres et terrains ennemis le bloquent comme n'importe quel monstre (la §5 disait d'abord « traverse les ennemis », elle a été corrigée). `vol` ne joue que quand le monstre se déplace lui-même : poussé par Bourrasque, il s'arrête avant une case X comme les autres.
@@ -758,12 +808,12 @@ Réponses aux questions posées pendant le développement. Elles font autorité 
 - **§6 bis — `brulure`** : pose burn 1 pendant 1 tour, compté en tours du camp de la cible (§5.5) ; la perte de PV a lieu au début de chaque tour affecté (après ses revenus et les passifs, §4.2) ; elle se cumule ; les terrains brûlent aussi ; une destruction rapporte le VP au joueur de l'archer.
 - **§5 bis — Statuts** : un monstre stun ne riposte pas. Le filet du Poseur de piège immobilise jusqu'au début du prochain tour du monstre : pris pendant son propre tour, il ne bouge plus de ce tour et il est libre au suivant.
 - **§6 bis — Trébuchet** : portée 5 avec les règles de tir habituelles ; il passe donc la falaise de la Scierie.
-- **§6 bis — Monstre de test** (validé) : monstre du deck Archers pour tester les abus de stats (10 mana, ATK 3, PV 7, mobilité 9, portée 1, sans effet). Carte générique, sans archétype : Flèche divine ne le cible pas. Il s'ajoute aux 25 cartes : le deck Archers en a 26, seule exception à la règle des 25 cartes.
+- **§6 bis — Monstre de test** (validé) : monstre du deck Archers pour tester les abus de stats (10 mana, ATK 3, PV 7, mobilité 9, portée 1, sans effet). Carte générique, sans archétype : Flèche divine ne le cible pas. Il s'ajoute aux 25 cartes : le deck Archers en a 26, seule exception à la règle des 25 cartes. **Périmé** : le Monstre de test n'est plus dans le deck Archers depuis le 2026-11-08, et les decks font 30 cartes depuis le 2026-11-10.
 - **§6 bis — Pièges** : effet activé, une fois par tour/carte, sur une case adjacente (une des 8 cases autour, voir « Adjacent ») jouable et sans unité. Un piège est caché à l'adversaire (ni sur le plateau, ni dans le journal, ni dans ses actions possibles), ne sert qu'une fois et disparaît au début du prochain tour de son poseur, même si ce dernier est mort. Il se déclenche quand un monstre ennemi entre sur sa case : en se déplaçant (même s'il ne fait que passer), poussé par Bourrasque, en avançant après une attaque ou en y étant invoqué. `vol` n'évite pas les pièges : un monstre volant les déclenche comme les autres, en se déplaçant comme en étant poussé. Après un piège à PV, le monstre continue s'il survit ; une destruction rapporte 1 VP au poseur.
 - **§4.6 — Chemin** : le joueur peut choisir son chemin case par case. Sans chemin précisé, le moteur prend un des plus courts, celui que l'interface montre au survol avant le clic.
 - **§6 bis — Orientation** : un monstre regarde dans le sens de son dernier pas (déplacement ou avancée ; un recul ne la change pas). Tant qu'il n'a pas bougé, il regarde vers le camp adverse : vers le bas pour J1, vers le haut pour J2. « Par derrière » = l'attaquant frappe dans le sens où regarde la cible. Les bonus d'ATK sont triplés aussi ; pas de bonus contre un terrain.
 - **§3 — « Zone maison »** (Écurie, Ferme) : simple nom, sans effet de règle.
-- **§5 / §6 bis — Camouflage (Farceur)** (anciennement « Invisible ») : le Poseur de piège a repris l'ancien effet du Farceur (piège qui immobilise) ; le Farceur devient passif. Il est invisible pour l'adversaire tant qu'aucun monstre ni terrain adverse n'est dans un rayon de 2 autour de lui (24 cases, diagonales comprises, coupé par les falaises et les cases X) ; la zone d'invocation adverse ne le révèle pas. Invisible, il n'apparaît pas dans la vue adverse ni dans le journal (ses déplacements et son invocation n'y donnent pas de case), et l'adversaire ne peut ni l'attaquer ni le viser par un sort ou un effet. Une carte jouée vers lui (son invocation, y compris par l'Invocateur, ou un sort de son camp sur lui) reste publique, sans sa case (validé) : l'adversaire voit la carte surgir au centre de l'écran puis s'effacer sur place, comme un sort sans cible ; rien ne file vers sa case, pas d'éclair sur lui. De même, l'effet d'un monstre visible sur lui (soin du Chaman) ne montre pas sa case. Le contrôle d'une mana zone qu'il occupe reste public. Il occupe quand même sa case : un déplacement adverse qui y entrerait s'arrête sur la dernière case du chemin où il pouvait s'arrêter, sans plus de mobilité ce tour (les pièges déjà traversés restent déclenchés) ; un recul de Bourrasque s'arrête avant lui ; un tir qui le traverse est arrêté (l'attaque est utilisée, sans dégâts). Dans ces cas il se révèle jusqu'à la fin du tour en cours.
+- **§5 / §6 bis — Camouflage (Farceur)** (anciennement « Invisible ») : le Poseur de piège a repris l'ancien effet du Farceur (piège qui immobilise) ; le Farceur devient passif. Il est invisible pour l'adversaire tant qu'aucun monstre ni terrain adverse n'est dans un rayon de 2 autour de lui (24 cases, diagonales comprises, coupé par les falaises et les cases X) ; la zone d'invocation adverse ne le révèle pas. Invisible, il n'apparaît pas dans la vue adverse ni dans le journal (ses déplacements et son invocation n'y donnent pas de case), et l'adversaire ne peut ni l'attaquer ni le viser par un sort ou un effet. Une carte jouée vers lui (son invocation, y compris par l'Invocateur, ou un sort de son camp sur lui) reste publique, sans sa case (validé) : l'adversaire voit la carte surgir au centre de l'écran puis s'effacer sur place, comme un sort sans cible ; rien ne file vers sa case, pas d'éclair sur lui. De même, l'effet d'un monstre visible sur lui (soin du Chaman) ne montre pas sa case. Le contrôle d'une mana zone qu'il occupe reste public. Il occupe quand même sa case : un déplacement adverse qui y entrerait s'arrête sur la dernière case du chemin où il pouvait s'arrêter, en gardant sa mobilité restante (les pas faits sont dépensés : il peut repartir, 2026-11-10 ; « sans plus de mobilité ce tour » avant) (les pièges déjà traversés restent déclenchés) ; un recul de Bourrasque s'arrête avant lui ; un tir qui le traverse est arrêté (l'attaque est utilisée, sans dégâts). Dans ces cas il se révèle jusqu'à la fin du tour en cours.
 - **§6 bis — Farceur (2026-11-06, validé)** : coût 3 mana, et « Sournois +1 » devient « Assassin ×2 » (dégâts doublés en attaquant par derrière, seulement contre un monstre). Plus aucune carte n'a `sournois`, le mot reste au lexique.
 - **§5 — `sournois` (ancien effet du Farceur)** : « par derrière » comme pour `assassin` (l'attaquant frappe dans le sens où regarde la cible). Le bonus s'ajoute à l'ATK actuelle (Bénédiction comprise), seulement contre un monstre. Si une carte avait `sournois` et `assassin`, le +1 s'appliquerait avant le ×3.
 - **§6 bis — Évolution (Jeune dragon élémentaire)** : effet actif, 2 mana, une fois par tour/carte, mais pas le tour où le Jeune dragon est arrivé sur le plateau. Le joueur choisit un dragon élémentaire de son grimoire : la carte quitte son grimoire sans que ses 7 mana soient payés. Le Jeune dragon est sacrifié (il quitte le plateau sans être détruit : pas de VP ; il va au cimetière) et le dragon apparaît sur sa case, dans le même sens ; il ne peut ni bouger, ni attaquer, ni activer son effet ce tour-là. Ses statuts ne passent pas au dragon.
@@ -777,9 +827,9 @@ Réponses aux questions posées pendant le développement. Elles font autorité 
 - **§6 ter — Terrain piégé** : le monstre qui entre est slow 1 jusqu'à son prochain tour ; il perd aussitôt 1 de mobilité restante, pour ce tour seulement. Les déplacements proposés en tiennent compte : en marchant, chaque case de sa zone où il entre lui coûte 1 mobilité de plus (validé : à chaque case, comme tout Passage ; les slow se cumulent). Pris pendant le tour adverse (recul), le slow ne retire rien.
 - **§6 ter — Invocateur** : effet actif, 1 mana, plus le coût du monstre invoqué ; n'importe quel monstre de son grimoire, sur une case adjacente libre (sans unité). Comme une invocation normale, le monstre peut agir aussitôt ; il entre sur sa case (pièges, Passage).
 - **§6 ter — Téléporteur** : un allié n'importe où sur le plateau, sauf le Téléporteur lui-même, même immobilisé ou stun ; il est posé sur une case adjacente libre du Téléporteur. Il garde sa mobilité restante, son attaque et son orientation ; il entre sur la case d'arrivée : ce qui s'y trouve se déclenche (§5.4, §10).
-- **§6 ter — Terrain de chasse** (validé) : carte commune, dans les decks Archers et Vampire seulement (1 exemplaire, à la place du Terrain drainant). Sa zone : sa case et les 8 cases adjacentes (falaises et cases `X` coupent comme pour « adjacent »). Un de ses monstres qui commence un déplacement sur une case de la zone a +1 mobilité ce tour (bonus du tour, comme Charge), même si ce déplacement reste dans la zone ; un allié arrivé dans la zone en cours de tour (marche, téléportation, Invocateur) en profite en repartant, même à 0 mobilité restante. Une fois par tour pour chaque monstre, tous Terrains de chasse confondus : revenir dans une zone ne redonne rien. Actif dès la pose, pour tous, le monstre sous lequel on le pose compris. Rien pour un monstre stun, immobilisé ou dont le déplacement est fini pour le tour (Retour, sablier, arrêt forcé). Le +1 s'ajoute au plateau, à Charge et aux auras, les slow déjà déduits. Il reste si le terrain est détruit ensuite ; Emma le garde en se transformant (et ne le reprend pas sous l'autre forme) ; un monstre camouflé en profite (le journal ne le dit pas à l'adversaire). La menace affichée au survol et celle que calcule l'IA comptent le +1 d'un monstre qui est dans la zone d'un de ses Terrains de chasse.
+- **§6 ter — Terrain de chasse** (validé) : carte commune, dans les decks Archers et Vampire seulement (1 exemplaire, à la place du Terrain drainant). Sa zone : sa case et les 8 cases adjacentes (falaises et cases `X` coupent comme pour « adjacent »). Un de ses monstres qui commence un déplacement sur une case de la zone a +1 mobilité ce tour (bonus du tour, comme Charge), même si ce déplacement reste dans la zone ; un allié arrivé dans la zone en cours de tour (marche, téléportation, Invocateur) en profite en repartant, même à 0 mobilité restante. Une fois par tour pour chaque monstre, tous Terrains de chasse confondus : revenir dans une zone ne redonne rien. Actif dès la pose, pour tous, le monstre sous lequel on le pose compris. Rien pour un monstre stun, immobilisé ou dont le déplacement est fini pour le tour (Retour, sablier, arrêt forcé). Le +1 s'ajoute au plateau, à Charge et aux auras, les slow déjà déduits. Il reste si le terrain est détruit ensuite ; Emma le garde en se transformant (et ne le reprend pas sous l'autre forme) ; un monstre camouflé en profite (le journal ne le dit pas à l'adversaire). La menace affichée au survol et celle que calcule l'IA comptent le +1 d'un monstre qui est dans la zone d'un de ses Terrains de chasse. **Remplacé le 2026-11-10** : terrain de l'archétype Vampire, pour ses vampires seulement, ×3 dans le deck Vampire (voir plus bas).
 - **§6 ter — Zone d'invocation** : terrain de coût 1 (le « coût d'activation » est le coût de la carte). Sa case devient une case d'invocation de son camp ; on y invoque si aucun monstre ne s'y trouve, le monstre partageant la case avec son terrain.
-- **§6 bis — Cartes communes** : Invocateur, Téléporteur, Terrain drainant, Terrain piégé et Zone d'invocation complètent les decks ; leurs quantités varient d'un deck à l'autre (0 à 3), comme celles du complément, selon la composition du deck (25 cartes).
+- **§6 bis — Cartes communes** : Invocateur, Téléporteur, Terrain drainant, Terrain piégé et Zone d'invocation complètent les decks ; leurs quantités varient d'un deck à l'autre (0 à 3), comme celles du complément, selon la composition du deck (25 cartes). **Le 2026-11-10** : les decks font 30 cartes, et 11 sorts génériques rejoignent les cartes communes (voir plus bas).
 - **§6 bis — Flèche divine** (deck Archers) : sort à 2 mana sur un de ses archers, c'est-à-dire un monstre de l'archétype Archer : Archer léger, Archer lourd, Archer de glace, Archer du feu (ni le Trébuchet, ni l'Archer du grimoire de test, ni un archer adverse). +1 ATK et +1 portée jusqu'à la fin du tour : une portée 2 devient 3, avec les règles de tir habituelles. Comme tout sort, sans limite par tour : un second exemplaire se lance s'il reste du mana (les bonus s'ajoutent).
 - **§6 bis — Deck Bodybuilder** : « Bodybuilder » est un archétype (§5.1), pas une partie du nom de la carte.
 - **§6 bis — Jean Bon, Dopage** : effet actif sur lui-même : +2 ATK pour ce tour, et Jean Bon est burn 1 pendant ses 2 prochains tours.
@@ -787,7 +837,7 @@ Réponses aux questions posées pendant le développement. Elles font autorité 
 - **§6 bis — Arnold** : son aura donne +1 ATK aux bodybuilders alliés dans un rayon de 2 (« adjacents, rayon 2 », §5.3 : carré 5 × 5 sur terrain dégagé, falaises et cases X coupent la zone ; pas à lui-même) tant qu'ils le restent : à l'attaque, à la riposte et dans les dégâts affichés. Deux Arnold se cumulent (+2), et deux Arnold à portée l'un de l'autre se donnent +1 chacun. Avant le 2026-11-06 : +2 ATK aux bodybuilders adjacents.
 - **§6 bis — Salle de sport (2026-11-06, validé)** : terrain à 2 mana, 4 PV, du deck Bodybuilder (×1, à la place de la Boule de feu). Son aura donne +1 ATK et +1 PV à ses bodybuilders alliés sur sa case et les 8 cases autour (« sa case et adjacents », `cellAndAdjacent`, §5.3 : un bodybuilder posé sur le terrain en profite). C'est une aura comme celle d'Arnold et d'Origine : le bonus dure tant que le monstre est dans la zone ; PV et PV max se gagnent en entrant et se perdent en sortant (ou si le terrain est détruit), sans descendre sous 1 PV. Plusieurs sources se cumulent (Arnold, Salle de sport). Un terrain se pose comme les autres (§4.9).
 - **§6 bis — Rudy (2026-11-06, validé)** : son aura donne +1 mobilité aux bodybuilders alliés dans un rayon de 2 (pas à lui-même), comptée au début du tour du monstre comme celle d'Origine (§10) : un monstre qui entre dans la zone en cours de tour ne l'a qu'au tour suivant. Plusieurs Rudy se cumulent.
-- **§6 bis — Tibo, Tortank (2026-11-06, validé)** : effet actif, 1 mana, sur lui-même : statut `carapace` jusqu'à son prochain tour (`turns: 0`, §5.5). La prochaine attaque que Tibo subit, ou la riposte d'un monstre qu'il attaque, ne lui inflige que 1 PV (même dans le dos), puis la carapace disparaît. Les sorts, effets, pièges, Passage, Zone et burn ne sont pas des attaques : ils infligent leurs dégâts normaux et ne consomment pas la carapace. Requiem n'est pas un dégât. L'aperçu de la bulle annonce déjà 1 dégât. Nom « Carapace » validé.
+- **§6 bis — Tibo, Tortank (2026-11-06, validé)** : effet actif, 1 mana, sur lui-même : statut `carapace` jusqu'à son prochain tour (`turns: 0`, §5.5). La prochaine attaque que Tibo subit, ou la riposte d'un monstre qu'il attaque, ne lui inflige que 1 PV (même dans le dos), puis la carapace disparaît. Les sorts, effets, pièges, Passage, Zone et burn ne sont pas des attaques : ils infligent leurs dégâts normaux et ne consomment pas la carapace. Requiem n'est pas un dégât. L'aperçu de la bulle annonce déjà 1 dégât. Nom « Carapace » validé. **Remplacé le 2026-11-10** : la carapace ne laisse plus passer que 1 PV d'une attaque ; elle empêche les PV de descendre sous 1, quels que soient les dégâts (voir plus bas).
 - **§6 bis — Rayon 2 pour les auras (2026-11-06)** : « dans les 2 cases adjacentes » s'entend comme « adjacents, rayon 2 » (`adjacent2`, §5.3). Les auras et le soin de début de tour peuvent donc viser ce rayon (`AllyZone`). Les bodybuilders sont toujours ceux du camp de la source.
 - **§6 bis — Jeune Gomuscu** : +1 ATK et +1 PV (PV max compris), définitivement, chaque fois que son attaque détruit un monstre ou un terrain, avant une éventuelle avancée.
 - **§6 bis — Seringue** : 2 mana, sur un de ses bodybuilders. Son ATK double pour ce tour seulement (l'ATK du moment, bonus du tour compris ; une aura d'Arnold s'ajoute ensuite sans être doublée). Requiem 2 : piqué pendant son tour, il joue ce tour et son prochain tour, puis meurt au début du suivant, avec les statuts, après les revenus et les passifs (§4.2 : sa mana zone rapporte encore ce tour-là) ; personne ne gagne de VP.
@@ -810,7 +860,7 @@ Réponses aux questions posées pendant le développement. Elles font autorité 
 - **§7 — Angle du plateau (validé)** : le même pour les deux joueurs, sur toutes les cartes : J1 commence en haut du plateau, J2 en bas. Le plateau ne tourne plus vers le joueur qui joue (le réglage est retiré).
 - **§5.1 — Noms « Nom - Archétype »** : les cartes propres à un deck s'appellent « Nom - Archétype », l'archétype étant le nom du deck (« Feria - Sorciers du feu », « Apprenti - Explorateur du temps »). Les cartes de base et communes gardent leur nom seul. À l'écran, la tuile du grimoire et la fiche écrivent le nom en gros et l'archétype en petit dessous ; le journal et la bulle d'action écrivent le nom complet.
 - **§4.8 — Plusieurs effets actifs** : un monstre peut avoir deux effets actifs (Chronomancienne, Dragonnet, Maître du temps) ; il peut utiliser chacun une fois par tour/carte, dans n'importe quel ordre, s'il a le mana.
-- **§6 bis — Retour (Explorateur du temps)** : effet actif, 1 mana : le monstre se téléporte sur une case libre où il a été ce tour (son chemin du tour), sa case de départ comprise (ou sa case d'invocation s'il est arrivé ce tour). Comme toute téléportation, il entre sur la case : piège, Passage, case brûlée et Zone s'y déclenchent. Il garde son orientation, et son attaque reste utilisable une fois par tour (avant ou après le retour) ; il ne peut plus se déplacer après l'activation de cet effet. Le chemin s'arrête à la case retrouvée. Texte de la carte : « Se téléporte sur une case libre où il a été ce tour. Ne peut plus se déplacer après l'activation de cet effet. »
+- **§6 bis — Retour (Explorateur du temps)** : effet actif, 1 mana : le monstre se téléporte sur une case libre où il a été ce tour (son chemin du tour), sa case de départ comprise (ou sa case d'invocation s'il est arrivé ce tour). Comme toute téléportation, il entre sur la case : piège, Passage, case brûlée et Zone s'y déclenchent. Il garde son orientation, et son attaque reste utilisable une fois par tour (avant ou après le retour) ; il garde sa mobilité restante et peut encore se déplacer (**changé le 2026-11-10** : avant, il ne pouvait plus se déplacer). Le chemin s'arrête à la case retrouvée. Texte de la carte : « Se téléporte sur une case libre où il a été ce tour. Ne peut plus se déplacer après l'activation de cet effet. »
 - **§6 bis — Sablier de la Chronomancienne** : effet actif, 1 mana (2 avant la revue des stats du 2026-11-06) : un piège sur une case adjacente libre, qui dure comme les autres (jusqu'au prochain tour du poseur). Le monstre ennemi qui y entre « remonte 3 cases » : il revient de 3 cases en arrière sur son chemin du tour (à son départ si le chemin est plus court), en téléportation (ce qui est sur la case d'arrivée se déclenche) ; une case occupée entre-temps est sautée, vers le piège. Son déplacement s'arrête là, sans plus de mobilité ce tour. Poussé sur le piège (Bourrasque), il remonte de même sur son chemin, déplacements de son dernier tour compris.
 - **§6 bis — Dragonnet - Explorateur du temps** : effet actif, 2 mana : un ennemi adjacent est stun pendant 1 tour (il perd tout son prochain tour, comme le Raz de marée).
 - **§6 bis — Maître du temps** (anciennement Hermite, renommé avec son illustration du handoff overframe V2) : 6 mana, 5 ATK, 5 PV, mobilité 7 (stats revues, validé ; avant : 7 mana, 6 PV, mobilité 4). Effet actif, 2 mana : un ennemi adjacent reçoit requiem : il joue encore son prochain tour, puis meurt au début du suivant ; personne ne gagne de VP.
@@ -823,7 +873,7 @@ Réponses aux questions posées pendant le développement. Elles font autorité 
 - **§4.4 bis — Mode contestation (validé)** : nouveau mode, « Contestation », à côté du mode « Normal » (pas « Classique », déjà le nom d'un deck et du plateau 11 × 9). Proposé sur le 13 × 13 et le 15 × 15 seulement. Zone de 9 cases : le carré 3 × 3 centré sur la mana zone, ses cases X comprises (personne ne s'y tient ; Mine et Scierie du 15 × 15 : 7 cases utiles). Contrôle par présence : la zone est au seul joueur qui y a des unités (monstres ou terrains), un terrain seul suffit, personne : neutre. Un terrain la tient pour son propriétaire tant qu'il n'est pas détruit, même si l'adversaire y a des monstres et même si son propriétaire y a aussi les siens ; une zone n'est donc contestée que sans terrain, quand les deux joueurs y ont des monstres. Zone contestée : ni mana ni VP pour personne, et pas de terrain posé. Une zone tenue rapporte comme en mode Normal (+1 mana bonus compris, +1 VP), évalué au début du tour (§4.2). Terrain : seulement sur la mana zone (case centrale), sous un de ses monstres, un par zone (§4.9), si la zone n'est pas contestée. Étendard : le Porte-étendard donne son bonus sur n'importe quelle case de la zone, si son camp la tient. Un monstre camouflé dans la zone compte : l'état de la zone (tenue, neutre, contestée) reste public, comme le contrôle d'une mana zone en mode Normal.
 - **Fiche, pied « Statuts » / « Effets »** : chaque puce ne montre que le nom du lexique (Stun, Immobilisé, Slow N, Burn N, Requiem, Camouflé ; pour un bonus du tour, le nom de sa source : l'effet s'il en a un, « Dopage », sinon la carte, « Charge », « Seringue », « Flèche divine » ; Aura, nom du plateau, Camouflé/Repéré, nom de la mana zone, nom du terrain) ; le détail (valeur, durée, source) est au survol. Chaque bonus du tour garde sa source (pas les statuts : un statut n'affiche que sa valeur et sa durée) ; deux exemplaires d'un même sort font une seule puce, bonus cumulés. Les statuts et les autres effets sont dans deux groupes séparés. Le sens du monstre n'est pas dans la fiche.
 - **§6 bis — Deck Vampire (validé)** : archétype Vampire (Delta, Emma et sa forme chauve-souris, Vladimir, Zoldik) ; cartes « Nom - Vampire » ; dans un texte, « un allié vampire », « tes vampires ». Mots retenus : « Soif N » pour « récupère 1 PV lorsqu'il attaque » ; « absorbe » pour « vole » des PV (« Vol » est déjà un mot-clé, « drainant » est pris par le Terrain drainant) ; « se transforme » pour la transformation, et pour rien d'autre ; le texte de Sacrifice sanguinaire ne dit pas « sacrifie » (sacrifier = quitter le plateau), le nom de la carte reste. Composition proposée, à ajuster dans le doc « Cartes du TCG ».
-- **§5.6 — Soif (Vampire)** : à l'attaque, le vampire récupère N PV (soin sur lui-même, sans dépasser ses PV max ; rien s'il a tous ses PV). Après les dégâts, avant la riposte et l'avancée : Delta à 1 PV qui attaque le Gardien remonte à 2 PV, puis retombe à 1 après la riposte, et survit. Aussi contre un terrain, et quand la cible est détruite. Une riposte n'est pas une attaque : elle ne déclenche pas Soif. Un tir arrêté par un monstre camouflé ne soigne pas.
+- **§5.6 — Soif (Vampire)** : à l'attaque, le vampire récupère N PV (soin sur lui-même, sans dépasser ses PV max ; rien s'il a tous ses PV). Après les dégâts, avant la riposte et l'avancée : Delta à 1 PV qui attaque le Gardien remonte à 2 PV, puis retombe à 1 après la riposte, et survit. Aussi quand la cible est détruite. Contre un terrain : rien (« aussi contre un terrain » avant le 2026-11-10). Une riposte n'est pas une attaque : elle ne déclenche pas Soif. Un tir arrêté par un monstre camouflé ne soigne pas.
 - **§6 bis — Vladimir** : effet actif, 2 mana : chaque ennemi adjacent (zone « adjacents » : jamais un allié, jamais un monstre invisible pour lui) perd 1 PV, et Vladimir récupère 1 PV par ennemi touché, sans dépasser ses PV max. Jouable dès qu'un ennemi est adjacent, même s'il a tous ses PV. Un ennemi détruit rapporte 1 VP au joueur de Vladimir. Pas de riposte : ce n'est pas une attaque.
 - **§6 bis — Zoldik** : effet actif, 3 mana : un ennemi adjacent (les 8 cases autour) tombe à 1 PV, et Zoldik récupère les PV retirés, sans dépasser ses PV max. Impossible sur un ennemi à 1 PV ; jouable même si Zoldik a tous ses PV. La cible reste à 1 PV : jamais de destruction, jamais de VP. Il peut attaquer puis activer l'effet ; après l'activation, il ne peut plus attaquer ce tour.
 - **§6 bis — Appel du sang** : sort, 3 mana, sans cible à choisir : tous ses vampires sur le plateau (jamais ceux de l'adversaire) ont +2 mobilité ce tour ; ceux qui arrivent ensuite n'en profitent pas. Jouable s'il a au moins un vampire. La chauve-souris d'Emma est un vampire.
@@ -851,8 +901,20 @@ Réponses aux questions posées pendant le développement. Elles font autorité 
 - **§6 bis — Deck Dragons élémentaires refait (validé le 2026-11-08)** : remplace le deck Dragons ; les entrées plus anciennes sur l'Évolution, les zones et les effets des dragons (Déflagration, Raz de marée, Vent violent, Tremblement de terre) ne valent plus que pour l'histoire. Archétype et nom du deck : **Dragons élémentaires** (cartes « Nom - Dragons élémentaires », « dragon élémentaire » au singulier), Jeune dragon compris. **Évolution draconique** (Jeune dragon, 3 mana, une fois par tour, pas le tour de son arrivée) : il est sacrifié (sans VP, au cimetière), et un des 4 dragons élémentaires de son grimoire (Ignis, Aqua, Ventus, Terra ; jamais Origine) arrive à sa place, sans payer son coût, **stun jusqu'à son prochain tour**. **Zone des dragons** (Lance-flamme, Tsunami, Tempête) : 4 directions orthogonales au choix, le dragon se tourne ; les 3 cases en ligne plus les 2 cases en diagonale devant lui (5 cases), coupées par les falaises et cases X. Effets une fois par tour. **Tempête** : 2 dégâts puis recul de 2 cases, loin du dragon. **Nid de dragons** (terrain, 3 mana, 5 PV) : les effets actifs de ses dragons élémentaires sur sa case ou dans son carré de 1 coûtent **1 mana** (fixé, pas une réduction ; `StatAura.effectCost`, `getEffectCost`). **Hurlements** (sort, 1 mana) : le joueur choisit un de ses dragons élémentaires (Jeune dragon compris), les ennemis de son carré de 5, invisibles compris, ont **ATK −1 pendant 1 tour** (statut de stat §5 bis ; « effrayés » n'est que l'ambiance du texte, sans règle) ; **jouable toujours**, même sans ennemi dans la zone ; plusieurs Hurlements se cumulent (§5 bis). **Origine** sort du deck (données gardées). **Composition** : les 5 monstres, Hurlements et Nid de dragons ×3, Autel de mana ×3, Invocateur ×1.
 - **§5.3 — Les effets de zone touchent les invisibles (validé le 2026-11-08)** : un effet de zone, « tous les ennemis » ou un sort de zone touche aussi les monstres ennemis invisibles pour le lanceur (le camouflage empêche de voir, il ne protège de rien). Ce qui rend l'effet jouable se juge toujours sur ce que voit le lanceur. Remplace « jamais un monstre invisible pour le lanceur » des entrées plus anciennes (zones des dragons, Vladimir, Brûlure en chaîne, Flèche explosive).
 - **§4.2 — Option « Économie : Réserve » (validée le 2026-11-08)** : constat de l'utilisateur, l'écart de stats entre paliers est trop faible ou le mana trop abondant, invoquer de petits monstres n'est pas assez intéressant. Option à part choisie à l'accueil, qui ne change pas l'économie Classique (règle par défaut). Mana de base 3, 4, 5, puis 6 ; le mana se garde ; réserve limitée à 10 + 1 par terrain ; tout gain plafonné, au début du tour comme pendant (Pillage) ; Autel de mana : +2 mana mais +1 de limite seulement ; Étendard : ne monte pas la limite ; terrain détruit : excédent perdu tout de suite ; un dragon à 7 dès son 2e tour est voulu. L'IA compte le mana gardé dans cette économie. L'orbe de mana est pleine à la limite.
+- **§4.2 — Mana réglable (validé le 2026-11-08)** : après l'analyse de l'économie (banc IA contre IA : en Classique, la moitié du mana perdue en fin de partie ; en Réserve à 5 mana par tour, autant de cartes jouées par tour qu'à 6, même durée), l'utilisateur veut régler à l'accueil, **dans les deux économies**, la **génération max** (plafond du mana de base : 3, 4… jusqu'à elle ; **5 par défaut**) et la **limite** (**10 par défaut**). Réponses : (1) la limite est **le mana qu'on peut avoir au total**, à tout moment, en Classique comme en Réserve : revenus du début de tour (mana de base et mana des zones) et gains pendant le tour s'y arrêtent, le surplus est perdu ; (2) **plus de +1 de limite par terrain** (un terrain détruit ne change donc plus rien au mana) ; (3) la génération max plafonne **le mana de base**, le mana des mana zones s'ajoute par-dessus, dans la limite. Valeurs proposées : génération 3 à 10, limite 5 à 20 ; dans l'adresse du jeu, `gen` et `lim`, seulement s'ils diffèrent des valeurs par défaut. Remplace le plafond du mana de base à 10 de l'économie Classique, le mana de base 3, 4, 5 puis 6 et la limite 10 + 1 par terrain de la Réserve (entrées ci-dessus).
+- **§7 bis — IA : sorts à plusieurs cibles (2026-11-09)** : l'utilisateur a remarqué que l'IA ne lançait jamais les sorts d'archétype récents (Appel du sang, Sacrifice sanguinaire contre lui). Vérifié sur 6 parties en miroir : jamais Appel du sang, Pénombre ni Brûlure en chaîne. Cause : une action se jugeait sur la position juste après elle, plus l'action suivante d'un seul monstre ; un sort à cible `all` n'en a aucune, et +2 mobilité ce tour-ci ne change rien tant qu'on n'a pas bougé : le sort était écarté avant la recherche. Désormais, les sorts et effets à plusieurs cibles (2 au plus) sont toujours essayés par la recherche, qui joue la suite du tour. Un sort gardé au grimoire garde sa valeur (inchangé).
 - **§7 — Zones de déplacement, d'attaque et de danger (handoff « zones », validé le 2026-11-08)** : le pion sélectionné montre en halos cyan les cases où il peut aller et en orange celles qu'il peut attaquer (depuis sa case ou une case d'arrêt) ; la **zone de danger** (contour violet) ne s'affiche **que quand un pion est sélectionné** et ne compte **que les monstres adverses visibles sur le plateau** (déplacement et attaque à leur prochain tour ; ni effets actifs, ni sorts). **Cliquer une case orange ne fait rien** (information seulement). **Cliquer un monstre ennemi** montre ses zones cyan et orange, de son point de vue. **Survoler un monstre** montre ses zones dans ce style (les hachures orange et rouges disparaissent). Vues : isométrique du 15 × 15 (PixiJS) et vue de dessus, pour J1 et J2 (le plateau n'est jamais retourné).
 - **§5 bis — Norme des statuts (validée le 2026-11-08)** : l'utilisateur a défini la liste des bonus et malus (§5 bis). Décisions : (1) **chaque effet donne sa durée**, comptée en tours de la cible (règle actuelle conservée) ; (2) **Camouflage = invisible à plus de 2 cases** et **Invisible = à plus de 1 case**, deux statuts à valeur fixe, plus de « Camouflage N » : Farceur (mot-clé) et Pénombre restent Camouflage, le Terrain de jeu (aura) donne Invisible (`StatAura.stealth`) ; (3) **Requiem sans paramètre**, fixé à 2 tours (`REQUIEM_TURNS`) ; (4) **tous les statuts de la liste sont implémentés** : Absorbé (lié à l'absorbeur : il gagne les PV que l'Absorbé perd), Absorbation, Récupération X, Épuisé, `<stat>` ±X pour ATK, mobilité, portée et PV max ; (5) une destruction par Absorbé profite à l'absorbeur (comme burn). **Carapace**, que la liste oubliait, est un bonus. Absorbation et Récupération se ressemblent (+PV au début de son tour) : Absorbation vaut 1 PV par instance, Récupération X vaut X. Aucune carte ne les utilise encore.
 - **§5 bis — Statut Vol (bonus, validé le 2026-11-08)** : « Vol : peut survoler les cases X » est ajouté aux bonus de la norme. C'est le **mot-clé Vol (§5.6) posé en statut** : mêmes règles (survole les cases `X` et les falaises de la Scierie, pas celles de la Mine, jamais les ennemis, ne termine jamais sur une case `X` ou `.`), pour la durée de l'effet qui le donne (`turns`, en tours de la cible). Le moteur ne distingue pas les deux : `canFly(monster)` vaut le mot-clé **ou** le statut (`movement.ts`, IA : `bot.ts`, `reach.ts`). Aucune carte ne le donne encore.
+- **§6 bis / §6 ter — Decks à 30 cartes et sorts génériques (donnés et validés le 2026-11-10)** : chaque deck fait **30 cartes** (le deck Classique, deck d'essai, garde 25), ses cartes d'archétype en 3 exemplaires, avec les compositions du §6 bis. Le deck **Bodybuilder est retiré** : ses cartes restent dans les données, sans deck (comme Jean Bon). Soin, Bénédiction, la Boule de feu (Classique mis à part) ne sont dans aucun deck : leurs données restent. **11 sorts génériques** rejoignent les cartes communes (§6 ter), noms seuls, sans archétype : Puissance, Soin, Flash, Fatigue, Carapace, Élixir de mana (nom donné à « Mana », le nom de la ressource), Cure, Repli (nom français de « Back » ; « Retour » est déjà pris), Téléportation (le nom de l'effet, au même sens), Réanimation, Fortification. Les lectures validées : Puissance, Soin, Flash, Cure et Carapace visent un allié au choix, n'importe où ; **Soin** rend 5 PV tout de suite (soin 5, pas le statut Récupération), jamais sur un allié qui a tous ses PV ; **Flash** pose l'allié sur une case libre à 2 cases au plus de lui, diagonales comprises (« 2 cases adjacentes » au sens du carré de 2, comme le 2026-11-06), **par-dessus les cases X et les falaises** (rien entre les deux ne compte : il peut entrer dans la Mine) ; **Fatigue** : slow 2 pendant 1 tour (« Slow x2 » = slow 2 ; « jusqu'à la fin du prochain tour adverse ») ; **Élixir de mana** : +1 mana pour 0 mana, gardé en Réserve comme tout mana, pas jouable à la limite ; **Cure** retire tous les malus, requiem compris (« retire », pas « soigne » : un soin rend des PV), et l'allié retrouve la mobilité que ses malus lui avaient prise ce tour, jamais sur un allié sans malus ; **Repli** téléporte un allié sur une de ses cases d'invocation libres, au choix, celles du plateau et ses Zones d'invocation comprises, même stun ou immobilisé, pas jouable si toutes sont occupées ; **Téléportation** : un allié sur la case d'un de ses terrains où aucun monstre ne se trouve (il la partage avec le terrain, §4.9) ; **Réanimation** : un monstre de son cimetière au choix revient sur une de ses cases d'invocation libres, sans payer son coût, avec tous ses PV, sans statut, et peut agir aussitôt ; il quitte le cimetière, ce n'est pas une carte jouée ; un exemplaire brillant revient brillant ; pas jouable sans monstre au cimetière ni case libre ; **Bourrasque** passe à 1 mana, direction au choix ; **Charge** ne change pas. Flash, Repli et Téléportation suivent les règles de la téléportation (§5.4) : il garde sa mobilité, son attaque et son orientation, et entre sur la case d'arrivée.
+- **§5 bis — Carapace : ne descend pas sous 1 PV (validé le 2026-11-10)** : le statut carapace prend le sens de la carte Carapace (« garde 1 PV ») : **ses PV ne descendent pas sous 1**, quels que soient les dégâts (attaque, riposte, sort, effet, piège, Passage, Zone, burn, absorbé), pendant toute sa durée ; **le burn du début de son prochain tour est bloqué aussi** (la carapace tombe juste après les statuts du début de tour, sinon elle ne bloquerait jamais un burn). Requiem le tue quand même. Sans destruction : ni VP, ni avancée. Une absorption ne rend que les PV vraiment retirés (Vladimir). Le Tortank de Tibo (hors deck) pose ce même statut. **Fortification** le pose sur un de ses terrains (« Sur un terrain, seuls burn et carapace s'appliquent ») : un burn ne détruit pas le terrain tant qu'il l'a.
+- **§6 — Boule de feu (validé le 2026-11-10)** : 1 dégât (au lieu de 2) à un ennemi **dans un carré de 3 d'une de ses unités**, monstres et terrains (au lieu de « à 3 pas d'un de ses monstres ») ; le carré est coupé par les falaises et les cases X : plus de Boule de feu à travers les parois de la Mine.
+- **§6 bis — Terrain de chasse - Vampire (validé le 2026-11-10)** : le Terrain de chasse devient un terrain de l'archétype Vampire (« Terrain de chasse - Vampire ») : son +1 mobilité au déplacement ne vaut que pour ses vampires. Il entre dans le deck Vampire ×3, à la place des 3 Autels de mana (le deck : ses 7 cartes d'archétype ×3, Cure ×3, Carapace ×3, Puissance ×2, Flash ×1).
+- **§4.6 / §10 — Déplacement arrêté par un monstre invisible : il garde sa mobilité (validé le 2026-11-10)** : le monstre s'arrête sur la dernière case de son chemin où il peut s'arrêter, comme avant, mais garde sa mobilité restante (les pas faits sont dépensés) : il peut repartir, autour du monstre révélé. Un arrêt forcé sur un allié (immobilisé ou stun en y entrant) reste sans plus de mobilité.
+- **§5.6 — Soif : jamais contre un terrain (validé le 2026-11-10)** : remplace « aussi contre un terrain » : un vampire qui attaque un terrain ne récupère rien.
+- **§5.4 — Retour vers le futur : il peut encore bouger (validé le 2026-11-10)** : après le retour, le monstre garde la mobilité qui lui restait (sans regagner les pas déjà faits) et peut se déplacer ; son chemin du tour repart de la case retrouvée. Le sablier, lui, arrête toujours le déplacement.
+- **§6 bis — Flèche explosive sur une case vide (validé le 2026-11-10)** : armé de la Flèche explosive, l'Archer impérial peut tirer sur une **case vide** au lieu d'une unité : une case qu'il pourrait attaquer (en ligne droite avec ligne de vue, ou en diagonale jusqu'à portée ÷ 2), sans unité. C'est son attaque (elle consomme l'arme et compte dans ses attaques du tour) ; les éclats touchent les ennemis du carré de 1 de la case (invisibles compris), jamais un allié ; pas de riposte ni d'avancée. Un monstre invisible sur la ligne arrête le tir, comme pour une attaque ; un monstre invisible **sur la case visée** est touché : c'est une attaque normale sur lui (dégâts et éclats autour), et il se révèle. À l'écran : les cases vides visables s'allument en orange ; un clic ouvre la bulle « Tirer ici » (et « Y aller » si la case est aussi à sa portée de marche).
+- **§4.10 — VP pour gagner réglables (validé le 2026-11-10)** : choisis à l'accueil, de 10 à 50, de 5 en 5, 30 par défaut ; dans l'adresse du jeu (`vp=`) seulement s'ils ne sont pas 30 ; la barre du haut et le journal du début de partie les disent ; une partie en ligne les prend des réglages de l'hôte.
+- **§7 — Direction à choisir en vue isométrique (2026-11-10)** : dans la bulle (Bourrasque, recul au choix), chaque direction se montre en croix de manette couchée dans le plan du plateau isométrique, le bras de la direction en doré : « vers le haut » se lit sur le plateau (en haut à droite à l'écran).
 - **§5 bis — Slow, seul malus de mobilité (validé le 2026-11-11)** : Slow N et « mobilité −X » avaient exactement le même effet (mobilité en moins, cumul, effet immédiat pendant le tour) : deux mots pour une notion. Le malus de mobilité s'appelle désormais toujours **Slow N** ; `<stat>` −X ne vaut plus que pour l'ATK, la portée et les PV max, et la mobilité garde son bonus (mobilité +X). Un effet écrit « mobilité −X » pose un slow X (`normalStatus` dans `statuses.ts`, par lequel passent `addStatus` et les textes). Aucune carte n'utilisait mobilité −X.
 - **§5 bis — Épuisé devient Désarmé (validé le 2026-11-11)** : le statut qui empêche d'attaquer (déplacement et effets actifs restent possibles) s'appelle **Désarmé** (`desarme`), le mot qui dit ce qu'il fait ; son effet ne change pas. L'utilisateur garde ce nom malgré l'état **Armé** des Archers impériaux (la prochaine attaque porte un bonus) : ce sont deux notions distinctes, Désarmé ne retire pas un Armé. Aucune carte n'utilisait Épuisé.

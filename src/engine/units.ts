@@ -2,12 +2,12 @@
 import { isInZone } from './board';
 import { getMonsterCard, getTerrainCard } from './cards';
 import { CAMOUFLAGE_RADIUS, INVISIBLE_RADIUS } from './config';
-import { clampMana } from './players';
 import { IllegalActionError } from './errors';
 import type {
   BoardState,
   CardCopy,
   CardId,
+  CardSet,
   Direction,
   GameState,
   Keyword,
@@ -69,12 +69,12 @@ export function createTerrainUnit(id: UnitId, card: TerrainCard, owner: PlayerId
 }
 
 /** Le mot-clé `keyword` de la carte du monstre, avec ses valeurs ; `undefined` s'il ne l'a pas. */
-export function getKeyword<K extends Keyword>(monster: MonsterUnit, keyword: K): KeywordOf<K> | undefined {
-  return getMonsterCard(monster.cardId).keywords.find((spec): spec is KeywordOf<K> => spec.keyword === keyword);
+export function getKeyword<K extends Keyword>(cards: CardSet, monster: MonsterUnit, keyword: K): KeywordOf<K> | undefined {
+  return getMonsterCard(cards, monster.cardId).keywords.find((spec): spec is KeywordOf<K> => spec.keyword === keyword);
 }
 
-export function hasKeyword(monster: MonsterUnit, keyword: Keyword): boolean {
-  return getKeyword(monster, keyword) !== undefined;
+export function hasKeyword(cards: CardSet, monster: MonsterUnit, keyword: Keyword): boolean {
+  return getKeyword(cards, monster, keyword) !== undefined;
 }
 
 /** Une case contient au plus un monstre et un terrain. */
@@ -145,8 +145,8 @@ export function addUnit(state: GameState, create: (id: UnitId) => Unit): GameSta
 }
 
 /** La carte d'une unité dans les listes publiques : pour une forme hors grimoire (la chauve-souris d'Emma), son origine. */
-export function cardOfOrigin(unit: Unit): CardId {
-  return unit.kind === 'monster' ? (getMonsterCard(unit.cardId).formOf ?? unit.cardId) : unit.cardId;
+export function cardOfOrigin(cards: CardSet, unit: Unit): CardId {
+  return unit.kind === 'monster' ? (getMonsterCard(cards, unit.cardId).formOf ?? unit.cardId) : unit.cardId;
 }
 
 /**
@@ -157,20 +157,18 @@ export function removeUnit(state: GameState, unitId: UnitId): GameState {
   const { [unitId]: removed, ...units } = state.units;
   if (!removed) return state;
   const owner = state.players[removed.owner];
-  const copy: CardCopy = removed.shiny ? { cardId: cardOfOrigin(removed), shiny: true } : { cardId: cardOfOrigin(removed) };
-  const next = { ...state, units, players: { ...state.players, [owner.id]: { ...owner, graveyard: [...owner.graveyard, copy] } } };
-  // Un terrain de moins baisse la limite de la réserve (économie « Réserve ») : l'excédent est perdu aussitôt.
-  return removed.kind === 'terrain' ? clampMana(next, owner.id) : next;
+  const copy: CardCopy = removed.shiny ? { cardId: cardOfOrigin(state.cards, removed), shiny: true } : { cardId: cardOfOrigin(state.cards, removed) };
+  return { ...state, units, players: { ...state.players, [owner.id]: { ...owner, graveyard: [...owner.graveyard, copy] } } };
 }
 
 /** Bonus d'ATK des auras (Arnold, §5.2) : chaque monstre allié autour dont l'aura vise la famille du monstre (cumulés). */
 export function auraAtk(state: BoardState, monster: MonsterUnit): number {
-  return auraSources(state, monster).reduce((total, other) => total + (auraOf(other)?.atk ?? 0), 0);
+  return auraSources(state, monster).reduce((total, other) => total + (auraOf(state.cards, other)?.atk ?? 0), 0);
 }
 
 /** L'aura d'une unité : celle de sa carte, monstre ou terrain (Salle de sport). */
-function auraOf(unit: Unit): StatAura | null {
-  return unit.kind === 'monster' ? getMonsterCard(unit.cardId).aura : getTerrainCard(unit.cardId).aura;
+function auraOf(cards: CardSet, unit: Unit): StatAura | null {
+  return unit.kind === 'monster' ? getMonsterCard(cards, unit.cardId).aura : getTerrainCard(cards, unit.cardId).aura;
 }
 
 /**
@@ -178,11 +176,11 @@ function auraOf(unit: Unit): StatAura | null {
  * zone le contient (carré de 1, carré de 2, ou case du terrain et carré de 1), pas lui-même.
  */
 export function auraSources(state: BoardState, monster: MonsterUnit): Unit[] {
-  const archetype = getMonsterCard(monster.cardId).archetype;
+  const archetype = getMonsterCard(state.cards, monster.cardId).archetype;
   if (!archetype) return [];
   return Object.values(state.units).filter((other) => {
     if (other.owner !== monster.owner || other.id === monster.id) return false;
-    const aura = auraOf(other);
+    const aura = auraOf(state.cards, other);
     return aura?.archetype === archetype && isInZone(state.board, other.pos, monster.pos, aura.zone);
   });
 }
@@ -192,13 +190,13 @@ export function auraSources(state: BoardState, monster: MonsterUnit): Unit[] {
  * (Nid de dragons : 1), le plus bas s'il y en a plusieurs ; jamais plus que le coût de la carte.
  */
 export function getEffectCost(state: BoardState, monster: MonsterUnit, ability: { readonly manaCost: number }): number {
-  const fixed = auraSources(state, monster).map((other) => auraOf(other)?.effectCost).filter((n): n is number => n !== undefined);
+  const fixed = auraSources(state, monster).map((other) => auraOf(state.cards, other)?.effectCost).filter((n): n is number => n !== undefined);
   return Math.min(ability.manaCost, ...fixed);
 }
 
 /** Le monstre survole les cases X : mot-clé Vol de sa carte, ou statut Vol (§5.6, §5 bis). */
-export function canFly(monster: MonsterUnit): boolean {
-  return hasKeyword(monster, 'vol') || monster.statuses.some((status) => status.kind === 'vol');
+export function canFly(cards: CardSet, monster: MonsterUnit): boolean {
+  return hasKeyword(cards, monster, 'vol') || monster.statuses.some((status) => status.kind === 'vol');
 }
 
 /** Somme des statuts `stat` (ATK, mobilité, portée ou PV max) de `unit`, signés : +X compte, −X retire. */
@@ -213,17 +211,17 @@ export function getAtk(state: BoardState, monster: MonsterUnit): number {
 
 /** PV qu'apportent les auras à `monster` (Origine : +1 par Origine alliée dans son carré de 1). */
 export function auraHp(state: BoardState, monster: MonsterUnit): number {
-  return auraSources(state, monster).reduce((total, other) => total + (auraOf(other)?.hp ?? 0), 0);
+  return auraSources(state, monster).reduce((total, other) => total + (auraOf(state.cards, other)?.hp ?? 0), 0);
 }
 
 /** Mobilité qu'apportent les auras à `monster`, comptée au début de son tour (Origine, §10). */
 export function auraMobility(state: BoardState, monster: MonsterUnit): number {
-  return auraSources(state, monster).reduce((total, other) => total + (auraOf(other)?.mobility ?? 0), 0);
+  return auraSources(state, monster).reduce((total, other) => total + (auraOf(state.cards, other)?.mobility ?? 0), 0);
 }
 
 /** Bonus de portée des auras (Camps de tir) : les sources dont l'aura couvre `monster`, cumulées. */
 export function auraRange(state: BoardState, monster: MonsterUnit): number {
-  return auraSources(state, monster).reduce((total, other) => total + (auraOf(other)?.range ?? 0), 0);
+  return auraSources(state, monster).reduce((total, other) => total + (auraOf(state.cards, other)?.range ?? 0), 0);
 }
 
 /** Rayon de révélation qu'apportent les auras à `monster` (Terrain de jeu : invisible, 1) : le plus grand des sources qui le couvrent ; 0 sinon. */
@@ -231,7 +229,7 @@ export function auraStealth(state: BoardState, monster: MonsterUnit): number {
   return Math.max(
     0,
     ...auraSources(state, monster).map((other) => {
-      const stealth = auraOf(other)?.stealth;
+      const stealth = auraOf(state.cards, other)?.stealth;
       return stealth === 'camouflage' ? CAMOUFLAGE_RADIUS : stealth === 'invisible' ? INVISIBLE_RADIUS : 0;
     }),
   );
@@ -239,7 +237,7 @@ export function auraStealth(state: BoardState, monster: MonsterUnit): number {
 
 /** Portée actuelle d'un monstre : celle de sa carte, plus le bonus du tour (Flèche divine) et les auras. C'est elle qui sert à attaquer. */
 export function getRange(state: BoardState, monster: MonsterUnit): number {
-  return Math.max(0, getMonsterCard(monster.cardId).range + monster.rangeBonus + auraRange(state, monster) + statTotal(monster, 'range'));
+  return Math.max(0, getMonsterCard(state.cards, monster.cardId).range + monster.rangeBonus + auraRange(state, monster) + statTotal(monster, 'range'));
 }
 
 /**
@@ -247,7 +245,7 @@ export function getRange(state: BoardState, monster: MonsterUnit): number {
  * (Carquois prêt ! : 2 au total, plusieurs auras ne s'additionnent pas).
  */
 export function attackLimit(state: BoardState, monster: MonsterUnit): number {
-  return Math.max(1, ...auraSources(state, monster).map((other) => auraOf(other)?.attacks ?? 0));
+  return Math.max(1, ...auraSources(state, monster).map((other) => auraOf(state.cards, other)?.attacks ?? 0));
 }
 
 /** Il lui reste une attaque ce tour : ni stun, ni « plus d'attaque ce tour », et moins d'attaques faites que sa limite du moment. */

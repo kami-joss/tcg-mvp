@@ -1,7 +1,7 @@
 // Page des decks (`/decks`) : la composition de chaque deck pré-construit (SPEC.md §6 bis), à consulter avant la partie.
 // Logique pure : les sections du grimoire (monstres, sorts, terrains) avec le nombre d'exemplaires de chaque carte, et
 // un résumé (cartes, coût moyen, courbe de mana).
-import { getCard } from '../engine';
+import { CARDS, getCard } from '../engine';
 import type { Archetype, Card, CardId, Deck } from '../engine';
 import { ARCHETYPE_NAMES, groupCards } from './cardText';
 
@@ -23,7 +23,7 @@ const SECTIONS: readonly { readonly kind: Card['kind']; readonly title: string }
 export function deckSections(deck: Deck): DeckSection[] {
   const groups = groupCards(deck.cards);
   return SECTIONS.map(({ kind, title }) => {
-    const cards = groups.filter(({ cardId }) => getCard(cardId).kind === kind);
+    const cards = groups.filter(({ cardId }) => getCard(CARDS, cardId).kind === kind);
     return { kind, title, cards, total: cards.reduce((sum, { count }) => sum + count, 0) };
   }).filter((section) => section.total > 0);
 }
@@ -39,7 +39,7 @@ export interface DeckSummary {
 }
 
 export function deckSummary(deck: Deck): DeckSummary {
-  const cards = deck.cards.map(getCard);
+  const cards = deck.cards.map((id) => getCard(CARDS, id));
   const curve = Array.from({ length: Math.max(0, ...cards.map((card) => card.cost)) + 1 }, () => 0);
   for (const card of cards) curve[card.cost]! += 1;
   const families = new Map<Archetype, number>();

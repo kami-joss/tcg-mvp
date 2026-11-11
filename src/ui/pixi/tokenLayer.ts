@@ -491,6 +491,11 @@ export class TokenLayer {
     this.onChange();
   }
 
+  /** Des illustrations de jetons sont encore en chargement. */
+  get artsPending(): boolean {
+    return [...this.arts.values()].includes('loading');
+  }
+
   /** Illustration d'une carte : chargée à la demande ; `null` en attendant (puis on redessine). */
   private art(cardId: string): Texture | null {
     const known = this.arts.get(cardId);
@@ -506,7 +511,11 @@ export class TokenLayer {
           this.setUnits(this.last.tokens, this.last.terrains, this.last.glow);
           this.onChange();
         },
-        () => this.arts.delete(cardId),
+        () => {
+          // Sans elle, le jeton garde ses rayures ; l'écran de chargement n'attend plus.
+          this.arts.delete(cardId);
+          this.onChange();
+        },
       );
     }
     return null;

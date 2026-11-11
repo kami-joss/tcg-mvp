@@ -52,7 +52,7 @@ export function applyEvent(view: PlayerView, event: GameEvent, final: PlayerView
       // Une carte jouée de plus ; un sort va au cimetière, un monstre ou un terrain n'y ira qu'en quittant le plateau
       // (§4.3). Le joueur qui regarde voit aussi l'exemplaire quitter son grimoire.
       const played = grow(view, final, event.player, 'played');
-      const shown = getCard(event.cardId).kind === 'spell' ? grow(played, final, event.player, 'graveyard') : played;
+      const shown = getCard(view.cards, event.cardId).kind === 'spell' ? grow(played, final, event.player, 'graveyard') : played;
       const index = event.player === view.viewer ? shown.me.grimoire.indexOf(event.cardId) : -1;
       if (index < 0) return shown;
       const grimoire = [...shown.me.grimoire.slice(0, index), ...shown.me.grimoire.slice(index + 1)];
@@ -78,9 +78,11 @@ export function applyEvent(view: PlayerView, event: GameEvent, final: PlayerView
     case 'teleport':
       return updateUnit(view, event.unitId, (unit) => moveTo(view, unit, event.to));
     case 'rewind':
+      // Sablier : plus de mobilité ; retour : il garde la sienne (celle de la vue finale).
       return updateUnit(view, event.unitId, (unit) => {
         const moved = moveTo(view, unit, event.to, true);
-        return moved.kind === 'monster' ? { ...moved, mobilityLeft: 0 } : moved;
+        const after = final.units[event.unitId];
+        return moved.kind === 'monster' ? { ...moved, mobilityLeft: after?.kind === 'monster' ? after.mobilityLeft : 0 } : moved;
       });
     case 'attack':
       return updateUnit(view, event.unitId, (unit) => (unit.kind === 'monster' ? { ...unit, hasAttacked: true, attacksMade: unit.attacksMade + 1, armed: undefined } : unit));
@@ -136,7 +138,7 @@ export function applyEvent(view: PlayerView, event: GameEvent, final: PlayerView
       return updateUnit(view, event.unitId, (unit) => {
         if (unit.kind !== 'monster') return unit;
         const rank = event.effect ?? 0;
-        const usedEffects = getMonsterCard(unit.cardId).activated[rank]?.unlimited ? unit.usedEffects : [...unit.usedEffects, rank];
+        const usedEffects = getMonsterCard(view.cards, unit.cardId).activated[rank]?.unlimited ? unit.usedEffects : [...unit.usedEffects, rank];
         return { ...unit, usedEffects, ...(event.facing ? { facing: event.facing } : {}) };
       });
     case 'transform':
@@ -144,12 +146,26 @@ export function applyEvent(view: PlayerView, event: GameEvent, final: PlayerView
       return updateUnit(view, event.unitId, (unit) => {
         if (unit.kind !== 'monster') return unit;
         const after = final.units[event.unitId];
-        const atk = unit.atk + getMonsterCard(event.to).atk - getMonsterCard(event.from).atk;
+        const atk = unit.atk + getMonsterCard(view.cards, event.to).atk - getMonsterCard(view.cards, event.from).atk;
         const mobilityLeft = after?.kind === 'monster' ? after.mobilityLeft : unit.mobilityLeft;
         return { ...unit, cardId: event.to, atk, hp: event.hp, maxHp: event.maxHp, mobilityLeft };
       });
     case 'cellBurned':
       return { ...view, burningCells: [...view.burningCells, event.cell] };
+    case 'cleansed':
+      // Ses malus partent (Cure) : ses statuts, sa mobilité et ses PV d'après.
+      return updateUnit(view, event.unitId, (unit) =>
+        unit.kind === 'monster'
+          ? { ...unit, statuses: event.statuses, mobilityLeft: event.mobilityLeft, hp: event.hp, maxHp: event.maxHp }
+          : { ...unit, statuses: event.statuses },
+      );
+    case 'revived': {
+      // Réanimation : l'exemplaire quitte le cimetière (le brillant d'abord, comme le moteur).
+      const { graveyard } = publicOf(view, event.player);
+      const shinyAt = graveyard.findIndex((copy) => copy.cardId === event.cardId && copy.shiny === (event.shiny || undefined));
+      const index = shinyAt >= 0 ? shinyAt : graveyard.findIndex((copy) => copy.cardId === event.cardId);
+      return index < 0 ? view : setPlayer(view, event.player, { graveyard: [...graveyard.slice(0, index), ...graveyard.slice(index + 1)] });
+    }
     case 'turnStart':
     case 'passage':
     case 'burningCell':

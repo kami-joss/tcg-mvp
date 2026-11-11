@@ -14,7 +14,7 @@ import type { BoardState, GameState, MonsterCard, PlayerId, Position } from './t
 export function getFreeSummonCells(state: BoardState, player: PlayerId): Position[] {
   const zone = getSummonZone(state.board, player).filter((pos) => getUnitsAt(state, pos).length === 0);
   const points = Object.values(state.units).flatMap((unit) =>
-    unit.kind === 'terrain' && unit.owner === player && getTerrainCard(unit.cardId).summonPoint && !getMonsterAt(state, unit.pos)
+    unit.kind === 'terrain' && unit.owner === player && getTerrainCard(state.cards, unit.cardId).summonPoint && !getMonsterAt(state, unit.pos)
       ? [unit.pos]
       : [],
   );

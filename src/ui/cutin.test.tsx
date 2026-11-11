@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { CARDS, getCard } from '../engine';
 import type { CardId } from '../engine';
 import { CARD_ART, CARD_ART_SHINY, CUT_IN_FRAME, artFit } from './art';
 import { CutInOverlay } from './CutIn';
@@ -11,6 +12,7 @@ import type { CutIn, CutInKind } from './fx/cutIn';
 const cutIn = (cardId: CardId, kind: CutInKind, extra: Partial<CutIn> = {}): CutIn => ({
   kind,
   cardId,
+  cardKind: getCard(CARDS, cardId).kind,
   owner: 1,
   shiny: false,
   title: 'Titre',

@@ -14,7 +14,7 @@ import {
   orthogonalNeighbors,
   samePos,
 } from './board';
-import { getTerrainCard } from './cards';
+import { getMonsterCard, getTerrainCard } from './cards';
 import { addTurnBonus } from './effects';
 import { IllegalActionError } from './errors';
 import { emit } from './events';
@@ -22,7 +22,7 @@ import { canMove, ownerNextTurn } from './statuses';
 import { perceived, reveal } from './stealth';
 import { NEW_MOVEMENT, enterCell } from './traps';
 import { canFly, getActiveMonster, getMonsters, getUnitsAt, setUnit } from './units';
-import type { Action, BoardState, GameState, MonsterUnit, PlayerId, Position, TerrainOnMove, TerrainUnit } from './types';
+import type { Action, BoardState, CardSet, GameState, MonsterUnit, PlayerId, Position, TerrainOnMove, TerrainUnit } from './types';
 
 type MoveAction = Extract<Action, { type: 'move' }>;
 
@@ -69,7 +69,7 @@ interface SlowZone {
 function getSlowZones(state: BoardState, monster: MonsterUnit): SlowZone[] {
   return Object.values(state.units).flatMap((unit) => {
     if (unit.kind !== 'terrain' || unit.owner === monster.owner) return [];
-    const slows = (getTerrainCard(unit.cardId).passage?.effects ?? []).flatMap((effect) =>
+    const slows = (getTerrainCard(state.cards, unit.cardId).passage?.effects ?? []).flatMap((effect) =>
       effect.type === 'status' && effect.kind === 'slow' ? [effect.amount] : [],
     );
     if (slows.length === 0) return [];
@@ -97,7 +97,7 @@ interface Reached extends Destination {
  * aucun rôle : ils sont cachés, et le calcul ne doit rien en révéler.
  */
 function explore(state: BoardState, monster: MonsterUnit): { reached: Reached[]; best: Map<string, number> } {
-  const flying = canFly(monster);
+  const flying = canFly(state.cards, monster);
   const zones = getSlowZones(state, monster);
   const key = (pos: Position, crossed: number) => `${pos.row},${pos.col},${crossed}`;
   const reached: Reached[] = [{ pos: monster.pos, cost: 0, crossed: 0, from: -1 }];
@@ -130,16 +130,19 @@ interface Cheapest {
 }
 
 /**
- * Parcours déjà calculés, par objet `units` : les états ne sont jamais modifiés, le parcours d'un monstre sur un même
- * objet `units` reste donc juste. L'IA applique des centaines de déplacements depuis le même état ; chacun refaisait le
- * même parcours pour retrouver son chemin.
+ * Parcours déjà calculés, par jeu de cartes puis par objet `units` : les états ne sont jamais modifiés, le parcours d'un
+ * monstre sur un même objet `units`, avec les mêmes cartes (mobilité, Vol, zones qui ralentissent), reste donc juste.
+ * L'IA applique des centaines de déplacements depuis le même état ; chacun refaisait le même parcours pour retrouver
+ * son chemin.
  */
-const cheapestCache = new WeakMap<BoardState['units'], Map<string, Cheapest>>();
+const cheapestCache = new WeakMap<CardSet, WeakMap<BoardState['units'], Map<string, Cheapest>>>();
 
 /** Pour chaque case atteinte, l'indice du parcours le moins cher (le premier trouvé à coût égal). */
 function cheapest(state: BoardState, monster: MonsterUnit): Cheapest {
-  let cache = cheapestCache.get(state.units);
-  if (!cache) cheapestCache.set(state.units, (cache = new Map()));
+  let byUnits = cheapestCache.get(state.cards);
+  if (!byUnits) cheapestCache.set(state.cards, (byUnits = new WeakMap()));
+  let cache = byUnits.get(state.units);
+  if (!cache) byUnits.set(state.units, (cache = new Map()));
   const key = `${monster.id}|${monster.cardId}|${monster.owner}|${monster.pos.row},${monster.pos.col}|${monster.mobilityLeft}`;
   const cached = cache.get(key);
   if (cached) return cached;
@@ -174,28 +177,37 @@ function pathCost(state: BoardState, monster: MonsterUnit, path: readonly Positi
 }
 
 /**
- * Terrain allié « Au déplacement » (Terrain de chasse) dont la zone, sa case et son carré de 1, contient `pos` : le
+ * Terrain allié « Au déplacement » (Terrain de chasse) dont la zone, sa case et son carré de 1, contient la case de
+ * `monster`, et dont le bonus vaut pour lui (ses monstres de l'archétype du terrain, s'il en a un : vampires) : le
  * premier trouvé, leurs bonus ne se cumulant pas (§10).
  */
-function onMoveSource(state: BoardState, owner: PlayerId, pos: Position): { unit: TerrainUnit; onMove: TerrainOnMove } | null {
-  for (const source of onMoveTerrains(state.units)) {
-    const { unit } = source;
-    if (unit.owner === owner && (samePos(unit.pos, pos) || isInSquare(state.board, unit.pos, pos))) return source;
+function onMoveSource(state: BoardState, monster: MonsterUnit): { unit: TerrainUnit; onMove: TerrainOnMove } | null {
+  const { owner, pos } = monster;
+  for (const source of onMoveTerrains(state)) {
+    const { unit, onMove } = source;
+    if (unit.owner !== owner || !(samePos(unit.pos, pos) || isInSquare(state.board, unit.pos, pos))) continue;
+    if (onMove.archetype && getMonsterCard(state.cards, monster.cardId).archetype !== onMove.archetype) continue;
+    return source;
   }
   return null;
 }
 
-/** Terrains « Au déplacement » du plateau, par objet `units` (jamais modifié) : l'IA cherche des milliers de chemins. */
-const onMoveCache = new WeakMap<BoardState['units'], { unit: TerrainUnit; onMove: TerrainOnMove }[]>();
+/**
+ * Terrains « Au déplacement » du plateau, par jeu de cartes puis par objet `units` (jamais modifié) : l'IA cherche des
+ * milliers de chemins.
+ */
+const onMoveCache = new WeakMap<CardSet, WeakMap<BoardState['units'], { unit: TerrainUnit; onMove: TerrainOnMove }[]>>();
 
-function onMoveTerrains(units: BoardState['units']) {
-  let found = onMoveCache.get(units);
+function onMoveTerrains(state: BoardState) {
+  let byUnits = onMoveCache.get(state.cards);
+  if (!byUnits) onMoveCache.set(state.cards, (byUnits = new WeakMap()));
+  let found = byUnits.get(state.units);
   if (!found) {
-    found = Object.values(units).flatMap((unit) => {
-      const onMove = unit.kind === 'terrain' ? getTerrainCard(unit.cardId).onMove : null;
+    found = Object.values(state.units).flatMap((unit) => {
+      const onMove = unit.kind === 'terrain' ? getTerrainCard(state.cards, unit.cardId).onMove : null;
       return unit.kind === 'terrain' && onMove ? [{ unit, onMove }] : [];
     });
-    onMoveCache.set(units, found);
+    byUnits.set(state.units, found);
   }
   return found;
 }
@@ -204,7 +216,7 @@ function onMoveTerrains(units: BoardState['units']) {
 export function pendingOnMove(state: BoardState, monster: MonsterUnit) {
   // Pas deux fois par tour, ni pour un monstre stun, immobilisé ou dont le déplacement est fini (retour, sablier, §10).
   if (monster.onMoveTaken || monster.halted || !canMove(monster)) return null;
-  return onMoveSource(state, monster.owner, monster.pos);
+  return onMoveSource(state, monster);
 }
 
 /** Mobilité en plus qu'aurait `monster` en commençant un déplacement maintenant (Terrain de chasse) ; 0 sinon. */
@@ -219,7 +231,7 @@ export function getOnMoveBonus(state: BoardState, monster: MonsterUnit): number 
 export function getNextTurnOnMoveBonus(state: BoardState, monster: MonsterUnit, turn: number, active: PlayerId): number {
   const next = ownerNextTurn(turn, active, monster.owner);
   if (monster.statuses.some((s) => (s.kind === 'stun' || s.kind === 'immobilise') && s.expiresAtTurn > next)) return 0;
-  return onMoveSource(state, monster.owner, monster.pos)?.onMove.mobility ?? 0;
+  return onMoveSource(state, monster)?.onMove.mobility ?? 0;
 }
 
 /** Le monstre tel qu'il part : sa mobilité restante, plus le bonus « Au déplacement » s'il y a droit. */
@@ -276,7 +288,7 @@ function resolvePath(state: GameState, monster: MonsterUnit, action: MoveAction)
   const path = action.path.map(({ row, col }) => ({ row, col }));
   const last = path.at(-1);
   if (!last || !samePos(last, action.to) || pathCost(state, monster, path) > setOff(state, monster).mobilityLeft) throw refuse();
-  const flying = canFly(monster);
+  const flying = canFly(state.cards, monster);
   path.forEach((pos, i) => {
     if (!canStep(state, monster, flying, i === 0 ? monster.pos : path[i - 1]!, pos)) throw refuse();
   });
@@ -299,7 +311,8 @@ export function applyMove(state: GameState, action: MoveAction): GameState {
     const current = next.units[monster.id];
     if (current?.kind !== 'monster' || current.mobilityLeft < 1) break;
     const blocker = getUnitsAt(next, pos).find((unit) => unit.owner !== monster.owner);
-    if (blocker) return stopBefore(reveal(next, blocker.id), monster.id, [monster.pos, ...path.slice(0, i)]);
+    // Un monstre invisible sur le chemin : il s'arrête avant, et garde sa mobilité restante (2026-11-10).
+    if (blocker) return stopBefore(reveal(next, blocker.id), monster.id, [monster.pos, ...path.slice(0, i)], true);
     next = setUnit(emit(next, { type: 'step', unitId: monster.id, from, to: pos, kind: 'walk' }), {
       ...current,
       pos,
@@ -342,14 +355,16 @@ function takeOnMoveBonus(state: GameState, monster: MonsterUnit): GameState {
 }
 
 /**
- * Déplacement interrompu par un monstre invisible (§10) : le monstre revient sur la dernière case parcourue où il
- * peut s'arrêter (au pire sa case de départ) et perd le reste de sa mobilité. Les pièges traversés restent déclenchés.
+ * Déplacement interrompu (§10) : le monstre revient sur la dernière case parcourue où il peut s'arrêter (au pire sa case
+ * de départ). Les pièges traversés restent déclenchés. `keepMobility` : arrêté par un monstre invisible, il garde sa
+ * mobilité restante (les pas faits sont dépensés) et peut repartir (2026-11-10) ; sinon (arrêt forcé sur un allié), il
+ * ne bouge plus ce tour.
  */
-function stopBefore(state: GameState, unitId: string, walked: readonly Position[]): GameState {
+function stopBefore(state: GameState, unitId: string, walked: readonly Position[], keepMobility = false): GameState {
   const current = state.units[unitId];
   if (current?.kind !== 'monster') return state;
   const others: BoardState = { ...state, units: Object.fromEntries(Object.entries(state.units).filter(([id]) => id !== unitId)) };
   const stop = [...walked].reverse().find((pos) => canStop(others, current, pos)) ?? walked[0]!;
   const back = samePos(stop, current.pos) ? state : emit(state, { type: 'stopped', unitId, pos: stop });
-  return setUnit(back, { ...current, pos: stop, mobilityLeft: 0, halted: true });
+  return setUnit(back, keepMobility ? { ...current, pos: stop } : { ...current, pos: stop, mobilityLeft: 0, halted: true });
 }

@@ -31,10 +31,13 @@ interface DiceScreenProps {
   ai?: PlayerId | null;
   onChoose: (first: PlayerId) => void;
   onReady: () => void;
+  /** Partie en ligne : le joueur de cet écran ; seul le gagnant choisit, l'autre attend son choix. */
+  seat?: PlayerId | null;
 }
 
-export function DiceScreen({ opening, ai = null, onChoose, onReady }: DiceScreenProps) {
+export function DiceScreen({ opening, ai = null, onChoose, onReady, seat = null }: DiceScreenProps) {
   const { rolls, winner, chosen } = opening;
+  const waiting = seat !== null && seat !== winner;
   return (
     <main className={`handoff dice handoff--p${winner}`}>
       <p className="handoff__kicker">Lancer de dés</p>
@@ -55,7 +58,9 @@ export function DiceScreen({ opening, ai = null, onChoose, onReady }: DiceScreen
           );
         })}
       </ol>
-      {chosen === null ? (
+      {chosen === null && waiting ? (
+        <p className="handoff__hint">J{winner} a le plus gros chiffre : ton adversaire choisit qui commence.</p>
+      ) : chosen === null ? (
         <>
           <p className="handoff__hint">
             J{winner} a le plus gros chiffre : J{winner} choisit s’il commence.

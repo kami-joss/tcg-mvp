@@ -121,8 +121,8 @@ describe('menu d’options', () => {
     for (const label of ['PV', 'Mobilité restante (mes monstres)', 'Mobilité (adversaire)', 'Attaque', 'Statuts (brûlure, givre…)']) {
       expect(html).toContain(label);
     }
-    // 3 stats par défaut, plus animations, défilement aux bords et quadrillage.
-    expect(html.match(/checked=""/g)).toHaveLength(6);
+    // 3 stats par défaut, plus animations et quadrillage ; le défilement aux bords est désactivé par défaut.
+    expect(html.match(/checked=""/g)).toHaveLength(5);
   });
 
   it('sans décor, pas de vue isométrique ; sur le 15 × 15 (PixiJS), pas de vue inclinée', () => {

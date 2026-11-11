@@ -1,18 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getLegalActions } from './actions';
-import { COMMON_CARDS, DECKS, getTerrainCard } from './cards';
+import { CARDS, COMMON_CARDS, DECKS, getTerrainCard } from './cards';
 import { IllegalActionError } from './errors';
 import { getMoveDestinations, getNextTurnOnMoveBonus, getOnMoveBonus } from './movement';
-import { at, gameWith, withStatus } from './test-utils';
-import type { Action, GameState, MonsterUnit, Position, UnitId } from './types';
+import { TEST_CARDS } from './test-cards';
+import { at, gameWith as plainGame, withStatus } from './test-utils';
+import type { Action, CardSet, GameState, MonsterCard, MonsterUnit, Position, UnitId } from './types';
 import type { UnitSpec } from './test-utils';
 
-// Terrain de chasse (SPEC.md §6 ter, §10) : carte commune, 1 mana, 3 PV. Au déplacement · sa case et adjacents · +1
-// mobilité (pour ce tour) : un de ses monstres qui commence un déplacement sur une case de sa zone a +1 mobilité ce
-// tour, une fois par tour et par monstre. Plateau classique : Forge en (5, 4), cases X en (3, 4), (4, 4), (6, 4),
+// Terrain de chasse - Vampire (SPEC.md §6 bis, §10) : terrain de l'archétype Vampire depuis le 2026-11-10, 1 mana, 3 PV.
+// Au déplacement · vampires alliés, sa case et carré de 1 · +1 mobilité (pour ce tour) : un de ses vampires qui commence
+// un déplacement sur une case de sa zone a +1 mobilité ce tour, une fois par tour et par monstre. Pour garder les
+// chiffres du Milicien (mobilité 2), les tests en font un vampire (cartes d'essai) ; un monstre d'un autre archétype
+// n'a rien. Plateau classique : Forge en (5, 4), cases X en (3, 4), (4, 4), (6, 4),
 // (7, 4) ; sa zone, (5, 4) et ses cases adjacentes jouables : (4, 3), (5, 3), (6, 3), (4, 5), (5, 5), (6, 5).
 
 const FORGE = at(5, 4);
+/** Les cartes d'essai, avec un Milicien vampire. */
+const VAMPIRE_CARDS: CardSet = { ...TEST_CARDS, milicien: { ...(TEST_CARDS.milicien as MonsterCard), archetype: 'vampire' } };
+const gameWith = (...[units, options = {}]: Parameters<typeof plainGame>) => plainGame(units, { ...options, cards: VAMPIRE_CARDS });
 const END_TURN: Action = { type: 'endTurn' };
 const move = (unitId: UnitId, to: Position, path?: Position[]): Action => ({ type: 'move', unitId, to, ...(path ? { path } : {}) });
 const monster = (state: GameState, id: UnitId) => state.units[id] as MonsterUnit;
@@ -22,27 +28,29 @@ const farthest = (state: GameState, id: UnitId) => Math.max(...getMoveDestinatio
 const hunting = (units: readonly UnitSpec[], owner: 1 | 2 = 1) => gameWith([{ terrain: 'terrain-de-chasse', owner, at: FORGE }, ...units]);
 
 describe('Terrain de chasse : la carte', () => {
-  it('terrain commun à 1 mana et 3 PV, « Au déplacement » sur sa case et ses adjacentes : +1 mobilité', () => {
-    expect(getTerrainCard('terrain-de-chasse')).toMatchObject({
-      name: 'Terrain de chasse',
-      cost: 1,
-      hp: 3,
+  it('terrain de l’archétype Vampire à 1 mana et 3 PV, « Au déplacement » sur sa case et son carré de 1 : +1 mobilité, vampires seulement', () => {
+    expect(getTerrainCard(CARDS, 'terrain-de-chasse')).toMatchObject({
+      name: 'Terrain de chasse - Vampire',
       zoneManaBonus: 0,
       passage: null,
       summonPoint: false,
-      onMove: { zone: 'cellAndSquare', mobility: 1 },
+      onMove: { zone: 'cellAndSquare', mobility: 1, archetype: 'vampire' },
     });
-    expect(COMMON_CARDS).toContain('terrain-de-chasse');
+    expect(COMMON_CARDS).not.toContain('terrain-de-chasse');
   });
 
-  it('un exemplaire dans le deck Vampire seulement, à la place du Terrain drainant (plus dans Archers impériaux, remaniés le 2026-11-08)', () => {
-    for (const deck of DECKS) {
-      const count = (id: string) => deck.cards.filter((card) => card === id).length;
-      const hunts = deck.id === 'vampire';
-      expect(count('terrain-de-chasse'), deck.id).toBe(hunts ? 1 : 0);
-      if (hunts) expect(count('terrain-drainant'), deck.id).toBe(0);
-      expect(deck.cards, deck.id).toHaveLength(deck.id === 'archers' ? 26 : 25);
-    }
+  it('dans le deck Vampire seulement, en 3 exemplaires (2026-11-10)', () => {
+    for (const deck of DECKS) expect(deck.cards.filter((card) => card === 'terrain-de-chasse').length, deck.id).toBe(deck.id === 'vampire' ? 3 : 0);
+  });
+
+  it('un monstre d’un autre archétype n’a rien', () => {
+    const state = plainGame([
+      { terrain: 'terrain-de-chasse', owner: 1, at: FORGE },
+      { monster: 'milicien', owner: 1, at: at(5, 3) },
+      { monster: 'delta', owner: 1, at: at(4, 3) },
+    ]);
+    expect(getOnMoveBonus(state, monster(state, 'u2'))).toBe(0);
+    expect(getOnMoveBonus(state, monster(state, 'u3'))).toBe(1);
   });
 });
 

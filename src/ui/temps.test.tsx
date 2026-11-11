@@ -10,6 +10,8 @@ import { Grimoire } from './Grimoire';
 import { clickCard, clickCell, getHighlights, posKey } from './interaction';
 import { describeAction } from './log';
 import { getSheet } from './sheet';
+import { CARDS } from '../engine';
+import { TEST_CARDS } from '../engine/test-cards';
 
 // Deck Explorateur du temps dans l'interface : deux effets actifs, retour, sablier, noms « Nom - Archétype ».
 
@@ -19,10 +21,10 @@ const walk: Action = { type: 'move', unitId: 'u1', to: at(1, 3), path: [at(1, 2)
 
 describe('noms « Nom - Archétype »', () => {
   it('nom et archétype séparés ; une carte de base n’a pas d’archétype', () => {
-    expect(splitCardName(getCard('apprenti').name)).toEqual({ title: 'Feria', archetype: 'Sorciers du feu' });
-    expect(splitCardName(getCard('apprenti-temps').name)).toEqual({ title: 'Apprenti', archetype: 'Explorateur du temps' });
-    expect(splitCardName(getCard('dragon-origine').name)).toEqual({ title: 'Origine', archetype: 'Dragons élémentaires' });
-    expect(splitCardName(getCard('golem').name)).toEqual({ title: 'Golem', archetype: '' });
+    expect(splitCardName(getCard(CARDS, 'apprenti').name)).toEqual({ title: 'Feria', archetype: 'Sorciers du feu' });
+    expect(splitCardName(getCard(CARDS, 'apprenti-temps').name)).toEqual({ title: 'Apprenti', archetype: 'Explorateur du temps' });
+    expect(splitCardName(getCard(CARDS, 'dragon-origine').name)).toEqual({ title: 'Origine', archetype: 'Dragons élémentaires' });
+    expect(splitCardName(getCard(CARDS, 'golem').name)).toEqual({ title: 'Golem', archetype: '' });
   });
 
   it('tuile du grimoire et fiche : le nom, l’archétype en petit dessous', () => {
@@ -65,7 +67,8 @@ describe('effets actifs multiples et retour', () => {
   const moved = applyAction(state, walk);
 
   it('texte de la carte : un effet actif par partie', () => {
-    expect(cardEffectLine(getCard('dragonnet-temps'))).toBe(
+    // L'écriture des textes, sur les cartes d'essai (chiffres figés) : un réglage de l'atelier ne la change pas.
+    expect(cardEffectLine(TEST_CARDS, getCard(TEST_CARDS, 'dragonnet-temps'))).toBe(
       'Actif (1 mana) · Retour vers le futur · retour ; Actif (1 mana) · Miroir de souvenirs · un ennemi dans un carré de 1 · stun pendant 1 tour · contre-coup : silence pendant 1 tour',
     );
   });

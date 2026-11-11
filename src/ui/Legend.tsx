@@ -32,6 +32,7 @@ export function Legend({ onClose, mode = 'normal' }: { onClose: () => void; mode
         <p>Clic droit sur ton monstre : ses effets actifs.</p>
         <p>Clic droit sur une carte du grimoire : l’invoquer, la lancer ou la poser (ou un clic gauche, puis la case dorée).</p>
         <p>Échap : retour, ou annuler · Alt : toutes les stats.</p>
+        <p>+ et − : zoomer et dézoomer (ou Ctrl / ⌘ + molette, ou pincer le pavé tactile) · 0 : taille ajustée.</p>
       </div>
       <div className="legend__group">
         <h3>Qui est qui</h3>

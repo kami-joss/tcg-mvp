@@ -30,7 +30,7 @@ export function getActivateEffectActions(state: GameState): Action[] {
   const { mana } = state.players[state.activePlayer];
   return getMonsters(state, state.activePlayer).flatMap((monster) => {
     if (isStunned(monster) || isSilenced(monster)) return [];
-    return getMonsterCard(monster.cardId).activated.flatMap((ability, effect) => {
+    return getMonsterCard(state.cards, monster.cardId).activated.flatMap((ability, effect) => {
       if (effectSpent(monster, ability, effect) || getEffectCost(state, monster, ability) > mana) return [];
       return getEffectTargets(state, ability, monster.owner, monster).map(
         (target): Action => ({ type: 'activateEffect', unitId: monster.id, ...(effect > 0 ? { effect } : {}), target }),
@@ -42,7 +42,7 @@ export function getActivateEffectActions(state: GameState): Action[] {
 export function applyActivateEffect(state: GameState, action: ActivateEffectAction): GameState {
   const monster = getActiveMonster(state, action.unitId);
   const effect = effectIndex(action);
-  const ability = getMonsterCard(monster.cardId).activated[effect];
+  const ability = getMonsterCard(state.cards, monster.cardId).activated[effect];
   if (!ability) throw new IllegalActionError(`${monster.id} n'a pas d'effet activé n°${effect + 1}`);
   if (effectSpent(monster, ability, effect)) throw new IllegalActionError(`${monster.id} a déjà utilisé cet effet ce tour`);
   if (isStunned(monster)) throw new IllegalActionError(`${monster.id} est stun : aucune action possible`);

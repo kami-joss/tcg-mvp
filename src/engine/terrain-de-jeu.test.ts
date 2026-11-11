@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction } from './actions';
-import { DECKS, getTerrainCard } from './cards';
+import { CARDS, DECKS, getTerrainCard } from './cards';
 import { at, gameWith } from './test-utils';
 import { getHiddenUnitIds, isHiddenFrom } from './stealth';
 import { auraStealth } from './units';
@@ -14,7 +14,7 @@ const monster = (state: ReturnType<typeof gameWith>, id: string) => state.units[
 
 describe('Terrain de jeu : carte et deck', () => {
   it('3 mana, 5 PV, aura camouflage 1 sur ses maîtres des pièges, sa case et carré de 1', () => {
-    expect(getTerrainCard('terrain-de-jeu')).toMatchObject({
+    expect(getTerrainCard(CARDS, 'terrain-de-jeu')).toMatchObject({
       name: 'Terrain de jeu - Maîtres des pièges',
       cost: 3,
       hp: 5,
@@ -22,9 +22,9 @@ describe('Terrain de jeu : carte et deck', () => {
     });
   });
 
-  it('le deck fait 25 cartes avec 3 Terrains de jeu, sans Autel de mana, Terrain drainant ni Invocateur', () => {
+  it('le deck fait 30 cartes avec 3 Terrains de jeu, sans Autel de mana, Terrain drainant ni Invocateur', () => {
     const deck = DECKS.find((d) => d.id === 'pieges')!.cards;
-    expect(deck).toHaveLength(25);
+    expect(deck).toHaveLength(30);
     const count = (id: string) => deck.filter((c) => c === id).length;
     expect(count('terrain-de-jeu')).toBe(3);
     for (const id of ['autel-de-mana', 'terrain-drainant', 'invocateur']) expect(count(id), id).toBe(0);

@@ -8,6 +8,7 @@ import { getAttackPreviews, posKey } from './interaction';
 import { describeAction } from './log';
 import { eventSounds } from './sfx/events';
 import { getSheet } from './sheet';
+import { CARDS } from '../engine';
 
 // Interface de Flèche divine (SPEC.md §6 bis) : texte, famille Archer, portée du tour dans la fiche, journal, animation.
 
@@ -24,10 +25,10 @@ const view = (s: GameState) => getPlayerView(s, 1);
 
 describe('Flèche divine et famille Archer', () => {
   it('textes : « un allié archer », bonus d’un bloc ; famille sur les 4 archers, pas sur le Trébuchet', () => {
-    expect(describeCard(getCard('fleche-divine'))).toEqual(['Un allié archer impérial · +1 ATK +1 portée (pour ce tour)']);
-    expect(cardEffectLine(getCard('fleche-divine'))).toBe('Un allié archer impérial · +1 ATK +1 portée (pour ce tour)');
-    expect(describeCard(getCard('archer-leger'))[1]).toBe('Archétype Archers impériaux.');
-    expect(describeCard(getCard('trebuchet'))).not.toContain('Archétype Archers impériaux.');
+    expect(describeCard(CARDS, getCard(CARDS, 'fleche-divine'))).toEqual(['Un allié archer impérial · +1 ATK +1 portée (pour ce tour)']);
+    expect(cardEffectLine(CARDS, getCard(CARDS, 'fleche-divine'))).toBe('Un allié archer impérial · +1 ATK +1 portée (pour ce tour)');
+    expect(describeCard(CARDS, getCard(CARDS, 'archer-leger'))[1]).toBe('Archétype Archers impériaux.');
+    expect(describeCard(CARDS, getCard(CARDS, 'trebuchet'))).not.toContain('Archétype Archers impériaux.');
   });
 
   it('journal : +1 ATK et +1 portée ce tour', () => {

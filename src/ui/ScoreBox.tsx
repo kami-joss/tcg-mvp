@@ -4,7 +4,7 @@
 // est un peu terni. Le mana porte `data-mana` et les VP `data-vp` : les animations y font voler les gains. Mana dépensé :
 // des éclats cyan et de la brume s'échappent de l'orbe ; points gagnés : des étincelles dorées jaillissent des VP.
 import { useEffect, useRef, useState } from 'react';
-import { VICTORY_VP, getManaLimit } from '../engine';
+import { getManaLimit } from '../engine';
 import type { PlayerId, PlayerView } from '../engine';
 import { PileCounters } from './CardPiles';
 import { ManaOrb, orbBurst } from './ManaOrb';
@@ -55,8 +55,8 @@ export function ScoreBox({ view, player, deckName, ai = false, animated = true, 
   const vp = useTween(real.vp);
   const cards = mine ? view.me.grimoire.length : view.opponent.grimoireCount;
   const active = player === view.activePlayer;
-  // Économie « Réserve » : limite de sa réserve (10, +1 par terrain), publique comme ses terrains.
-  const limit = getManaLimit(view, player);
+  // Limite du mana de la partie (réglée à l'accueil) : l'orbe est pleine à cette valeur.
+  const limit = getManaLimit(view);
 
   // Mana qui baisse, VP qui montent : un éclat, une fois par changement (pas au premier affichage). Il part à l'image
   // suivante : quand une animation d'action reprend aussitôt l'écran d'avant (`GameScreen`), la valeur revient avant
@@ -84,7 +84,7 @@ export function ScoreBox({ view, player, deckName, ai = false, animated = true, 
       ref={root}
       className={`score score--p${player}${active ? ' is-active' : ''}`}
       aria-label={`Joueur ${player}`}
-      title={`Deck ${deckName} · ${cards} cartes ${mine ? 'en grimoire' : 'restantes'}${limit !== null ? ` · réserve de mana : ${real.mana} / ${limit}` : ''}`}
+      title={`Deck ${deckName} · ${cards} cartes ${mine ? 'en grimoire' : 'restantes'} · ${view.economy === 'reserve' ? 'réserve de mana' : 'mana'} : ${real.mana} / ${limit}`}
     >
       <ManaOrb player={player} mana={mana} active={active} animated={animated} limit={limit} />
       <div className="score__text">
@@ -98,7 +98,7 @@ export function ScoreBox({ view, player, deckName, ai = false, animated = true, 
         <div className="score__line">
           <div className="score__vp">
             <span data-vp={player}>{vp}</span>
-            <small>/{VICTORY_VP} VP</small>
+            <small>/{view.victoryVp} VP</small>
             <span className="score__spark" data-spark={player} />
           </div>
           <PileCounters view={view} player={player} open={pile} onOpen={onPile} />

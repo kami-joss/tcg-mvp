@@ -2,8 +2,9 @@
 import { getCard } from './cards';
 import { createGame } from './game';
 import { addStatus } from './statuses';
+import { TEST_CARDS } from './test-cards';
 import { createMonsterUnit, createTerrainUnit } from './units';
-import type { Board, CardId, Economy, GameMode, GameState, MonsterUnit, PlayerId, PlayerState, Position, StatusKind, StatusSpec, Unit } from './types';
+import type { Board, CardId, CardSet, Economy, GameMode, GameState, ManaRules, MonsterUnit, PlayerId, PlayerState, Position, StatusKind, StatusSpec, Unit } from './types';
 
 export const at = (row: number, col: number): Position => ({ row, col });
 
@@ -16,7 +17,9 @@ export type UnitSpec = MonsterSpec | TerrainSpec;
 /**
  * Partie neuve où les unités sont posées directement, avec les ids u1, u2… dans l'ordre de `units`.
  * Aucune règle n'est vérifiée : c'est au test de décrire une position cohérente.
- * Par défaut, on est pendant le premier tour du joueur actif (tour 1 pour J1, tour 2 pour J2).
+ * Par défaut, on est pendant le premier tour du joueur actif (tour 1 pour J1, tour 2 pour J2). `cards` : les cartes de
+ * la partie ; par défaut les cartes d'essai (`TEST_CARDS`, chiffres figés), pour qu'un réglage de l'atelier ne casse
+ * pas un test de règle.
  */
 export function gameWith(
   units: readonly UnitSpec[],
@@ -25,22 +28,25 @@ export function gameWith(
     board?: Board;
     mode?: GameMode;
     economy?: Economy;
+    manaRules?: ManaRules;
+    cards?: CardSet;
+    victoryVp?: number;
     turn?: number;
     players?: Partial<Record<PlayerId, Partial<PlayerState>>>;
   } = {},
 ): GameState {
-  const base = createGame(options.board, undefined, undefined, options.mode, 1, options.economy);
+  const base = createGame(options.board, undefined, undefined, options.mode, 1, options.economy, options.manaRules, options.cards ?? TEST_CARDS, options.victoryVp);
   const placed: Record<string, Unit> = {};
   units.forEach((spec, i) => {
     const id = `u${i + 1}`;
     if ('monster' in spec) {
       const { monster, owner, at: pos, ...overrides } = spec;
-      const card = getCard(monster);
+      const card = getCard(base.cards, monster);
       if (card.kind !== 'monster') throw new Error(`${monster} n'est pas un monstre`);
       placed[id] = { ...createMonsterUnit(id, card, owner, pos, 0), ...overrides };
     } else {
       const { terrain, owner, at: pos, ...overrides } = spec;
-      const card = getCard(terrain);
+      const card = getCard(base.cards, terrain);
       if (card.kind !== 'terrain') throw new Error(`${terrain} n'est pas un terrain`);
       placed[id] = { ...createTerrainUnit(id, card, owner, pos), ...overrides };
     }

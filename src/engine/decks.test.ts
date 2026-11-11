@@ -32,43 +32,34 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
   const deck = (id: string) => DECKS.find((d) => d.id === id)!;
   const count = (cards: readonly CardId[], id: CardId) => cards.filter((c) => c === id).length;
 
-  it('huit decks de 25 cartes (Archers : 26) : classique, archers, pièges, bodybuilder, dragons, sorciers du feu, explorateur du temps, vampire', () => {
-    expect(DECKS.map((d) => d.id)).toEqual([
-      'classique',
-      'archers',
-      'pieges',
-      'bodybuilder',
-      'dragons',
-      'sorciers-du-feu',
-      'explorateur-du-temps',
-      'vampire',
-    ]);
-    // Archers : 26, avec le Monstre de test en plus (§10).
-    for (const d of DECKS) expect(d.cards, d.id).toHaveLength(d.id === 'archers' ? 26 : 25);
+  it('sept decks de 30 cartes (Classique, le deck d’essai : 25) ; plus de Bodybuilder (2026-11-10)', () => {
+    expect(DECKS.map((d) => d.id)).toEqual(['classique', 'archers', 'pieges', 'dragons', 'sorciers-du-feu', 'explorateur-du-temps', 'vampire']);
+    for (const d of DECKS) expect(d.cards, d.id).toHaveLength(d.id === 'classique' ? 25 : 30);
     expect(deck('classique').cards).toBe(TEST_GRIMOIRE);
+    // Les cartes du Bodybuilder gardent leurs données, sans deck.
+    for (const id of ['rudy', 'arnold', 'tibo', 'ki-ne', 'seringue', 'salle-de-sport'] as const) {
+      expect(CARDS[id], id).toBeDefined();
+      for (const d of DECKS) expect(d.cards, `${d.id} · ${id}`).not.toContain(id);
+    }
   });
 
-  it('compositions du doc « Cartes du TCG » (§6 bis) : cartes du deck, complément de cartes de base, cartes communes', () => {
+  it('compositions du 2026-11-10 (§6 bis) : les cartes de l’archétype ×3, puis des cartes de base et communes', () => {
     const composition = (id: string) => Object.fromEntries([...new Set(deck(id).cards)].map((c) => [c, count(deck(id).cards, c)]));
-    const commons = { invocateur: 1, teleporteur: 1, 'terrain-drainant': 1, 'terrain-piege': 1, 'zone-invocation': 1 };
-    // Archers et Vampire : un Terrain de chasse à la place du Terrain drainant.
-    const { 'terrain-drainant': _drainant, ...others } = commons;
-    const hunt = { ...others, 'terrain-de-chasse': 1 };
-    // Archers impériaux (remaniement du 2026-11-08) : 26 cartes, sans Terrain de chasse.
     expect(composition('archers')).toEqual({
       'ecuyer-archers': 3,
       'archer-imperial': 3,
       'arbaletrier-imperial': 3,
-      'trebuchet-archers': 2,
+      'trebuchet-archers': 3,
       'fleche-divine': 3,
       'camps-de-tir': 3,
-      charge: 1,
       bourrasque: 3,
-      benediction: 1,
+      charge: 3,
       bastion: 1,
-      teleporteur: 1,
       'zone-invocation': 1,
       'terrain-piege': 1,
+      teleporteur: 1,
+      flash: 1,
+      carapace: 1,
     });
     expect(composition('pieges')).toEqual({
       'poseur-de-piege': 3,
@@ -76,25 +67,43 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
       'poseur-de-bombe': 3,
       'clown-assassin': 3,
       penombre: 3,
-      'boule-de-feu': 3,
-      benediction: 1,
-      'terrain-de-jeu': 3, // 2026-11-08 : à la place de l'Autel de mana, du Terrain drainant et de l'Invocateur
-      'terrain-piege': 1,
-      'zone-invocation': 2,
+      'terrain-de-jeu': 3,
+      flash: 1,
+      repli: 3,
+      reanimation: 1,
+      carapace: 3,
+      'zone-invocation': 1,
+      'terrain-piege': 2,
+      fatigue: 1,
     });
-    expect(composition('bodybuilder')).toEqual({
-      rudy: 3,
-      arnold: 3,
-      tibo: 3,
-      'ki-ne': 3,
-      seringue: 2,
-      'salle-de-sport': 1,
-      charge: 3,
-      benediction: 1,
-      bastion: 1,
-      ...commons,
+    expect(composition('explorateur-du-temps')).toEqual({
+      'apprenti-temps': 3,
+      chronomancienne: 3,
+      'dragonnet-temps': 3,
+      'maitre-du-temps': 3,
+      'piege-temporel': 3,
+      'fissure-temporelle': 3,
+      fatigue: 3,
+      puissance: 3,
+      flash: 1,
+      teleportation: 2,
+      'zone-invocation': 1,
+      'terrain-piege': 2,
     });
-    // Dragons élémentaires (refait le 2026-11-08) : sans Origine ni cartes de base ; des communes, seul l'Invocateur.
+    // Vampire : le Terrain de chasse est de l'archétype (×3, à la place des Autels de mana).
+    expect(composition('vampire')).toEqual({
+      delta: 3,
+      emma: 3,
+      vladimir: 3,
+      zoldik: 3,
+      'appel-du-sang': 3,
+      'sacrifice-sanguinaire': 3,
+      'terrain-de-chasse': 3,
+      cure: 3,
+      carapace: 3,
+      flash: 1,
+      puissance: 2,
+    });
     expect(composition('dragons')).toEqual({
       'jeune-dragon': 3,
       'dragon-feu': 3,
@@ -105,32 +114,21 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
       'nid-de-dragons': 3,
       'autel-de-mana': 3,
       invocateur: 1,
+      'elixir-de-mana': 2,
+      fortification: 3,
     });
     expect(composition('sorciers-du-feu')).toEqual({
       apprenti: 3,
       'lutin-brasier': 3,
-      archimage: 2,
+      archimage: 3,
       'golem-de-lave': 3,
-      'brulure-en-chaine': 2,
-      'boule-de-feu': 2,
-      charge: 2,
-      benediction: 1,
-      'autel-de-mana': 1,
-      bastion: 1,
-      ...commons,
-    });
-    expect(composition('vampire')).toEqual({
-      delta: 3,
-      emma: 3,
-      vladimir: 3,
-      zoldik: 2,
-      'appel-du-sang': 2,
-      'sacrifice-sanguinaire': 2,
-      'boule-de-feu': 1,
-      charge: 2,
-      benediction: 1,
-      'autel-de-mana': 1,
-      ...hunt,
+      'brulure-en-chaine': 3,
+      'terrain-drainant': 3,
+      fatigue: 3,
+      'zone-invocation': 3,
+      teleportation: 3,
+      flash: 1,
+      puissance: 2,
     });
     // La chauve-souris est une forme d'Emma : dans aucun deck.
     for (const d of DECKS) expect(d.cards, d.id).not.toContain('emma-chauve-souris');
@@ -143,14 +141,14 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
     }
   });
 
-  it('le complément vient du grimoire de test ou des cartes communes', () => {
-    const archers: CardId[] = ['ecuyer-archers', 'archer-imperial', 'arbaletrier-imperial', 'trebuchet-archers', 'fleche-divine', 'camps-de-tir'];
-    const traps: CardId[] = ['poseur-de-piege', 'farceur', 'poseur-de-bombe', 'clown-assassin', 'penombre', 'terrain-de-jeu'];
-    // Le grimoire de test a chaque carte commune, sauf le Terrain de chasse (Archers et Vampire seulement).
-    for (const id of COMMON_CARDS.filter((c) => c !== 'terrain-de-chasse')) expect(TEST_GRIMOIRE, id).toContain(id);
-    const filler = (d: string, own: CardId[]) => deck(d).cards.filter((c) => !own.includes(c));
-    for (const id of filler('archers', archers)) expect([...TEST_GRIMOIRE, ...COMMON_CARDS], id).toContain(id);
-    for (const id of filler('pieges', traps)) expect(TEST_GRIMOIRE, id).toContain(id);
+  it('hors de l’archétype, un deck n’a que des cartes génériques : du grimoire de test ou des cartes communes', () => {
+    const generic = new Set<CardId>([...TEST_GRIMOIRE, ...COMMON_CARDS]);
+    for (const d of DECKS) {
+      for (const id of d.cards) {
+        // Une carte d'archétype s'appelle « Nom - Archétype » (§5.1).
+        if (!getCard(CARDS, id).name.includes(' - ')) expect(generic.has(id), `${d.id} · ${id}`).toBe(true);
+      }
+    }
   });
 
   it('chaque joueur reçoit le deck choisi', () => {
@@ -172,7 +170,7 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
     expect(CARDS['poseur-de-bombe']).toMatchObject({ cost: 2, atk: 1, range: 1, mobility: 7, hp: 1 });
     expect(CARDS['clown-assassin']).toMatchObject({ cost: 4, atk: 3, range: 1, mobility: 7, hp: 2 });
     const ability = (id: CardId) => {
-      const card = getCard(id);
+      const card = getCard(CARDS, id);
       return card.kind === 'monster' ? (card.activated[0] ?? null) : null;
     };
     expect(ability('poseur-de-piege')?.manaCost).toBe(1);
@@ -411,7 +409,9 @@ describe('pièges (SPEC.md §6 bis, §10)', () => {
     const state = withTraps(gameWith([]), trap(1, at(7, 1), NET));
     expect(getPlayerView(state, 1).traps).toHaveLength(1);
     expect(getPlayerView(state, 2).traps).toEqual([]);
-    expect(JSON.stringify(getPlayerView(state, 2))).not.toMatch(/poseur-de-piege|root/);
+    // Les cartes de la partie, publiques, nomment toutes les cartes : le piège, lui, n'apparaît nulle part ailleurs.
+    const { cards: _cards, ...rest } = getPlayerView(state, 2);
+    expect(JSON.stringify(rest)).not.toMatch(/poseur-de-piege|root/);
   });
 
   it('ne change rien aux actions proposées à l’adversaire : rien ne le trahit', () => {

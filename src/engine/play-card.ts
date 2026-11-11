@@ -63,7 +63,7 @@ function cellOf(target: CardTarget): Position {
 export function getPlayCardActions(state: GameState, real: GameState = state): Action[] {
   const player = state.players[state.activePlayer];
   return [...new Set(player.grimoire)]
-    .map((id) => getCard(id))
+    .map((id) => getCard(state.cards, id))
     .filter((card) => card.cost <= player.mana)
     .flatMap((card) =>
       getCardTargets(state, card, real).map((target): Action => ({ type: 'playCard', cardId: card.id, target })),
@@ -75,7 +75,7 @@ export function applyPlayCard(state: GameState, action: PlayCardAction): GameSta
   if (!player.grimoire.includes(action.cardId)) {
     throw new IllegalActionError(`La carte « ${action.cardId} » n'est plus dans le grimoire de J${player.id}`);
   }
-  const card = getCard(action.cardId);
+  const card = getCard(state.cards, action.cardId);
   if (player.mana < card.cost) {
     throw new IllegalActionError(`Mana insuffisant pour « ${card.name} » : ${player.mana} < ${card.cost}`);
   }
@@ -86,8 +86,15 @@ export function applyPlayCard(state: GameState, action: PlayCardAction): GameSta
 
   // L'unité vers laquelle va la carte : celle qu'elle pose, ou le monstre visé par le sort ; un sort sans cible n'en a pas.
   const id = `u${state.nextUnitId}`;
-  const unitId = target.kind === 'cell' ? id : target.kind === 'unit' || target.kind === 'unitAndDirection' ? target.unitId : null;
-  const pos = target.kind === 'cell' ? cellOf(target) : unitId ? (state.units[unitId]?.pos ?? null) : null;
+  // Réanimation : vers la case où le monstre revient (il prendra le prochain identifiant).
+  const unitId =
+    target.kind === 'cell' || target.kind === 'cellAndCard'
+      ? id
+      : target.kind === 'unit' || target.kind === 'unitAndDirection' || target.kind === 'unitAndCell'
+        ? target.unitId
+        : null;
+  const pos =
+    target.kind === 'cell' ? cellOf(target) : target.kind === 'cellAndCard' ? { ...target.pos } : unitId ? (state.units[unitId]?.pos ?? null) : null;
   const shiny = isShinyCopy(state, player.id, card.id);
   const paid = payCard(emit(state, { type: 'cardPlayed', player: player.id, cardId: card.id, pos, ...(unitId ? { unitId } : {}) }), player.id, card);
   switch (card.kind) {
@@ -99,9 +106,7 @@ export function applyPlayCard(state: GameState, action: PlayCardAction): GameSta
       return addUnit(emit(paid, { type: 'summon', unit }), () => unit);
     }
     case 'spell': {
-      if (target.kind === 'cell' || target.kind === 'card' || target.kind === 'cellAndCard') {
-        throw new IllegalActionError(`Un sort cible un monstre`);
-      }
+      if (target.kind === 'cell' || target.kind === 'card') throw new IllegalActionError(`Un sort ne cible pas une case seule`);
       return resolveAbility(paid, card.ability, target, player.id, null, { cardId: card.id });
     }
   }

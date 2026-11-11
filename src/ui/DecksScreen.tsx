@@ -3,7 +3,7 @@
 // la fiche de la carte survolée ou cliquée, comme en partie (sans ligne pour la jouer).
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
-import { DECKS } from '../engine';
+import { CARDS, DECKS } from '../engine';
 import type { Card, CardId, Deck } from '../engine';
 import { deckSections, deckSummary } from './decks';
 import { Tile } from './Grimoire';
@@ -32,7 +32,7 @@ export function DecksScreen({ initial, onDeck, onNavigate }: DecksScreenProps) {
   const [focused, setFocused] = useState<CardId>(sections[0]!.cards[0]!.cardId);
   const [preview, setPreview] = useState<SheetData | null>(null);
   const animated = loadSettings().animations && !prefersReducedMotion();
-  const sheet = cardSheetOf(focused, deck.shiny?.includes(focused) ?? false);
+  const sheet = cardSheetOf(CARDS, focused, deck.shiny?.includes(focused) ?? false);
   const peak = Math.max(1, ...summary.curve);
 
   const choose = (next: Deck) => {
@@ -99,6 +99,7 @@ export function DecksScreen({ initial, onDeck, onNavigate }: DecksScreenProps) {
                 <ul className="grimoire__cards">
                   {cards.map(({ cardId, count }) => (
                     <Tile
+                      cards={CARDS}
                       key={cardId}
                       cardId={cardId}
                       count={count}

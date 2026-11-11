@@ -5,7 +5,6 @@
 // overframe : le personnage sort du cadre avec ses particules, comme sur la fiche (`OverframeStage`).
 import { useLayoutEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
-import { getCard } from '../engine';
 import type { Card } from '../engine';
 import { CUT_IN_FRAME, artFit, cardArtFor, fitBackground } from './art';
 import { CUT_IN_BACKDROP, CUT_IN_MS, cutInFrames, cutInRays, cutInScale } from './fx/cutIn';
@@ -54,7 +53,7 @@ function CutInArt({ cutIn, kind }: { cutIn: CutIn; kind: Card['kind'] }) {
 
 /** Le cadre de la carte : illustration (ou calques de l'overframe), reflets, éclair d'entrée, plaque du nom. */
 function CutInFrame({ cutIn, layers }: { cutIn: CutIn; layers?: OverframeLayers }) {
-  const kind = getCard(cutIn.cardId).kind;
+  const kind = cutIn.cardKind;
   const classes = [
     'sheet',
     'sheet--card',

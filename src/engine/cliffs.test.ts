@@ -165,7 +165,7 @@ describe('falaises (SPEC.md §10)', () => {
       expect(applyAction(state, heal('u3')).units.u3?.hp).toBe(3);
     });
 
-    it('la Boule de feu (3 pas, sans ligne de vue) ignore les falaises', () => {
+    it('la Boule de feu (carré de 3 d’une de ses unités, 2026-11-10) ne passe plus les falaises : le carré s’y arrête', () => {
       const state = gameWith(
         [
           { monster: 'milicien', owner: 1, at: at(5, 6) }, // dans la Mine
@@ -174,7 +174,7 @@ describe('falaises (SPEC.md §10)', () => {
         MANA,
       );
       const fireball: Action = { type: 'playCard', cardId: 'boule-de-feu', target: { kind: 'unit', unitId: 'u2' } };
-      expect(applyAction(state, fireball).units.u2?.hp).toBe(5);
+      expect(() => applyAction(state, fireball)).toThrow();
     });
   });
 

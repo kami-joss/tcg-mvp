@@ -13,6 +13,7 @@ import type { Selection } from './interaction';
 import { describeAction } from './log';
 import { eventSounds } from './sfx/events';
 import { getSheet } from './sheet';
+import { CARDS } from '../engine';
 
 // Interface du deck Bodybuilder (SPEC.md §6 bis) : textes, Dopage, ATK effective (auras, bonus du tour), requiem.
 
@@ -45,22 +46,22 @@ const cellSheet = (state: GameState, row: number, col: number) => getSheet(activ
 
 describe('textes des cartes Bodybuilder', () => {
   it('famille, passifs expliqués, effet sur lui-même, requiem', () => {
-    expect(describeCard(getCard('arnold'))).toEqual([
+    expect(describeCard(CARDS, getCard(CARDS, 'arnold'))).toEqual([
       'ATK 8 · PV 4 · Mob. 4 · Portée 1',
       'Archétype Bodybuilder.',
       'Passif · Aura · bodybuilders alliés, carré de 2 · +1 ATK : dans un carré de 2 autour de lui (falaises et cases X coupent la zone), pas lui-même ; plusieurs auras se cumulent.',
     ]);
-    expect(describeCard(getCard('tibo'))[2]).toBe('Actif (1 mana) · Tortank · lui-même · carapace jusqu’à son prochain tour');
-    expect(describeCard(getCard('jeune-gomuscu'))[2]).toBe(
+    expect(describeCard(CARDS, getCard(CARDS, 'tibo'))[2]).toBe('Actif (1 mana) · Tortank · lui-même · carapace jusqu’à son prochain tour');
+    expect(describeCard(CARDS, getCard(CARDS, 'jeune-gomuscu'))[2]).toBe(
       'Passif · Quand il détruit une unité · +1 ATK +1 PV (définitivement) : chaque fois que son attaque détruit un monstre ou un terrain.',
     );
-    expect(describeCard(getCard('jean-bon'))[2]).toBe(
+    expect(describeCard(CARDS, getCard(CARDS, 'jean-bon'))[2]).toBe(
       'Actif (2 mana) · Dopage · lui-même · +2 ATK (pour ce tour) + burn 1 pendant 2 tours',
     );
-    expect(describeCard(getCard('seringue'))).toEqual(['Un allié bodybuilder · ATK ×2 (pour ce tour) + requiem']);
+    expect(describeCard(CARDS, getCard(CARDS, 'seringue'))).toEqual(['Un allié bodybuilder · ATK ×2 (pour ce tour) + requiem']);
     expect(statusText({ kind: 'requiem' })).toBe('requiem');
     // L'évolution reste écrite seule.
-    expect(describeCard(getCard('jeune-dragon')).at(-1)).toBe('Actif (3 mana) · Évolution draconique');
+    expect(describeCard(CARDS, getCard(CARDS, 'jeune-dragon')).at(-1)).toBe('Actif (3 mana) · Évolution draconique');
   });
 
   it('fiche d’une carte du grimoire : type, passifs', () => {

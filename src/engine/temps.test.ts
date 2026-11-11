@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction } from './actions';
-import { DECKS, getMonsterCard } from './cards';
+import { CARDS, DECKS, getMonsterCard } from './cards';
 import { getLegalActions } from './actions';
 import { at, gameWith } from './test-utils';
 import { rewindMonster } from './traps';
@@ -26,24 +26,24 @@ const returnCells = (state: GameState, unitId: string) =>
   );
 
 describe('cartes du deck Explorateur du temps', () => {
-  it('stats, famille, effets actifs ; le deck fait 25 cartes', () => {
-    expect(getMonsterCard('apprenti-temps')).toMatchObject({ name: 'Apprenti - Explorateur du temps', cost: 1, atk: 1, hp: 2, mobility: 5, range: 1, archetype: 'temps' });
-    expect(getMonsterCard('chronomancienne')).toMatchObject({ cost: 4, atk: 3, hp: 3, mobility: 7, range: 1, archetype: 'temps' });
-    expect(getMonsterCard('dragonnet-temps')).toMatchObject({ cost: 3, atk: 3, hp: 3, mobility: 6, range: 1, archetype: 'temps' });
-    expect(getMonsterCard('maitre-du-temps')).toMatchObject({ cost: 6, atk: 5, hp: 5, mobility: 7, range: 1, archetype: 'temps' });
-    expect(getMonsterCard('apprenti-temps').activated).toHaveLength(1);
-    expect(getMonsterCard('chronomancienne').activated.map((a) => a.manaCost)).toEqual([1, 1]);
-    expect(getMonsterCard('dragonnet-temps').activated.map((a) => a.manaCost)).toEqual([1, 1]);
-    expect(getMonsterCard('maitre-du-temps').activated.map((a) => a.manaCost)).toEqual([1, 2]);
+  it('famille, effets actifs ; le deck fait 30 cartes', () => {
+    // Leurs chiffres (coût, stats, valeurs des mots-clés, coût des effets) se règlent dans l'atelier : cardText.test.ts
+    // vérifie qu'ils sont ceux des tableaux de SPEC.md.
+    expect(getMonsterCard(CARDS, 'apprenti-temps')).toMatchObject({ name: 'Apprenti - Explorateur du temps', archetype: 'temps' });
+    for (const id of ['chronomancienne', 'dragonnet-temps', 'maitre-du-temps'] as const) {
+      expect(getMonsterCard(CARDS, id), id).toMatchObject({ archetype: 'temps' });
+      expect(getMonsterCard(CARDS, id).activated, id).toHaveLength(2);
+    }
+    expect(getMonsterCard(CARDS, 'apprenti-temps').activated).toHaveLength(1);
     // Chaque effet a son nom (SPEC §5.2) ; Retour vers le futur est le premier des quatre monstres.
     for (const id of ['apprenti-temps', 'chronomancienne', 'dragonnet-temps', 'maitre-du-temps'] as const) {
-      expect(getMonsterCard(id).activated[0]!.name, id).toBe('Retour vers le futur');
+      expect(getMonsterCard(CARDS, id).activated[0]!.name, id).toBe('Retour vers le futur');
     }
-    expect(getMonsterCard('chronomancienne').activated[1]!.name).toBe('Sablier du temps');
-    expect(getMonsterCard('dragonnet-temps').activated[1]!.name).toBe('Miroir de souvenirs');
-    expect(getMonsterCard('maitre-du-temps').activated[1]!.name).toBe('Requiem');
+    expect(getMonsterCard(CARDS, 'chronomancienne').activated[1]!.name).toBe('Sablier du temps');
+    expect(getMonsterCard(CARDS, 'dragonnet-temps').activated[1]!.name).toBe('Miroir de souvenirs');
+    expect(getMonsterCard(CARDS, 'maitre-du-temps').activated[1]!.name).toBe('Requiem');
     const deck = DECKS.find((d) => d.id === 'explorateur-du-temps')!;
-    expect(deck.cards).toHaveLength(25);
+    expect(deck.cards).toHaveLength(30);
   });
 });
 
@@ -61,12 +61,15 @@ describe('retour : revenir sur une case du chemin du tour', () => {
     expect(returnCells(gameWith([{ monster: 'apprenti-temps', owner: 1, at: at(1, 0) }], MANA), 'u1')).toEqual([]);
   });
 
-  it('téléportation : 1 mana, plus de déplacement ensuite, l’attaque reste ; une fois par tour', () => {
+  it('téléportation : 1 mana ; il garde sa mobilité restante et peut repartir (2026-11-10), l’attaque reste ; une fois par tour', () => {
+    // Apprenti (mobilité 5) : 3 pas faits, il lui en reste 2 après le retour.
     const back = applyAction(walked(), effect('u1', 0, { kind: 'cell', pos: at(1, 1) }));
-    expect(monster(back, 'u1')).toMatchObject({ pos: at(1, 1), mobilityLeft: 0, hasAttacked: false, usedEffects: [0], trail: [at(1, 0), at(1, 1)] });
+    expect(monster(back, 'u1')).toMatchObject({ pos: at(1, 1), mobilityLeft: 2, hasAttacked: false, usedEffects: [0], trail: [at(1, 0), at(1, 1)] });
+    expect(monster(back, 'u1').halted).toBeUndefined();
     expect(back.players[1].mana).toBe(9);
     expect(back.events.map((e) => e.type)).toEqual(['effect', 'mana', 'rewind']);
-    expect(getLegalActions(back).some((a) => a.type === 'move' && a.unitId === 'u1')).toBe(false);
+    const again = applyAction(back, move('u1', [at(2, 1), at(3, 1)]));
+    expect(monster(again, 'u1')).toMatchObject({ pos: at(3, 1), mobilityLeft: 0, trail: [at(1, 0), at(1, 1), at(2, 1), at(3, 1)] });
     expect(getLegalActions(back).some((a) => a.type === 'activateEffect' && a.unitId === 'u1')).toBe(false);
   });
 

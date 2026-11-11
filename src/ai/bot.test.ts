@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { BATTLEFIELD_13, BATTLEFIELD_15, DECKS, applyAction, createGame, getLegalActions, getZoneController, getZoneStatus } from '../engine';
 import type { Action, CardId, GameState } from '../engine';
-import { at, gameWith } from '../engine/test-utils';
-import { SEARCH, chooseAction, evaluate, knownState, lastEvaluations, strikeLosses } from './bot';
+import { at, gameWith, withStatus } from '../engine/test-utils';
+import { SEARCH, W, chooseAction, evaluate, knownState, lastEvaluations, pendingBurn, strikeLosses } from './bot';
 
 // IA d'entraînement (SPEC.md §7 bis) : une action à la fois, cherchée sur la fin du tour, sans tricher.
 
@@ -158,6 +158,31 @@ describe('IA : deux coups d’avance pour un même monstre', () => {
     const { u3: _a, u4: _b, ...mine } = threatened.units;
     expect(chooseAction({ ...threatened, units: mine }, 1)).not.toEqual(penombre);
   });
+
+  it('Appel du sang quand les 2 cases de plus permettent une destruction, pas quand il ne sert à rien', () => {
+    // Un sort qui touche tous ses vampires ne rapporte qu'après leurs déplacements : aucune action suivante d'un seul
+    // monstre ne le montre, la recherche l'essaie avec la suite du tour. Delta (mobilité 4) est à 5 cases de la case
+    // voisine de l'Éclaireur : avec +2 mobilité, il l'atteint et le détruit.
+    const appel: Action = { type: 'playCard', cardId: 'appel-du-sang', target: { kind: 'all' } };
+    const grimoire = ['appel-du-sang'] as CardId[];
+    const useful = gameWith(
+      [
+        { monster: 'delta', owner: 1, at: at(1, 0) },
+        { monster: 'eclaireur', owner: 2, at: at(1, 6) },
+      ],
+      { players: { 1: { mana: 3, grimoire } } },
+    );
+    expect(chooseAction(useful, 1)).toEqual(appel);
+    // Delta tient la mana zone du centre et l'ennemi reste hors de portée même avec 2 cases de plus : elle garde son sort.
+    const useless = gameWith(
+      [
+        { monster: 'delta', owner: 1, at: at(5, 4) },
+        { monster: 'eclaireur', owner: 2, at: at(9, 8) },
+      ],
+      { players: { 1: { mana: 3, grimoire } } },
+    );
+    expect(chooseAction(useless, 1)).not.toEqual(appel);
+  });
 });
 
 describe('IA : effets actifs des monstres', () => {
@@ -211,6 +236,26 @@ describe('IA : ce que l’adversaire peut faire au prochain tour', () => {
     ]);
     expect(strikeLosses(one, 2)).toBeGreaterThan(12); // Un monstre détruit : sa valeur, plus le VP qu'il rapporte.
     expect(strikeLosses(two, 2)).toBe(strikeLosses(one, 2));
+  });
+  it('un monstre sous carapace ne peut pas être détruit au prochain tour : la menace n’est plus que ses PV au-dessus de 1', () => {
+    const scene = gameWith([
+      { monster: 'golem', owner: 2, at: at(6, 2) },
+      { monster: 'milicien', owner: 1, at: at(4, 2) },
+    ]);
+    const shielded = withStatus(scene, 'u2', 'carapace', 0, 0);
+    expect(strikeLosses(shielded, 2)).toBe(2); // 3 PV, il en garde 1
+    expect(strikeLosses(shielded, 2)).toBeLessThan(strikeLosses(scene, 2) - 10);
+  });
+
+  it('elle lance Carapace sur son monstre que l’adversaire détruirait', () => {
+    const state = gameWith(
+      [
+        { monster: 'golem', owner: 2, at: at(6, 2) },
+        { monster: 'chevalier', owner: 1, at: at(4, 2), mobilityLeft: 0, hasAttacked: true },
+      ],
+      { players: { 1: { mana: 2, grimoire: ['carapace'] } } },
+    );
+    expect(chooseAction(state, 1)).toEqual({ type: 'playCard', cardId: 'carapace', target: { kind: 'unit', unitId: 'u2' } });
   });
 });
 
@@ -466,5 +511,92 @@ describe('IA : riposte adverse', () => {
     const without = lastEvaluations();
     chooseAction(state, 1, { ...SEARCH, reply: 4 });
     expect(lastEvaluations()).toBeGreaterThan(without);
+  });
+});
+
+describe('IA : burn (Sorciers du feu)', () => {
+  // L'Éclaireur de J2 (1 PV) à la portée de la Boule de feu du Chevalier de J1, qui a déjà agi.
+  const facing = (burning: boolean) => {
+    const state = gameWith(
+      [
+        { monster: 'chevalier', owner: 1, at: at(1, 0), mobilityLeft: 0, hasAttacked: true },
+        { monster: 'eclaireur', owner: 2, at: at(1, 3) },
+      ],
+      { players: { 1: { mana: 2, grimoire: ['boule-de-feu'] as CardId[] } } },
+    );
+    return burning ? withStatus(state, 'u2', 'burn', 1, 1) : state;
+  };
+
+  it('les PV qu’un burn fera encore perdre, au début de chacun des tours de l’unité où il agit', () => {
+    const state = gameWith([{ monster: 'golem', owner: 2, at: at(1, 3) }]);
+    const twice = withStatus(withStatus(state, 'u1', 'burn', 1, 2), 'u1', 'burn', 2, 1);
+    expect(pendingBurn(twice, twice.units.u1!)).toBe(1 * 2 + 2 * 1);
+    expect(pendingBurn(twice, twice.units.u1!, true)).toBe(1 + 2);
+    // Au début de son tour, le premier burn a agi : il n'en reste qu'un tour.
+    const later = applyAction(twice, { type: 'endTurn' });
+    expect(pendingBurn(later, later.units.u1!)).toBe(1);
+  });
+
+  it('un monstre que ses burn vont détruire compte comme perdu, et son VP comme gagné', () => {
+    expect(evaluate(facing(true), 1) - evaluate(facing(false), 1)).toBeGreaterThan(W.vp * W.doomed);
+  });
+
+  it('pas de Boule de feu sur un monstre que ses burn vont détruire', () => {
+    const fireball: Action = { type: 'playCard', cardId: 'boule-de-feu', target: { kind: 'unit', unitId: 'u2' } };
+    expect(chooseAction(facing(false), 1)).toEqual(fireball);
+    expect(chooseAction(facing(true), 1)).not.toEqual(fireball);
+  });
+
+  it('la Brûlure d’une Feria adverse finit ce que son attaque entame : une destruction à craindre', () => {
+    // La Feria de J2 (1 ATK, Brûlure 1 pendant 2 tours) peut venir frapper le Milicien (3 PV).
+    const state = gameWith([
+      { monster: 'apprenti', owner: 2, at: at(1, 5) },
+      { monster: 'milicien', owner: 1, at: at(1, 1) },
+    ]);
+    expect(strikeLosses(state, 2)).toBeGreaterThan(W.vp);
+  });
+
+  it('une case brûlée ne vaut que si un ennemi peut y entrer, et plus dans la zone d’une mana zone', () => {
+    const value = (cell: { row: number; col: number }) => {
+      const state = gameWith([
+        { monster: 'lutin-brasier', owner: 1, at: at(1, 1) },
+        { monster: 'milicien', owner: 2, at: at(4, 6) },
+      ]);
+      return evaluate({ ...state, burningCells: [{ owner: 1, pos: cell, effects: [], cardId: 'lutin-brasier', expiresAtTurn: 7 }] }, 1) - evaluate(state, 1);
+    };
+    // Le Milicien (2 de mobilité) peut entrer sur la Mine (5, 7) et sur (4, 7), pas aller jusqu'à (1, 7).
+    expect(value(at(5, 7))).toBeCloseTo(W.burning * W.burningZone);
+    expect(value(at(4, 7))).toBeCloseTo(W.burning);
+    expect(value(at(1, 7))).toBeCloseTo(W.burning * W.burningFar);
+  });
+});
+
+describe('IA : Archers impériaux', () => {
+  const arbalest = (enemy: 'gardien' | null) =>
+    gameWith(
+      [
+        { monster: 'arbaletrier-imperial', owner: 1, at: at(1, 0), mobilityLeft: 0 },
+        ...(enemy ? [{ monster: enemy, owner: 2, at: at(1, 3) } as const] : [{ monster: 'milicien', owner: 2, at: at(9, 8) } as const]),
+      ],
+      { players: { 1: { mana: 3 } } },
+    );
+  const arm: Action = { type: 'activateEffect', unitId: 'u1', target: { kind: 'unit', unitId: 'u1' } };
+
+  it('Carreau perforant : seulement pour un tir qui en profite ce tour (il se perd à la fin du tour)', () => {
+    // 4 ATK n'abattent pas le Gardien (6 PV) ; 6 ATK, si.
+    expect(chooseAction(arbalest('gardien'), 1)).toEqual(arm);
+    // Aucun tir possible : armer ne servirait à rien.
+    expect(chooseAction(arbalest(null), 1)).not.toEqual(arm);
+  });
+
+  it('un archer couvert par un Écuyer (Carquois prêt !) frappe deux fois au prochain tour', () => {
+    const units = [
+      { monster: 'archer-imperial', owner: 1, at: at(1, 1) },
+      { monster: 'eclaireur', owner: 2, at: at(1, 5) },
+      { monster: 'eclaireur', owner: 2, at: at(3, 1) },
+    ] as const;
+    const alone = gameWith(units, { activePlayer: 2 });
+    const covered = gameWith([...units, { monster: 'ecuyer-archers', owner: 1, at: at(1, 2) }], { activePlayer: 2 });
+    expect(strikeLosses(covered, 1)).toBeGreaterThan(strikeLosses(alone, 1) + W.vp);
   });
 });

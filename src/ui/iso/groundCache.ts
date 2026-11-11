@@ -1,5 +1,5 @@
-// Cache des sols peints sur l'appareil (IndexedDB) : le sol avec son décor extérieur prend 20 à 30 s à calculer, une
-// seule fois par appareil. Clé : carte, empreinte du décor et version du calcul, densité. Tout échec (navigation privée,
+// Cache des sols peints sur l'appareil (IndexedDB) : le sol avec son décor extérieur prend quelques secondes à calculer,
+// une seule fois par appareil. Clé : carte, empreinte du décor et version du calcul, densité. Tout échec (navigation privée,
 // stockage plein ou refusé) fait simplement recalculer : le cache n'est jamais indispensable.
 
 const DB_NAME = 'tcg-sols-peints';

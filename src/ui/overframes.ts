@@ -98,13 +98,12 @@ export interface OverframeDef {
 const DEFS = data as unknown as Readonly<Record<string, OverframeDef>>;
 
 /**
- * Overframes des cartes du jeu. L'entrée `archer_feu` du kit est l'Feria - Sorciers du feu (l'illustration est la
- * sienne) ; `maitre_des_heures`, le Maître du temps - Explorateur du temps. Emma, sa forme chauve-souris et Zoldik
- * (deck Vampire) : pop détouré dans leur illustration.
+ * Overframes des cartes du jeu. `maitre_des_heures` est le Maître du temps - Explorateur du temps. Emma, sa forme
+ * chauve-souris et Zoldik (deck Vampire) : pop détouré dans leur illustration. L'entrée `archer_feu` du kit était
+ * l'ancienne Feria - Sorciers du feu : sa nouvelle illustration (2026-11-09) n'a pas d'overframe.
  */
 export const OVERFRAMES: Partial<Record<CardId, OverframeDef>> = {
   'archer-de-glace': DEFS.archer_glace,
-  apprenti: DEFS.archer_feu,
   chronomancienne: DEFS.chronomancienne,
   'maitre-du-temps': DEFS.maitre_des_heures,
   emma: DEFS.emma,

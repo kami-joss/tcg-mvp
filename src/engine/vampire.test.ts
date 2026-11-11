@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getLegalActions } from './actions';
 import { effectAvailability } from './availability';
-import { DECKS, getMonsterCard } from './cards';
+import { CARDS, DECKS, getMonsterCard } from './cards';
 import { previewAttack } from './combat';
 import { at, gameWith, withStatus } from './test-utils';
 import { getAtk } from './units';
@@ -27,14 +27,16 @@ const withGrimoire = (...grimoire: CardId[]) => ({ players: { 1: { mana: 10, gri
 const canAttack = (state: GameState, unitId: string) => getLegalActions(state).some((a) => a.type === 'attack' && a.unitId === unitId);
 
 describe('cartes du deck Vampire', () => {
-  it('stats, archétype Vampire, Soif 1 ; la chauve-souris est une forme d’Emma, hors grimoire ; le deck fait 25 cartes', () => {
-    const soif = [{ keyword: 'soif', amount: 1 }];
-    expect(getMonsterCard('delta')).toMatchObject({ name: 'Delta - Vampire', cost: 3, atk: 3, hp: 3, mobility: 4, range: 1, archetype: 'vampire', keywords: soif });
-    expect(getMonsterCard('emma')).toMatchObject({ cost: 1, atk: 2, hp: 3, mobility: 3, range: 1, archetype: 'vampire', keywords: soif });
-    expect(getMonsterCard('emma-chauve-souris')).toMatchObject({ cost: 1, atk: 1, hp: 1, mobility: 8, range: 1, archetype: 'vampire', keywords: soif, formOf: 'emma' });
-    expect(getMonsterCard('vladimir')).toMatchObject({ cost: 4, atk: 3, hp: 5, mobility: 5, range: 1, archetype: 'vampire' });
-    expect(getMonsterCard('zoldik')).toMatchObject({ cost: 6, atk: 3, hp: 8, mobility: 5, range: 1, archetype: 'vampire' });
-    expect(DECKS.find((d) => d.id === 'vampire')!.cards).toHaveLength(25);
+  it('archétype Vampire, Soif ; la chauve-souris est une forme d’Emma, hors grimoire ; le deck fait 30 cartes', () => {
+    // Leurs chiffres (coût, stats, valeurs des mots-clés, coût des effets) se règlent dans l'atelier : cardText.test.ts
+    // vérifie qu'ils sont ceux des tableaux de SPEC.md.
+    const soif = [{ keyword: 'soif' }];
+    expect(getMonsterCard(CARDS, 'delta')).toMatchObject({ name: 'Delta - Vampire', archetype: 'vampire', keywords: soif });
+    expect(getMonsterCard(CARDS, 'emma')).toMatchObject({ archetype: 'vampire', keywords: soif });
+    expect(getMonsterCard(CARDS, 'emma-chauve-souris')).toMatchObject({ archetype: 'vampire', keywords: soif, formOf: 'emma' });
+    expect(getMonsterCard(CARDS, 'vladimir')).toMatchObject({ archetype: 'vampire' });
+    expect(getMonsterCard(CARDS, 'zoldik')).toMatchObject({ archetype: 'vampire' });
+    expect(DECKS.find((d) => d.id === 'vampire')!.cards).toHaveLength(30);
   });
 });
 
@@ -65,12 +67,14 @@ describe('Soif : à l’attaque, il récupère 1 PV', () => {
     expect(after.players[2].vp).toBe(0);
   });
 
-  it('aussi contre un terrain, et quand la cible est détruite (avant l’avancée)', () => {
+  it('quand la cible est détruite (avant l’avancée) ; jamais contre un terrain (2026-11-10)', () => {
     const terrain = applyAction(
       gameWith([{ monster: 'delta', owner: 1, at: at(2, 1), hp: 1 }, { terrain: 'bastion', owner: 2, at: at(2, 2) }]),
       attack('u1', 'u2'),
     );
-    expect(monster(terrain, 'u1').hp).toBe(2);
+    expect(monster(terrain, 'u1').hp).toBe(1);
+    const seen = gameWith([{ monster: 'delta', owner: 1, at: at(2, 1), hp: 1 }, { terrain: 'bastion', owner: 2, at: at(2, 2) }]);
+    expect(previewAttack(seen, monster(seen, 'u1'), seen.units.u2!).heal).toBe(0);
     const state = gameWith([{ monster: 'delta', owner: 1, at: at(2, 1), hp: 1 }, { monster: 'eclaireur', owner: 2, at: at(2, 2) }]);
     const kill = applyAction(state, attack('u1', 'u2', true));
     expect(kill.units.u2).toBeUndefined();

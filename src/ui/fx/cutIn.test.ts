@@ -29,6 +29,7 @@ describe('cut-in : la carte qui agit, mise en avant', () => {
     expect(cutInFor(state, action)).toEqual({
       kind: 'attack',
       cardId: 'chevalier',
+      cardKind: 'monster',
       owner: 1,
       shiny: false,
       title: 'Chevalier',

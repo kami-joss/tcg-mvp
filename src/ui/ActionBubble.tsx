@@ -19,6 +19,8 @@ interface ActionBubbleProps {
   onHoverPath: (path: readonly Position[] | null) => void;
   /** Survol d'une ligne d'effet : sa portée à montrer sur le plateau (`null` : plus rien). */
   onHoverReach?: (reach: readonly Position[] | null) => void;
+  /** Vue isométrique : une direction se montre en croix de manette couchée dans le plan du plateau. */
+  iso?: boolean;
 }
 
 /** Durée pendant laquelle la bulle se replace après un changement : celle des transitions de vue. */
@@ -29,13 +31,52 @@ const ARROW_ROTATION = { down: 0, left: 90, up: 180, right: 270 } as const;
 /** Côté (px) de l'icône d'une ligne, et de la tête d'un monstre à choisir. */
 const ICON_SIZE = 32;
 
+/** Un bras de la croix, vers le haut du plateau (pointe vers les y négatifs) ; les autres s'en déduisent par rotation. */
+const DPAD_ARM = '-3.2,-3.2 -3.2,-8 0,-11.4 3.2,-8 3.2,-3.2';
+const DPAD_TURNS = { up: 0, right: 90, down: 180, left: 270 } as const;
+
+/**
+ * Croix de manette dans le plan du plateau isométrique (même projection que la vue : X = (col − ligne)/√2,
+ * Y = (col + ligne)/√6, agrandie pour tenir dans l'icône), le bras de la direction allumé : « vers le haut » se lit sur le
+ * plateau, pas sur l'écran.
+ */
+export function DirectionPad({ direction }: { direction: keyof typeof DPAD_TURNS }) {
+  return (
+    <svg className="bubble__dpad" viewBox="-14.5 -9 29 18" aria-hidden="true" focusable="false">
+      <g transform="matrix(0.955 0.551 -0.955 0.551 0 0)">
+        <rect x={-3.2} y={-3.2} width={6.4} height={6.4} fill="currentColor" opacity={0.25} />
+        {(Object.keys(DPAD_TURNS) as (keyof typeof DPAD_TURNS)[]).map((arm) => (
+          <polygon
+            key={arm}
+            className={arm === direction ? 'is-lit' : undefined}
+            points={DPAD_ARM}
+            transform={`rotate(${DPAD_TURNS[arm]})`}
+            fill="currentColor"
+            opacity={arm === direction ? 1 : 0.25}
+          />
+        ))}
+      </g>
+    </svg>
+  );
+}
+
 /** L'icône d'une ligne : la tête du monstre à choisir (cadrée comme son jeton), sinon le pictogramme de l'action. */
-function RowIcon({ row }: { row: BubbleRow }) {
+function RowIcon({ row, iso = false }: { row: BubbleRow; iso?: boolean }) {
   const art = row.portrait ? cardArtFor(row.portrait, false) : undefined;
   if (art) {
     return (
       <span className={`bubble__icon bubble__icon--portrait bubble__icon--${row.tone}`}>
         <span className="art-fit" style={{ background: fitBackground(art, tokenFit(art), ICON_SIZE) }} />
+      </span>
+    );
+  }
+  // En vue isométrique, une direction : la croix de manette couchée sur le plateau.
+  if (iso && row.arrow) {
+    return (
+      <span className={`bubble__icon bubble__icon--${row.tone}`}>
+        <span className="bubble__glyph">
+          <DirectionPad direction={row.arrow} />
+        </span>
       </span>
     );
   }
@@ -61,7 +102,7 @@ interface Offset {
   readonly bottom: number;
 }
 
-export function ActionBubble({ model, layoutKey, onPick, onBack, onClose, onHoverPath, onHoverReach }: ActionBubbleProps) {
+export function ActionBubble({ model, layoutKey, onPick, onBack, onClose, onHoverPath, onHoverReach, iso = false }: ActionBubbleProps) {
   const ref = useRef<HTMLDivElement>(null);
   const arrowRef = useRef<HTMLDivElement>(null);
   const offset = useRef<Offset | null>(null);
@@ -185,7 +226,7 @@ export function ActionBubble({ model, layoutKey, onPick, onBack, onClose, onHove
           onClick={() => row.enabled && onPick(row)}
           onMouseEnter={() => hover(row)}
         >
-          <RowIcon row={row} />
+          <RowIcon row={row} iso={iso} />
           <span className="bubble__text">
             <span className="bubble__title">{row.title}</span>
             <span className={`bubble__sub${!row.enabled && row.warn ? ' is-warn' : ''}`}>{row.subtitle}</span>

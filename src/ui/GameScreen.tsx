@@ -58,7 +58,9 @@ import { Legend } from './Legend';
 import { MAX_HEADROOM } from './overframes';
 import { togglePile } from './piles';
 import type { PileSelection } from './piles';
-import { ALL_TOKEN_STATS, loadSettings, prefersReducedMotion, saveSettings } from './settings';
+import { ALL_TOKEN_STATS, loadSettings, prefersReducedMotion, saveSettings, stepZoom } from './settings';
+import { zoomKey } from './zoomShortcuts';
+import type { ZoomShortcut } from './zoomShortcuts';
 import type { BoardView, DisplaySettings } from './settings';
 import { eventSounds } from './sfx/events';
 import { configureSound, sfx, unlockAudio } from './sfx/sound';
@@ -66,7 +68,14 @@ import { getSheet, sameSubject, subjectAt } from './sheet';
 import type { HoverSubject, SheetData } from './sheet';
 import type { LogEntry } from './log';
 import { TopBar } from './TopBar';
+import { timerDisplay } from './turnTimer';
+import type { ExternalClock, TimerDisplay } from './turnTimer';
+
+/** Le minuteur local finit lui-même le tour à 0:00 ; avec une horloge suivie, c'est le serveur. */
+const withTimeUp = (display: TimerDisplay | null, timeUp: () => void) => (display ? { ...display, ...(display.local ? { onTimeUp: timeUp } : {}) } : null);
 import { VictoryOverlay } from './VictoryOverlay';
+import { BoardLoadingScreen, useBoardLoading } from './BoardLoadingScreen';
+import type { BoardProgress } from './boardLoading';
 
 interface GameScreenProps {
   view: PlayerView;
@@ -75,12 +84,29 @@ interface GameScreenProps {
   log: readonly LogEntry[];
   onAction: (action: Action) => void;
   setup: Setup;
-  /** Rejouer avec les mêmes réglages. */
-  onRestart: () => void;
+  /** Rejouer avec les mêmes réglages ; absent (partie en ligne), l'écran de victoire ne le propose pas. */
+  onRestart?: () => void;
   /** Retour à l'accueil, pour régler une nouvelle partie. */
   onHome: () => void;
   /** Tour de l'IA : l'action suivante à jouer, appelée quand l'écran a fini d'animer la précédente. */
   autoPlay?: (() => void) | null;
+  /** Minuteur de tour (`setup.timer`) : le temps de réflexion du joueur est écoulé, son tour finit. */
+  onTimeUp?: () => void;
+  /**
+   * Horloge suivie (partie en ligne) : le minuteur affiche le temps que compte le serveur, pendant le tour de chacun, et
+   * ne finit pas le tour lui-même. Absente : le minuteur local de `setup.timer`, s'il y en a un.
+   */
+  clock?: ExternalClock | null;
+  /**
+   * Partie en ligne : l'écran a fini de montrer cette vue (animations comprises) ; le serveur arrête le chrono jusque-là.
+   */
+  onIdle?: (view: PlayerView) => void;
+  /** Partie en ligne : « Abandonner la partie » dans les options. */
+  onConcede?: () => void;
+  /** Bandeau sous la barre du haut (partie en ligne : connexion perdue, adversaire déconnecté, coup refusé). */
+  banner?: string | null;
+  /** Ce que demande « Nouvelle partie » avant de quitter une partie en cours (par défaut : l'abandonner). */
+  homeWarning?: string;
 }
 
 /**
@@ -132,6 +158,9 @@ function useHeight(ref: RefObject<HTMLElement | null>): number {
 /** Pause entre deux actions de l'IA, pour qu'on puisse les suivre. */
 const AI_PAUSE_MS = 450;
 
+/** Durée (ms) de la pastille du zoom après un raccourci. */
+const ZOOM_TOAST_MS = 1100;
+
 /**
  * La fiche suit un nouvel élément survolé après ce délai (tout de suite s'il n'y a pas encore de fiche) : on peut
  * traverser le plateau jusqu'à elle sans la perdre (lot 9).
@@ -140,7 +169,10 @@ const FOCUS_DELAY_MS = 100;
 
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-export function GameScreen({ view, before, log, onAction, setup, onRestart, onHome, autoPlay = null }: GameScreenProps) {
+export function GameScreen(props: GameScreenProps) {
+  const { view, before, log, onAction, setup, onRestart, onHome, autoPlay = null, onTimeUp, clock = null, onIdle, onConcede, banner = null, homeWarning } = props;
+  const onIdleRef = useRef(onIdle);
+  onIdleRef.current = onIdle;
   const [selection, setSelection] = useState<Selection>(NO_SELECTION);
   const [hover, setHover] = useState<{ subject: HoverSubject; rect: DOMRect } | null>(null);
   /** Ce que montre la fiche : le dernier élément survolé 100 ms, ou cliqué ; « Fin du tour » la vide. */
@@ -179,6 +211,10 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
 
   const busy = shown !== null;
   const display = shown ?? view;
+  // Écran de chargement : tant que le plateau n'est pas dessiné, rien ne se joue (animations, IA, minuteur).
+  const [boardProgress, setBoardProgress] = useState<BoardProgress | null>(null);
+  const loading = useBoardLoading(boardProgress);
+  const loaded = loading.done;
   // La vue isométrique n'existe que pour le Champ de bataille : ailleurs, elle se replie sur la vue inclinée. Sur le
   // 15 × 15, dessiné par PixiJS, c'est l'inverse : la vue inclinée n'y existe plus et revient à l'isométrique.
   const isoAvailable = isoScenery(display.board) !== null;
@@ -260,6 +296,22 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
 
   useEffect(() => configureSound({ enabled: settings.sound, volume: settings.volume }), [settings.sound, settings.volume]);
 
+  // Raccourcis du zoom (clavier, Ctrl ou ⌘ + molette sur le plateau) : le même réglage que le menu des options ; une
+  // pastille dit le zoom un instant, puisque le menu est fermé.
+  const [zoomToast, setZoomToast] = useState<{ id: number; zoom: number } | null>(null);
+  const zoomBy = (step: ZoomShortcut) => {
+    const next = step === 'reset' ? 1 : stepZoom(settings.zoom, step);
+    if (next !== settings.zoom) changeSettings({ zoom: next });
+    setZoomToast((current) => ({ id: (current?.id ?? 0) + 1, zoom: next }));
+  };
+  const zoomByRef = useRef(zoomBy);
+  zoomByRef.current = zoomBy;
+  useEffect(() => {
+    if (!zoomToast) return;
+    const timer = window.setTimeout(() => setZoomToast(null), ZOOM_TOAST_MS);
+    return () => window.clearTimeout(timer);
+  }, [zoomToast]);
+
   // L'AudioContext ne peut démarrer qu'après un geste de l'utilisateur (règle d'autoplay des navigateurs).
   useEffect(() => {
     document.addEventListener('pointerdown', unlockAudio);
@@ -312,6 +364,13 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
         setSelection(NO_SELECTION);
         setHelpOpen(false);
         setPile(null);
+        return;
+      }
+      // + et − : zoom du plateau ; 0 : taille ajustée.
+      const zoom = typing ? null : zoomKey(event);
+      if (zoom !== null) {
+        event.preventDefault();
+        zoomByRef.current(zoom);
         return;
       }
       if (!model || typing || event.altKey || event.ctrlKey || event.metaKey) return;
@@ -372,7 +431,8 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
 
   // Nouvelle vue : on rejoue ses événements depuis la vue d'avant, avant que l'écran ne soit peint.
   useLayoutEffect(() => {
-    if (played.current === view) return;
+    // Plateau encore en chargement : la lecture attend qu'il soit à l'écran.
+    if (!loaded || played.current === view) return;
     played.current = view;
     const root = rootRef.current;
     const layer = layerRef.current;
@@ -381,6 +441,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
     if (!animated || !before || !root || !layer || view.events.length === 0) {
       shownRef.current = null;
       setShown(null);
+      onIdleRef.current?.(view);
       // Sans animation, les sons de l'action s'enchaînent seuls.
       if (focusPos) void cameraRef.current?.focus(focusPos);
       if (before) {
@@ -431,6 +492,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
         if (!stopped) {
           shownRef.current = null;
           setShown(null);
+          onIdleRef.current?.(view);
         }
       }
     })();
@@ -440,19 +502,19 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
       played.current = null;
       cutDone?.();
     };
-    // Seule une nouvelle vue déclenche une lecture.
+    // Seule une nouvelle vue déclenche une lecture (ou la fin du chargement du plateau, une fois).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view]);
+  }, [view, loaded]);
 
   // Tour de l'IA : une action après chaque animation (ou chaque nouvelle vue, sans animation).
   const autoPlayRef = useRef(autoPlay);
   autoPlayRef.current = autoPlay;
   const aiTurn = autoPlay !== null;
   useEffect(() => {
-    if (!aiTurn || busy) return;
+    if (!aiTurn || busy || !loaded) return;
     const timer = window.setTimeout(() => autoPlayRef.current?.(), AI_PAUSE_MS);
     return () => window.clearTimeout(timer);
-  }, [aiTurn, busy, view]);
+  }, [aiTurn, busy, loaded, view]);
 
   const play = (action: Action) => {
     if (busy) return;
@@ -491,6 +553,16 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
     sfx('ui');
     focusNow(null);
     play({ type: 'endTurn' });
+  };
+  /** Temps de réflexion écoulé : ce qui était en cours (sélection, bulle) est annulé et le tour finit. */
+  const timeUp = () => {
+    if (busy || !myTurn) return;
+    sfx('ui');
+    focusNow(null);
+    setSelection(NO_SELECTION);
+    setHover((current) => (current?.subject.kind === 'card' ? null : current));
+    if (onTimeUp) onTimeUp();
+    else onAction({ type: 'endTurn' });
   };
   const handleCardClick = (cardId: CardId) => {
     focusNow({ kind: 'card', cardId });
@@ -556,7 +628,15 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
         }}
         onHome={onHome}
         animated={animated}
+        timer={withTimeUp(timerDisplay({ enabled: setup.timer === true, clock, myTurn, busy: busy || !loaded, turn: view.turn, over: view.winner !== null }), timeUp)}
+        onConcede={onConcede}
+        homeWarning={homeWarning}
       />
+      {banner && (
+        <div className="game__banner" role="status">
+          {banner}
+        </div>
+      )}
 
       <div className="game__zone">
         {/* Le plateau, sur toute la largeur ; l'aide flotte par-dessus, en haut (lot 13 §5). */}
@@ -584,7 +664,14 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
             onCellContextMenu={handleCellContextMenu}
             onCellHover={handleCellHover}
             hovered={hovered}
+            onProgress={setBoardProgress}
+            onZoomStep={(step) => zoomByRef.current(step)}
           />
+          {zoomToast && (
+            <div key={zoomToast.id} className="zoom-toast" role="status">
+              Zoom {Math.round(zoomToast.zoom * 100)} %
+            </div>
+          )}
           {helpOpen && <Legend onClose={() => setHelpOpen(false)} mode={view.mode} />}
           {zoneLegend && (
             <ZoneLegend
@@ -653,6 +740,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
           onClose={() => setSelection(NO_SELECTION)}
           onHoverPath={(hoverPath) => setBubblePath(hoverPath ? { selection: activeSelection, path: hoverPath } : null)}
           onHoverReach={(reach) => setBubbleReach(reach ? { selection: activeSelection, reach } : null)}
+          iso={mode === 'iso'}
         />
       )}
       {cutIn && <CutInOverlay key={cutIn.id} cutIn={cutIn.cutIn} target={cutIn.target} onDone={cutIn.done} />}
@@ -661,6 +749,7 @@ export function GameScreen({ view, before, log, onAction, setup, onRestart, onHo
       )}
       {!busy && <VictoryOverlay view={view} onRestart={onRestart} onHome={onHome} />}
       <div className="fx-stage" ref={layerRef} aria-hidden="true" />
+      <BoardLoadingScreen loading={loading} progress={boardProgress} boardName={view.board.name} animated={animated} />
     </div>
   );
 }

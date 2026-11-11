@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getLegalActions } from './actions';
-import { getCard } from './cards';
+import { CARDS, getCard } from './cards';
 import { IllegalActionError } from './errors';
 import { createGame } from './game';
 import { at, deepFreeze, gameWith } from './test-utils';
@@ -68,7 +68,7 @@ describe('sorts (SPEC.md §4.3, §6)', () => {
       ),
     );
     const snapshot = structuredClone(state);
-    const actions = getLegalActions(state).filter((a) => a.type === 'playCard' && getCard(a.cardId).kind === 'spell');
+    const actions = getLegalActions(state).filter((a) => a.type === 'playCard' && getCard(CARDS, a.cardId).kind === 'spell');
     expect(actions.length).toBeGreaterThan(0);
     for (const action of actions) expect(() => applyAction(state, action)).not.toThrow();
     expect(state).toEqual(snapshot);
@@ -76,25 +76,27 @@ describe('sorts (SPEC.md §4.3, §6)', () => {
 });
 
 describe('Boule de feu', () => {
-  it('inflige 2 dégâts à un monstre ennemi à 3 pas d’un de mes monstres, en L et sans ligne de vue (§10)', () => {
-    // (4,3) → (3,5) : 1 + 2 = 3 pas, avec les X (3,4) et (4,4) entre les deux.
+  // Boule de feu (2026-11-10) : 1 dégât à un ennemi dans le carré de 3 d'une de ses unités, monstre ou terrain ; falaises
+  // et cases X coupent le carré (§5.1).
+  it('inflige 1 dégât à un monstre ennemi dans le carré de 3 d’un de mes monstres, diagonales comprises, sans ligne de vue', () => {
     const state = gameWith(
       [
-        { monster: 'milicien', owner: 1, at: at(4, 3) },
-        { monster: 'golem', owner: 2, at: at(3, 5) },
+        { monster: 'milicien', owner: 1, at: at(8, 1) },
+        { monster: 'golem', owner: 2, at: at(5, 3) }, // 3 rangées plus haut, 2 colonnes à droite
+        { monster: 'chevalier', owner: 2, at: at(6, 1) }, // devant lui, derrière rien : la ligne de vue ne compte pas
       ],
       MANA,
     );
     const after = applyAction(state, cast('boule-de-feu', 'u2'));
-    expect(after.units.u2?.hp).toBe(5);
+    expect(after.units.u2?.hp).toBe(6);
     expect(after.players[1].mana).toBe(8);
   });
 
-  it('refusée au-delà de 3 pas de tous mes monstres', () => {
+  it('refusée au-delà du carré de 3 de toutes mes unités', () => {
     const state = gameWith(
       [
         { monster: 'milicien', owner: 1, at: at(8, 1) },
-        { monster: 'golem', owner: 2, at: at(6, 3) }, // 2 + 2 = 4 pas
+        { monster: 'golem', owner: 2, at: at(4, 1) }, // 4 rangées plus haut
       ],
       MANA,
     );
@@ -102,16 +104,16 @@ describe('Boule de feu', () => {
     expect(() => applyAction(state, cast('boule-de-feu', 'u2'))).toThrow(IllegalActionError);
   });
 
-  it('la distance se mesure depuis n’importe lequel de mes monstres', () => {
+  it('depuis n’importe laquelle de mes unités, un terrain compris', () => {
     const state = gameWith(
       [
-        { monster: 'milicien', owner: 1, at: at(8, 1) },
-        { monster: 'archer', owner: 1, at: at(2, 2) },
-        { monster: 'golem', owner: 2, at: at(1, 4) }, // loin du Milicien, à 1 + 2 = 3 pas de l'Archer
+        { monster: 'milicien', owner: 1, at: at(1, 8) },
+        { terrain: 'bastion', owner: 1, at: at(5, 4) },
+        { monster: 'golem', owner: 2, at: at(8, 3) }, // loin du Milicien, à 3 cases du Bastion
       ],
       MANA,
     );
-    expect(applyAction(state, cast('boule-de-feu', 'u3')).units.u3?.hp).toBe(5);
+    expect(applyAction(state, cast('boule-de-feu', 'u3')).units.u3?.hp).toBe(6);
   });
 
   it('ne vise ni un allié ni un terrain', () => {

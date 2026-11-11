@@ -79,12 +79,26 @@ type FxUpdate = (t: number) => void;
 
 /** Le décor construit pour un plateau : ses éléments, son ambiance et son nettoyage. */
 interface BuiltDecor {
+  /** Le sol dessiné : le vert uni d'attente, celui du plateau seul, ou celui du monde. */
+  readonly ground: DrawnProgress['ground'];
   readonly uprights: readonly Upright[];
   readonly hiding: Map<string, string[]>;
   readonly fx: readonly FxUpdate[];
   readonly groundFx: BuiltScene | null;
   readonly animated: boolean;
   readonly destroy: () => void;
+}
+
+/** Les images de sprites d'un décor placé : chaque sprite, et les ailes de ses moulins. */
+export function spriteImages(placed: readonly PlacedSprite[]): string[] {
+  return [...new Set(placed.flatMap((sprite) => [sprite.id, ...(SPRITE_FX[sprite.id]?.sails ? [SPRITE_FX[sprite.id]!.sails!.image] : [])]))];
+}
+
+/** Ce que le plateau a déjà dessiné, pour l'écran de chargement (`BoardProgress` sans le moteur). */
+export interface DrawnProgress {
+  readonly ground: 'none' | 'board' | 'world';
+  /** Cases et unités dessinées, illustrations des jetons comprises. */
+  readonly pieces: boolean;
 }
 
 export class BoardRenderer {
@@ -117,6 +131,11 @@ export class BoardRenderer {
   private fontsReady = false;
   private pendingCells: CellInputs | null = null;
   private pendingUnits: (TokenInputs & { readonly animated: boolean; readonly anchor: Position | null }) | null = null;
+  /** Les unités ont été dessinées au moins une fois. */
+  private unitsDrawn = false;
+  /** Écoute de ce qui est dessiné (écran de chargement), et le dernier état rapporté. */
+  private progressListener: ((progress: DrawnProgress) => void) | null = null;
+  private reported = '';
   /** Dernières entrées des cases (lues par les essais en dev, `window.__pixiBoard`). */
   lastCells: CellInputs | null = null;
   private camera: Pick<IsoCamera, 'k' | 'width' | 'centerY' | 'standScale'> | null = null;
@@ -183,8 +202,33 @@ export class BoardRenderer {
     this.pendingUnits = null;
     const { tokens, terrains } = unitVisuals(inputs);
     this.units.setUnits(tokens, terrains, inputs.animated);
+    this.unitsDrawn = true;
     if (this.camera) this.units.layout(this.camera, this.plan);
     this.requestRender();
+  }
+
+  /** Ce qui est dessiné : le sol peint (plateau seul ou monde) et les pièces (cases, unités et leurs illustrations). */
+  progress(): DrawnProgress {
+    return {
+      ground: this.decor?.ground ?? 'none',
+      pieces: this.fontsReady && this.lastCells !== null && this.unitsDrawn && !this.units.artsPending,
+    };
+  }
+
+  /** Prévient `listener` à chaque changement de ce qui est dessiné (après l'image qui le montre), et tout de suite. */
+  onProgress(listener: ((progress: DrawnProgress) => void) | null): void {
+    this.progressListener = listener;
+    this.reported = '';
+    this.reportProgress();
+  }
+
+  private reportProgress(): void {
+    if (!this.progressListener) return;
+    const progress = this.progress();
+    const key = `${progress.ground}|${progress.pieces}`;
+    if (key === this.reported) return;
+    this.reported = key;
+    this.progressListener(progress);
   }
 
   /** Case survolée (« ligne,colonne ») : son jeton grossit (pas sous la bulle d'action). */
@@ -273,6 +317,7 @@ export class BoardRenderer {
 
   destroy(): void {
     this.destroyed = true;
+    this.progressListener = null;
     if (this.raf) cancelAnimationFrame(this.raf);
     this.decor?.destroy();
     this.decor = null;
@@ -338,6 +383,7 @@ export class BoardRenderer {
   private renderNow(): void {
     if (this.destroyed) return;
     this.app.render();
+    this.reportProgress();
   }
 
   private readonly frame = (now: number): void => {
@@ -362,6 +408,7 @@ export class BoardRenderer {
     if (this.dirty || fading || growing) {
       this.dirty = false;
       this.app.render();
+      this.reportProgress();
     }
     if (animated || fading || growing) this.raf = requestAnimationFrame(this.frame);
   };
@@ -434,7 +481,7 @@ export class BoardRenderer {
     // Images d'abord (la scène se construit ensuite d'un bloc) : le sol et chaque sprite utilisé.
     const groundUrl = showWorld ? input.world : input.ground;
     const groundImage = groundUrl ? await loadImage(groundUrl).catch(() => null) : null;
-    const ids = [...new Set(placed.flatMap((sprite) => [sprite.id, ...(SPRITE_FX[sprite.id]?.sails ? [SPRITE_FX[sprite.id]!.sails!.image] : [])]))];
+    const ids = spriteImages(placed);
     const spriteTextures = new Map<string, Texture>();
     await Promise.all(
       ids.map(async (id) => {
@@ -559,6 +606,7 @@ export class BoardRenderer {
 
     const hiding = spritesHiding(placed, data.plan, board.rows, board.cols, flipped, 'iso', depthOf);
     return {
+      ground: groundImage ? (showWorld ? 'world' : 'board') : 'none',
       uprights,
       hiding,
       fx,

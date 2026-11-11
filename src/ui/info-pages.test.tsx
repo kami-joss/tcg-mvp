@@ -12,6 +12,7 @@ import { GLOSSARY } from './rulesText';
 import type { GlossaryTerm } from './rulesText';
 import { DEFAULT_SETUP } from './session';
 import { cardSheetOf } from './sheet';
+import { CARDS } from '../engine';
 
 // Pages de consultation, ouvertes depuis l'accueil : la composition des decks (`/decks`) et les règles (`/regles`).
 
@@ -37,6 +38,7 @@ describe('adresses des pages de consultation', () => {
     const html = renderToStaticMarkup(<HomeScreen initial={DEFAULT_SETUP} onStart={() => {}} />);
     expect(html).toContain('Voir les decks');
     expect(html).toContain('Règles du jeu');
+    expect(html).toContain('Barèmes');
   });
 });
 
@@ -47,7 +49,7 @@ describe('composition des decks', () => {
       expect(sections.reduce((sum, s) => sum + s.total, 0)).toBe(deck.cards.length);
       for (const section of sections) {
         for (const { cardId, count } of section.cards) {
-          expect(getCard(cardId).kind).toBe(section.kind);
+          expect(getCard(CARDS, cardId).kind).toBe(section.kind);
           expect(count).toBe(deck.cards.filter((id) => id === cardId).length);
         }
       }
@@ -56,8 +58,8 @@ describe('composition des decks', () => {
 
   it('résumé : nombre de cartes, courbe de mana, archétype', () => {
     const summary = deckSummary(archers);
-    expect(summary.total).toBe(26);
-    expect(summary.curve.reduce((a, b) => a + b, 0)).toBe(26);
+    expect(summary.total).toBe(30);
+    expect(summary.curve.reduce((a, b) => a + b, 0)).toBe(30);
     expect(summary.archetype).toBe('Archers impériaux');
     expect(deckSummary(DECKS[0]!).archetype).toBeNull();
   });
@@ -65,17 +67,17 @@ describe('composition des decks', () => {
   it('la page montre le deck, ses cartes avec leurs exemplaires, et la fiche de la première carte', () => {
     const html = renderToStaticMarkup(<DecksScreen initial={archers} onDeck={() => {}} onNavigate={() => {}} />);
     for (const deck of DECKS) expect(html).toContain(`>${deck.name}<`);
-    expect(html).toContain('26 cartes');
+    expect(html).toContain('30 cartes');
     expect(html).toContain('×3');
     expect(html).toContain('Écuyer');
     expect(html).toContain('class="sheet');
   });
 
   it('fiche d’une carte hors partie : sans ligne pour la jouer', () => {
-    const sheet = cardSheetOf('ecuyer-archers');
+    const sheet = cardSheetOf(CARDS, 'ecuyer-archers');
     expect(sheet.lines).toEqual([]);
     expect(sheet.stats.map((s) => s.label)).toEqual(['ATK', 'PV', 'Mobilité', 'Portée']);
-    expect(cardSheetOf('ecuyer-archers', true).shiny).toBe(true);
+    expect(cardSheetOf(CARDS, 'ecuyer-archers', true).shiny).toBe(true);
   });
 });
 

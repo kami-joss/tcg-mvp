@@ -7,14 +7,16 @@ import { CARD_ART, CARD_ART_SHINY, cardArtFor } from './art';
 import { Grimoire } from './Grimoire';
 import { HoverSheet, SHEET_SCALE, SheetPreview, overframeFit, sheetPlacement } from './HoverSheet';
 import { POP_FADE, RISE, popMask } from './Overframe';
+import kit from '../assets/overframe/overframes.json';
 import { MAX_HEADROOM, OVERFRAMES, PARTICLES, breathOrigin, hasShinyImages, overframeLook, overframeUrl } from './overframes';
+import type { OverframeDef } from './overframes';
 import { getSheet } from './sheet';
 
 // Overframes et exemplaires brillants (handoff overframe v1 et v2, handoff V11 lot 12 §4).
 
 const glace = OVERFRAMES['archer-de-glace']!;
-/** L'entrée `archer_feu` du kit : c'est l'Feria - Sorciers du feu. */
-const feu = OVERFRAMES.apprenti!;
+/** L'entrée `archer_feu` du kit : l'ancienne Feria, qui n'a plus d'overframe depuis sa nouvelle illustration (2026-11-09). */
+const feu = (kit as unknown as Readonly<Record<string, OverframeDef>>).archer_feu!;
 const chrono = OVERFRAMES.chronomancienne!;
 const maitre = OVERFRAMES['maitre-du-temps']!;
 
@@ -24,9 +26,10 @@ const cardSheet = (cardId: CardId, shiny: CardId[] = []) =>
   getSheet(getPlayerView(withGrimoire([cardId, 'chevalier'], shiny), 1), { kind: 'card', cardId })!;
 
 describe('données des overframes', () => {
-  it('Archer de glace, Feria - Sorciers du feu, Chronomancienne, Maître du temps ; l’Archer du feu n’en a pas', () => {
+  it('Archer de glace, Chronomancienne, Maître du temps (et l’entrée du kit de l’ancienne Feria) ; ni l’Archer du feu ni Feria n’en ont', () => {
     expect([glace, feu, chrono, maitre].map((def) => def.headroom)).toEqual([118, 152, 186, 162]);
     expect(OVERFRAMES['archer-du-feu']).toBeUndefined();
+    expect(OVERFRAMES.apprenti).toBeUndefined();
     expect(feu.parts.map((part) => part.anim)).toEqual(['swayL', 'swayR', 'blink']);
     expect(chrono.parts.map((part) => part.anim)).toEqual(['hairWind', 'blink']);
     expect(maitre.parts.map((part) => part.anim)).toEqual(['hairWind', 'blink']);
@@ -83,9 +86,10 @@ describe('données des overframes', () => {
     for (const particle of gold) expect(parseFloat(String(particle.style['--dy' as keyof typeof particle.style]))).toBeLessThan(0);
   });
 
-  it('illustrations : l’Archer du feu retrouve la sienne ; l’Feria - Sorciers du feu a sa version brillante', () => {
+  it('illustrations : l’Archer du feu retrouve la sienne ; Feria n’a plus de version brillante propre (shiny générique)', () => {
     expect(CARD_ART['archer-du-feu']).toMatchObject({ w: 572, h: 1024, eye: [50, 14.1], face: 25 });
-    expect(cardArtFor('apprenti', true)!.src).toBe(CARD_ART_SHINY.apprenti);
+    expect(CARD_ART_SHINY.apprenti).toBeUndefined();
+    expect(cardArtFor('apprenti', true)).toBe(CARD_ART.apprenti);
     expect(CARD_ART_SHINY['archer-du-feu']).toBeUndefined();
     expect(cardArtFor('archer-de-glace', true)!.src).toBe(CARD_ART_SHINY['archer-de-glace']);
     expect(cardArtFor('archer-de-glace', false)!.src).toBe(CARD_ART['archer-de-glace']!.src);
@@ -94,17 +98,16 @@ describe('données des overframes', () => {
 });
 
 describe('fiche à overframe', () => {
-  it('scène : débordement réservé, cadre, pop et pièces, bouts, lueur extérieure, particules devant et derrière', () => {
-    const html = renderToStaticMarkup(<HoverSheet sheet={cardSheet('apprenti')} animated onOpen={() => {}} />);
+  it('scène : débordement réservé, cadre, pop et pièces, lueur extérieure, particules devant et derrière', () => {
+    const html = renderToStaticMarkup(<HoverSheet sheet={cardSheet('chronomancienne')} animated onOpen={() => {}} />);
     expect(html).toContain('class="of of--anim of--clickable"');
-    expect(html).toContain('padding-top:calc(152px * var(--sheet-k, 1))');
+    expect(html).toContain('padding-top:calc(186px * var(--sheet-k, 1))');
     expect(html).toContain('sheet--of');
     expect(html).not.toContain('sheet--shiny');
-    expect(html.match(/of__part of__part--/g)).toHaveLength(3);
-    expect(html).toContain('of__sides');
+    expect(html.match(/of__part of__part--/g)).toHaveLength(2);
     expect(html).toContain('of__glow of__glow--outside');
-    expect(html.match(/of__particle/g)).toHaveLength(20);
-    expect(html).toContain('feu2_pop.png');
+    expect(html).toMatch(/of__particle/);
+    expect(html).toContain('chrono_pop.png');
     expect(html).not.toContain('_shiny');
   });
 
@@ -221,10 +224,10 @@ describe('fiche à overframe', () => {
   });
 
   it('aperçu plein écran : centré, à l’échelle de la fenêtre (1,8 au plus)', () => {
-    const html = renderToStaticMarkup(<SheetPreview sheet={cardSheet('apprenti')} animated={false} onClose={() => {}} />);
-    // Fenêtre de 900 px par défaut hors navigateur : (900 − 80) / (498 + 152), pour la fiche entière à 1,3 ; même
+    const html = renderToStaticMarkup(<SheetPreview sheet={cardSheet('maitre-du-temps')} animated={false} onClose={() => {}} />);
+    // Fenêtre de 900 px par défaut hors navigateur : (900 − 80) / (498 + 162), pour la fiche entière à 1,3 ; même
     // mise en page que dans la colonne.
-    expect(html).toContain('transform:translate(-50%, -50%) scale(0.970);--sheet-k:1.3');
+    expect(html).toContain('transform:translate(-50%, -50%) scale(0.956);--sheet-k:1.3');
     expect(html).toContain('sheet-preview__backdrop');
   });
 });

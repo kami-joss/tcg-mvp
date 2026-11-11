@@ -1,9 +1,8 @@
 // Mise à jour immuable de l'état d'un joueur.
 import { getCard } from './cards';
-import { RESERVE_LIMIT_PER_TERRAIN, RESERVE_MANA_LIMIT, VICTORY_VP } from './config';
+import { VICTORY_VP } from './config';
 import { emit } from './events';
-import type { CardCopy, CardId, GameState, PlayerId, PlayerState, Position, Unit } from './types';
-import type { Economy } from './types';
+import type { CardCopy, CardId, GameState, ManaRules, PlayerId, PlayerState, Position, Unit } from './types';
 
 export function opponent(player: PlayerId): PlayerId {
   return player === 1 ? 2 : 1;
@@ -13,41 +12,39 @@ export function updatePlayer(state: GameState, id: PlayerId, patch: Partial<Omit
   return { ...state, players: { ...state.players, [id]: { ...state.players[id], ...patch } } };
 }
 
-/** Ajoute des VP. Le premier joueur à atteindre `VICTORY_VP` gagne immédiatement (SPEC.md §4.10). */
+/**
+ * VP pour gagner de la partie (§4.10, choisis à l'accueil) ; `VICTORY_VP` pour une partie gardée d'avant ce réglage (une
+ * partie en ligne reprise après une mise à jour).
+ */
+export function getVictoryVp(state: { readonly victoryVp?: number }): number {
+  return state.victoryVp ?? VICTORY_VP;
+}
+
+/** Ajoute des VP. Le premier joueur à atteindre les VP de la partie gagne immédiatement (SPEC.md §4.10). */
 export function addVp(state: GameState, id: PlayerId, amount: number, pos: Position | null = null): GameState {
   if (amount === 0) return state;
   const vp = state.players[id].vp + amount;
   const next = updatePlayer(emit(state, { type: 'vp', player: id, amount, pos }), id, { vp });
-  return next.winner === null && vp >= VICTORY_VP ? { ...next, winner: id } : next;
+  return next.winner === null && vp >= getVictoryVp(next) ? { ...next, winner: id } : next;
 }
 
 /**
- * Limite de la réserve de mana (économie « Réserve ») : 10, plus 1 par terrain du joueur sur le plateau ; `null` en
- * économie classique (pas de limite).
+ * Limite du mana (SPEC.md §4.2, §10) : le mana qu'un joueur peut avoir au total, réglée à l'accueil (10 par défaut), la
+ * même dans les deux économies ; les terrains ne la changent pas.
  */
-export function getManaLimit(state: { readonly economy: Economy; readonly units: GameState['units'] }, id: PlayerId): number | null {
-  if (state.economy !== 'reserve') return null;
-  const terrains = Object.values(state.units).filter((unit) => unit.kind === 'terrain' && unit.owner === id).length;
-  return RESERVE_MANA_LIMIT + RESERVE_LIMIT_PER_TERRAIN * terrains;
+export function getManaLimit(state: { readonly manaRules: ManaRules }): number {
+  return state.manaRules.limit;
 }
 
 /**
- * Ajoute (ou retire, si négatif) du mana. Économie « Réserve » : un gain s'arrête à la limite (revenus comme gains en
- * cours de tour, validé le 2026-11-08).
+ * Ajoute (ou retire, si négatif) du mana. Un gain s'arrête à la limite (revenus du début de tour comme gains en cours de
+ * tour, le surplus est perdu, validé le 2026-11-08) ; une dépense n'est pas touchée.
  */
 export function addMana(state: GameState, id: PlayerId, amount: number, pos: Position | null = null): GameState {
-  const limit = getManaLimit(state, id);
   const mana = state.players[id].mana;
-  const gain = amount > 0 && limit !== null ? Math.min(amount, Math.max(0, limit - mana)) : amount;
+  const gain = amount > 0 ? Math.min(amount, Math.max(0, getManaLimit(state) - mana)) : amount;
   if (gain === 0) return state;
   return updatePlayer(emit(state, { type: 'mana', player: id, amount: gain, pos }), id, { mana: mana + gain });
-}
-
-/** Économie « Réserve » : la réserve qui dépasse la limite (un terrain détruit l'a baissée) y est ramenée tout de suite. */
-export function clampMana(state: GameState, id: PlayerId): GameState {
-  const limit = getManaLimit(state, id);
-  const mana = state.players[id].mana;
-  return limit !== null && mana > limit ? addMana(state, id, limit - mana) : state;
 }
 
 /** Sans le premier `cardId` de la liste. */
@@ -68,7 +65,7 @@ export function isShinyCopy(state: GameState, id: PlayerId, cardId: CardId): boo
  */
 export function takeFromGrimoire(state: GameState, cardId: CardId): GameState {
   const player = state.players[state.activePlayer];
-  const spell = getCard(cardId).kind === 'spell';
+  const spell = getCard(state.cards, cardId).kind === 'spell';
   const shiny = player.shiny?.includes(cardId) ?? false;
   const copy: CardCopy = shiny && !spell ? { cardId, shiny: true } : { cardId };
   return updatePlayer(state, player.id, {

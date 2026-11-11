@@ -11,6 +11,7 @@ import { clickCell, getHighlights, posKey } from './interaction';
 import type { Selection } from './interaction';
 import { describeAction } from './log';
 import { getSheet } from './sheet';
+import { CARDS } from '../engine';
 
 // Interface d'Origine (aura +1 ATK +1 PV +1 mobilité) et de Pénombre (sort sans choix de cible), SPEC.md §6 bis.
 
@@ -36,8 +37,8 @@ const renderBoard = (state: GameState) =>
 
 describe('Origine - Dragons élémentaires (plus dans aucun deck, données gardées)', () => {
   it('texte : Vol ; aura sur les dragons élémentaires alliés de son carré de 1', () => {
-    expect(cardEffectLine(getCard('dragon-origine'))).toBe('Vol ; Aura · dragons élémentaires alliés, carré de 1 · +1 ATK +1 PV +1 mobilité');
-    expect(describeCard(getCard('dragon-origine'))[1]).toBe('Archétype Dragons élémentaires.');
+    expect(cardEffectLine(CARDS, getCard(CARDS, 'dragon-origine'))).toBe('Vol ; Aura · dragons élémentaires alliés, carré de 1 · +1 ATK +1 PV +1 mobilité');
+    expect(describeCard(CARDS, getCard(CARDS, 'dragon-origine'))[1]).toBe('Archétype Dragons élémentaires.');
   });
 
   it('fiche et animation : le dragon de son carré de 1 gagne 1 PV, la puce dit d’où vient le bonus', () => {
@@ -70,7 +71,7 @@ describe('Pénombre', () => {
   const selection: Selection = { kind: 'card', cardId: 'penombre' };
 
   it('texte de la carte', () => {
-    expect(describeCard(getCard('penombre'))).toEqual(['Tous les maîtres des pièges alliés · camouflage pendant 1 tour']);
+    expect(describeCard(CARDS, getCard(CARDS, 'penombre'))).toEqual(['Tous les maîtres des pièges alliés · camouflage pendant 1 tour']);
   });
 
   it('sans cible à choisir : ses monstres piège en doré, un clic sur l’un d’eux la lance', () => {

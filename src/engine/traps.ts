@@ -10,7 +10,7 @@ import { dealDamage } from './damage';
 import { emit } from './events';
 import { addStatus } from './statuses';
 import { getUnitsAt, setUnit } from './units';
-import type { GameState, PlayerId, Position, TerrainPassage, TrapEffect, Unit, UnitId } from './types';
+import type { BoardState, CardSet, GameState, PlayerId, Position, TerrainPassage, TrapEffect, Unit, UnitId } from './types';
 
 /**
  * Un mouvement : un déplacement, un recul, une avancée, une invocation ou une téléportation (§10). `passages` : les
@@ -51,16 +51,16 @@ function applyEnterEffects(state: GameState, unitId: UnitId, effects: readonly T
 }
 
 /** L'effet « Passage » d'une unité (terrain ou monstre), s'il en a un. */
-export function getPassage(unit: Unit): TerrainPassage | null {
-  const card = getCard(unit.cardId);
+export function getPassage(cards: CardSet, unit: Unit): TerrainPassage | null {
+  const card = getCard(cards, unit.cardId);
   return card.kind === 'spell' ? null : card.passage;
 }
 
 /** Unités ennemies « Passage » dont la zone (le carré de 1, falaises comprises, §10) contient la case du monstre. */
-export function getPassageSources(state: Pick<GameState, 'board' | 'units'>, monster: Unit): (Unit & { passage: TerrainPassage })[] {
+export function getPassageSources(state: BoardState, monster: Unit): (Unit & { passage: TerrainPassage })[] {
   return Object.values(state.units).flatMap((unit) => {
     if (unit.owner === monster.owner || unit.id === monster.id) return [];
-    const passage = getPassage(unit);
+    const passage = getPassage(state.cards, unit);
     return passage && isInSquare(state.board, unit.pos, monster.pos) ? [{ ...unit, passage }] : [];
   });
 }
@@ -78,7 +78,7 @@ function sweepZone(state: GameState, sourceId: UnitId, targetIds: readonly UnitI
   for (const id of targetIds) {
     const source = next.units[sourceId];
     const target = next.units[id];
-    const passage = source && getPassage(source);
+    const passage = source && getPassage(state.cards, source);
     if (!source || !passage || target?.kind !== 'monster') continue;
     next = emit(next, { type: 'passage', sourceId, unitId: id, pos: target.pos });
     next = applyEnterEffects(next, id, passage.effects, source.owner, false);
@@ -91,7 +91,7 @@ export function sweepZonesAtTurnStart(state: GameState, player: PlayerId): GameS
   let next = state;
   for (const source of Object.values(state.units)) {
     const current = next.units[source.id];
-    if (!current || current.owner !== player || current.kind !== 'monster' || !getPassage(current)?.lingering) continue;
+    if (!current || current.owner !== player || current.kind !== 'monster' || !getPassage(state.cards, current)?.lingering) continue;
     next = sweepZone(next, current.id, getZoneEnemies(next, current).map((enemy) => enemy.id));
   }
   return next;
@@ -145,7 +145,7 @@ export function enterCell(state: GameState, unitId: UnitId, movement: Movement =
   // Sa propre zone, sur les ennemis qu'il vient d'approcher : une fois chacun par mouvement.
   let swept = movement.swept;
   const self = next.units[unitId];
-  if (self?.kind === 'monster' && getPassage(self)?.lingering) {
+  if (self?.kind === 'monster' && getPassage(state.cards, self)?.lingering) {
     const approached = getZoneEnemies(next, self).filter(
       (enemy) => !swept.includes(enemy.id) && !(from && isInSquare(next.board, from, enemy.pos)),
     );

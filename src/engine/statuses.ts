@@ -5,7 +5,7 @@ import { getMonsterCard } from './cards';
 import { REQUIEM_TURNS } from './config';
 import { emit } from './events';
 import { setUnit, statTotal } from './units';
-import type { GameState, MonsterUnit, PlayerId, Status, StatusKind, StatusSpec, Unit, UnitId } from './types';
+import type { CardSet, GameState, MonsterUnit, PlayerId, Status, StatusKind, StatusSpec, Unit, UnitId } from './types';
 
 export function hasStatus(unit: Unit, kind: StatusKind): boolean {
   return unit.statuses.some((status) => status.kind === kind);
@@ -42,6 +42,31 @@ export const isDisarmed = (unit: Unit) => hasStatus(unit, 'desarme');
 export const isSilenced = (unit: Unit) => hasStatus(unit, 'silence');
 
 /** Le monstre peut se déplacer : ni stun, ni immobilisé. */
+/**
+ * Malus (§5 bis) : burn, slow, immobilisé, absorbé, stun, stat −X, silence, désarmé, requiem. Les autres statuts sont
+ * des bonus.
+ */
+export function isMalus(status: StatusSpec): boolean {
+  switch (status.kind) {
+    case 'burn':
+    case 'slow':
+    case 'immobilise':
+    case 'absorbe':
+    case 'stun':
+    case 'silence':
+    case 'desarme':
+    case 'requiem':
+      return true;
+    case 'stat':
+      return status.amount < 0;
+    default:
+      return false;
+  }
+}
+
+/** Carapace (§5 bis) : ses PV ne descendent pas sous 1, quels que soient les dégâts. */
+export const hasCarapace = (unit: Unit) => hasStatus(unit, 'carapace');
+
 export const canMove = (monster: MonsterUnit) => !isStunned(monster) && !hasStatus(monster, 'immobilise');
 
 /** Numéro du prochain tour du camp `owner`, vu depuis le tour `turn` où `active` joue. */
@@ -91,7 +116,8 @@ export function addStatus(state: GameState, unitId: UnitId, posed: StatusSpec): 
   const spec = normalStatus(posed);
   const unit = state.units[unitId];
   const { kind } = spec;
-  if (!unit || (unit.kind === 'terrain' && kind !== 'burn')) return state;
+  // Sur un terrain, seuls burn et carapace (Fortification) s'appliquent (§5 bis).
+  if (!unit || (unit.kind === 'terrain' && kind !== 'burn' && kind !== 'carapace')) return state;
   const expiresAtTurn =
     spec.kind === 'requiem'
       ? requiemTurn(REQUIEM_TURNS, state.turn, state.activePlayer, unit.owner)
@@ -102,9 +128,13 @@ export function addStatus(state: GameState, unitId: UnitId, posed: StatusSpec): 
   let updated: Unit = { ...unit, statuses: [...unit.statuses, status] };
   if (updated.kind === 'monster') {
     const mine = unit.owner === state.activePlayer;
-    if (kind === 'stun' || kind === 'immobilise') updated = { ...updated, mobilityLeft: 0 };
+    // La mobilité qu'un malus lui prend pendant son tour est notée : retirer ses malus la lui rend (Cure).
+    const before = updated;
+    const taken = (left: number) => (mine ? { mobilityTaken: (before.mobilityTaken ?? 0) + before.mobilityLeft - left } : {});
+    if (kind === 'stun' || kind === 'immobilise') updated = { ...updated, ...taken(0), mobilityLeft: 0 };
     else if (spec.kind === 'slow' && mine) {
-      updated = { ...updated, mobilityLeft: Math.max(0, updated.mobilityLeft - spec.amount), froze: updated.froze + spec.amount };
+      const mobilityLeft = Math.max(0, updated.mobilityLeft - spec.amount);
+      updated = { ...updated, ...taken(mobilityLeft), mobilityLeft, froze: updated.froze + spec.amount };
     } else if (spec.kind === 'stat' && spec.stat === 'mobility' && mine) {
       // Mobilité +X pendant son tour : elle compte aussitôt (un malus de mobilité est un slow, `normalStatus`).
       updated = { ...updated, mobilityLeft: updated.mobilityLeft + spec.amount, boost: updated.boost + spec.amount };
@@ -118,48 +148,94 @@ export function addStatus(state: GameState, unitId: UnitId, posed: StatusSpec): 
   return setUnit(emit(state, { type: 'status', unitId, pos: unit.pos, status }), updated);
 }
 
-/** Début du tour `turn` : les statuts arrivés à échéance disparaissent, pour toutes les unités. */
-export function expireStatuses(state: GameState, turn: number): GameState {
+/**
+ * Début du tour `turn` : les statuts arrivés à échéance disparaissent, pour toutes les unités. `keepCarapace` : la
+ * carapace reste encore le temps des statuts du début de tour (burn), puis un second appel la retire (§5 bis, §10).
+ */
+export function expireStatuses(state: GameState, turn: number, keepCarapace = false): GameState {
   let next = state;
   for (const unit of Object.values(state.units)) {
-    const statuses = unit.statuses.filter((status) => status.expiresAtTurn > turn);
+    const statuses = unit.statuses.filter((status) => status.expiresAtTurn > turn || (keepCarapace && status.kind === 'carapace'));
     if (statuses.length === unit.statuses.length) continue;
     let updated: Unit = { ...unit, statuses };
     if (updated.kind === 'monster') {
       // PV max +X / −X qui prend fin : les PV max reviennent, les PV sont plafonnés (sans jamais tuer).
-      const lost = unit.statuses.filter((s) => s.expiresAtTurn <= turn && s.kind === 'stat' && s.stat === 'maxHp');
-      for (const status of lost) {
-        const given = status.kind === 'stat' ? (status.applied ?? status.amount) : 0;
-        const maxHp = Math.max(1, updated.maxHp - given);
-        updated = { ...updated, maxHp, hp: Math.max(1, Math.min(updated.hp, maxHp)) };
-      }
+      updated = withoutMaxHpStatuses(updated, unit.statuses.filter((s) => !statuses.includes(s)));
     }
     next = setUnit(next, updated);
   }
   return next;
 }
 
+/** PV max +X / −X qui prennent fin (`gone`) : les PV max reviennent, les PV sont plafonnés (sans jamais tuer). */
+function withoutMaxHpStatuses(monster: MonsterUnit, gone: readonly Status[]): MonsterUnit {
+  let updated = monster;
+  for (const status of gone) {
+    if (status.kind !== 'stat' || status.stat !== 'maxHp') continue;
+    const maxHp = Math.max(1, updated.maxHp - (status.applied ?? status.amount));
+    updated = { ...updated, maxHp, hp: Math.max(1, Math.min(updated.hp, maxHp)) };
+  }
+  return updated;
+}
+
+/**
+ * Retire ses malus (Cure, §5 bis) : tous ses statuts malus, requiem compris. Il retrouve la mobilité qu'ils lui avaient
+ * prise ce tour (`mobilityTaken`), sauf si son déplacement est fini pour ce tour sans statut (`halted` : sablier, arrêt forcé) ;
+ * un malus de PV max qui part lui rend ses PV max. Rien sur un monstre sans malus.
+ */
+export function cleanse(state: GameState, unitId: UnitId): GameState {
+  const unit = state.units[unitId];
+  if (unit?.kind !== 'monster') return state;
+  const removed = unit.statuses.filter(isMalus);
+  if (removed.length === 0) return state;
+  const statuses = unit.statuses.filter((s) => !isMalus(s));
+  const regained = unit.halted ? 0 : (unit.mobilityTaken ?? 0);
+  const freed = withoutMaxHpStatuses({ ...unit, statuses }, removed);
+  const updated: MonsterUnit = {
+    ...freed,
+    mobilityLeft: unit.mobilityLeft + regained,
+    mobilityTaken: 0,
+    froze: 0,
+  };
+  const event = {
+    type: 'cleansed',
+    unitId,
+    pos: unit.pos,
+    removed,
+    statuses,
+    mobilityLeft: updated.mobilityLeft,
+    hp: updated.hp,
+    maxHp: updated.maxHp,
+  } as const;
+  return setUnit(emit(state, event), updated);
+}
+
+/** Mobilité de son tour sans ses malus (ni slow, ni stun ou immobilisé). */
+export function turnMobilityWithoutMalus(cards: CardSet, monster: MonsterUnit, bonus = 0): number {
+  return mobilityWith(cards, monster, monster.statuses.filter((s) => !isMalus(s)), bonus);
+}
+
 /**
  * Mobilité d'un tour, avec les statuts actifs à ce tour-là : 0 si stun ou immobilisé, sinon celle de la carte plus
- * `bonus` (aura d'Origine), moins les slow.
+ * `bonus` (aura d'Origine), plus ses mobilité +X, moins les slow.
  */
-function mobilityWith(monster: MonsterUnit, statuses: readonly Status[], bonus: number): number {
+function mobilityWith(cards: CardSet, monster: MonsterUnit, statuses: readonly Status[], bonus: number): number {
   if (statuses.some((s) => s.kind === 'stun' || s.kind === 'immobilise')) return 0;
   const slow = statuses.filter((s) => s.kind === 'slow').reduce((total, s) => total + statusAmount(s), 0);
   const stat = statTotal({ statuses }, 'mobility'); // mobilité +X
-  return Math.max(0, getMonsterCard(monster.cardId).mobility + bonus + stat - slow);
+  return Math.max(0, getMonsterCard(cards, monster.cardId).mobility + bonus + stat - slow);
 }
 
 /** Mobilité retrouvée au début du tour en cours (les statuts échus ont déjà disparu) ; `bonus` : aura. */
-export function turnMobility(monster: MonsterUnit, bonus = 0): number {
-  return mobilityWith(monster, monster.statuses, bonus);
+export function turnMobility(cards: CardSet, monster: MonsterUnit, bonus = 0): number {
+  return mobilityWith(cards, monster, monster.statuses, bonus);
 }
 
 /**
  * Mobilité qu'aura le monstre à son prochain tour, vu depuis le tour `turn` où `active` joue ; `bonus` : aura
  * s'il reste où il est.
  */
-export function getNextTurnMobility(monster: MonsterUnit, turn: number, active: PlayerId, bonus = 0): number {
+export function getNextTurnMobility(cards: CardSet, monster: MonsterUnit, turn: number, active: PlayerId, bonus = 0): number {
   const next = ownerNextTurn(turn, active, monster.owner);
-  return mobilityWith(monster, monster.statuses.filter((s) => s.expiresAtTurn > next), bonus);
+  return mobilityWith(cards, monster, monster.statuses.filter((s) => s.expiresAtTurn > next), bonus);
 }

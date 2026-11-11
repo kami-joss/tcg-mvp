@@ -130,7 +130,7 @@ describe('journal des actions (SPEC.md §7)', () => {
     expect(logOf(walk, { type: 'move', unitId: 'u1', to: at(9, 3) })).toEqual([
       'J1 déplace Chevalier en (9, 3).',
       'Farceur - Maîtres des pièges de J2 apparaît en (9, 3) !',
-      'Chevalier de J1 est arrêté en (9, 2) et ne peut plus bouger de ce tour.',
+      'Chevalier de J1 est arrêté en (9, 2).',
     ]);
   });
 

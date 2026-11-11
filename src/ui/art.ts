@@ -3,7 +3,6 @@
 // fiche, tuile du grimoire, carte qui vole) les cadre seul sur les yeux du personnage (ou le point d'intérêt d'un sort
 // ou d'un terrain), d'après la taille de l'image et la position des yeux notées ici.
 import type { Board, CardId } from '../engine';
-import apprentiShiny from '../assets/art/apprenti-shiny.jpg';
 import appelDuSang from '../assets/art/appel-du-sang.jpg';
 import apprentiTemps from '../assets/art/apprenti-temps.jpg';
 import apprenti from '../assets/art/apprenti.jpg';
@@ -23,6 +22,7 @@ import bastion from '../assets/art/bastion.jpg';
 import benediction from '../assets/art/benediction.jpg';
 import bouleDeFeu from '../assets/art/boule-de-feu.jpg';
 import bourrasque from '../assets/art/bourrasque.jpg';
+import brulureEnChaine from '../assets/art/brulure-en-chaine.jpg';
 import charge from '../assets/art/charge.jpg';
 import chronomancienne from '../assets/art/chronomancienne.jpg';
 import clownAssassin from '../assets/art/clown-assassin.jpg';
@@ -61,6 +61,18 @@ import trebuchet from '../assets/art/trebuchet.jpg';
 import trebuchetArchers from '../assets/art/trebuchet-archers.jpg';
 import vladimir from '../assets/art/vladimir.jpg';
 import zoneInvocation from '../assets/art/zone-invocation.jpg';
+import repli from '../assets/art/repli.jpg';
+import carapace from '../assets/art/carapace.jpg';
+import fatigue from '../assets/art/fatigue.jpg';
+import flash from '../assets/art/flash.jpg';
+import fortification from '../assets/art/fortification.jpg';
+import elixirDeMana from '../assets/art/elixir-de-mana.jpg';
+import puissance from '../assets/art/puissance.jpg';
+import reanimation from '../assets/art/reanimation.jpg';
+import soin from '../assets/art/soin.jpg';
+import teleportation from '../assets/art/teleportation.jpg';
+import hurlements from '../assets/art/hurlements.jpg';
+import terrainDeChasse from '../assets/art/terrain-de-chasse.jpg';
 import zoldikShiny from '../assets/art/zoldik-shiny.jpg';
 import zoldik from '../assets/art/zoldik.jpg';
 
@@ -116,6 +128,7 @@ export const CARD_ART: Partial<Record<CardId, CardArt>> = {
   'dragon-vent': art(dragonVent, 576, 1024, [70.4, 13], 27, [70.4, 36.4]),
   'dragon-terre': art(dragonTerre, 576, 1024, [63.4, 13], 30, [63.4, 28.5]),
   'nid-de-dragons': art(nidDeDragons, 576, 1024, [50, 13], 60),
+  hurlements: art(hurlements, 576, 1024, [50, 13], 60),
   'dragon-origine': art(dragonOrigine, 1024, 559, [46.5, 12], 30),
   // Deck Bodybuilder
   'jeune-gomuscu': art(jeuneGomuscu, 1024, 559, [51.7, 35.4], 15),
@@ -124,10 +137,14 @@ export const CARD_ART: Partial<Record<CardId, CardArt>> = {
   'ki-ne': art(kiNe, 1024, 559, [52.5, 36.2], 16),
   seringue: art(seringue, 1024, 559, [52, 45], 45),
   // Deck Sorciers du feu
-  apprenti: art(apprenti, 576, 1024, [46.5, 24.6], 30),
-  'lutin-brasier': art(lutinBrasier, 1024, 559, [49.9, 28.6], 23),
-  archimage: art(archimage, 1024, 559, [52.7, 24.3], 16),
-  'golem-de-lave': art(golemDeLave, 1024, 559, [49.7, 16.5], 28),
+  // Nouvelles illustrations du 2026-11-09 (sources dans artworks/) : recadrées au ratio 1,78, les yeux à 13 % de la hauteur
+  // pour couvrir toute la fiche (Feria n'a plus d'overframe ni d'illustration brillante propre) ; Brûlure en chaîne, une
+  // scène, calée en haut.
+  apprenti: art(apprenti, 576, 1024, [46.9, 13], 24, [46.9, 22.5]),
+  'lutin-brasier': art(lutinBrasier, 576, 1024, [49, 13], 60, [49, 23]),
+  archimage: art(archimage, 576, 1024, [48, 13], 22, [48, 14.3]),
+  'golem-de-lave': art(golemDeLave, 576, 1024, [50.2, 13], 24, [50.2, 15.3]),
+  'brulure-en-chaine': art(brulureEnChaine, 576, 1024, [50, 13], 60),
   // Deck Explorateur du temps
   'apprenti-temps': art(apprentiTemps, 576, 1024, [50.6, 11.2], 23),
   chronomancienne: art(chronomancienne, 576, 1024, [48.2, 20.2], 22),
@@ -145,12 +162,27 @@ export const CARD_ART: Partial<Record<CardId, CardArt>> = {
   zoldik: art(zoldik, 569, 1024, [45.1, 11.8], 28),
   'appel-du-sang': art(appelDuSang, 569, 1024, [50, 13], 60),
   'sacrifice-sanguinaire': art(sacrificeSanguinaire, 569, 1024, [50, 13], 50),
+  // Le Terrain de chasse (terrain du deck Vampire depuis le 2026-11-10) : une scène, calée en haut ; son blason se centre
+  // sur la maison.
+  'terrain-de-chasse': art(terrainDeChasse, 576, 1024, [50, 13], 45, [66, 44]),
   // Cartes communes
   invocateur: art(invocateur, 1024, 559, [40.3, 24], 17),
   teleporteur: art(teleporteur, 1024, 559, [37.2, 23.7], 18),
   charge: art(charge, 1024, 559, [60.1, 17.7], 16),
   'boule-de-feu': art(bouleDeFeu, 1024, 559, [50, 28], 32),
-  bourrasque: art(bourrasque, 1024, 559, [63, 35], 35),
+  // Nouvelle Bourrasque et sorts génériques du 2026-11-10 (sources dans artworks/, 784 × 1168) : recadrées au ratio 1,78,
+  // des scènes calées en haut (point d'intérêt donné à 13 %), qui couvrent toute la fiche.
+  bourrasque: art(bourrasque, 576, 1024, [57, 13], 60),
+  puissance: art(puissance, 576, 1024, [50, 13], 60),
+  soin: art(soin, 576, 1024, [50, 13], 60),
+  flash: art(flash, 576, 1024, [50, 13], 60),
+  fatigue: art(fatigue, 576, 1024, [50, 13], 60),
+  carapace: art(carapace, 576, 1024, [50, 13], 60),
+  'elixir-de-mana': art(elixirDeMana, 576, 1024, [50, 13], 60),
+  repli: art(repli, 576, 1024, [50, 13], 60),
+  teleportation: art(teleportation, 576, 1024, [50, 13], 60),
+  reanimation: art(reanimation, 576, 1024, [50, 13], 60),
+  fortification: art(fortification, 576, 1024, [50, 13], 60),
   benediction: art(benediction, 1024, 559, [54, 28], 32),
   // Terrains
   'autel-de-mana': art(autelDeMana, 1024, 572, [59, 25], 30),
@@ -166,7 +198,6 @@ export const CARD_ART: Partial<Record<CardId, CardArt>> = {
  */
 export const CARD_ART_SHINY: Partial<Record<CardId, string>> = {
   'archer-de-glace': archerDeGlaceShiny,
-  apprenti: apprentiShiny,
   zoldik: zoldikShiny,
 };
 

@@ -105,8 +105,14 @@ export function withTreeSizes(decor: PaintedDecor): PaintedDecor {
 
 const DECOR_15_FULL = withTreeSizes(DECOR_15 as unknown as PaintedDecor);
 
+/** Un décor peint : complet et réduit au plateau. */
+interface PaintedSet {
+  readonly full: PaintedDecor;
+  readonly board: PaintedDecor;
+}
+
 /** Décors peints, par nom de plateau : complet et réduit au plateau (des objets stables : les effets de React en dépendent). */
-const PAINTED: Readonly<Record<string, { readonly full: PaintedDecor; readonly board: PaintedDecor }>> = {
+const PAINTED: Readonly<Record<string, PaintedSet>> = {
   'Champ de bataille (15 × 15)': { full: DECOR_15_FULL, board: boardOnly(DECOR_15_FULL, 15) },
 };
 
@@ -321,6 +327,8 @@ export const worldDensity = (): number => (typeof matchMedia === 'function' && m
 
 /** Sols prêts ou en cours, par clé du cache : une URL d'objet, calculée ou lue une fois par session. */
 const grounds = new Map<string, Promise<string>>();
+/** Les mêmes, une fois prêts : lus sans attendre (un écran de jeu remonté a son sol dès sa première image). */
+const groundsReady = new Map<string, string>();
 
 /** Le sol de la clé `key` : lu dans le cache de l'appareil, sinon calculé par `compute` puis mis en cache. */
 function groundUrl(key: string, compute: () => Promise<Blob>): Promise<string> {
@@ -335,7 +343,11 @@ function groundUrl(key: string, compute: () => Promise<Blob>): Promise<string> {
             return blob;
           }),
       )
-      .then((blob) => URL.createObjectURL(blob));
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        groundsReady.set(key, url);
+        return url;
+      });
     grounds.set(key, ground);
     // Un échec n'est pas gardé : on réessaiera au prochain affichage.
     ground.catch(() => grounds.delete(key));
@@ -347,48 +359,93 @@ function groundUrl(key: string, compute: () => Promise<Blob>): Promise<string> {
 export interface PaintedGrounds {
   readonly board: string | null;
   readonly world: string | null;
+  /** Le sol du monde viendra (décor extérieur, tâche de fond possible) : sinon, le plateau seul suffit. */
+  readonly worldExpected: boolean;
 }
 
-const NO_GROUNDS: PaintedGrounds = { board: null, world: null };
+/** Le décor extérieur de ce plateau se calculera-t-il (il en a un, et une tâche de fond est possible) ? */
+const expectsWorld = (set: PaintedSet | undefined): boolean => (set?.full.plan.bordure ?? 0) > 0 && canUseWorker();
+
+/**
+ * Lance (une fois par session) le calcul ou la lecture des sols peints d'un plateau : celui du plateau seul, puis celui
+ * du monde ; `null` sans décor peint. Appelé assez tôt (accueil, lancer de dés), le plateau est prêt quand la partie
+ * s'affiche.
+ */
+export function loadPaintedGrounds(board: Board): { readonly board: Promise<string>; readonly world: Promise<string> | null } | null {
+  const set = PAINTED[board.name];
+  const keys = groundKeys(board);
+  if (!set || !keys) return null;
+  const size = board.rows;
+  const boardDecor = set.board;
+  const boardReady = groundUrl(keys.board, () =>
+    canUseWorker() ? groundInWorker(size, boardDecor).catch(() => groundOnMainThread(size, boardDecor)) : groundOnMainThread(size, boardDecor),
+  );
+  if (!keys.world) return { board: boardReady, world: null };
+  const worldKey = keys.world;
+  const worldDecor = worldDecorOf(set);
+  // Après le plateau seul : la tâche de fond traite ses demandes l'une après l'autre, le plateau passe d'abord.
+  const world = boardReady.then(() => groundUrl(worldKey, () => groundInWorker(size, worldDecor)));
+  return { board: boardReady, world };
+}
+
+/** Le décor du monde, à la densité de cet appareil. */
+const worldDecorOf = (set: PaintedSet): PaintedDecor => ({ ...set.full, plan: { ...set.full.plan, densite: worldDensity() } });
+
+/** Clés du cache des sols, par plateau (l'empreinte d'un décor se calcule sur tout son texte : une fois). */
+const keysOf = new Map<string, { readonly board: string; readonly world: string | null }>();
+
+/** Clés du cache des sols d'un plateau : plateau seul, et monde s'il doit venir. */
+function groundKeys(board: Board): { readonly board: string; readonly world: string | null } | null {
+  const set = PAINTED[board.name];
+  if (!set) return null;
+  let keys = keysOf.get(board.name);
+  if (!keys) {
+    const world = expectsWorld(set) ? worldDecorOf(set) : null;
+    keys = {
+      board: groundKey(`${board.name}|plateau`, set.board, set.board.plan.densite),
+      world: world ? groundKey(`${board.name}|monde`, world, world.plan.densite) : null,
+    };
+    keysOf.set(board.name, keys);
+  }
+  return keys;
+}
+
+/** Les sols d'un plateau déjà prêts dans cette session, sans attendre. */
+function readyGrounds(board: Board): { board: string | null; world: string | null } {
+  const keys = groundKeys(board);
+  return { board: (keys && groundsReady.get(keys.board)) ?? null, world: (keys?.world && groundsReady.get(keys.world)) || null };
+}
 
 /**
  * Sols peints du plateau : celui du plateau seul d'abord (vite prêt ; c'est aussi celui de la vue de dessus), puis
- * celui du monde avec son décor extérieur, calculé en tâche de fond (20 à 30 s la première fois, puis lu dans le cache
- * de l'appareil). Sans tâche de fond possible, seulement le plateau.
+ * celui du monde avec son décor extérieur, calculé en tâche de fond (quelques secondes la première fois, puis lu dans
+ * le cache de l'appareil). Sans tâche de fond possible, seulement le plateau.
  */
 export function usePaintedGround(board: Board): PaintedGrounds {
   const set = PAINTED[board.name];
-  const [ready, setReady] = useState<{ name: string; grounds: PaintedGrounds }>({ name: board.name, grounds: NO_GROUNDS });
+  const worldExpected = expectsWorld(set);
+  const none: PaintedGrounds = { board: null, world: null, worldExpected };
+  const [ready, setReady] = useState<{ name: string; board: string | null; world: string | null }>(() => ({ name: board.name, ...readyGrounds(board) }));
   useEffect(() => {
-    if (!set) return;
+    const loading = loadPaintedGrounds(board);
+    if (!loading) return;
     let alive = true;
-    const update = (patch: Partial<PaintedGrounds>) =>
+    const update = (patch: { board?: string; world?: string }) =>
       alive &&
-      setReady((current) => ({ name: board.name, grounds: { ...(current.name === board.name ? current.grounds : NO_GROUNDS), ...patch } }));
-    const size = board.rows;
-    const boardDecor = set.board;
-    const boardReady = groundUrl(groundKey(`${board.name}|plateau`, boardDecor, boardDecor.plan.densite), () =>
-      canUseWorker() ? groundInWorker(size, boardDecor).catch(() => groundOnMainThread(size, boardDecor)) : groundOnMainThread(size, boardDecor),
-    ).then(
+      setReady((current) => ({ ...(current.name === board.name ? current : { board: null, world: null }), ...patch, name: board.name }));
+    loading.board.then(
       (url) => update({ board: url }),
       (error: unknown) => console.error(error),
     );
-    if ((set.full.plan.bordure ?? 0) > 0 && canUseWorker()) {
-      const density = worldDensity();
-      const worldDecor: PaintedDecor = { ...set.full, plan: { ...set.full.plan, densite: density } };
-      // Après le plateau seul : la tâche de fond traite ses demandes l'une après l'autre, le plateau passe d'abord.
-      void boardReady
-        .then(() => groundUrl(groundKey(`${board.name}|monde`, worldDecor, density), () => groundInWorker(size, worldDecor)))
-        .then(
-          (url) => update({ world: url }),
-          (error: unknown) => console.error(error),
-        );
-    }
+    loading.world?.then(
+      (url) => update({ world: url }),
+      (error: unknown) => console.error(error),
+    );
     return () => {
       alive = false;
     };
-  }, [board, set]);
-  return set && ready.name === board.name ? ready.grounds : NO_GROUNDS;
+  }, [board]);
+  return set && ready.name === board.name ? { board: ready.board, world: ready.world, worldExpected } : none;
 }
 
 /** Masques de l'eau des pièces peintes (canal, étangs), par image : calculés une fois par session. */

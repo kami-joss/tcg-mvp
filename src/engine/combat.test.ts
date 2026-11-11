@@ -169,7 +169,7 @@ describe('attaque (SPEC.md §4.7)', () => {
         { monster: 'golem', owner: 2, at: at(9, 2) },
         { terrain: 'bastion', owner: 2, at: at(7, 5) },
       ]);
-      const board = { board: state.board, units: state.units };
+      const board = { board: state.board, units: state.units, cards: state.cards };
       expect(getStrikeCells(board, at(8, 1), 3, 1)).toContainEqual(at(8, 3)); // derrière son allié
       expect(getStrikeCells(board, at(8, 1), 3)).not.toContainEqual(at(8, 3)); // sans propriétaire : tout bloque
       expect(getStrikeCells(board, at(9, 1), 3, 1)).not.toContainEqual(at(9, 3)); // derrière un ennemi

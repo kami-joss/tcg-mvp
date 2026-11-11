@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getLegalActions } from './actions';
 import {
-  BASE_MANA_CAP,
   BASE_MANA_FIRST_TURN,
+  DEFAULT_MANA_RULES,
   MANA_PER_CONTROLLED_ZONE,
   VICTORY_VP,
   VP_PER_CONTROLLED_ZONE,
 } from './config';
 import { createGame } from './game';
+import { getPlayerView } from './view';
 import { getBaseMana } from './turns';
 import { addVp } from './players';
 import { at, deepFreeze, gameWith } from './test-utils';
@@ -87,14 +88,16 @@ describe('début de tour : mana (SPEC.md §4.2)', () => {
     expect(mana).toEqual([3, 3, 4, 4, 5, 5]);
   });
 
-  it('mana de base plafonné à 10 (atteint au 8e tour de chaque joueur) ; seuls les terrains en donnent de plus', () => {
-    expect(getBaseMana(2 * 7 - 1)).toBe(9); // 7e tour de J1
-    expect(getBaseMana(2 * 8 - 1)).toBe(BASE_MANA_CAP); // 8e tour de J1
-    expect(getBaseMana(2 * 8)).toBe(BASE_MANA_CAP); // 8e tour de J2
-    expect(getBaseMana(2 * 20 - 1)).toBe(BASE_MANA_CAP);
+  it('mana de base plafonné à la génération max de la partie : 5 par défaut (atteint au 3e tour de chaque joueur)', () => {
+    expect(getBaseMana(2 * 2 - 1)).toBe(4); // 2e tour de J1
+    expect(getBaseMana(2 * 3 - 1)).toBe(DEFAULT_MANA_RULES.baseCap); // 3e tour de J1
+    expect(getBaseMana(2 * 3)).toBe(DEFAULT_MANA_RULES.baseCap); // 3e tour de J2
+    expect(getBaseMana(2 * 20 - 1)).toBe(DEFAULT_MANA_RULES.baseCap);
+    // Génération max réglée à 8 : 3, 4… jusqu'à 8 (6e tour de chaque joueur).
+    expect([1, 3, 9, 11, 13, 41].map((turn) => getBaseMana(turn, 8))).toEqual([3, 4, 7, 8, 8, 8]);
   });
 
-  it('au plafond, le mana de zone des terrains s’ajoute : 10 + 1 avec un terrain sur une zone tenue', () => {
+  it('au plafond, le mana de zone des terrains s’ajoute : 5 + 1 avec un terrain sur une zone tenue', () => {
     const state = gameWith(
       [
         { monster: 'golem', owner: 1, at: FORGE },
@@ -102,7 +105,7 @@ describe('début de tour : mana (SPEC.md §4.2)', () => {
       ],
       { turn: 30, activePlayer: 2, players: { 1: { mana: 0 } } },
     );
-    expect(endTurns(state, 1).players[1].mana).toBe(BASE_MANA_CAP + MANA_PER_CONTROLLED_ZONE);
+    expect(endTurns(state, 1).players[1].mana).toBe(DEFAULT_MANA_RULES.baseCap + MANA_PER_CONTROLLED_ZONE);
   });
 
   it('le mana non dépensé est perdu : le mana d’un tour ne se cumule pas avec le suivant', () => {
@@ -248,6 +251,23 @@ describe('victoire (SPEC.md §4.10)', () => {
     const after = applyAction(state, attack('u1', 'u2'));
     expect(after.players[1].vp).toBe(VICTORY_VP);
     expect(after.winner).toBe(1);
+  });
+
+  it('les VP pour gagner se choisissent avant la partie (2026-11-10) : à 10, 10 VP suffisent ; la vue les donne', () => {
+    const state = gameWith(
+      [
+        { monster: 'milicien', owner: 1, at: at(8, 1) },
+        { monster: 'eclaireur', owner: 2, at: at(8, 2) },
+      ],
+      { victoryVp: 10, players: { 1: { vp: 9 } } },
+    );
+    expect(applyAction(state, attack('u1', 'u2')).winner).toBe(1);
+    expect(getPlayerView(state, 2).victoryVp).toBe(10);
+    expect(createGame().victoryVp).toBe(VICTORY_VP);
+    expect(() => createGame(undefined, undefined, undefined, 'normal', 1, 'classic', DEFAULT_MANA_RULES, undefined, 0)).toThrow();
+    // Une partie gardée d'avant ce réglage (sans `victoryVp`) se gagne à 30.
+    const { victoryVp: _gone, ...old } = gameWith([], { players: { 1: { vp: VICTORY_VP - 1 } } });
+    expect(addVp(old as GameState, 1, 1).winner).toBe(1);
   });
 
   it('J2 peut gagner de la même façon pendant son tour', () => {

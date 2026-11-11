@@ -3,6 +3,7 @@ import { applyAction, getLegalActions } from './actions';
 import { getNextTurnMobility, statusTurnsLeft } from './statuses';
 import { at, gameWith, withStatus } from './test-utils';
 import type { Action, GameState, MonsterUnit, Trap } from './types';
+import { CARDS } from './cards';
 
 const END_TURN: Action = { type: 'endTurn' };
 const attack = (unitId: string, targetId: string, advance = false): Action => ({ type: 'attack', unitId, targetId, advance });
@@ -72,14 +73,14 @@ describe('statuts (SPEC.md §5 bis, §5.5)', () => {
     state = withStatus(state, 'u1', 'burn', 2);
     state = withStatus(state, 'u1', 'burn', 1);
     const golem = state.units.u1 as MonsterUnit;
-    expect(getNextTurnMobility(golem, state.turn, state.activePlayer)).toBe(1);
+    expect(getNextTurnMobility(CARDS, golem, state.turn, state.activePlayer)).toBe(1);
     state = applyAction(state, END_TURN);
     expect(state.units.u1).toMatchObject({ hp: 4, mobilityLeft: 1 });
   });
 
   it('un statut « jusqu’au début de son prochain tour » ne compte plus à ce tour-là', () => {
     const state = withStatus(gameWith([{ monster: 'golem', owner: 2, at: at(8, 1) }]), 'u1', 'slow', 1, 0);
-    expect(getNextTurnMobility(state.units.u1 as MonsterUnit, state.turn, state.activePlayer)).toBe(2);
+    expect(getNextTurnMobility(CARDS, state.units.u1 as MonsterUnit, state.turn, state.activePlayer)).toBe(2);
     expect(applyAction(state, END_TURN).units.u1).toMatchObject({ mobilityLeft: 2, statuses: [] });
   });
 

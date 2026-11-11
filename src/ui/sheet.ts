@@ -39,6 +39,7 @@ import type {
   BurningCell,
   Card,
   CardId,
+  CardSet,
   ManaZoneId,
   MonsterCard,
   EffectSource,
@@ -222,6 +223,7 @@ const hasRiposte = (card: MonsterCard) => card.keywords.some((spec) => spec.keyw
  * le monstre du plateau, dont la portée de chaque effet se montre au survol.
  */
 function activeBlocks(
+  cards: CardSet,
   card: MonsterCard,
   foot: (effect: number) => SheetStatus | null = () => null,
   monster?: { view: PlayerView; unit: MonsterUnit },
@@ -229,7 +231,7 @@ function activeBlocks(
   return card.activated.map((ability, i) => ({
     name: ability.name ?? (card.activated.length > 1 ? effectName(ability) : null),
     cost: ability.manaCost,
-    text: abilityRules(ability),
+    text: abilityRules(cards, ability),
     foot: foot(i),
     ...(monster ? { reach: getEffectReach(monster.view, ability, monster.unit.owner, monster.unit) } : {}),
   }));
@@ -260,6 +262,8 @@ export function reasonStatus(reason: UnavailableReason, used: string): SheetStat
       return { text: 'Plus d’attaque ce tour', tone: 'off' };
     case 'justSummoned':
       return { text: 'Arrivé ce tour : au prochain tour', tone: 'off' };
+    case 'manaLimit':
+      return { text: 'Déjà à la limite de mana', tone: 'off' };
     case 'noTarget':
       switch (reason.target) {
         case 'summonZone':
@@ -276,6 +280,12 @@ export function reasonStatus(reason: UnavailableReason, used: string): SheetStat
           return { text: 'Aucun monstre que tu peux payer', tone: 'warn' };
         case 'trail':
           return { text: 'Aucune case où revenir : il n’a pas bougé ce tour', tone: 'off' };
+        case 'terrain':
+          return { text: 'Aucun de tes terrains sur le plateau', tone: 'off' };
+        case 'graveyard':
+          return { text: 'Aucun monstre dans ton cimetière', tone: 'off' };
+        case 'malus':
+          return { text: 'Aucun allié n’a de malus', tone: 'off' };
       }
   }
 }
@@ -290,7 +300,7 @@ export function getSheet(view: PlayerView, subject: HoverSubject): SheetData | n
     case 'copy': {
       // La carte seule (§10) : comme dans le grimoire, sans la ligne pour la jouer ; brillante si l'exemplaire l'était.
       const copy = pileOf(view, subject.player, subject.pile)[subject.index];
-      return copy ? cardSheetOf(copy.cardId, copy.shiny === true) : null;
+      return copy ? cardSheetOf(view.cards, copy.cardId, copy.shiny === true) : null;
     }
     case 'cell':
       return cellSheet(view, subject.pos);
@@ -327,8 +337,8 @@ export function sameSubject(a: HoverSubject | null, b: HoverSubject | null): boo
 const CARD_VERBS: Readonly<Record<Card['kind'], string>> = { monster: 'Invocation', spell: 'Lancer', terrain: 'Poser' };
 
 /** La fiche d'une carte seule, hors du plateau (cartes jouées, cimetière, page des decks) : sans ligne pour la jouer. */
-export function cardSheetOf(cardId: CardId, shiny = false): SheetData {
-  const card = getCard(cardId);
+export function cardSheetOf(cards: CardSet, cardId: CardId, shiny = false): SheetData {
+  const card = getCard(cards, cardId);
   const base = {
     ...empty(card.name, 'card', ''),
     kind: card.kind,
@@ -350,9 +360,9 @@ export function cardSheetOf(cardId: CardId, shiny = false): SheetData {
           stat('walking-boot', 'Mobilité', card.mobility),
           stat('high-shot', 'Portée', card.range),
         ],
-        text: card.evolvesFrom ? [evolutionLine(card.evolvesFrom)] : [],
+        text: card.evolvesFrom ? [evolutionLine(cards, card.evolvesFrom)] : [],
         passive: passiveBlock(keywordItems(card), null),
-        active: activeBlocks(card),
+        active: activeBlocks(cards, card),
         status: null,
       };
     }
@@ -361,7 +371,7 @@ export function cardSheetOf(cardId: CardId, shiny = false): SheetData {
         ...base,
         typeIcon: 'spell-book',
         type: 'Carte sort · effet immédiat',
-        active: [{ name: null, cost: null, text: abilityRules(card.ability), foot: null }],
+        active: [{ name: null, cost: null, text: abilityRules(cards, card.ability), foot: null }],
       };
     case 'terrain':
       return {
@@ -377,11 +387,11 @@ export function cardSheetOf(cardId: CardId, shiny = false): SheetData {
 
 /** Une carte du grimoire : sa fiche, et la ligne qui dit si on peut la jouer. */
 function cardSheet(view: PlayerView, cardId: CardId): SheetData {
-  const card = getCard(cardId);
+  const card = getCard(view.cards, cardId);
   const lines: SheetLine[] = [
     { icon: 'card-play', label: CARD_VERBS[card.kind], status: availabilityStatus(cardAvailability(view, cardId), 'Déjà joué') },
   ];
-  return { ...cardSheetOf(cardId, view.me.shiny?.includes(cardId) ?? false), lines };
+  return { ...cardSheetOf(view.cards, cardId, view.me.shiny?.includes(cardId) ?? false), lines };
 }
 
 const passiveBlock = (items: SheetPassive['items'], foot: SheetStatus | null): SheetPassive | null =>
@@ -417,7 +427,7 @@ function cellSheet(view: PlayerView, pos: Position): SheetData | null {
   if (cell.manaZone) return zoneSheet(view, cell.manaZone, pos);
 
   const trap = view.traps.find((t) => samePos(t.pos, pos));
-  if (trap) return trapSheet(trap);
+  if (trap) return trapSheet(view.cards, trap);
 
   // Mode contestation : une case vide d'une zone de 9 cases montre sa zone (§4.4 bis).
   const area = getZoneOf(view.board, view.mode, pos);
@@ -482,10 +492,10 @@ function zoneChip(view: PlayerView, monster: MonsterUnit): SheetChip | null {
 
 /** Mobilité de base d'un monstre : sa carte et les auras. */
 const baseMobility = (view: PlayerView, monster: MonsterUnit) =>
-  getMonsterCard(monster.cardId).mobility + auraMobility(view, monster);
+  getMonsterCard(view.cards, monster.cardId).mobility + auraMobility(view, monster);
 
 function monsterSheet(view: PlayerView, monster: MonsterUnit): SheetData {
-  const card = getMonsterCard(monster.cardId);
+  const card = getMonsterCard(view.cards, monster.cardId);
   const terrain = getUnitsAt(view, monster.pos).find((u): u is TerrainUnit => u.kind === 'terrain');
   const mine = monster.owner === view.viewer;
   const myTurn = mine && view.activePlayer === view.viewer && view.winner === null;
@@ -543,40 +553,40 @@ function monsterSheet(view: PlayerView, monster: MonsterUnit): SheetData {
     text: mine
       ? []
       : [
-          `À son prochain tour : hachures orange, là où il pourra aller (mobilité ${getNextTurnMobility(monster, view.turn, view.activePlayer)}) ; rouges, là où il pourra frapper (portée ${card.range}).`,
+          `À son prochain tour : hachures orange, là où il pourra aller (mobilité ${getNextTurnMobility(view.cards, monster, view.turn, view.activePlayer)}) ; rouges, là où il pourra frapper (portée ${card.range}).`,
         ],
     passive: passiveBlock(keywordItems(card), riposte),
-    active: activeBlocks(card, effectFoot, { view, unit: monster }),
+    active: activeBlocks(view.cards, card, effectFoot, { view, unit: monster }),
     status: monsterChips(view, monster, terrain),
   };
 }
 
 /** Nom d'une source : son effet s'il en a un (« Dopage », « Passage »), sinon la carte (« Charge »). */
-export const sourceName = (source: EffectSource) => source.effect ?? cardTitle(source.cardId);
+export const sourceName = (cards: CardSet, source: EffectSource) => source.effect ?? cardTitle(cards, source.cardId);
 
 /** « (Jean Bon) » : la carte d'un effet nommé ; rien quand le nom est déjà celui de la carte. */
-const sourceCard = (source: EffectSource) => (source.effect ? ` (${cardTitle(source.cardId)})` : '');
+const sourceCard = (cards: CardSet, source: EffectSource) => (source.effect ? ` (${cardTitle(cards, source.cardId)})` : '');
 
-function turnBonusChip({ source, atk, range, mobility }: TurnBonus): SheetChip {
+function turnBonusChip(cards: CardSet, { source, atk, range, mobility }: TurnBonus): SheetChip {
   const now = [atk > 0 ? `+${atk} ATK` : null, range > 0 ? `+${range} portée` : null].filter(Boolean).join(' ');
   const parts = [now ? `${now} jusqu’à la fin du tour` : null, mobility > 0 ? `+${mobility} mobilité ce tour` : null].filter(Boolean);
   const icon: IconName = atk > 0 ? 'broadsword' : range > 0 ? 'high-shot' : 'sprint';
-  return effect(icon, sourceName(source), `${parts.join(', ')}${sourceCard(source)}`, 'boost');
+  return effect(icon, sourceName(cards, source), `${parts.join(', ')}${sourceCard(cards, source)}`, 'boost');
 }
 
 const effect = (icon: IconName, text: string, detail: string, kind: ChipKind): SheetChip => ({ icon, text, detail, kind, group: 'effect' });
 
 /** « Effets en cours » d'un monstre : ses statuts, puis les effets qui le touchent (bonus du tour, auras, plateau, camouflage, zone, terrain). */
 function monsterChips(view: PlayerView, monster: MonsterUnit, terrain: TerrainUnit | undefined): SheetChip[] {
-  const card = getMonsterCard(monster.cardId);
+  const card = getMonsterCard(view.cards, monster.cardId);
   const chips: SheetChip[] = [...statusChips(view, monster)];
   // Bonus du tour, un par source : son nom (« Dopage », « Charge »), le bonus et la carte au survol.
-  for (const bonus of monster.turnBonuses) chips.push(turnBonusChip(bonus));
+  for (const bonus of monster.turnBonuses) chips.push(turnBonusChip(view.cards, bonus));
   // Dans la zone d'un Terrain de chasse allié, son +1 l'attend (à son tour, s'il n'est pas encore parti d'une telle zone).
   const hunt = monster.owner === view.viewer && view.activePlayer === view.viewer ? pendingOnMove(view, monster) : null;
   if (hunt) {
     const detail = `+${hunt.onMove.mobility} mobilité en commençant un déplacement ici, une fois par tour`;
-    chips.push(effect('sprint', getCard(hunt.unit.cardId).name, detail, 'boost'));
+    chips.push(effect('sprint', cardTitle(view.cards, hunt.unit.cardId), detail, 'boost'));
   }
   const limit = attackLimit(view, monster);
   const aura = {
@@ -590,10 +600,10 @@ function monsterChips(view: PlayerView, monster: MonsterUnit, terrain: TerrainUn
   if (monster.armed) {
     const { atk, splash, source } = monster.armed;
     const bonus = [atk ? `+${atk} ATK` : null, splash ? `${splash} dégât aux ennemis du carré de 1 de la cible` : null].filter(Boolean).join(', ');
-    chips.push(effect('crosshair', 'Armé', `Sa prochaine attaque de ce tour : ${bonus}${sourceCard(source)}`, 'boost'));
+    chips.push(effect('crosshair', 'Armé', `Sa prochaine attaque de ce tour : ${bonus}${sourceCard(view.cards, source)}`, 'boost'));
   }
   if (aura.atk > 0 || aura.hp > 0 || aura.mobility > 0 || aura.range > 0 || aura.attacks > 0 || aura.stealth !== undefined) {
-    const sources = auraSources(view, monster).map((other) => getCard(other.cardId).name);
+    const sources = auraSources(view, monster).map((other) => getCard(view.cards, other.cardId).name);
     chips.push(effect('aura', 'Aura', `${auraBonusText(aura)} (${sources.join(', ')})`, 'boost'));
   }
   // Camouflage par mot-clé (Pénombre le donne en statut, avec sa puce) : caché ou repéré, vu par son joueur.
@@ -611,14 +621,14 @@ function monsterChips(view: PlayerView, monster: MonsterUnit, terrain: TerrainUn
   const zone = zoneChip(view, monster);
   if (zone) chips.push(zone);
   if (terrain) {
-    const name = getCard(terrain.cardId).name;
+    const name = getCard(view.cards, terrain.cardId).name;
     chips.push(effect('castle', name, `Sur ${name} (${terrain.hp} PV)`, 'terrain'));
   }
   return chips;
 }
 
 function terrainSheet(view: PlayerView, terrain: TerrainUnit): SheetData {
-  const card = getCard(terrain.cardId);
+  const card = getCard(view.cards, terrain.cardId);
   const zone = getCell(view.board, terrain.pos);
   const chips: SheetChip[] = [...statusChips(view, terrain)];
   if (zone.kind === 'plain' && zone.manaZone) {
@@ -627,7 +637,7 @@ function terrainSheet(view: PlayerView, terrain: TerrainUnit): SheetData {
   }
   const above = getUnitsAt(view, terrain.pos).find((u) => u.kind === 'monster');
   if (above) {
-    const name = getCard(above.cardId).name;
+    const name = getCard(view.cards, above.cardId).name;
     chips.push(effect('dragon-head', name, `Sous ${name} (J${above.owner})`, 'terrain'));
   }
   return {
@@ -645,7 +655,7 @@ function terrainSheet(view: PlayerView, terrain: TerrainUnit): SheetData {
 
 /** Case brûlée (Lutin brasier) : publique ; ce qu'elle inflige et combien de temps elle dure (§10). */
 function burningSheet(view: PlayerView, cell: BurningCell): SheetData {
-  const what = cell.effects.map(effectText).join(' + ');
+  const what = cell.effects.map((effect) => effectText(view.cards, effect)).join(' + ');
   // Tours de son camp où elle brûle encore, le tour en cours compris s'il est le sien.
   const mine = cell.owner === view.activePlayer;
   const left = Math.max(1, Math.ceil((cell.expiresAtTurn - (mine ? view.turn : view.turn + 1)) / 2));
@@ -657,17 +667,17 @@ function burningSheet(view: PlayerView, cell: BurningCell): SheetData {
       ? `jusqu’à la fin du prochain tour de J${cell.owner}`
       : `jusqu’à la fin du ${left}e prochain tour de J${cell.owner}`;
   return {
-    ...empty('Case brûlée', cell.owner, `Brûlée par ${getCard(cell.cardId).name} · Joueur ${cell.owner}`),
+    ...empty('Case brûlée', cell.owner, `Brûlée par ${getCard(view.cards, cell.cardId).name} · Joueur ${cell.owner}`),
     typeIcon: 'flame',
     text: [`Chaque monstre ennemi qui y entre subit : ${what}. La case reste.`, `Elle brûle ${until}.`],
   };
 }
 
-function trapSheet(trap: Trap): SheetData {
-  const what = trap.effects.map(effectText).join(' + ');
+function trapSheet(cards: CardSet, trap: Trap): SheetData {
+  const what = trap.effects.map((effect) => effectText(cards, effect)).join(' + ');
   return {
     ...empty(`Ton piège · ${trapLabel(trap)}`, 'trap', 'Piège caché · visible par toi seul'),
-    text: [`Posé par ${getCard(trap.cardId).name}. L’ennemi qui entre ici subit : ${what}.`, 'Disparaît au début de ton prochain tour.'],
+    text: [`Posé par ${getCard(cards, trap.cardId).name}. L’ennemi qui entre ici subit : ${what}.`, 'Disparaît au début de ton prochain tour.'],
   };
 }
 
@@ -721,9 +731,9 @@ function statusText(view: PlayerView, unit: Unit, status: Status): string {
 }
 
 /** Une carte qui peut aussi arriver par l'évolution d'un autre monstre (dragons élémentaires). */
-function evolutionLine(from: CardId): string {
-  const source = getMonsterCard(from);
+function evolutionLine(cards: CardSet, from: CardId): string {
+  const source = getMonsterCard(cards, from);
   const evolve = source.activated.find((ability) => ability.effects.some((effect) => effect.type === 'evolve'));
   const cost = evolve ? ` (${evolve.manaCost} mana)` : '';
-  return `Ou par l’effet ${evolve?.name ?? 'actif'} d’un ${cardTitle(from)}${cost} : il apparaît à sa place, sans payer ce coût, et n’agit qu’au tour suivant.`;
+  return `Ou par l’effet ${evolve?.name ?? 'actif'} d’un ${cardTitle(cards, from)}${cost} : il apparaît à sa place, sans payer ce coût, et n’agit qu’au tour suivant.`;
 }

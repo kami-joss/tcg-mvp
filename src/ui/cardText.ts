@@ -8,6 +8,7 @@ import type {
   ActivatedAbility,
   AreaZone,
   Card,
+  CardSet,
   AllyZoneEffect,
   CardId,
   Effect,
@@ -23,7 +24,7 @@ import type {
   Trap,
 } from '../engine';
 
-const KEYWORD_NAMES: Readonly<Record<Keyword, string>> = {
+export const KEYWORD_NAMES: Readonly<Record<Keyword, string>> = {
   riposte: 'Riposte',
   vol: 'Vol',
   prime: 'Prime',
@@ -100,7 +101,7 @@ export function keywordText(spec: KeywordSpec): string {
     case 'camouflage':
       return 'invisible pour l’adversaire à plus de 2 cases : tant qu’aucun monstre ni terrain adverse n’est dans un carré de 2 autour de lui.';
     case 'soif':
-      return `à l’attaque, il récupère ${spec.amount} PV (soin sur lui-même, sans dépasser ses PV max), après les dégâts et avant une riposte.`;
+      return `en attaquant un monstre (pas un terrain), il récupère ${spec.amount} PV (soin sur lui-même, sans dépasser ses PV max), après les dégâts et avant une riposte.`;
   }
 }
 
@@ -133,7 +134,7 @@ export function splitCardName(name: string): { readonly title: string; readonly 
 }
 
 /** Le nom d'une carte sans son archétype, pour une phrase : « un Jeune dragon élémentaire ». */
-export const cardTitle = (cardId: CardId): string => splitCardName(getCard(cardId).name).title;
+export const cardTitle = (cards: CardSet, cardId: CardId): string => splitCardName(getCard(cards, cardId).name).title;
 
 /** Le monstre visé : « un allié dans un carré de 1 », « un ennemi en ligne, portée 2 », « un allié bodybuilder ». */
 function monsterTargetText({ side, reach, archetype }: Extract<Targeting, { type: 'monster' }>): string {
@@ -147,6 +148,8 @@ function monsterTargetText({ side, reach, archetype }: Extract<Targeting, { type
       return `${who} en ligne, portée ${reach.range}`;
     case 'nearOwnMonster':
       return `${who} à ${reach.steps} pas d’un de vos monstres`;
+    case 'nearOwnUnit':
+      return `${who} dans un carré de ${reach.square} d’une de vos unités`;
   }
 }
 
@@ -173,6 +176,26 @@ export function targetText(targeting: Targeting): string {
       return `un ${ARCHETYPE_NAMES[targeting.archetype].one} allié · ennemis, carré de ${targeting.square} de la cible`;
     case 'trail':
       return 'une case de son chemin du tour';
+    case 'terrain':
+      return 'un de ses terrains';
+    case 'graveyard':
+      return 'un monstre de son cimetière';
+    case 'none':
+      return '';
+  }
+}
+
+/** Où une téléportation pose le monstre (§5.4). */
+function teleportText(to: Extract<Effect, { type: 'teleport' }>['to']): string {
+  switch (to?.type) {
+    case undefined:
+      return 'téléportation sur une case libre, carré de 1';
+    case 'around':
+      return `téléportation sur une case libre à ${to.square} cases au plus de la cible, sans obstacle`;
+    case 'summonCell':
+      return 'téléportation sur une case d’invocation libre de son camp';
+    case 'ownTerrain':
+      return 'téléportation sur un de ses terrains sans monstre';
   }
 }
 
@@ -192,7 +215,7 @@ export function statusText(posed: StatusSpec): string {
 }
 
 /** Un effet (§5.4) : « 2 dégâts », « soin 2 », « recul de 1 à 3 au choix, vers l’avant ». Vide pour l'évolution. */
-export function effectText(effect: Effect): string {
+export function effectText(cards: CardSet, effect: Effect): string {
   switch (effect.type) {
     case 'damage':
       return `${effect.amount} dégât${effect.amount > 1 ? 's' : ''}`;
@@ -211,7 +234,7 @@ export function effectText(effect: Effect): string {
     case 'addRangeThisTurn':
       return `+${effect.amount} portée (pour ce tour)`;
     case 'arm': {
-      const bonus = [effect.atk ? `+${effect.atk} ATK` : null, effect.splash ? `${effect.splash} dégât${effect.splash > 1 ? 's' : ''} aux ennemis, carré de 1 de la cible` : null];
+      const bonus = [effect.atk ? `+${effect.atk} ATK` : null, effect.splash ? `${effect.splash} dégât${effect.splash > 1 ? 's' : ''} aux ennemis, carré de 1 de la cible (ou d’une case vide visée)` : null];
       return `armé : prochaine attaque, ${bonus.filter(Boolean).join(' + ')}`;
     }
     case 'multiplyAtkThisTurn':
@@ -221,13 +244,19 @@ export function effectText(effect: Effect): string {
       return `${bonus.join(' ')} (définitivement)`;
     }
     case 'placeTrap':
-      return effect.effects.map(effectText).join(' + ');
+      return effect.effects.map((effect) => effectText(cards, effect)).join(' + ');
     case 'burnCell':
-      return `case brûlée ${durationText(effect.turns)} : ${effect.effects.map(effectText).join(' + ')}`;
+      return `case brûlée ${durationText(effect.turns)} : ${effect.effects.map((effect) => effectText(cards, effect)).join(' + ')}`;
     case 'summon':
       return 'invocation';
     case 'teleport':
-      return 'téléportation sur une case libre, carré de 1';
+      return teleportText(effect.to);
+    case 'gainMana':
+      return `+${effect.amount} mana`;
+    case 'cleanse':
+      return 'retire ses malus';
+    case 'reanimate':
+      return 'invoqué sur une case d’invocation libre de son camp, sans payer son coût';
     case 'returnOnTrail':
       return 'retour';
     case 'rewind':
@@ -237,7 +266,7 @@ export function effectText(effect: Effect): string {
     case 'loseHp':
       return `perd tous ses PV sauf ${effect.downTo}`;
     case 'transform':
-      return `se transforme en ${cardTitle(effect.into)}`;
+      return `se transforme en ${cardTitle(cards, effect.into)}`;
     case 'evolve':
       return '';
   }
@@ -247,7 +276,7 @@ export function effectText(effect: Effect): string {
  * Effets enchaînés par « + » (§5.4). Un bonus d'ATK suivi d'un bonus de portée pour ce tour s'écrit d'un bloc, comme
  * « +A ATK +P PV (définitivement) » : « +1 ATK +1 portée (pour ce tour) ».
  */
-function effectsText(effects: readonly Effect[]): string {
+function effectsText(cards: CardSet, effects: readonly Effect[]): string {
   const parts: string[] = [];
   for (let i = 0; i < effects.length; i++) {
     const effect = effects[i]!;
@@ -255,7 +284,7 @@ function effectsText(effects: readonly Effect[]): string {
     if (effect.type === 'addAtkThisTurn' && next?.type === 'addRangeThisTurn') {
       parts.push(`+${effect.amount} ATK +${next.amount} portée (pour ce tour)`);
       i++;
-    } else parts.push(effectText(effect));
+    } else parts.push(effectText(cards, effect));
   }
   return parts.filter(Boolean).join(' + ');
 }
@@ -272,7 +301,7 @@ function trapQualifiers(ability: Ability): string {
  * Un effet complet au format du lexique (§5.2), sans son déclencheur : « Déflagration · 3 cases devant · 2 dégâts +
  * burn 1 pendant 1 tour ». `named` : commencer par le nom de l'effet, s'il en a un.
  */
-export function abilityText(ability: Ability, named = true): string {
+export function abilityText(cards: CardSet, ability: Ability, named = true): string {
   // L'évolution, le retour et la transformation s'écrivent seuls (« Actif (2 mana) · Évolution », « Actif (1 mana) ·
   // retour ») : leur cible va de soi.
   const alone = ability.effects.some((effect) => ['evolve', 'returnOnTrail', 'transform', 'arm'].includes(effect.type));
@@ -283,9 +312,9 @@ export function abilityText(ability: Ability, named = true): string {
     named ? ability.name : undefined,
     // Un piège s'écrit « piège une case libre, carré de 1 », suivi de ce qu'il fait à l'ennemi qui y entre.
     trap ? `piège ${target}${trapQualifiers(ability)}` : target,
-    effectsText(ability.effects),
+    effectsText(cards, ability.effects),
     // Contre-coup (§5.2) : ce que le lanceur subit en retour.
-    backlash ? `contre-coup : ${effectsText(backlash)}` : undefined,
+    backlash ? `contre-coup : ${effectsText(cards, backlash)}` : undefined,
   ];
   return parts.filter(Boolean).join(' · ');
 }
@@ -331,13 +360,13 @@ export function activatedTrigger(ability: ActivatedAbility): string {
 }
 
 /** Déclencheur et effet de chaque effet actif, dans l'ordre de la carte : « Actif (3 mana) · Déflagration · … ». */
-export function activatedTexts(card: MonsterCard): string[] {
-  return card.activated.map((ability) => `${activatedTrigger(ability)} · ${abilityText(ability)}`);
+export function activatedTexts(cards: CardSet, card: MonsterCard): string[] {
+  return card.activated.map((ability) => `${activatedTrigger(ability)} · ${abilityText(cards, ability)}`);
 }
 
 /** Déclencheur « Quand il détruit une unité » (§5.2) : « Quand il détruit une unité · +1 ATK +1 PV (définitivement) ». */
-export function onKillText(card: MonsterCard): string | null {
-  return card.onKill ? `Quand il détruit une unité · ${card.onKill.map(effectText).join(' + ')}` : null;
+export function onKillText(cards: CardSet, card: MonsterCard): string | null {
+  return card.onKill ? `Quand il détruit une unité · ${card.onKill.map((effect) => effectText(cards, effect)).join(' + ')}` : null;
 }
 
 /** Bonus d'une aura : « +2 ATK », « +1 ATK +1 PV +1 mobilité ». */
@@ -364,9 +393,9 @@ export function auraText(card: MonsterCard | TerrainCard): string | null {
 export const noContactText = (card: MonsterCard): string | null => (card.noContact ? 'ne peut pas attaquer au contact' : null);
 
 /** Déclencheur « Début de tour » (§5.2) : « Début de tour · bodybuilders alliés, carré de 2 · soin 1 ». */
-export function turnStartText(card: MonsterCard): string | null {
+export function turnStartText(cards: CardSet, card: MonsterCard): string | null {
   return card.turnStart
-    ? `Début de tour · ${allyZoneText(card.turnStart)} · ${card.turnStart.effects.map(effectText).join(' + ')}`
+    ? `Début de tour · ${allyZoneText(card.turnStart)} · ${card.turnStart.effects.map((effect) => effectText(cards, effect)).join(' + ')}`
     : null;
 }
 
@@ -380,12 +409,12 @@ export interface PassiveLine {
 }
 
 /** Effets passifs d'un monstre hors mots-clés (§5.2) : quand il détruit une unité, aura, début de tour. */
-export function passiveLines(card: MonsterCard): PassiveLine[] {
+export function passiveLines(cards: CardSet, card: MonsterCard): PassiveLine[] {
   const lines: PassiveLine[] = [];
   if (card.onKill) {
     lines.push({
       name: 'Quand il détruit une unité',
-      rule: card.onKill.map(effectText).join(' + '),
+      rule: card.onKill.map((effect) => effectText(cards, effect)).join(' + '),
       explain: 'chaque fois que son attaque détruit un monstre ou un terrain.',
     });
   }
@@ -406,7 +435,7 @@ export function passiveLines(card: MonsterCard): PassiveLine[] {
   if (card.passage) {
     lines.push({
       name: passageName(card.passage),
-      rule: `${ZONE_TEXT[card.passage.zone]} · ${card.passage.effects.map(effectText).join(' + ')}`,
+      rule: `${ZONE_TEXT[card.passage.zone]} · ${card.passage.effects.map((effect) => effectText(cards, effect)).join(' + ')}`,
       explain: card.passage.lingering
         ? 'chaque monstre ennemi dans un carré de 1 autour de lui le subit : quand il y entre, quand il arrive à côté de lui (une fois par déplacement), et au début de son tour s’il y est encore.'
         : 'chaque monstre ennemi qui entre dans un carré de 1 autour de lui le subit, à chaque case où il entre (une fois par recul).',
@@ -415,7 +444,7 @@ export function passiveLines(card: MonsterCard): PassiveLine[] {
   if (card.turnStart) {
     lines.push({
       name: 'Début de tour',
-      rule: `${allyZoneText(card.turnStart)} · ${card.turnStart.effects.map(effectText).join(' + ')}`,
+      rule: `${allyZoneText(card.turnStart)} · ${card.turnStart.effects.map((effect) => effectText(cards, effect)).join(' + ')}`,
       explain: 'au début de chacun de vos tours, après les revenus et avant les statuts, sans dépasser leurs PV max.',
     });
   }
@@ -427,29 +456,29 @@ export function passiveLines(card: MonsterCard): PassiveLine[] {
  * aura, début de tour) puis effet actif, séparés par « ; » (« Vol ; Actif (3 mana) · … »), « — » sans effet. Pour un
  * sort : sa cible et ses effets.
  */
-export function cardEffectLine(card: Card): string {
+export function cardEffectLine(cards: CardSet, card: Card): string {
   switch (card.kind) {
     case 'monster': {
       const parts = [
         ...card.keywords.map(keywordLabel),
         noContactText(card),
-        onKillText(card),
+        onKillText(cards, card),
         auraText(card),
-        turnStartText(card),
-        passageText(card),
-        ...activatedTexts(card),
+        turnStartText(cards, card),
+        passageText(cards, card),
+        ...activatedTexts(cards, card),
       ].filter(Boolean);
       return parts.length > 0 ? parts.join(' ; ') : '—';
     }
     case 'spell':
-      return capitalize(abilityText(card.ability));
+      return capitalize(abilityText(cards, card.ability));
     case 'terrain': {
       const parts = [
         card.zoneManaBonus > 0 ? `La zone rapporte +${card.zoneManaBonus} mana` : null,
         auraText(card),
-        passageText(card),
+        passageText(cards, card),
         card.summonPoint ? SUMMON_POINT : null,
-        onMoveText(card),
+        onMoveText(cards, card),
       ].filter(Boolean);
       return parts.length > 0 ? parts.join(' ; ') : '—';
     }
@@ -463,15 +492,20 @@ const SUMMON_POINT = 'Point d’invocation';
 export const passageName = (passage: TerrainPassage) => (passage.lingering ? 'Zone' : 'Passage');
 
 /** Effet « Passage » d'un terrain ou d'un monstre, au format du lexique : « Passage · carré de 1 · 1 dégât ». */
-export function passageText(card: TerrainCard | MonsterCard): string | null {
+export function passageText(cards: CardSet, card: TerrainCard | MonsterCard): string | null {
   if (!card.passage) return null;
-  return `${passageName(card.passage)} · ${ZONE_TEXT[card.passage.zone]} · ${card.passage.effects.map(effectText).join(' + ')}`;
+  return `${passageName(card.passage)} · ${ZONE_TEXT[card.passage.zone]} · ${card.passage.effects.map((effect) => effectText(cards, effect)).join(' + ')}`;
 }
 
-/** Effet « Au déplacement » d'un terrain : « Au déplacement · sa case et carré de 1 · +1 mobilité (pour ce tour) ». */
-export function onMoveText(card: TerrainCard): string | null {
+/**
+ * Effet « Au déplacement » d'un terrain : « Au déplacement · vampires alliés, sa case et carré de 1 · +1 mobilité (pour
+ * ce tour) » (sans archétype : « sa case et carré de 1 »).
+ */
+export function onMoveText(cards: CardSet, card: TerrainCard): string | null {
   if (!card.onMove) return null;
-  return `Au déplacement · sa case et carré de 1 · ${effectText({ type: 'addMobility', amount: card.onMove.mobility })}`;
+  const { archetype } = card.onMove;
+  const who = archetype ? `${ARCHETYPE_NAMES[archetype].many} alliés, sa case et carré de 1` : 'sa case et carré de 1';
+  return `Au déplacement · ${who} · ${effectText(cards, { type: 'addMobility', amount: card.onMove.mobility })}`;
 }
 
 /** Nom court d'un piège : « Bombe » s'il fait des dégâts, « Filet » s'il immobilise, « Sablier » s'il fait remonter le temps. */
@@ -493,23 +527,23 @@ export function groupCards(cardIds: readonly CardId[]): { cardId: CardId; count:
  * Lignes de description d'une carte : caractéristiques, famille, effets passifs (mots-clés, quand il détruit, aura,
  * début de tour : toujours actifs) et effet actif (à activer, en payant son coût).
  */
-export function describeCard(card: Card): string[] {
+export function describeCard(cards: CardSet, card: Card): string[] {
   switch (card.kind) {
     case 'monster': {
       return [
         `ATK ${card.atk} · PV ${card.hp} · Mob. ${card.mobility} · Portée ${card.range}`,
         ...(card.archetype ? [`Archétype ${ARCHETYPE_NAMES[card.archetype].title}.`] : []),
-        ...(card.evolvesFrom ? [`Peut aussi apparaître par l’évolution d’un ${cardTitle(card.evolvesFrom)}.`] : []),
+        ...(card.evolvesFrom ? [`Peut aussi apparaître par l’évolution d’un ${cardTitle(cards, card.evolvesFrom)}.`] : []),
         ...card.keywords.map((spec) => `Passif · ${keywordLabel(spec)} : ${keywordText(spec)}`),
         ...(card.noContact ? ['Passif · ne peut pas attaquer au contact : il ne frappe jamais une cible à 1 case en ligne droite (une cible en diagonale reste possible).'] : []),
-        ...passiveLines(card).map((line) => `Passif · ${line.name} · ${line.rule} : ${line.explain}`),
-        ...activatedTexts(card),
+        ...passiveLines(cards, card).map((line) => `Passif · ${line.name} · ${line.rule} : ${line.explain}`),
+        ...activatedTexts(cards, card),
       ];
     }
     case 'spell':
-      return [capitalize(abilityText(card.ability))];
+      return [capitalize(abilityText(cards, card.ability))];
     case 'terrain': {
-      const passage = passageText(card);
+      const passage = passageText(cards, card);
       return [
         `PV ${card.hp} · se pose sur une mana zone occupée par un de vos monstres.`,
         ...(card.zoneManaBonus > 0 ? [`La zone rapporte +${card.zoneManaBonus} mana.`] : []),
@@ -523,7 +557,7 @@ export function describeCard(card: Card): string[] {
           ? [`Passif · ${SUMMON_POINT} : sa case est une case d’invocation pour vous, tant qu’aucun monstre ne s’y trouve.`]
           : []),
         ...(card.onMove
-          ? [`Passif · ${onMoveText(card)} : un de vos monstres qui commence un déplacement sur sa case ou dans un carré de 1 a +${card.onMove.mobility} mobilité ce tour, une fois par tour.`]
+          ? [`Passif · ${onMoveText(cards, card)} : un de vos ${card.onMove.archetype ? ARCHETYPE_NAMES[card.onMove.archetype].many : 'monstres'} qui commence un déplacement sur sa case ou dans un carré de 1 a +${card.onMove.mobility} mobilité ce tour, une fois par tour.`]
           : []),
       ];
     }

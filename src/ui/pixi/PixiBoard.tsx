@@ -12,6 +12,7 @@ import type { ZoneControllers } from '../iso/ambience';
 import { useWaterMasks } from '../iso/paintedDecor';
 import type { IsoCamera } from '../iso/scenery';
 import { setTokenMotions } from '../fx/stage';
+import type { BoardProgress } from '../boardLoading';
 import { BoardRenderer } from './boardRenderer';
 
 interface PixiBoardProps {
@@ -24,6 +25,8 @@ interface PixiBoardProps {
   /** Sol du plateau seul, puis du monde peint (`usePaintedGround`). */
   ground: string | null;
   world: string | null;
+  /** Le sol du monde viendra (sinon, le plateau seul suffit à l'écran de chargement). */
+  worldExpected: boolean;
   controllers: ZoneControllers;
   /** Cases à dégager (« ligne,colonne ») : les sprites qui les cachent s'effacent. */
   reveal: ReadonlySet<string>;
@@ -39,6 +42,8 @@ interface PixiBoardProps {
   onCellClick: (pos: Position) => void;
   onCellContextMenu?: (pos: Position) => void;
   onCellHover: (pos: Position | null, rect?: DOMRect) => void;
+  /** Ce qui est déjà dessiné, à chaque changement (écran de chargement). */
+  onProgress?: (progress: BoardProgress) => void;
 }
 
 const NO_MASKS: Readonly<Record<string, string>> = {};
@@ -47,6 +52,8 @@ export function PixiBoard(props: PixiBoardProps) {
   const { board, camera, plan, flipped, animated, ground, world, controllers, reveal, viewport, scene, cells, stats, anchor } = props;
   const host = useRef<HTMLDivElement>(null);
   const [renderer, setRenderer] = useState<BoardRenderer | null>(null);
+  /** PixiJS indisponible (WebGL) : rien ne sera dessiné, l'écran de chargement n'attend pas. */
+  const [failed, setFailed] = useState(false);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const masks = useWaterMasks(board, animated) ?? NO_MASKS;
 
@@ -82,6 +89,7 @@ export function PixiBoard(props: PixiBoardProps) {
         });
       } catch (error) {
         console.warn('Plateau PixiJS indisponible (WebGL) :', error);
+        if (!disposed) setFailed(true);
         return;
       }
       if (disposed) {
@@ -96,7 +104,10 @@ export function PixiBoard(props: PixiBoardProps) {
       created = { app, renderer: new BoardRenderer(pixi, app) };
       if (import.meta.env.DEV) Object.assign(window, { __pixiBoard: { ...created, pixi } });
       setRenderer(created.renderer);
-    })().catch((error: unknown) => console.warn('Plateau PixiJS indisponible :', error));
+    })().catch((error: unknown) => {
+      console.warn('Plateau PixiJS indisponible :', error);
+      if (!disposed) setFailed(true);
+    });
     return () => {
       disposed = true;
       setRenderer(null);
@@ -106,6 +117,18 @@ export function PixiBoard(props: PixiBoardProps) {
       }
     };
   }, []);
+
+  // Ce qui est dessiné, pour l'écran de chargement : le moteur, puis ce que le renderer rapporte après chaque image.
+  const progressRef = useRef(props.onProgress);
+  progressRef.current = props.onProgress;
+  const { worldExpected } = props;
+  useEffect(() => {
+    const report = (progress: BoardProgress) => progressRef.current?.(progress);
+    if (failed) return report({ engine: 'failed', ground: 'none', worldExpected, pieces: false });
+    if (!renderer) return report({ engine: 'loading', ground: 'none', worldExpected, pieces: false });
+    renderer.onProgress((drawn) => report({ engine: 'ready', worldExpected, ...drawn }));
+    return () => renderer.onProgress(null);
+  }, [renderer, failed, worldExpected]);
 
   // Les animations d'action des jetons passent par le canvas tant qu'il est là.
   useEffect(() => {

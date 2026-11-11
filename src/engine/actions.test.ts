@@ -102,7 +102,8 @@ describe('cohérence du moteur', () => {
         if (state.winner !== null) finished++;
       }
       // Les parties vont assez loin pour exercer tout le moteur.
-      expect(played).toEqual(new Set(['playCard', 'move', 'attack', 'activateEffect', 'endTurn']));
+      // (Un archer armé peut aussi tirer sur une case vide, `attackCell`.)
+      for (const type of ['playCard', 'move', 'attack', 'activateEffect', 'endTurn']) expect(played, type).toContain(type);
       expect(finished).toBeGreaterThan(0);
     },
     // Quelques secondes en local, bien plus sur la machine de publication (GitHub Actions) : 5 s ne suffisent pas.

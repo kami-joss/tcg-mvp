@@ -43,15 +43,15 @@ export interface ZoneMark {
  * Marques au sol par case (`ligne,colonne`), pour chaque unité « Passage » visible et chacun de ses effets, puis pour
  * chaque case brûlée.
  */
-export function getZoneMarks(view: Pick<PlayerView, 'board' | 'units'> & Partial<Pick<PlayerView, 'burningCells'>>): Map<string, ZoneMark[]> {
+export function getZoneMarks(view: Pick<PlayerView, 'board' | 'units' | 'cards'> & Partial<Pick<PlayerView, 'burningCells'>>): Map<string, ZoneMark[]> {
   const marks = new Map<string, ZoneMark[]>();
   const add = (key: string, mark: ZoneMark) => marks.set(key, [...(marks.get(key) ?? []), mark]);
   for (const unit of Object.values(view.units)) {
-    const passage = getPassage(unit);
+    const passage = getPassage(view.cards, unit);
     if (!passage) continue;
-    const name = getCard(unit.cardId).name;
+    const name = getCard(view.cards, unit.cardId).name;
     const effects: Omit<ZoneMark, 'sourceId' | 'owner'>[] = passage.effects.map((effect) => {
-      const title = `${name} de J${unit.owner} : ${effectText(effect)} ${passage.lingering ? 'à l’ennemi qui entre ici ou près duquel il arrive, et au début de son tour s’il y est encore.' : 'à l’ennemi qui entre ici (à chaque case en marchant).'}`;
+      const title = `${name} de J${unit.owner} : ${effectText(view.cards, effect)} ${passage.lingering ? 'à l’ennemi qui entre ici ou près duquel il arrive, et au début de son tour s’il y est encore.' : 'à l’ennemi qui entre ici (à chaque case en marchant).'}`;
       if (effect.type === 'damage') return { icon: 'hearts', label: `−${effect.amount}`, title };
       if (effect.type === 'rewind') return { icon: 'compass', label: `−${effect.steps}`, title };
       const amount = 'amount' in effect ? effect.amount : 0;
@@ -63,7 +63,7 @@ export function getZoneMarks(view: Pick<PlayerView, 'board' | 'units'> & Partial
   }
   for (const cell of view.burningCells ?? []) {
     const key = `${cell.pos.row},${cell.pos.col}`;
-    const what = cell.effects.map(effectText).join(' + ');
+    const what = cell.effects.map((effect) => effectText(view.cards, effect)).join(' + ');
     const damage = cell.effects.find((effect) => effect.type === 'damage');
     add(key, {
       sourceId: `brulee-${key}`,
@@ -71,7 +71,7 @@ export function getZoneMarks(view: Pick<PlayerView, 'board' | 'units'> & Partial
       burning: true,
       icon: 'flame',
       label: damage ? `−${damage.amount}` : null,
-      title: `Case brûlée par ${getCard(cell.cardId).name} de J${cell.owner} : ${what} à chaque ennemi qui y entre.`,
+      title: `Case brûlée par ${getCard(view.cards, cell.cardId).name} de J${cell.owner} : ${what} à chaque ennemi qui y entre.`,
     });
   }
   return marks;

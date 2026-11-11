@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { applyAction, getLegalActions } from './actions';
 import { getAttackTargets, getDiagonalCells, getStrikeCells } from './combat';
 import { BOARD } from './board';
+import { CARDS } from './cards';
 import { at, gameWith } from './test-utils';
 import type { Action, GameState, UnitId } from './types';
 
@@ -91,9 +92,9 @@ describe('attaque en diagonale (§10)', () => {
 
   it('une case X coupe : la diagonale doit être adjacente (§10)', () => {
     // (3, 4) est une case X : jamais adjacente ; on ne frappe pas dessus.
-    expect(getDiagonalCells({ board: BOARD, units: {} }, at(2, 3), 2)).not.toContainEqual(at(3, 4));
-    expect(getDiagonalCells({ board: BOARD, units: {} }, at(2, 3), 2)).toContainEqual(at(1, 2));
-    expect(getDiagonalCells({ board: BOARD, units: {} }, at(2, 3), 1)).toEqual([]);
+    expect(getDiagonalCells({ board: BOARD, units: {}, cards: CARDS }, at(2, 3), 2)).not.toContainEqual(at(3, 4));
+    expect(getDiagonalCells({ board: BOARD, units: {}, cards: CARDS }, at(2, 3), 2)).toContainEqual(at(1, 2));
+    expect(getDiagonalCells({ board: BOARD, units: {}, cards: CARDS }, at(2, 3), 1)).toEqual([]);
   });
 
   it('une falaise coupe la diagonale si aucun des deux chemins en L ne passe (§10)', () => {
@@ -107,7 +108,7 @@ describe('attaque en diagonale (§10)', () => {
   });
 
   it('la menace montre les diagonales d’un monstre de portée 2', () => {
-    const board = { board: BOARD, units: {} };
+    const board = { board: BOARD, units: {}, cards: CARDS };
     expect(getStrikeCells(board, at(8, 2), 2)).toContainEqual(at(7, 3));
     expect(getStrikeCells(board, at(8, 2), 1)).not.toContainEqual(at(7, 3));
   });
@@ -191,7 +192,7 @@ describe('attaque en diagonale (§10)', () => {
   });
 
   it('la menace montre les diagonales jusqu’à portée ÷ 2 (portée 4 : 2 cases)', () => {
-    const board = { board: BOARD, units: {} };
+    const board = { board: BOARD, units: {}, cards: CARDS };
     expect(getStrikeCells(board, at(9, 0), 4)).toContainEqual(at(7, 2));
     expect(getStrikeCells(board, at(9, 0), 3)).not.toContainEqual(at(7, 2));
   });

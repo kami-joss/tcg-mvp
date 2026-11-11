@@ -71,7 +71,7 @@ interface ManaOrbProps {
   /** C'est à ce joueur de jouer : halo qui respire, brume plus dense. */
   active: boolean;
   animated: boolean;
-  /** Économie « Réserve » : la limite de sa réserve, l'orbe est pleine à cette valeur (sinon à `ORB_FULL_MANA`). */
+  /** Limite du mana de la partie : l'orbe est pleine à cette valeur (sinon à `ORB_FULL_MANA`). */
   limit?: number | null;
 }
 

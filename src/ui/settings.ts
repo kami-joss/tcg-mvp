@@ -55,7 +55,10 @@ export interface DisplaySettings {
   readonly grimoireOpen: boolean;
   /** Stats sur les jetons. */
   readonly tokenStats: TokenStats;
-  /** Défilement du plateau quand la souris touche un bord (la caméra qui suit les actions n'en dépend pas). */
+  /**
+   * Défilement du plateau quand la souris touche un bord (la caméra qui suit les actions n'en dépend pas). Désactivé par
+   * défaut depuis le 2026-11-11 (clé `-v2` : le choix « activé » mémorisé avant ne compte plus).
+   */
   readonly edgeScroll: boolean;
   /** Quadrillage du plateau peint (traits et damier des cases) ; sans lui, seules restent les cases à repère. */
   readonly grid: boolean;
@@ -74,7 +77,7 @@ export const DEFAULT_SETTINGS: DisplaySettings = {
   grimoireLayout: 'grid2',
   grimoireOpen: true,
   tokenStats: DEFAULT_TOKEN_STATS,
-  edgeScroll: true,
+  edgeScroll: false,
   grid: true,
   zoneDanger: true,
   zonePath: true,
@@ -89,7 +92,7 @@ const KEYS = {
   grimoireLayout: 'tcg-grimoire-affichage',
   grimoireOpen: 'tcg-grimoire-ouvert',
   tokenStats: 'tcg-plateau-stats-v6',
-  edgeScroll: 'tcg-plateau-defilement-bords',
+  edgeScroll: 'tcg-plateau-defilement-bords-v2',
   grid: 'tcg-plateau-quadrillage',
   zoneDanger: 'tcg-zones-menace',
   zonePath: 'tcg-zones-chemin',

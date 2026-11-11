@@ -19,13 +19,14 @@ import {
   getCell,
   getCliff,
   getMonsterCard,
+  getTerrainCard,
   getOnMoveBonus,
   getUnitsAt,
   getViewZoneStatus,
   requiemCountdown,
   samePos,
 } from '../engine';
-import type { Board as BoardData, Direction, MonsterUnit, PlayerView, Position, Status, StatusKind, TerrainUnit, Trap, Unit, UnitId } from '../engine';
+import type { Board as BoardData, CardSet, Direction, MonsterCard, MonsterUnit, PlayerView, Position, Status, StatusKind, TerrainCard, TerrainUnit, Trap, Unit, UnitId } from '../engine';
 import { CARD_ART, boardArt, fitBackground, shortName, tokenFit } from './art';
 import { Icon } from './Icon';
 import { isExhausted, posKey } from './interaction';
@@ -38,7 +39,10 @@ import { IsoDecor } from './iso/IsoDecor';
 import { boardMetrics, fitCell, tiltGeometry } from './boardGeometry';
 import { ISO_TILT, isoCamera, isoFloor, isoScenery, planSize, waterKind } from './iso/scenery';
 import { flatGroundBackground, paintedDecor, usePaintedGround, worldPlan } from './iso/paintedDecor';
-import { DEFAULT_TOKEN_STATS } from './settings';
+import { BOARD_DRAWN } from './boardLoading';
+import type { BoardProgress } from './boardLoading';
+import { DEFAULT_TOKEN_STATS, stepZoom } from './settings';
+import { wheelZoom } from './zoomShortcuts';
 import type { BoardView, TokenStats } from './settings';
 import { FLIP_EDGE, getZoneTiles } from './contestZones';
 import type { ZoneTile } from './contestZones';
@@ -75,7 +79,7 @@ interface BoardProps {
    * pour sortir chaque bord du plateau de sous un panneau flottant (fiche à gauche, grimoire à droite).
    */
   margins?: { readonly left: number; readonly right: number };
-  /** Défilement quand la souris touche un bord du cadre (réglage ; vrai par défaut). */
+  /** Défilement quand la souris touche un bord du cadre (réglage ; faux par défaut). */
   edgeScroll?: boolean;
   /** Quadrillage du plateau peint (réglage ; vrai par défaut), dessiné par le plateau PixiJS. */
   grid?: boolean;
@@ -87,6 +91,10 @@ interface BoardProps {
   onCellHover: (pos: Position | null, rect?: DOMRect) => void;
   /** Case survolée : le décor peint qui la cache s'efface, comme celui qui cache un jeton. */
   hovered?: Position | null;
+  /** Ce que le plateau a déjà dessiné, à chaque changement (écran de chargement). */
+  onProgress?: (progress: BoardProgress) => void;
+  /** Ctrl ou ⌘ + molette (ou pincement) sur le plateau : un cran de zoom, vers le point sous la souris. */
+  onZoomStep?: (step: 1 | -1) => void;
 }
 
 /** Marge laissée autour de la scène de dessus ou inclinée, pour son ombre. */
@@ -177,9 +185,18 @@ function useZoomViewport(
   scroll: { readonly x: boolean; readonly y: boolean },
   ref: RefObject<HTMLDivElement | null>,
   edge: EdgeScroll,
+  onZoomStep?: (step: 1 | -1) => void,
 ) {
   /** Point de la scène au centre de la vue, en fractions de sa largeur et de sa hauteur. */
   const center = useRef<{ x: number; y: number } | null>(null);
+  /**
+   * Zoom à la molette : le point de la scène sous la souris (fractions de la scène) et l'écart de la souris au centre de la
+   * vue (px), pour que ce point reste sous la souris pendant toute la transition de taille de la scène (0,6 s) ; oublié
+   * à la fin de la transition, ou dès que le joueur fait défiler ou glisser le plateau.
+   */
+  const anchor = useRef<{ fx: number; fy: number; ox: number; oy: number } | null>(null);
+  const zoomRef = useRef({ zoom, onZoomStep });
+  zoomRef.current = { zoom, onZoomStep };
   /**
    * Le joueur a fait défiler le cadre (molette, glisser, barre de défilement) depuis le dernier recentrage : seulement
    * alors, le point au centre de la vue est retenu. Les défilements du plateau lui-même (mise en place, transition de vue)
@@ -211,6 +228,11 @@ function useZoomViewport(
     };
     const apply = () => {
       const b = box();
+      const a = anchor.current;
+      if (a) {
+        center.current = { x: a.fx - a.ox / b.width, y: a.fy - a.oy / b.height };
+        userMoved.current = true;
+      }
       const fx = center.current?.x ?? 0.5;
       const fy = center.current?.y ?? focusY.current;
       el.scrollLeft = axes.current.x ? b.left + fx * b.width - el.clientWidth / 2 : 0;
@@ -219,7 +241,10 @@ function useZoomViewport(
     apply();
     // Le passage d'une vue à l'autre est animé, et la scène prend sa taille après la première mesure de la zone : on
     // recentre à chaque changement de taille de la scène, et une fois la transition finie.
-    const timer = window.setTimeout(apply, 650);
+    const timer = window.setTimeout(() => {
+      apply();
+      anchor.current = null;
+    }, 650);
     const resized = new ResizeObserver(apply);
     resized.observe(scene);
     const remember = () => {
@@ -230,8 +255,10 @@ function useZoomViewport(
         y: (el.scrollTop + el.clientHeight / 2 - b.top) / b.height,
       };
     };
-    const touched = () => {
+    const touched = (event: Event) => {
       userMoved.current = true;
+      // Le joueur reprend la main (sauf la molette du zoom elle-même) : le point de la scène sous la souris est oublié.
+      if (!(event instanceof WheelEvent && (event.ctrlKey || event.metaKey))) anchor.current = null;
     };
     el.addEventListener('scroll', remember);
     el.addEventListener('wheel', touched, { passive: true });
@@ -244,6 +271,37 @@ function useZoomViewport(
       el.removeEventListener('pointerdown', touched);
     };
   }, [zoom, mode, scroll.x, scroll.y]);
+
+  // Zoom à la molette avec Ctrl ou ⌘, et pincement du pavé tactile (une molette avec Ctrl pour le navigateur) : un cran de
+  // zoom par cran de molette, vers le point sous la souris ; le zoom de la page n'a pas lieu sur le plateau. La molette
+  // seule fait toujours défiler le cadre.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let accumulated = 0;
+    const wheel = (event: WheelEvent) => {
+      const { zoom: current, onZoomStep: step } = zoomRef.current;
+      if (!(event.ctrlKey || event.metaKey) || !step) return;
+      event.preventDefault();
+      const next = wheelZoom(accumulated, event.deltaY, event.deltaMode);
+      accumulated = next.accumulated;
+      if (next.step === 0) return;
+      const scene = el.querySelector<HTMLElement>('[data-scene]');
+      if (scene && stepZoom(current, next.step) !== current) {
+        const v = el.getBoundingClientRect();
+        const r = scene.getBoundingClientRect();
+        anchor.current = {
+          fx: (event.clientX - r.left) / (r.width || 1),
+          fy: (event.clientY - r.top) / (r.height || 1),
+          ox: event.clientX - (v.left + el.clientLeft + el.clientWidth / 2),
+          oy: event.clientY - (v.top + el.clientTop + el.clientHeight / 2),
+        };
+      }
+      step(next.step);
+    };
+    el.addEventListener('wheel', wheel, { passive: false });
+    return () => el.removeEventListener('wheel', wheel);
+  }, [ref]);
 
   // Glisser le plateau (handoff V11, lot 13 §2) : clic gauche maintenu n'importe où dans le cadre (cases comprises, pas sur
   // un autre bouton), puis déplacement. Sous 6 px, c'est un clic ordinaire ; au-delà, le cadre suit la souris, le curseur
@@ -432,7 +490,7 @@ export function revealCells(view: PlayerView, hovered: Position | null): Set<str
 export const isPixiBoard = (board: BoardData): boolean => paintedDecor(board) !== null && isoScenery(board) !== null;
 
 export function Board(props: BoardProps) {
-  const { view, path, showArt, zoom, animated, flipped, onCellHover, margins = NO_MARGINS, edgeScroll = true } = props;
+  const { view, path, showArt, zoom, animated, flipped, onCellHover, margins = NO_MARGINS, edgeScroll = false } = props;
   const scenery = isoScenery(view.board);
   // Le 15 × 15 est dessiné par PixiJS en vue isométrique (la vue inclinée y revient) ; la vue de dessus reste en HTML.
   const pixiMode = isPixiBoard(view.board) && props.mode !== 'top';
@@ -445,6 +503,14 @@ export function Board(props: BoardProps) {
   // son décor extérieur, arrive ensuite (tâche de fond, puis cache de l'appareil).
   const paintedData = paintedDecor(view.board);
   const grounds = usePaintedGround(view.board);
+  // Plateau en HTML (vue de dessus, autres cartes) : prêt dès que son sol peint l'est, s'il en a un. Avant d'être peint,
+  // pour que l'écran de chargement ne s'affiche pas sur un plateau déjà prêt.
+  const htmlReady = pixiMode ? null : !paintedData || grounds.board !== null;
+  const progressRef = useRef(props.onProgress);
+  progressRef.current = props.onProgress;
+  useLayoutEffect(() => {
+    if (htmlReady !== null) progressRef.current?.(htmlReady ? BOARD_DRAWN : { ...BOARD_DRAWN, ground: 'none' });
+  }, [htmlReady]);
   const art = showArt && !decor ? boardArt(view.board) : undefined;
   const viewportRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<HTMLDivElement>(null);
@@ -470,6 +536,7 @@ export function Board(props: BoardProps) {
     { x: shownWidth + margins.left + margins.right > area.width + 1, y: shownHeight > area.height + 1 },
     viewportRef,
     { left: margins.left, right: margins.right, enabled: edgeScroll && !props.anchor },
+    props.onZoomStep,
   );
   zoomView.focusY.current = iso ? camera.centerY / camera.height : tilted ? geometry.originY / geometry.sceneHeight : 0.5;
   const sceneStyle: CSSProperties = iso
@@ -559,6 +626,7 @@ export function Board(props: BoardProps) {
           animated={animated}
           ground={grounds.board}
           world={grounds.world}
+          worldExpected={grounds.worldExpected}
           controllers={controllers}
           reveal={reveal}
           viewport={viewportRef}
@@ -580,6 +648,7 @@ export function Board(props: BoardProps) {
           onCellClick={props.onCellClick}
           onCellContextMenu={props.onCellContextMenu}
           onCellHover={onCellHover}
+          onProgress={props.onProgress}
         />
       )}
       <div className="board-viewport__content">
@@ -766,7 +835,7 @@ function BoardCell({
       // Un clic ne donne pas le focus à la case (contour du clavier) : seul Tab le fait.
       onMouseDown={(event) => event.preventDefault()}
       onMouseEnter={hover}
-      aria-label={cellLabel(pos, zone ? MANA_ZONE_NAMES[zone] : null, units)}
+      aria-label={cellLabel(view.cards, pos, zone ? MANA_ZONE_NAMES[zone] : null, units)}
       data-cell={dataCell}
     >
       {/* Plateau PixiJS : fond, repères et surbrillances de la case sont dans le canvas. */}
@@ -795,7 +864,7 @@ function BoardCell({
       {/* Plateau PixiJS : les unités, leurs ombres et la flèche d'orientation sont dans le canvas. */}
       {!drawnByPixi && (
         <>
-          {terrain && <TerrainPlaque terrain={terrain} alone={!monster} selected={isSelected(terrain)} upright={upright} />}
+          {terrain && <TerrainPlaque terrain={terrain} card={getTerrainCard(view.cards, terrain.cardId)} alone={!monster} selected={isSelected(terrain)} upright={upright} />}
           {monster && facing && (
             <span className={`facing facing--${facing} facing--p${monster.owner}${exhausted ? ' is-done' : ''}`} aria-hidden="true">
               <span />
@@ -809,6 +878,7 @@ function BoardCell({
           {upright && terrain && (
             <TerrainCrest
               terrain={terrain}
+              card={getTerrainCard(view.cards, terrain.cardId)}
               small={monster !== undefined}
               standScale={standScale}
               target={!monster && highlight === 'target'}
@@ -817,6 +887,7 @@ function BoardCell({
           {monster && (
             <MonsterToken
               monster={monster}
+              card={getMonsterCard(view.cards, monster.cardId)}
               atk={getAtk(view, monster)}
               attackSpent={monster.hasAttacked && !canAttack(view, monster)}
               requiem={requiemCountdown(monster, view.turn, view.activePlayer)}
@@ -909,14 +980,16 @@ function Cliffs({ board, pos, flipped }: { board: BoardData; pos: Position; flip
   );
 }
 
-function cellLabel(pos: Position, zoneName: string | null, units: Unit[]): string {
+function cellLabel(cards: CardSet, pos: Position, zoneName: string | null, units: Unit[]): string {
   const parts = [`Case (${pos.row}, ${pos.col})`, zoneName];
-  for (const unit of units) parts.push(`${getCard(unit.cardId).name} de J${unit.owner}, ${unit.hp} PV`);
+  for (const unit of units) parts.push(`${getCard(cards, unit.cardId).name} de J${unit.owner}, ${unit.hp} PV`);
   return parts.filter(Boolean).join(' · ');
 }
 
 interface MonsterTokenProps {
   monster: MonsterUnit;
+  /** Sa carte, dans les cartes de la partie. */
+  card: MonsterCard;
   /** ATK effective : ATK du monstre + bonus du tour + auras (Arnold). */
   atk: number;
   /** Il a attaqué et ne peut plus attaquer ce tour (Carquois prêt ! : après sa 2e attaque). */
@@ -954,12 +1027,12 @@ interface MonsterTokenProps {
 function MonsterToken(props: MonsterTokenProps) {
   const { monster, atk, attackSpent, requiem, active, selected, exhausted, hidden, onZone, angle, stats, onMoveBonus, standScale } = props;
   const { bobDelay, target, damage } = props;
-  const card = getCard(monster.cardId);
+  const { card } = props;
   const art = CARD_ART[monster.cardId];
   const above = statsAbove(angle);
   const path = dropPath(angle);
   const showMobility = active ? stats.mobility : stats.enemyMobility;
-  const mobility = active ? monster.mobilityLeft + onMoveBonus : getMonsterCard(monster.cardId).mobility;
+  const mobility = active ? monster.mobilityLeft + onMoveBonus : card.mobility;
   const classes = [
     'token',
     `token--p${monster.owner}`,
@@ -1045,7 +1118,7 @@ function MonsterToken(props: MonsterTokenProps) {
   );
 }
 
-function TerrainPlaque(props: { terrain: TerrainUnit; alone: boolean; selected: boolean; upright: boolean }) {
+function TerrainPlaque(props: { terrain: TerrainUnit; card: TerrainCard; alone: boolean; selected: boolean; upright: boolean }) {
   const { terrain, alone, selected, upright } = props;
   // Debout (vues inclinée et isométrique), le terrain est un blason : la plaque au sol n'est plus qu'un socle.
   const classes = ['plaque', `plaque--p${terrain.owner}`, alone && !upright && 'is-alone', selected && 'is-selected'];
@@ -1054,7 +1127,7 @@ function TerrainPlaque(props: { terrain: TerrainUnit; alone: boolean; selected: 
       <span className="plaque__glow" />
       {alone && !upright && (
         <>
-          <span className="plaque__name">{getCard(terrain.cardId).name}</span>
+          <span className="plaque__name">{props.card.name}</span>
           <span className="plaque__hp">{terrain.hp} PV</span>
           <Statuses statuses={terrain.statuses} />
         </>
@@ -1069,9 +1142,8 @@ function TerrainPlaque(props: { terrain: TerrainUnit; alone: boolean; selected: 
  * petit blason au-dessus de sa tête (iso) ou sur son coin haut-droit (inclinée), et redescend avec un rebond quand le
  * monstre part. Il ne flotte pas.
  */
-function TerrainCrest(props: { terrain: TerrainUnit; small: boolean; standScale: number; target: boolean }) {
-  const { terrain, small, standScale, target } = props;
-  const card = getCard(terrain.cardId);
+function TerrainCrest(props: { terrain: TerrainUnit; card: TerrainCard; small: boolean; standScale: number; target: boolean }) {
+  const { terrain, card, small, standScale, target } = props;
   const art = CARD_ART[terrain.cardId];
   return (
     <span className={`crest crest--p${terrain.owner}${small ? ' is-small' : ''}`}>

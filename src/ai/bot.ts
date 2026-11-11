@@ -7,11 +7,14 @@
 // Elle ne fait que consommer le moteur, comme l'interface : `getLegalActions`, `applyAction` et les fonctions publiques.
 import {
   applyAction,
+  attackLimit,
   canAdvance,
   canMove,
   getAtk,
   getCell,
   getCliff,
+  getAttackCells,
+  isInSquare,
   getAttackTargets,
   getCard,
   getHiddenUnitIds,
@@ -28,16 +31,16 @@ import {
   getZoneMana,
   canFly,
   getEffectCost,
+  hasCarapace,
   isHiddenFrom,
   isPlayable,
   isStunned,
   ownerNextTurn,
   samePos,
-  statusTotal,
 } from '../engine';
 import { getStrikers } from './reach';
 import type { Striker } from './reach';
-import type { Action, Board, CardId, GameMode, GameState, ManaZoneId, MonsterCard, MonsterUnit, PlayerId, Position, Unit, UnitId } from '../engine';
+import type { Action, Board, CardId, CardSet, GameMode, GameState, ManaZoneId, MonsterCard, MonsterUnit, PlayerId, Position, Unit, UnitId } from '../engine';
 
 /**
  * Recherche : les `candidates` meilleures actions (plus celle choisie sans chercher) sont suivies de `depth` actions au
@@ -92,8 +95,21 @@ export const W = {
   trapFar: 0.25,
   /** Distance (en cases de marche) d'une mana zone à partir de laquelle un piège ne vaut plus que `trapFar`. */
   trapReach: 8,
-  /** Case brûlée à soi : publique, mais elle reste et gêne les déplacements adverses. */
+  /**
+   * Case brûlée à soi : publique, mais elle reste et blesse l'ennemi qui y entre. Elle ne vaut que `burningFar` de ceci si
+   * aucun ennemi ne peut y arriver à son prochain tour, `burningZone` fois ceci dans la zone d'une mana zone (l'ennemi
+   * doit y entrer pour la prendre ou la contester).
+   */
   burning: 1,
+  burningFar: 0.3,
+  burningZone: 1.5,
+  /**
+   * Un monstre que ses burn vont détruire (`pendingBurn`) : le VP de sa destruction ira à l'autre camp (§4.2) ; on n'en
+   * compte que cette part, un soin pouvant encore le sauver.
+   */
+  doomed: 0.85,
+  /** Part de sa valeur que garde un monstre condamné par ses burn qui pourra encore agir un tour avant de mourir. */
+  doomedActs: 0.3,
   /** Part des pertes qu'on s'attend à subir au prochain tour adverse (il ne frappera pas partout). */
   threat: 0.4,
   /** Part des dégâts qu'on pourra infliger à son prochain tour : pousse à se placer pour attaquer. */
@@ -112,10 +128,21 @@ const MIN_GAIN = 0.05;
  */
 const EFFECT_FIRST_GAIN = 1;
 
-const isBoardAction = (action: Action) => action.type === 'move' || action.type === 'attack' || action.type === 'activateEffect';
+const isBoardAction = (action: Action) => action.type === 'move' || action.type === 'attack' || action.type === 'attackCell' || action.type === 'activateEffect';
 
 /** Un effet actif ou un sort (pas un monstre ni un terrain posés : ils restent en jeu). */
 const isUse = (action: Action) => action.type === 'activateEffect' || (action.type === 'playCard' && action.target.kind !== 'cell');
+
+/**
+ * Un sort ou un effet qui touche plusieurs monstres à la fois (cible `all` : Appel du sang, Pénombre, Piège temporel,
+ * Brûlure en chaîne). Il ne rapporte souvent qu'après les actions de plusieurs monstres (+2 mobilité ce tour-ci ne
+ * change rien tant qu'ils n'ont pas bougé) : aucune action suivante d'un seul monstre ne le montre, la recherche
+ * l'essaie avec la suite du tour (`decide`).
+ */
+const isWide = (action: Action) => (action.type === 'playCard' || action.type === 'activateEffect') && action.target.kind === 'all';
+
+/** Sorts et effets à plusieurs cibles essayés par la recherche à chaque décision, au plus. */
+const WIDE_SEARCHED = 2;
 
 const foe = (player: PlayerId): PlayerId => (player === 1 ? 2 : 1);
 
@@ -163,7 +190,10 @@ function decide(state: GameState, known: GameState, me: PlayerId, search: Search
   // simple ; on garde celle qui finit le mieux. Au-delà du budget de calcul, on s'arrête là.
   const pick = ranked.candidates.find((c) => c.action === ranked.pick);
   const best = [...ranked.candidates].sort((a, b) => b.score - a.score).slice(0, search.candidates);
-  const order = pick ? [pick, ...best.filter((c) => c !== pick)] : best;
+  // Les sorts et effets à plusieurs cibles passent juste après l'action choisie sans chercher, même mal notés : leur note
+  // immédiate ne dit pas ce qu'ils permettent ensuite (`isWide`).
+  const wide = ranked.wide.filter((c) => c !== pick && !best.includes(c)).slice(0, WIDE_SEARCHED);
+  const order = pick ? [pick, ...wide, ...best.filter((c) => c !== pick)] : [...wide, ...best];
   // Finir le tour tout de suite vaut la position actuelle (après la riposte adverse) ; à valeur égale, l'action choisie
   // sans chercher l'emporte.
   let choice: Action = END_TURN;
@@ -242,11 +272,12 @@ interface Scored {
 /**
  * Chaque action jouée sur ce que l'IA sait (`known`) et notée, et l'action qu'elle choisirait sans chercher plus loin
  * (`pick`). `actions` : les actions légales sur l'état réel ; une action légale sur l'état réel mais pas sur ce que
- * l'IA en sait est ignorée.
+ * l'IA en sait est ignorée. `wide` : les sorts et effets à plusieurs cibles, même mal notés, pour la recherche.
  */
-function rank(known: GameState, me: PlayerId, actions: readonly Action[]): { base: number; pick: Action; candidates: Scored[] } {
+function rank(known: GameState, me: PlayerId, actions: readonly Action[]): { base: number; pick: Action; candidates: Scored[]; wide: Scored[] } {
   const base = evaluate(known, me);
   const candidates: Scored[] = [];
+  const wide: Scored[] = [];
   let best = END_TURN;
   let bestScore = base + MIN_GAIN;
   let bestNext: GameState | null = null;
@@ -279,9 +310,11 @@ function rank(known: GameState, me: PlayerId, actions: readonly Action[]): { bas
       // poser d'à côté (sans quoi, à égalité, elle irait d'une case à l'autre).
       score = Math.max(score, value - MIN_GAIN);
     }
+    const scored = { action, score, next };
+    if (isWide(action)) wide.push(scored);
     // Un effet ou un sort qui n'apporte presque rien (un piège loin de tout, un buff sans cible) ne vaut pas son mana.
     if (isUse(action) && score < base + W.useGain) continue;
-    candidates.push({ action, score, next });
+    candidates.push(scored);
     if (score > bestScore) {
       best = action;
       bestScore = score;
@@ -290,7 +323,8 @@ function rank(known: GameState, me: PlayerId, actions: readonly Action[]): { bas
     if (action.type === 'activateEffect' && score > (effect?.score ?? -Infinity)) effect = { action, score };
     if (isBoardAction(action) && score > (board?.score ?? -Infinity)) board = { action, score };
   }
-  const result = (pick: Action) => ({ base, pick, candidates });
+  wide.sort((a, b) => b.score - a.score);
+  const result = (pick: Action) => ({ base, pick, candidates, wide });
   // Les sorts se jouent quand ils sont les meilleurs (Flèche divine avant le tir, Pénombre face à une menace).
   if (best.type !== 'playCard' || best.target.kind !== 'cell') return result(best);
   // Un monstre ou un terrain attend : un effet utile passe d'abord si la carte lui prendrait le mana dont il a besoin.
@@ -332,6 +366,7 @@ function focusOf(before: GameState, action: Action, after: GameState, me: Player
   switch (action.type) {
     case 'move':
     case 'attack':
+    case 'attackCell':
       return mine(action.unitId);
     case 'activateEffect': {
       const target = 'unitId' in action.target ? action.target.unitId : undefined;
@@ -359,7 +394,7 @@ function getFollowUps(before: GameState, action: Action, after: GameState, me: P
   if (!focus) return [];
   const monster = after.units[focus] as MonsterUnit;
   const quick = action.type === 'move' || (action.type === 'playCard' && action.target.kind === 'cell');
-  const effects = getMonsterCard(monster.cardId).activated.flatMap((ability, i) =>
+  const effects = getMonsterCard(after.cards, monster.cardId).activated.flatMap((ability, i) =>
     // Après un déplacement ou une invocation, son effet seulement s'il dépend de l'endroit où il se trouve (Mage,
     // Chaman, dragons) ou de la case des pièges à poser ; évoluer vaut autant d'ici que d'ailleurs.
     !monster.usedEffects.includes(i) &&
@@ -384,6 +419,10 @@ function monsterActions(state: GameState, monster: MonsterUnit, moves: boolean, 
     actions.push({ type: 'attack', unitId: monster.id, targetId: target.id, advance: false });
     if (canAdvance(state, monster, target)) actions.push({ type: 'attack', unitId: monster.id, targetId: target.id, advance: true });
   }
+  // Flèche explosive armée : un tir sur une case vide, seulement là où ses éclats touchent un ennemi qu'il voit.
+  for (const pos of getAttackCells(state, monster)) {
+    if (monstersOf(state, monster.owner === 1 ? 2 : 1).some((enemy) => isInSquare(state.board, pos, enemy.pos))) actions.push({ type: 'attackCell', unitId: monster.id, pos });
+  }
   if (moves && monster.mobilityLeft + getOnMoveBonus(state, monster) > 0 && canMove(monster)) {
     for (const { pos } of getMoveDestinations(state, monster)) actions.push({ type: 'move', unitId: monster.id, to: pos });
   }
@@ -407,17 +446,22 @@ export function evaluate(state: GameState, me: PlayerId): number {
     (state.players[me].vp - state.players[other].vp) * W.vp +
     Math.min(mana, W.hoardFrom) * W.mana +
     Math.max(0, mana - W.hoardFrom) * W.hoard +
-    heldSpells(state.players[me].grimoire) * W.spellHeld;
+    heldSpells(state.cards, state.players[me].grimoire) * W.spellHeld;
 
   for (const unit of Object.values(state.units)) {
     const sign = unit.owner === me ? 1 : -1;
     score += sign * unitValue(state, unit);
+    // Un monstre que ses burn vont détruire : le VP en ira à l'autre camp (§4.2).
+    if (unit.kind === 'monster' && pendingBurn(state, unit) >= unit.hp) score -= sign * W.vp * W.doomed;
   }
 
   const enemies = monstersOf(state, other);
-  // Où les ennemis peuvent aller à leur prochain tour : calculé une fois, s'il le faut.
+  // Où les monstres de chaque camp peuvent aller à leur prochain tour : calculé une fois, s'il le faut.
+  const walkersOf = (monsters: readonly MonsterUnit[]) =>
+    monsters.map((monster) => ({ monster, mobility: nextMobility(state, monster), flying: canFly(state.cards, monster) }));
   let enemyWalkers: Walker[] | null = null;
-  const walkers = () => (enemyWalkers ??= enemies.map((monster) => ({ monster, mobility: nextMobility(state, monster), flying: canFly(monster) })));
+  let ownWalkers: Walker[] | null = null;
+  const walkers = () => (enemyWalkers ??= walkersOf(enemies));
   // Mana zones, quand l'IA finit son tour : l'adversaire touche aussitôt, au début du sien, le VP et le mana de celles
   // qu'il tient ; celles de l'IA ne lui rapportent qu'au début de son tour suivant, si l'adversaire ne vient pas les
   // contester d'ici là. Une zone contestée ne rapporte rien à personne : y entrer prive l'adversaire de son revenu.
@@ -446,7 +490,7 @@ export function evaluate(state: GameState, me: PlayerId): number {
       continue;
     }
     if (open.length > 0) {
-      const flying = canFly(monster);
+      const flying = canFly(state.cards, monster);
       score -= W.approach * Math.min(...open.map(({ pos }) => zoneDistances(state.board, state.mode, pos, flying)[here]!));
     } else if (enemies.length > 0) {
       hunt ??= walkDistances(state.board, enemies.map((e) => e.pos), false);
@@ -462,7 +506,14 @@ export function evaluate(state: GameState, me: PlayerId): number {
     const near = Math.min(...zones.map(({ pos }) => zoneDistances(state.board, state.mode, pos, false)[here]!));
     score += W.trap * (W.trapFar + (1.75 - W.trapFar) * Math.max(0, 1 - near / W.trapReach));
   }
-  score += (state.burningCells.filter((cell) => cell.owner === me).length - state.burningCells.filter((cell) => cell.owner !== me).length) * W.burning;
+  // Une case brûlée ne blesse que l'ennemi qui y entre : elle vaut surtout là où il peut aller, et dans les zones des mana
+  // zones, où il doit entrer.
+  for (const cell of state.burningCells) {
+    const mine = cell.owner === me;
+    const reachable = canReach(state, mine ? walkers() : (ownWalkers ??= walkersOf(monstersOf(state, me))), cell.pos);
+    const value = W.burning * (!reachable ? W.burningFar : zoneOf[index(state.board, cell.pos)]! >= 0 ? W.burningZone : 1);
+    score += mine ? value : -value;
+  }
   score -= strikeLosses(state, other) * W.threat;
   score += strikeLosses(state, me) * W.opportunity;
   return score;
@@ -473,7 +524,7 @@ function nextMobility(state: GameState, monster: MonsterUnit): number {
   const next = ownerNextTurn(state.turn, state.activePlayer, monster.owner);
   if (monster.statuses.some((s) => s.kind === 'stun' && s.expiresAtTurn > next)) return -1;
   return (
-    getNextTurnMobility(monster, state.turn, state.activePlayer) +
+    getNextTurnMobility(state.cards, monster, state.turn, state.activePlayer) +
     getNextTurnOnMoveBonus(state, monster, state.turn, state.activePlayer)
   );
 }
@@ -516,18 +567,21 @@ function zoneThreatened(state: GameState, pos: Position, walkers: readonly Walke
   return theirs >= mine;
 }
 
-const heldCache = new WeakMap<readonly CardId[], number>();
+/** Gardé par jeu de cartes, puis par grimoire. */
+const heldCache = new WeakMap<CardSet, WeakMap<readonly CardId[], number>>();
 
 /** Mana des sorts encore au grimoire (calculé une fois par grimoire : il ne change que quand une carte est jouée). */
-function heldSpells(grimoire: readonly CardId[]): number {
-  let total = heldCache.get(grimoire);
+function heldSpells(cards: CardSet, grimoire: readonly CardId[]): number {
+  let byGrimoire = heldCache.get(cards);
+  if (!byGrimoire) heldCache.set(cards, (byGrimoire = new WeakMap()));
+  let total = byGrimoire.get(grimoire);
   if (total === undefined) {
     total = 0;
     for (const id of grimoire) {
-      const card = getCard(id);
+      const card = getCard(cards, id);
       if (card.kind === 'spell') total += card.cost;
     }
-    heldCache.set(grimoire, total);
+    byGrimoire.set(grimoire, total);
   }
   return total;
 }
@@ -630,23 +684,55 @@ function zoneDistances(board: Board, mode: GameMode, pos: Position, flying: bool
 }
 
 
-/** Valeur d'une unité : ses caractéristiques durables (le bonus d'ATK du tour n'en fait pas partie). */
+/**
+ * ATK qu'un monstre garde d'un tour à l'autre : sans le bonus du tour (Dopage, Flèche divine) ni le carreau armé
+ * (Carreau perforant), perdus à la fin du tour.
+ */
+function durableAtk(state: GameState, monster: MonsterUnit): number {
+  return Math.max(0, getAtk(state, monster) - monster.atkBonus - (monster.armed?.atk ?? 0));
+}
+
+/**
+ * PV que les burn d'une unité lui feront encore perdre, au début des prochains tours de son camp (§4.2, §5 bis), si rien
+ * ne change d'ici là (ni soin, ni nouveau burn). `first` : seulement au début de son prochain tour.
+ */
+export function pendingBurn(state: GameState, unit: Unit, first = false): number {
+  if (unit.statuses.length === 0) return 0;
+  const next = ownerNextTurn(state.turn, state.activePlayer, unit.owner);
+  let total = 0;
+  for (const status of unit.statuses) {
+    if (status.kind !== 'burn' || status.expiresAtTurn <= next) continue;
+    // Il agit au début de chacun de ses tours, jusqu'au tour où il disparaît (exclu).
+    total += status.amount * (first ? 1 : Math.ceil((status.expiresAtTurn - next) / 2));
+  }
+  return total;
+}
+
+/**
+ * Valeur d'une unité : ses caractéristiques durables (le bonus d'ATK du tour n'en fait pas partie), avec les PV que ses
+ * burn vont lui faire perdre. Un monstre qu'ils vont détruire ne vaut presque plus rien (son VP va à l'autre camp,
+ * `evaluate`) : rien s'il meurt avant d'agir de nouveau, `doomedActs` s'il a encore un tour.
+ */
 function unitValue(state: GameState, unit: Unit): number {
-  if (unit.kind === 'terrain') return 2 + unit.hp * 0.5;
-  const card = getMonsterCard(unit.cardId);
-  const atk = getAtk(state, unit) - unit.atkBonus;
+  const burn = pendingBurn(state, unit);
+  if (unit.kind === 'terrain') return burn >= unit.hp ? 0 : 2 + (unit.hp - burn) * 0.5;
+  const card = getMonsterCard(state.cards, unit.cardId);
+  const atk = durableAtk(state, unit);
   const statsValue = (form: MonsterCard, atk: number, hp: number) => 1 + 1.5 * atk + hp + 0.4 * form.mobility + 0.8 * (form.range - 1);
-  let value = statsValue(card, atk, unit.hp);
+  if (burn >= unit.hp) {
+    const first = pendingBurn(state, unit, true);
+    return first >= unit.hp ? 0 : W.doomedActs * statsValue(card, atk, unit.hp - first);
+  }
+  let value = statsValue(card, atk, unit.hp - burn);
   // Un monstre qui change de forme (Emma) vaut la meilleure des deux : il y revient quand il veut, en payant le mana.
   for (const ability of card.activated) {
     for (const effect of ability.effects) {
       if (effect.type !== 'transform') continue;
-      const form = getMonsterCard(effect.into);
-      const hp = Math.max(1, form.hp + unit.maxHp - card.hp - (unit.otherFormDamage ?? 0));
+      const form = getMonsterCard(state.cards, effect.into);
+      const hp = Math.max(1, form.hp + unit.maxHp - card.hp - (unit.otherFormDamage ?? 0) - burn);
       value = Math.max(value, statsValue(form, atk + form.atk - card.atk, hp) - ability.manaCost * W.mana);
     }
   }
-  value -= 1.5 * statusTotal(unit, 'burn');
   if (unit.statuses.some((s) => s.kind === 'requiem')) value *= 0.3;
   return value;
 }
@@ -654,29 +740,36 @@ function unitValue(state: GameState, unit: Unit): number {
 
 /**
  * Ce que `attacker` peut faire perdre à l'autre camp à son prochain tour (portées calculées par `reach.ts`) : chaque
- * monstre ne frappe qu'une fois ; ils détruisent d'abord ce qui rapporte le plus par attaquant engagé (la valeur de
- * l'unité, plus un VP pour un monstre), puis ceux qui restent entament la cible la plus abîmée qu'ils atteignent.
+ * monstre frappe une fois par attaque qu'il a (deux pour un archer couvert par un Écuyer) ; ils détruisent d'abord ce
+ * qui rapporte le plus par attaque engagée (la valeur de l'unité, plus un VP pour un monstre), puis les attaques qui
+ * restent entament la cible la plus abîmée qu'elles atteignent.
  */
 export function strikeLosses(state: GameState, attacker: PlayerId): number {
   const strikers = getStrikers(
     state,
     attacker,
     (monster) => nextMobility(state, monster),
-    (monster) => getAtk(state, monster) - monster.atkBonus,
+    (monster) => durableAtk(state, monster),
     // Il ne frappe pas ce qu'il ne voit pas (Farceur, Pénombre).
     (unit) => !isHiddenFrom(state, unit, attacker),
   );
   const lossOf = (unit: Unit) => unitValue(state, unit) + (unit.kind === 'monster' ? W.vp : 0);
-  const free = new Set(strikers);
+  // Un monstre qui a plusieurs attaques par tour (un archer dans le carré de 1 d'un Écuyer, Carquois prêt !) frappe
+  // autant de fois, depuis où il est couvert aujourd'hui.
+  const free = new Set(strikers.flatMap((striker) => Array.from({ length: attackLimit(state, striker.monster) }, () => ({ ...striker }))));
   const hp = new Map<Unit, number>();
-  const hpOf = (unit: Unit) => hp.get(unit) ?? unit.hp;
+  // Ses burn finiront ce qu'une attaque entame (le VP va au camp de l'attaquant) ; un monstre qu'ils détruiront de toute
+  // façon n'est plus une cible (sa perte est déjà comptée, `evaluate`).
+  const hpOf = (unit: Unit) => hp.get(unit) ?? unit.hp - pendingBurn(state, unit);
   let losses = 0;
   for (;;) {
     let best: { target: Unit; team: Striker[]; gain: number } | null = null;
     const targets = new Set<Unit>();
     for (const striker of free) for (const { target } of striker.hits) targets.add(target);
     for (const target of targets) {
-      if (hpOf(target) <= 0) continue;
+      // Sous carapace, il ne descend pas sous 1 PV pendant le tour adverse (Carapace, Fortification, §5 bis) : pas une
+      // destruction possible.
+      if (hpOf(target) <= 0 || hasCarapace(target)) continue;
       const team = [...free]
         .map((striker) => ({ striker, damage: striker.hits.find((h) => h.target === target)?.damage ?? 0 }))
         .filter((s) => s.damage > 0)
@@ -700,7 +793,10 @@ export function strikeLosses(state: GameState, attacker: PlayerId): number {
   }
   for (const striker of free) {
     let chip = 0;
-    for (const { target, damage } of striker.hits) if (hpOf(target) > 0) chip = Math.max(chip, Math.min(damage, hpOf(target)));
+    for (const { target, damage } of striker.hits) {
+      const room = hasCarapace(target) ? Math.min(hpOf(target), target.hp - 1) : hpOf(target);
+      if (room > 0) chip = Math.max(chip, Math.min(damage, room));
+    }
     losses += chip;
   }
   return losses;
@@ -717,11 +813,11 @@ function revenge(state: GameState, target: Unit, team: readonly Striker[], lossO
     if (avenger.id === target.id || !alive(avenger)) continue;
     const mobility = nextMobility(state, avenger);
     if (mobility < 0) continue;
-    const atk = getAtk(state, avenger) - avenger.atkBonus;
-    const distance = cellDistances(state.board, target.pos, canFly(avenger))[index(state.board, avenger.pos)]!;
-    const reach = mobility + getMonsterCard(avenger.cardId).range;
+    const atk = durableAtk(state, avenger);
+    const distance = cellDistances(state.board, target.pos, canFly(state.cards, avenger))[index(state.board, avenger.pos)]!;
+    const reach = mobility + getMonsterCard(state.cards, avenger.cardId).range;
     for (const { monster: killer } of team) {
-      if (atk < killer.hp || distance + getMonsterCard(killer.cardId).range > reach) continue;
+      if (atk < killer.hp || distance + getMonsterCard(state.cards, killer.cardId).range > reach) continue;
       best = Math.max(best, lossOf(killer));
     }
   }

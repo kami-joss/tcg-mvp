@@ -1,22 +1,24 @@
 // Déroulé des tours (SPEC.md §4.2) : fin de tour, puis début de tour du joueur suivant.
-import { BASE_MANA_CAP, BASE_MANA_FIRST_TURN, MANA_GROWTH_PER_TURN, RESERVE_BASE_MANA_CAP, VP_PER_CONTROLLED_ZONE } from './config';
+import { BASE_MANA_FIRST_TURN, DEFAULT_MANA_RULES, MANA_GROWTH_PER_TURN, VP_PER_CONTROLLED_ZONE } from './config';
 import { dealDamage } from './damage';
 import { emit } from './events';
 import { addMana, addVp, opponent } from './players';
 import { expireBurningCells, expireTraps, sweepZonesAtTurnStart } from './traps';
 import { getMonsterCard } from './cards';
 import { applyTriggeredEffects } from './effects';
-import { expireStatuses, statusTotal, turnMobility } from './statuses';
+import { expireStatuses, statusTotal, turnMobility, turnMobilityWithoutMalus } from './statuses';
 import { statTotal } from './units';
 import { auraMobility, getMonsters, removeUnit, setUnit } from './units';
 import { isInZone } from './board';
 import { getControlledZones, getZoneMana } from './zones';
-import type { Economy, GameState } from './types';
+import type { GameState, MonsterUnit } from './types';
 
-/** Mana de base du tour `turn` (numéro global) : 3 à son premier tour, +1 à chacun de ses tours suivants, 10 au plus (§4.2). */
-export function getBaseMana(turn: number, economy: Economy = 'classic'): number {
-  const cap = economy === 'reserve' ? RESERVE_BASE_MANA_CAP : BASE_MANA_CAP;
-  return Math.min(cap, BASE_MANA_FIRST_TURN + (Math.ceil(turn / 2) - 1) * MANA_GROWTH_PER_TURN);
+/**
+ * Mana de base du tour `turn` (numéro global) : 3 à son premier tour, +1 à chacun de ses tours suivants, jusqu'à la
+ * génération max `baseCap` de la partie (§4.2, 5 par défaut), dans les deux économies.
+ */
+export function getBaseMana(turn: number, baseCap: number = DEFAULT_MANA_RULES.baseCap): number {
+  return Math.min(baseCap, BASE_MANA_FIRST_TURN + (Math.ceil(turn / 2) - 1) * MANA_GROWTH_PER_TURN);
 }
 
 /**
@@ -35,24 +37,26 @@ export function startTurn(state: GameState): GameState {
   const doomed = getMonsters(next, player)
     .filter((monster) => monster.statuses.some((s) => s.kind === 'requiem' && s.expiresAtTurn <= state.turn))
     .map((monster) => monster.id);
-  // Les statuts et les cases brûlées arrivés à échéance disparaissent avant tout le reste (§5 bis, §10).
-  next = expireStatuses(next, state.turn);
+  // Les statuts et les cases brûlées arrivés à échéance disparaissent avant tout le reste (§5 bis, §10) ; la carapace
+  // tient encore le temps des statuts du début de tour : le burn qui suit ne fait pas descendre sous 1 PV (§10).
+  next = expireStatuses(next, state.turn, true);
   next = expireBurningCells(next, state.turn);
 
   // 1. Revenus : mana et VP (§4.2).
   const zones = getControlledZones(next, player);
-  // Économie classique : le mana non dépensé est perdu ; « Réserve » : il reste, et les revenus s'arrêtent à la limite.
+  // Économie classique : le mana non dépensé est perdu ; « Réserve » : il reste. Dans les deux, les revenus s'arrêtent à
+  // la limite de la partie (`addMana`).
   if (next.economy !== 'reserve') next = addMana(next, player, -next.players[player].mana);
-  next = addMana(next, player, getBaseMana(next.turn, next.economy));
+  next = addMana(next, player, getBaseMana(next.turn, next.manaRules.baseCap));
   for (const { pos } of zones) next = addMana(next, player, getZoneMana(next, pos), pos);
   for (const { pos } of zones) next = addVp(next, player, VP_PER_CONTROLLED_ZONE, pos);
 
   // 2. Effets passifs de début de tour (Ki né) : sur ses alliés de l'archétype autour de lui (§4.2).
   for (const source of getMonsters(next, player)) {
-    const trigger = getMonsterCard(source.cardId).turnStart;
+    const trigger = getMonsterCard(next.cards, source.cardId).turnStart;
     if (!trigger || !next.units[source.id]) continue;
     const allies = getMonsters(next, player).filter(
-      (m) => m.id !== source.id && getMonsterCard(m.cardId).archetype === trigger.archetype && isInZone(next.board, source.pos, m.pos, trigger.zone),
+      (m) => m.id !== source.id && getMonsterCard(next.cards, m.cardId).archetype === trigger.archetype && isInZone(next.board, source.pos, m.pos, trigger.zone),
     );
     for (const ally of allies) next = applyTriggeredEffects(next, trigger.effects, ally.id, source);
   }
@@ -89,11 +93,13 @@ export function startTurn(state: GameState): GameState {
       if (status.by && lost > 0) next = healBy(next, status.by, lost);
     }
   }
+  // La carapace arrivée à échéance tombe après les statuts du début de tour (§10).
+  next = expireStatuses(next, state.turn);
 
   for (const current of [...getMonsters(next, 1), ...getMonsters(next, 2)]) {
     // Son déplacement arrêté (sablier, retour…), la mobilité dépensée au-delà de sa forme et le bonus d'un Terrain de
     // chasse déjà reçu ne valaient que son tour.
-    const { halted: _halted, mobilityDebt: _debt, onMoveTaken: _taken, armed: _armed, ...fresh } = current;
+    const { halted: _halted, mobilityDebt: _debt, onMoveTaken: _taken, armed: _armed, mobilityTaken: _malus, ...fresh } = current;
     // Un monstre armé qui n'a pas attaqué perd son bonus à la fin de son tour : celui de l'adversaire aussi, au début du mien.
     const { armed: _spent, ...unarmed } = current;
     const monster = current.owner === player ? fresh : unarmed;
@@ -101,7 +107,9 @@ export function startTurn(state: GameState): GameState {
     const refreshed =
       monster.owner === player
         ? {
-            mobilityLeft: turnMobility(monster, auraMobility(next, monster)),
+            mobilityLeft: turnMobility(next.cards, monster, auraMobility(next, monster)),
+            // Ce que ses malus lui prennent de ce tour : Cure le lui rendra.
+            ...takenByMalus(next, monster),
             // Les slow retirent des pas, mobilité +X en ajoute (affichage « pas restants »).
             froze: statusTotal(monster, 'slow'),
             boost: statTotal(monster, 'mobility'),
@@ -120,6 +128,13 @@ export function startTurn(state: GameState): GameState {
     next = setUnit(next, { ...monster, ...refreshed, atkBonus: 0, rangeBonus: 0, hasRiposted: false, revealed: false });
   }
   return next;
+}
+
+/** Mobilité que ses malus prennent à `monster` au début de son tour (Cure la lui rend) ; rien s'ils ne lui prennent rien. */
+function takenByMalus(state: GameState, monster: MonsterUnit): { mobilityTaken?: number } {
+  const aura = auraMobility(state, monster);
+  const taken = turnMobilityWithoutMalus(state.cards, monster, aura) - turnMobility(state.cards, monster, aura);
+  return taken > 0 ? { mobilityTaken: taken } : {};
 }
 
 /** Rend `amount` PV à l'unité `unitId` si c'est un monstre encore sur le plateau, sans dépasser ses PV max. */

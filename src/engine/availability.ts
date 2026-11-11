@@ -4,14 +4,27 @@
 import { getCard, getMonsterCard } from './cards';
 import { isDisarmed, isSilenced, isStunned } from './statuses';
 import { canAttack, getEffectCost } from './units';
-import type { CardId, PlayerView, UnitId } from './types';
+import type { Ability, CardId, PlayerView, UnitId } from './types';
 
 /**
  * Ce qui manque : une case libre dans sa zone d'invocation (monstre), une zone de mana (terrain), une case pour l'effet,
  * un monstre à viser, une carte d'évolution dans le grimoire, un monstre qu'il peut payer à invoquer, une case où il
  * est passé ce tour (retour).
  */
-export type MissingTarget = 'summonZone' | 'manaZone' | 'cell' | 'monster' | 'evolution' | 'summonCard' | 'trail';
+export type MissingTarget =
+  | 'summonZone'
+  | 'manaZone'
+  | 'cell'
+  | 'monster'
+  | 'evolution'
+  | 'summonCard'
+  | 'trail'
+  /** Un de ses terrains (Fortification). */
+  | 'terrain'
+  /** Un monstre dans son cimetière (Réanimation). */
+  | 'graveyard'
+  /** Un allié qui a un malus (Cure). */
+  | 'malus';
 
 export type UnavailableReason =
   /** Ce n'est pas son tour (ou la partie est finie). */
@@ -33,6 +46,8 @@ export type UnavailableReason =
   | { readonly kind: 'noAttack' }
   /** Arrivé ce tour-ci : l'évolution attend le tour suivant. */
   | { readonly kind: 'justSummoned' }
+  /** Déjà à la limite de mana : un gain ne rapporterait rien (Élixir de mana). */
+  | { readonly kind: 'manaLimit' }
   | { readonly kind: 'noTarget'; readonly target: MissingTarget };
 
 export type Availability = { readonly ok: true } | { readonly ok: false; readonly reason: UnavailableReason };
@@ -44,12 +59,36 @@ const myTurn = (view: PlayerView) => view.winner === null && view.activePlayer =
 
 /** Peut-il jouer cette carte de son grimoire, et sinon pourquoi. */
 export function cardAvailability(view: PlayerView, cardId: CardId): Availability {
-  const card = getCard(cardId);
+  const card = getCard(view.cards, cardId);
   if (!myTurn(view)) return no({ kind: 'notYourTurn' });
   if (!view.me.grimoire.includes(cardId)) return no({ kind: 'noCopy' });
   if (view.me.mana < card.cost) return no({ kind: 'mana', missing: card.cost - view.me.mana });
   if (view.legalActions.some((a) => a.type === 'playCard' && a.cardId === cardId)) return OK;
-  return no({ kind: 'noTarget', target: card.kind === 'monster' ? 'summonZone' : card.kind === 'terrain' ? 'manaZone' : 'monster' });
+  if (card.kind !== 'spell') return no({ kind: 'noTarget', target: card.kind === 'monster' ? 'summonZone' : 'manaZone' });
+  return no(spellMissing(view, card.ability));
+}
+
+/** Ce qui manque à un sort sans cible possible. */
+function spellMissing(view: PlayerView, { targeting, effects }: Ability): UnavailableReason {
+  switch (targeting.type) {
+    case 'none':
+      return effects.some((e) => e.type === 'gainMana') ? { kind: 'manaLimit' } : { kind: 'noTarget', target: 'monster' };
+    case 'terrain':
+      return { kind: 'noTarget', target: 'terrain' };
+    case 'graveyard': {
+      const monsters = view.me.graveyard.some((copy) => getCard(view.cards, copy.cardId).kind === 'monster');
+      return { kind: 'noTarget', target: monsters ? 'summonZone' : 'graveyard' };
+    }
+    case 'monster':
+      if (effects.every((e) => e.type === 'cleanse')) return { kind: 'noTarget', target: 'malus' };
+      // Une téléportation : il a des alliés, mais aucune case où les poser.
+      if (effects.some((e) => e.type === 'teleport') && Object.values(view.units).some((u) => u.kind === 'monster' && u.owner === view.viewer)) {
+        return { kind: 'noTarget', target: 'cell' };
+      }
+      return { kind: 'noTarget', target: 'monster' };
+    default:
+      return { kind: 'noTarget', target: 'monster' };
+  }
 }
 
 /** Son monstre peut-il attaquer, et sinon pourquoi. */
@@ -70,7 +109,7 @@ export function attackAvailability(view: PlayerView, unitId: UnitId): Availabili
 export function effectAvailability(view: PlayerView, unitId: UnitId, effect = 0): Availability | null {
   const unit = view.units[unitId];
   if (unit?.kind !== 'monster') return null;
-  const ability = getMonsterCard(unit.cardId).activated[effect];
+  const ability = getMonsterCard(view.cards, unit.cardId).activated[effect];
   if (!ability) return null;
   if (!myTurn(view) || unit.owner !== view.viewer) return no({ kind: 'notYourTurn' });
   if (isStunned(unit)) return no({ kind: 'stunned' });
@@ -90,7 +129,7 @@ export function effectAvailability(view: PlayerView, unitId: UnitId, effect = 0)
   if (effects.some((e) => e.type === 'summon')) {
     const budget = view.me.mana - cost;
     const affordable = view.me.grimoire.some((id) => {
-      const card = getCard(id);
+      const card = getCard(view.cards, id);
       return card.kind === 'monster' && card.cost <= budget;
     });
     return no({ kind: 'noTarget', target: affordable ? 'cell' : 'summonCard' });

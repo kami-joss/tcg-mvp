@@ -24,10 +24,19 @@ export type GameMode = 'normal' | 'contestation';
 
 /**
  * Économie du mana, choisie à l'accueil (SPEC.md §4.2, §10, 2026-11-08) : `classic`, la règle d'origine (le mana non
- * dépensé est perdu, mana de base jusqu'à 10) ; `reserve`, le mana se garde d'un tour à l'autre, mana de base 3, 4, 5
- * puis 6, réserve limitée à 10 + 1 par terrain du joueur.
+ * dépensé est perdu) ; `reserve`, le mana se garde d'un tour à l'autre. Mana de base et limite : `ManaRules`.
  */
 export type Economy = 'classic' | 'reserve';
+
+/**
+ * Réglages du mana d'une partie, choisis à l'accueil dans les deux économies (SPEC.md §4.2, §10, validés le 2026-11-08) :
+ * `baseCap`, la génération max (le mana de base monte de 3 à cette valeur, le mana des mana zones s'ajoute par-dessus) ;
+ * `limit`, le mana qu'un joueur peut avoir au total, à tout moment : tout gain s'y arrête, le surplus est perdu.
+ */
+export interface ManaRules {
+  readonly baseCap: number;
+  readonly limit: number;
+}
 
 export type Cell =
   /** `.` : la case n'existe pas. */
@@ -179,7 +188,19 @@ export type CardId =
   | 'vladimir'
   | 'zoldik'
   | 'appel-du-sang'
-  | 'sacrifice-sanguinaire';
+  | 'sacrifice-sanguinaire'
+  // Sorts génériques (cartes communes, 2026-11-10).
+  | 'puissance'
+  | 'soin'
+  | 'flash'
+  | 'fatigue'
+  | 'carapace'
+  | 'elixir-de-mana'
+  | 'cure'
+  | 'repli'
+  | 'teleportation'
+  | 'reanimation'
+  | 'fortification';
 
 /**
  * Famille de cartes (SPEC.md §5.1) : les bodybuilders, les archers (sauf le Trébuchet), les dragons élémentaires (Jeune
@@ -320,6 +341,11 @@ export type TargetReach =
   | { readonly type: 'line'; readonly range: number }
   /** À `steps` pas au plus d'un des monstres du joueur : chemin en L possible, sans ligne de vue (§10). */
   | { readonly type: 'nearOwnMonster'; readonly steps: number }
+  /**
+   * Dans le carré de `square` d'une de ses unités, monstre ou terrain (Boule de feu : carré de 3) ; falaises et cases X
+   * coupent la zone, comme pour tout carré (§5.1).
+   */
+  | { readonly type: 'nearOwnUnit'; readonly square: number }
   /** N'importe où sur le plateau. */
   | { readonly type: 'anywhere' };
 
@@ -357,7 +383,24 @@ export type Targeting =
    */
   | { readonly type: 'enemiesAroundAlly'; readonly archetype: Archetype; readonly square: number }
   /** Une case libre où la source a été pendant ce tour, sa case de départ comprise (retour, Explorateur du temps). */
-  | { readonly type: 'trail' };
+  | { readonly type: 'trail' }
+  /** Un de ses terrains, n'importe où (Fortification). */
+  | { readonly type: 'terrain'; readonly side: 'ally' }
+  /** Un monstre de son cimetière, au choix, et une de ses cases d'invocation libres (Réanimation). */
+  | { readonly type: 'graveyard' }
+  /** Sans cible : l'effet est pour le joueur (Élixir de mana). */
+  | { readonly type: 'none' };
+
+/**
+ * Où une téléportation pose le monstre (§5.4) : sans précision, une case libre du carré de 1 de la source (Téléporteur) ;
+ * `around` : une case libre à `square` cases au plus du monstre, diagonales comprises, sans rien regarder entre les deux
+ * (ni case X, ni falaise : Flash) ; `summonCell` : une de ses cases d'invocation libres (Repli) ; `ownTerrain` : la case
+ * d'un de ses terrains sans monstre (Téléportation).
+ */
+export type TeleportTo =
+  | { readonly type: 'around'; readonly square: number }
+  | { readonly type: 'summonCell' }
+  | { readonly type: 'ownTerrain' };
 
 /** Effets (SPEC.md §5.4), appliqués dans l'ordre à chaque cible. */
 export type Effect =
@@ -428,7 +471,7 @@ export type Effect =
    * Téléportation (Téléporteur) : le monstre visé est posé sur une case libre du carré de 1 de la source, choisie par le
    * joueur. Ce n'est pas un déplacement : il garde sa mobilité, son attaque et son orientation ; il entre sur la case : ce qui s'y trouve se déclenche (§5.4).
    */
-  | { readonly type: 'teleport' }
+  | { readonly type: 'teleport'; readonly to?: TeleportTo }
   /**
    * Retour (Explorateur du temps) : la source se téléporte sur la case visée, une case où elle a été ce tour (ce qui s'y
    * trouve se déclenche) ; elle garde son attaque, mais ne se déplace plus ce tour.
@@ -451,7 +494,19 @@ export type Effect =
    * Transformation (Emma) : la source prend sa forme `into`, avec ses stats, mots-clés et effets ; elle reste le même
    * monstre (§10). Les PV perdus de la forme quittée sont mis de côté, ceux de la forme prise reviennent.
    */
-  | { readonly type: 'transform'; readonly into: CardId };
+  | { readonly type: 'transform'; readonly into: CardId }
+  /** +N mana pour le joueur, jusqu'à la limite de la partie (Élixir de mana) ; jouable seulement s'il en gagne. */
+  | { readonly type: 'gainMana'; readonly amount: number }
+  /**
+   * Retire ses malus (Cure, §5 bis) : tous les statuts malus de la cible, requiem compris ; il retrouve la mobilité qu'ils
+   * lui avaient prise ce tour (`mobilityTaken`). Jamais sur un monstre sans malus.
+   */
+  | { readonly type: 'cleanse' }
+  /**
+   * Réanimation : le monstre choisi dans son cimetière est invoqué sur la case visée (une de ses cases d'invocation
+   * libres), sans payer son coût ; il quitte le cimetière, avec tous ses PV et sans statut, et peut agir aussitôt.
+   */
+  | { readonly type: 'reanimate' };
 
 /** Effets possibles d'un piège, ou d'un terrain « Passage », sur le monstre qui entre sur sa case ou dans sa zone. */
 export type TrapEffect = Extract<Effect, { readonly type: 'damage' | 'status' | 'rewind' }>;
@@ -478,6 +533,8 @@ export interface TerrainPassage {
 export interface TerrainOnMove {
   readonly zone: 'cellAndSquare';
   readonly mobility: number;
+  /** Seulement ses monstres de cet archétype (Terrain de chasse - Vampire : ses vampires). */
+  readonly archetype?: Archetype;
 }
 
 /** Un effet complet (SPEC.md §5.2) : sa cible ou sa zone, puis ses effets. */
@@ -605,6 +662,12 @@ export interface TerrainCard extends CardBase {
 
 export type Card = MonsterCard | SpellCard | TerrainCard;
 
+/**
+ * Les cartes d'une partie : la définition de chaque carte, par son identifiant. Celles de `CARDS` par défaut, d'autres
+ * pour essayer des réglages (atelier) : le moteur, l'IA et l'écran de jeu ne lisent que celles de la partie.
+ */
+export type CardSet = Readonly<Record<CardId, Card>>;
+
 // ---------------------------------------------------------------------------
 // Unités sur le plateau
 // ---------------------------------------------------------------------------
@@ -669,7 +732,7 @@ export interface MonsterUnit extends UnitBase {
   /** `invisible` : révélé jusqu'à la fin du tour, pour avoir bloqué une action adverse (§10). */
   readonly revealed: boolean;
   /**
-   * Son déplacement est fini pour ce tour, sans statut (sablier, retour, arrêt forcé) : une transformation ne lui rend
+   * Son déplacement est fini pour ce tour, sans statut (sablier, arrêt forcé sur un allié) : une transformation ne lui rend
    * pas de mobilité. Remis à zéro au début de son tour ; absent sinon.
    */
   readonly halted?: true;
@@ -685,6 +748,11 @@ export interface MonsterUnit extends UnitBase {
    * une transformation la déduit d'abord. Remise à zéro au début de son tour ; absente tant qu'il ne s'est pas transformé.
    */
   readonly mobilityDebt?: number;
+  /**
+   * Mobilité que ses malus (slow, stun, immobilisé) lui ont prise ce tour : au début de son tour et quand ils
+   * arrivent pendant son tour. Retirer ses malus (Cure) la lui rend. Absente : rien.
+   */
+  readonly mobilityTaken?: number;
 }
 
 export interface TerrainUnit extends UnitBase {
@@ -732,8 +800,13 @@ export interface PlayerState {
 
 export interface GameState {
   readonly board: Board;
+  /** Les cartes de la partie, fixées à sa création : publiques. */
+  readonly cards: CardSet;
   readonly mode: GameMode;
   readonly economy: Economy;
+  readonly manaRules: ManaRules;
+  /** VP pour gagner (§4.10), choisis à l'accueil : 30 par défaut (`VICTORY_VP`). */
+  readonly victoryVp: number;
   readonly players: Readonly<Record<PlayerId, PlayerState>>;
   readonly activePlayer: PlayerId;
   /** Numéro du tour : 1 = premier tour de J1, 2 = premier tour de J2, etc. */
@@ -746,8 +819,19 @@ export interface GameState {
   /** Compteur pour générer des `UnitId` de façon déterministe. */
   readonly nextUnitId: number;
   readonly winner: PlayerId | null;
+  /** La partie a fini par un abandon (parties en ligne, SPEC.md §7 ter) : qui l'a perdue, et pourquoi ; `null` sinon. */
+  readonly concession: Concession | null;
   /** Événements de la dernière action, dans l'ordre (pour les animations) ; vidés au début de chaque action. */
   readonly events: readonly GameEvent[];
+}
+
+/**
+ * Fin de partie par abandon (SPEC.md §7 ter) : `abandon`, le joueur a abandonné ; `absence`, il a perdu par absence
+ * (2 tours de suite passés à la fin de son temps sans être connecté). L'adversaire gagne.
+ */
+export interface Concession {
+  readonly player: PlayerId;
+  readonly reason: 'abandon' | 'absence';
 }
 
 /** Cause d'une perte de PV. */
@@ -778,6 +862,22 @@ export type GameEvent =
     }
   /** Unité posée (monstre invoqué ou terrain). */
   | { readonly type: 'summon'; readonly unit: Unit }
+  /** Réanimation : l'exemplaire de `cardId` quitte le cimetière de `player` (son invocation suit). */
+  | { readonly type: 'revived'; readonly player: PlayerId; readonly cardId: CardId; readonly shiny: boolean }
+  /**
+   * Ses malus lui sont retirés (Cure) : ses statuts, sa mobilité, ses PV et PV max ensuite (un malus de PV max qui part
+   * les lui rend).
+   */
+  | {
+      readonly type: 'cleansed';
+      readonly unitId: UnitId;
+      readonly pos: Position;
+      readonly removed: readonly Status[];
+      readonly statuses: readonly Status[];
+      readonly mobilityLeft: number;
+      readonly hp: number;
+      readonly maxHp: number;
+    }
   /**
    * Effet activé d'un monstre, vers un monstre (`targetId`, `pos` : sa case) ; pour un piège, `pos` est la case du
    * poseur. `pos` vaut `null` dans la vue d'un joueur à qui le monstre visé est caché (§10). `cells` : la zone touchée
@@ -829,7 +929,8 @@ export type GameEvent =
   | {
       readonly type: 'attack';
       readonly unitId: UnitId;
-      readonly targetId: UnitId;
+      /** La cible ; absente pour un tir sur une case vide (Flèche explosive). */
+      readonly targetId?: UnitId;
       readonly from: Position;
       readonly to: Position;
       readonly behind: boolean;
@@ -844,6 +945,8 @@ export type GameEvent =
       readonly amount: number;
       readonly hp: number;
       readonly cause: DamageCause;
+      /** Carapace : des dégâts qui l'auraient fait descendre sous 1 PV ont été retenus (`amount` : ceux qui restent). */
+      readonly held?: true;
     }
   | { readonly type: 'destroyed'; readonly unitId: UnitId; readonly pos: Position }
   | { readonly type: 'heal'; readonly unitId: UnitId; readonly pos: Position; readonly amount: number }
@@ -897,11 +1000,11 @@ export interface Deck {
   readonly shiny?: readonly CardId[];
 }
 
-/** Plateau et unités : informations publiques, communes à `GameState` et `PlayerView`. */
-export type BoardState = Pick<GameState, 'board' | 'units'>;
+/** Plateau, unités et cartes de la partie : informations publiques, communes à `GameState` et `PlayerView`. */
+export type BoardState = Pick<GameState, 'board' | 'units' | 'cards'>;
 
-/** Plateau, unités et mode : de quoi dire qui tient une mana zone (§4.4, §4.4 bis). */
-export type ZoneState = Pick<GameState, 'board' | 'units' | 'mode'>;
+/** Plateau, unités, cartes et mode : de quoi dire qui tient une mana zone (§4.4, §4.4 bis). */
+export type ZoneState = Pick<GameState, 'board' | 'units' | 'cards' | 'mode'>;
 
 /** Qui tient une mana zone : `controller` (personne si neutre ou contestée) ; `contested` en mode contestation. */
 export interface ZoneStatus {
@@ -929,12 +1032,19 @@ export interface PlayerView {
   /** Le joueur à qui cette vue est destinée. */
   readonly viewer: PlayerId;
   readonly board: Board;
+  /** Les cartes de la partie : l'écran les lit là, jamais dans `CARDS`. */
+  readonly cards: CardSet;
   readonly mode: GameMode;
   readonly economy: Economy;
+  readonly manaRules: ManaRules;
+  /** VP pour gagner (§4.10), choisis à l'accueil : 30 par défaut (`VICTORY_VP`). */
+  readonly victoryVp: number;
   readonly units: Readonly<Record<UnitId, Unit>>;
   readonly activePlayer: PlayerId;
   readonly turn: number;
   readonly winner: PlayerId | null;
+  /** Abandon (public) : qui a perdu la partie ainsi ; `null` sinon. */
+  readonly concession: Concession | null;
   readonly me: PlayerState;
   readonly opponent: OpponentView;
   /** Ses propres pièges seulement : ceux de l'adversaire sont cachés. */
@@ -1000,6 +1110,11 @@ export type Action =
   | { readonly type: 'move'; readonly unitId: UnitId; readonly to: Position; readonly path?: readonly Position[] }
   /** `advance` : prendre la place de la cible détruite (avancée, SPEC.md §4.7). */
   | { readonly type: 'attack'; readonly unitId: UnitId; readonly targetId: UnitId; readonly advance: boolean }
+  /**
+   * Tir sur une case vide (2026-11-10) : seulement armé d'éclats (Flèche explosive), sur une case qu'il pourrait attaquer ;
+   * c'est son attaque, les éclats touchent les ennemis du carré de 1 de la case.
+   */
+  | { readonly type: 'attackCell'; readonly unitId: UnitId; readonly pos: Position }
   /** `effect` : rang de l'effet actif sur la carte (absent : le premier). */
   | { readonly type: 'activateEffect'; readonly unitId: UnitId; readonly effect?: number; readonly target: EffectTarget }
   | { readonly type: 'endTurn' };

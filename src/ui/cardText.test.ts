@@ -42,33 +42,33 @@ describe('textes des cartes', () => {
   });
 
   it('monstre : caractéristiques, mots-clés expliqués, puis effet actif et son coût', () => {
-    expect(describeCard(getCard('chaman'))).toEqual(['ATK 1 · PV 3 · Mob. 2 · Portée 1', 'Actif (1 mana) · un allié dans un carré de 1 · soin 2']);
-    expect(describeCard(getCard('gardien'))[1]).toMatch(/^Passif · Riposte : .*\(une fois par tour\/carte\)\.$/);
-    expect(describeCard(getCard('archer-de-glace'))[1]).toBe('Archétype Archers impériaux.');
-    expect(describeCard(getCard('archer-de-glace'))[2]).toBe(
+    expect(describeCard(CARDS, getCard(CARDS, 'chaman'))).toEqual(['ATK 1 · PV 3 · Mob. 2 · Portée 1', 'Actif (1 mana) · un allié dans un carré de 1 · soin 2']);
+    expect(describeCard(CARDS, getCard(CARDS, 'gardien'))[1]).toMatch(/^Passif · Riposte : .*\(une fois par tour\/carte\)\.$/);
+    expect(describeCard(CARDS, getCard(CARDS, 'archer-de-glace'))[1]).toBe('Archétype Archers impériaux.');
+    expect(describeCard(CARDS, getCard(CARDS, 'archer-de-glace'))[2]).toBe(
       'Passif · Givre 1 : à l’attaque, sa cible est slow 1 (−1 mobilité) pendant 1 tour.',
     );
   });
 
   it('sort : sa cible puis ses effets', () => {
-    expect(describeCard(getCard('bourrasque'))).toEqual(['Un ennemi · recul 2, direction au choix']);
+    expect(describeCard(CARDS, getCard(CARDS, 'bourrasque'))).toEqual(['Un ennemi · recul 2, direction au choix']);
   });
 
   it('terrains : PV et bonus de mana éventuel', () => {
-    expect(describeCard(getCard('autel-de-mana'))).toEqual([
+    expect(describeCard(CARDS, getCard(CARDS, 'autel-de-mana'))).toEqual([
       'PV 1 · se pose sur une mana zone occupée par un de vos monstres.',
       'La zone rapporte +1 mana.',
     ]);
-    expect(describeCard(getCard('bastion'))).toHaveLength(1);
+    expect(describeCard(CARDS, getCard(CARDS, 'bastion'))).toHaveLength(1);
   });
 
   it('cartes communes (§6 ter) : Passage, Point d’invocation, invocation, téléportation', () => {
-    expect(cardEffectLine(getCard('terrain-drainant'))).toBe('Passage · carré de 1 · 1 dégât');
-    expect(cardEffectLine(getCard('terrain-piege'))).toBe('Passage · carré de 1 · slow 1 jusqu’à son prochain tour');
-    expect(cardEffectLine(getCard('zone-invocation'))).toBe('Point d’invocation');
-    expect(cardEffectLine(getCard('invocateur'))).toBe('Actif (1 mana) · une case libre, carré de 1 · invocation');
-    expect(cardEffectLine(getCard('teleporteur'))).toBe('Actif (1 mana) · un allié · téléportation sur une case libre, carré de 1');
-    expect(describeCard(getCard('terrain-drainant'))[1]).toMatch(/^Passif · Passage · carré de 1 · 1 dégât : .*à chaque case où il entre \(une fois par recul\)\.$/);
+    expect(cardEffectLine(CARDS, getCard(CARDS, 'terrain-drainant'))).toBe('Passage · carré de 1 · 1 dégât');
+    expect(cardEffectLine(CARDS, getCard(CARDS, 'terrain-piege'))).toBe('Passage · carré de 1 · slow 1 jusqu’à son prochain tour');
+    expect(cardEffectLine(CARDS, getCard(CARDS, 'zone-invocation'))).toBe('Point d’invocation');
+    expect(cardEffectLine(CARDS, getCard(CARDS, 'invocateur'))).toBe('Actif (1 mana) · une case libre, carré de 1 · invocation');
+    expect(cardEffectLine(CARDS, getCard(CARDS, 'teleporteur'))).toBe('Actif (1 mana) · un allié · téléportation sur une case libre, carré de 1');
+    expect(describeCard(CARDS, getCard(CARDS, 'terrain-drainant'))[1]).toMatch(/^Passif · Passage · carré de 1 · 1 dégât : .*à chaque case où il entre \(une fois par recul\)\.$/);
   });
 });
 
@@ -102,7 +102,7 @@ describe('SPEC.md et les données des cartes disent la même chose (§6, §6 bis
     for (const row of rows) {
       const card = byName.get(row.Carte ?? '');
       if (!card || (card.kind === 'terrain' && !card.passage && !card.summonPoint && !card.aura)) continue;
-      expect(normalize(cardEffectLine(card)), card.name).toBe(row.Effet);
+      expect(normalize(cardEffectLine(CARDS, card)), card.name).toBe(row.Effet);
     }
   });
 });

@@ -1,12 +1,13 @@
 // Écran affiché selon la session : passage hotseat entre deux tours, ou jeu vu par le joueur actif ; contre l'IA,
 // toujours vu par le joueur humain, et l'IA joue son tour une action à la fois (chaque action est animée).
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { chooseAction } from '../ai/bot';
 import { applyAction, getPlayerView } from '../engine';
 import type { Action } from '../engine';
 import { GameScreen } from './GameScreen';
 import { DiceScreen } from './DiceScreen';
 import { HandoffScreen } from './HandoffScreen';
+import { preloadBoard } from './pixi/preload';
 import { rollOpening, viewerOf } from './session';
 import type { Session, SessionEvent } from './session';
 
@@ -24,6 +25,8 @@ export function SessionScreen({ session, dispatch, onHome }: SessionScreenProps)
   // L'état d'avant la dernière action, vu par le même joueur : point de départ des animations.
   const before = useMemo(() => (previous ? getPlayerView(previous, viewer) : null), [previous, viewer]);
   const { ai } = session.setup;
+  // Le plateau se prépare pendant le lancer de dés.
+  useEffect(() => preloadBoard(session.setup.board), [session.setup.board]);
   const aiTurn = ai !== undefined && ai !== null && game.activePlayer === ai && game.winner === null;
   const aiStep = () => {
     let action: Action = chooseAction(game, game.activePlayer);
@@ -59,6 +62,7 @@ export function SessionScreen({ session, dispatch, onHome }: SessionScreenProps)
       before={before}
       log={session.log}
       onAction={(action) => dispatch({ type: 'play', action })}
+      onTimeUp={() => dispatch({ type: 'timeout' })}
       setup={session.setup}
       onRestart={() => dispatch({ type: 'restart', opening: rollOpening() })}
       onHome={onHome}

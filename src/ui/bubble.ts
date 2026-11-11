@@ -3,7 +3,7 @@
 // droit), carte du grimoire (clic droit : l'invoquer, la lancer, la poser), et chaque choix en plusieurs temps (carte
 // d'évolution, monstre à invoquer, direction de la Bourrasque, distance d'un recul). Tout vient des actions légales et
 // des aperçus du moteur : la bulle ne calcule rien elle-même.
-import { cardAvailability, effectAvailability, getCard, getEffectCost, getEffectReach, getMonsterCard, previewAttack } from '../engine';
+import { cardAvailability, effectAvailability, getCard, getEffectCost, getEffectReach, getMonsterCard, isInSquare, previewAttack } from '../engine';
 import type {
   Action,
   CardId,
@@ -18,7 +18,7 @@ import type {
 import { cardTitle, effectName } from './cardText';
 import { abilityRules, plainRules } from './rulesText';
 import type { IconName } from './Icon';
-import { getEffectActions, getPushChoices, getSummonChoices } from './interaction';
+import { getEffectActions, getPushChoices, getReviveChoices, getSummonChoices } from './interaction';
 import type { Selection } from './interaction';
 import { reasonStatus } from './sheet';
 
@@ -98,6 +98,10 @@ export function getBubble(view: PlayerView, selection: Selection, flipped = fals
       return pushBubble(view, selection, flipped);
     case 'summonAt':
       return summonBubble(view, selection);
+    case 'reviveAt':
+      return reviveBubble(view, selection);
+    case 'shoot':
+      return shootBubble(view, selection);
     case 'areaDirection':
       return distanceBubble(view, selection, flipped);
     case 'cardMenu':
@@ -134,7 +138,7 @@ function attackBubble(view: PlayerView, selection: Extract<Selection, { kind: 'a
         : 'Il ne peut pas prendre sa case';
 
   // Ses effets actifs : combien sont disponibles, sinon la raison du premier.
-  const effects = getMonsterCard(attacker.cardId).activated.map((_, i) => effectAvailability(view, attacker.id, i)!);
+  const effects = getMonsterCard(view.cards, attacker.cardId).activated.map((_, i) => effectAvailability(view, attacker.id, i)!);
   const ready = effects.filter((a) => a.ok).length;
   const first = effects[0];
   const effectRow: BubbleRow = {
@@ -158,7 +162,7 @@ function attackBubble(view: PlayerView, selection: Extract<Selection, { kind: 'a
   return {
     anchor: target.pos,
     anchorUnit: target.id,
-    header: { kind: 'unit', name: getCard(target.cardId).name, owner: target.owner, hp: { before: p.hpBefore, after: p.hpAfter }, note: null },
+    header: { kind: 'unit', name: getCard(view.cards, target.cardId).name, owner: target.owner, hp: { before: p.hpBefore, after: p.hpAfter }, note: null },
     rows: [
       {
         key: 'attack',
@@ -204,7 +208,7 @@ function effectsBubble(
 ): BubbleModel | null {
   const unit = view.units[selection.unitId];
   if (unit?.kind !== 'monster') return null;
-  const card = getMonsterCard(unit.cardId);
+  const card = getMonsterCard(view.cards, unit.cardId);
   const fromAttack = selection.kind === 'attack';
   const actions = getEffectActions(view, unit.id);
   const anchorUnit = fromAttack ? view.units[selection.targetId] : unit;
@@ -217,14 +221,14 @@ function effectsBubble(
       header: { kind: 'page', title: 'Évolution', note: '· sans payer son coût', back: { ...selection, page: 'effects' } },
       rows: actions.flatMap((action): BubbleRow[] => {
         if (action.target.kind !== 'card') return [];
-        const evolved = getMonsterCard(action.target.cardId);
+        const evolved = getMonsterCard(view.cards, action.target.cardId);
         return [
           {
             key: evolved.id,
             icon: 'dragon-head',
             portrait: evolved.id,
             tone: 'effect',
-            title: cardTitle(evolved.id),
+            title: cardTitle(view.cards, evolved.id),
             subtitle: statsLine(evolved),
             cost: null,
             enabled: true,
@@ -245,7 +249,7 @@ function effectsBubble(
           icon: 'magic-swirl',
           tone: 'effect',
           title: effectName(ability),
-          subtitle: availability?.ok ? plainRules(abilityRules(ability)) : availability ? reasonText(availability.reason, 'Déjà utilisé ce tour') : '',
+          subtitle: availability?.ok ? plainRules(abilityRules(view.cards, ability)) : availability ? reasonText(availability.reason, 'Déjà utilisé ce tour') : '',
           // Le coût du moment : 1 mana dans un Nid de dragons.
           cost: getEffectCost(view, unit, ability),
           enabled: availability?.ok ?? false,
@@ -305,12 +309,12 @@ const CARD_KINDS = { monster: 'Monstre', spell: 'Sort', terrain: 'Terrain' } as 
  */
 function cardBubble(view: PlayerView, cardId: CardId): BubbleModel | null {
   if (!view.me.grimoire.includes(cardId)) return null;
-  const card = getCard(cardId);
+  const card = getCard(view.cards, cardId);
   const kind = CARD_ROWS[card.kind];
   const availability = cardAvailability(view, cardId);
   const actions = view.legalActions.filter((a): a is Extract<Action, { type: 'playCard' }> => a.type === 'playCard' && a.cardId === cardId);
   const direct = actions.length === 1 && actions[0]!.target.kind === 'all' ? actions[0]! : null;
-  const hint = card.kind === 'spell' ? plainRules(abilityRules(card.ability)) : kind.hint;
+  const hint = card.kind === 'spell' ? plainRules(abilityRules(view.cards, card.ability)) : kind.hint;
   return {
     anchor: null,
     anchorUnit: null,
@@ -339,7 +343,7 @@ function pushBubble(view: PlayerView, selection: Extract<Selection, { kind: 'pus
   return {
     anchor: target.pos,
     anchorUnit: target.id,
-    header: { kind: 'unit', name: getCard(target.cardId).name, owner: target.owner, hp: null, note: getCard(selection.cardId).name },
+    header: { kind: 'unit', name: getCard(view.cards, target.cardId).name, owner: target.owner, hp: null, note: getCard(view.cards, selection.cardId).name },
     rows: getPushChoices(view, selection).map(({ direction, destination, action }): BubbleRow => {
       const screen = flipped ? SCREEN_DIRECTION[direction] : direction;
       const still = destination.row === target.pos.row && destination.col === target.pos.col;
@@ -364,7 +368,7 @@ function summonBubble(view: PlayerView, selection: Extract<Selection, { kind: 's
   const summoner = view.units[selection.unitId];
   const summonAbility =
     summoner?.kind === 'monster'
-      ? getMonsterCard(summoner.cardId).activated.find((ability) => ability.effects.some((effect) => effect.type === 'summon'))
+      ? getMonsterCard(view.cards, summoner.cardId).activated.find((ability) => ability.effects.some((effect) => effect.type === 'summon'))
       : undefined;
   const effectCost = summonAbility?.manaCost ?? 0;
   return {
@@ -372,15 +376,90 @@ function summonBubble(view: PlayerView, selection: Extract<Selection, { kind: 's
     anchorUnit: null,
     header: { kind: 'page', title: 'Invoquer', note: manaNote(view), back: { kind: 'unit', unitId: selection.unitId, mode: 'effect' } },
     rows: getSummonChoices(view, selection).map(({ cardId, action }): BubbleRow => {
-      const card = getMonsterCard(cardId);
+      const card = getMonsterCard(view.cards, cardId);
       return {
         key: cardId,
         icon: 'dragon-head',
         portrait: cardId,
         tone: 'plain',
-        title: cardTitle(card.id),
+        title: cardTitle(view.cards, card.id),
         subtitle: statsLine(card),
         cost: effectCost + card.cost,
+        enabled: true,
+        warn: false,
+        pick: { action },
+      };
+    }),
+  };
+}
+
+/** Tir sur une case vide (Flèche explosive armée) : ses éclats, et les ennemis visibles qu'ils toucheront. */
+function shootBubble(view: PlayerView, selection: Extract<Selection, { kind: 'shoot' }>): BubbleModel | null {
+  const shooter = view.units[selection.unitId];
+  const action = view.legalActions.find(
+    (a): a is Extract<Action, { type: 'attackCell' }> => a.type === 'attackCell' && a.unitId === selection.unitId && a.pos.row === selection.pos.row && a.pos.col === selection.pos.col,
+  );
+  if (shooter?.kind !== 'monster' || !action) return null;
+  const splash = shooter.armed?.splash ?? 0;
+  const around = Object.values(view.units).filter(
+    (u) => u.kind === 'monster' && u.owner !== view.viewer && isInSquare(view.board, selection.pos, u.pos),
+  ).length;
+  const hits = around === 0 ? 'aucun ennemi visible autour' : `${around} ennemi${around > 1 ? 's' : ''} autour`;
+  // La case est aussi à sa portée de marche : la bulle propose d'y aller.
+  const move = view.legalActions.find(
+    (a): a is Extract<Action, { type: 'move' }> => a.type === 'move' && a.unitId === shooter.id && a.to.row === selection.pos.row && a.to.col === selection.pos.col,
+  );
+  return {
+    anchor: selection.pos,
+    anchorUnit: null,
+    header: { kind: 'page', title: 'Tir', note: '· case vide', back: { kind: 'unit', unitId: shooter.id, mode: 'act' } },
+    rows: [
+      {
+        key: 'shoot',
+        icon: 'high-shot',
+        tone: 'plain',
+        title: 'Tirer ici',
+        subtitle: `Éclats : ${splash} dégât${splash > 1 ? 's' : ''} à chaque ennemi du carré de 1 · ${hits}`,
+        cost: null,
+        enabled: true,
+        warn: false,
+        pick: { action },
+      },
+      ...(move
+        ? [
+            {
+              key: 'move',
+              icon: 'walking-boot',
+              tone: 'plain',
+              title: 'Y aller',
+              subtitle: 'Se déplacer sur cette case',
+              cost: null,
+              enabled: true,
+              warn: false,
+              pick: { action: move },
+            } satisfies BubbleRow,
+          ]
+        : []),
+    ],
+  };
+}
+
+/** Réanimation : la case est choisie, le monstre de son cimetière à y invoquer, sans payer son coût. */
+function reviveBubble(view: PlayerView, selection: Extract<Selection, { kind: 'reviveAt' }>): BubbleModel {
+  return {
+    anchor: selection.pos,
+    anchorUnit: null,
+    header: { kind: 'page', title: getCard(view.cards, selection.cardId).name, note: '· sans payer son coût', back: { kind: 'card', cardId: selection.cardId } },
+    rows: getReviveChoices(view, selection).map(({ cardId, action }): BubbleRow => {
+      const card = getMonsterCard(view.cards, cardId);
+      return {
+        key: cardId,
+        icon: 'dragon-head',
+        portrait: cardId,
+        tone: 'plain',
+        title: cardTitle(view.cards, card.id),
+        subtitle: statsLine(card),
+        cost: null,
         enabled: true,
         warn: false,
         pick: { action },
@@ -392,7 +471,7 @@ function summonBubble(view: PlayerView, selection: Extract<Selection, { kind: 's
 /** Zone en ligne avec un recul au choix (Vent violent) : la direction est choisie, reste la distance. */
 function distanceBubble(view: PlayerView, selection: Extract<Selection, { kind: 'areaDirection' }>, flipped: boolean): BubbleModel | null {
   const unit = view.units[selection.unitId];
-  const ability = unit?.kind === 'monster' ? getMonsterCard(unit.cardId).activated.find((a) => a.targeting.type === 'zone') : undefined;
+  const ability = unit?.kind === 'monster' ? getMonsterCard(view.cards, unit.cardId).activated.find((a) => a.targeting.type === 'zone') : undefined;
   if (!unit || !ability) return null;
   const screen = flipped ? SCREEN_DIRECTION[selection.direction] : selection.direction;
   const name = ability.name ?? 'Effet';
@@ -410,7 +489,7 @@ function distanceBubble(view: PlayerView, selection: Extract<Selection, { kind: 
           tone: 'effect',
           arrow: screen,
           title: distance ? `Recul de ${distance}` : `Lancer ${name}`,
-          subtitle: plainRules(abilityRules(ability)),
+          subtitle: plainRules(abilityRules(view.cards, ability)),
           cost: null,
           enabled: true,
           warn: false,

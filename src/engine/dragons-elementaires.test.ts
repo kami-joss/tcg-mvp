@@ -17,14 +17,16 @@ const evolveInto = (cardId: CardId, unitId = 'u1'): Action => ({ type: 'activate
 const MANA = { players: { 1: { mana: 10 } } };
 
 describe('cartes', () => {
-  it('noms, stats et effets du texte de l’utilisateur', () => {
-    expect(CARDS['jeune-dragon']).toMatchObject({ name: 'Jeune dragon - Dragons élémentaires', cost: 2, atk: 3, hp: 2, mobility: 4, range: 1 });
-    expect(CARDS['jeune-dragon']).toMatchObject({ activated: [{ name: 'Évolution draconique', manaCost: 3, effects: [{ type: 'evolve', status: { kind: 'stun', turns: 0 } }] }] });
-    expect(CARDS['dragon-feu']).toMatchObject({ name: 'Ignis - Dragons élémentaires', cost: 7, atk: 5, hp: 5, mobility: 5, range: 3, keywords: [{ keyword: 'vol' }] });
-    expect(CARDS['dragon-eau']).toMatchObject({ name: 'Aqua - Dragons élémentaires', atk: 4, hp: 9, mobility: 4, range: 1 });
-    expect(CARDS['dragon-vent']).toMatchObject({ name: 'Ventus - Dragons élémentaires', atk: 4, hp: 4, mobility: 9, range: 1 });
-    expect(CARDS['dragon-terre']).toMatchObject({ name: 'Terra - Dragons élémentaires', atk: 9, hp: 4, mobility: 4, range: 1 });
-    expect(CARDS['nid-de-dragons']).toMatchObject({ kind: 'terrain', cost: 3, hp: 5, aura: { zone: 'cellAndSquare', archetype: 'dragon', effectCost: 1 } });
+  it('noms et effets du texte de l’utilisateur', () => {
+    // Leurs chiffres (coût, stats, valeurs des mots-clés, coût des effets) se règlent dans l'atelier : cardText.test.ts
+    // vérifie qu'ils sont ceux des tableaux de SPEC.md.
+    expect(CARDS['jeune-dragon']).toMatchObject({ name: 'Jeune dragon - Dragons élémentaires' });
+    expect(CARDS['jeune-dragon']).toMatchObject({ activated: [{ name: 'Évolution draconique', effects: [{ type: 'evolve', status: { kind: 'stun', turns: 0 } }] }] });
+    expect(CARDS['dragon-feu']).toMatchObject({ name: 'Ignis - Dragons élémentaires', keywords: [{ keyword: 'vol' }] });
+    expect(CARDS['dragon-eau']).toMatchObject({ name: 'Aqua - Dragons élémentaires' });
+    expect(CARDS['dragon-vent']).toMatchObject({ name: 'Ventus - Dragons élémentaires' });
+    expect(CARDS['dragon-terre']).toMatchObject({ name: 'Terra - Dragons élémentaires' });
+    expect(CARDS['nid-de-dragons']).toMatchObject({ kind: 'terrain', aura: { zone: 'cellAndSquare', archetype: 'dragon', effectCost: 1 } });
   });
 });
 
@@ -175,11 +177,12 @@ describe('Hurlements : ATK −1 pendant 1 tour aux ennemis du carré de 5 d’un
   });
 });
 
-describe('composition (donnée le 2026-11-08)', () => {
-  it('monstres ×3, Hurlements ×3, Nid de dragons ×3, Autel de mana ×3, Invocateur ×1 : 25 cartes, sans Origine', () => {
+describe('composition (donnée le 2026-11-10)', () => {
+  it('monstres ×3, Hurlements ×3, Nid de dragons ×3, Autel de mana ×3, Invocateur ×1, Élixir de mana ×2, Fortification ×3 : 30 cartes, sans Origine', () => {
     const cards = DECKS.find((d) => d.id === 'dragons')!.cards;
     const count = (id: CardId) => cards.filter((c) => c === id).length;
-    expect(cards).toHaveLength(25);
+    expect(cards).toHaveLength(30);
+    expect([count('elixir-de-mana'), count('fortification')]).toEqual([2, 3]);
     for (const id of ['jeune-dragon', 'dragon-feu', 'dragon-eau', 'dragon-vent', 'dragon-terre', 'hurlements', 'nid-de-dragons', 'autel-de-mana'] as const) {
       expect(count(id), id).toBe(3);
     }

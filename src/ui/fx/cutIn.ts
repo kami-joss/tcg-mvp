@@ -4,7 +4,7 @@
 // action : la première carte qui agit (une riposte, un piège ou un Passage n'en ont pas). Ce module, pur et testé,
 // choisit la carte, ses textes, son trajet et ses images clés ; `CutIn.tsx` l'affiche.
 import { getCard, getMonsterCard } from '../../engine';
-import type { CardId, GameEvent, PlayerId, PlayerView, Position } from '../../engine';
+import type { Card, CardId, GameEvent, PlayerId, PlayerView, Position } from '../../engine';
 import { splitCardName } from '../cardText';
 
 export type CutInKind = 'attack' | 'effect' | 'spell' | 'terrain' | 'summon';
@@ -12,6 +12,8 @@ export type CutInKind = 'attack' | 'effect' | 'spell' | 'terrain' | 'summon';
 export interface CutIn {
   readonly kind: CutInKind;
   readonly cardId: CardId;
+  /** Type de la carte (cadre de la carte). */
+  readonly cardKind: Card['kind'];
   readonly owner: PlayerId;
   /** Exemplaire brillant. */
   readonly shiny: boolean;
@@ -34,9 +36,9 @@ export const CUT_IN_ACTIONS: Readonly<Record<CutInKind, string>> = {
   summon: 'Invocation',
 };
 
-function cutIn(kind: CutInKind, cardId: CardId, owner: PlayerId, shiny: boolean, effect: string | null, to: Position | null): CutIn {
-  const { title, archetype } = splitCardName(getCard(cardId).name);
-  return { kind, cardId, owner, shiny, title, archetype, action: CUT_IN_ACTIONS[kind], effect, to };
+function cutIn(kind: CutInKind, card: Card, owner: PlayerId, shiny: boolean, effect: string | null, to: Position | null): CutIn {
+  const { title, archetype } = splitCardName(card.name);
+  return { kind, cardId: card.id, cardKind: card.kind, owner, shiny, title, archetype, action: CUT_IN_ACTIONS[kind], effect, to };
 }
 
 /** Rang du premier événement de l'action qui peut ouvrir son cut-in (attaque, effet actif, carte jouée), ou −1. */
@@ -52,22 +54,23 @@ export function cutInOf(event: GameEvent, view: PlayerView, after: readonly Game
   switch (event.type) {
     case 'attack': {
       const unit = view.units[event.unitId];
-      return unit?.kind === 'monster' ? cutIn('attack', unit.cardId, unit.owner, unit.shiny === true, null, event.from) : null;
+      return unit?.kind === 'monster' ? cutIn('attack', getCard(view.cards, unit.cardId), unit.owner, unit.shiny === true, null, event.from) : null;
     }
     case 'effect': {
       const unit = view.units[event.unitId];
       if (unit?.kind !== 'monster') return null;
-      const ability = getMonsterCard(unit.cardId).activated[event.effect ?? 0];
-      return cutIn('effect', unit.cardId, unit.owner, unit.shiny === true, ability?.name ?? null, unit.pos);
+      const card = getMonsterCard(view.cards, unit.cardId);
+      const ability = card.activated[event.effect ?? 0];
+      return cutIn('effect', card, unit.owner, unit.shiny === true, ability?.name ?? null, unit.pos);
     }
     case 'cardPlayed': {
       // Elle file vers sa case : l'unité posée, ou le monstre visé par le sort. Un sort sans cible (Pénombre, Piège
       // temporel) s'efface sur place, comme une carte dont l'unité est cachée au joueur qui regarde (sans case, §10).
-      const card = getCard(event.cardId);
-      if (card.kind === 'spell') return cutIn('spell', card.id, event.player, false, null, event.pos);
+      const card = getCard(view.cards, event.cardId);
+      if (card.kind === 'spell') return cutIn('spell', card, event.player, false, null, event.pos);
       const placed = after.find((next) => next.type === 'summon' && next.unit.cardId === card.id);
       const shiny = placed?.type === 'summon' && placed.unit.shiny === true;
-      return cutIn(card.kind === 'terrain' ? 'terrain' : 'summon', card.id, event.player, shiny, null, event.pos);
+      return cutIn(card.kind === 'terrain' ? 'terrain' : 'summon', card, event.player, shiny, null, event.pos);
     }
     default:
       return null;

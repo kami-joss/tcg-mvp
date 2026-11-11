@@ -1,4 +1,4 @@
-// En-tête des pages de consultation (decks, règles) : retour à l'accueil, et le passage d'une page à l'autre.
+// En-tête des pages ouvertes depuis l'accueil (decks, règles, barèmes, atelier) : retour à l'accueil, et le passage d'une page à l'autre.
 import type { ReactNode } from 'react';
 import { Icon } from './Icon';
 import type { Page } from './routes';
@@ -7,6 +7,8 @@ import type { Page } from './routes';
 const INFO_PAGES: readonly (readonly [Page, string])[] = [
   ['decks', 'Decks'],
   ['rules', 'Règles du jeu'],
+  ['scales', 'Barèmes'],
+  ['workshop', 'Atelier'],
 ];
 
 interface PageHeaderProps {

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getLegalActions } from './actions';
-import { DECKS, getMonsterCard, getTerrainCard as getTerrain } from './cards';
+import { CARDS, DECKS, getMonsterCard, getTerrainCard as getTerrain } from './cards';
 import { IllegalActionError } from './errors';
-import { at, gameWith } from './test-utils';
+import { at, gameWith, withStatus } from './test-utils';
 import { attackLimit, canAttack, getAtk, getRange } from './units';
 import { effectAvailability } from './availability';
 import { getPlayerView } from './view';
@@ -23,16 +23,16 @@ const canArm = (state: GameState, unitId: UnitId) => getLegalActions(state).some
 
 describe('les cartes et le deck', () => {
   it('stats : Écuyer 0/3/6 portée 0, Archer impérial 2/2/3 portée 4, Arbalétrier 4/2/3 portée 3, Trébuchet 5/2/2 portée 6', () => {
-    expect(getMonsterCard('ecuyer-archers')).toMatchObject({ cost: 1, atk: 0, hp: 3, mobility: 6, range: 0, archetype: 'archer' });
-    expect(getMonsterCard('archer-imperial')).toMatchObject({ cost: 2, atk: 2, hp: 2, mobility: 3, range: 4, archetype: 'archer' });
-    expect(getMonsterCard('arbaletrier-imperial')).toMatchObject({ cost: 3, atk: 4, hp: 2, mobility: 3, range: 3, archetype: 'archer' });
-    expect(getMonsterCard('trebuchet-archers')).toMatchObject({ cost: 4, atk: 5, hp: 2, mobility: 2, range: 6, archetype: 'archer', noContact: true });
+    expect(getMonsterCard(CARDS, 'ecuyer-archers')).toMatchObject({ cost: 1, atk: 0, hp: 3, mobility: 6, range: 0, archetype: 'archer' });
+    expect(getMonsterCard(CARDS, 'archer-imperial')).toMatchObject({ cost: 2, atk: 2, hp: 2, mobility: 3, range: 4, archetype: 'archer' });
+    expect(getMonsterCard(CARDS, 'arbaletrier-imperial')).toMatchObject({ cost: 3, atk: 4, hp: 2, mobility: 3, range: 3, archetype: 'archer' });
+    expect(getMonsterCard(CARDS, 'trebuchet-archers')).toMatchObject({ cost: 4, atk: 5, hp: 2, mobility: 2, range: 6, archetype: 'archer', noContact: true });
   });
 
-  it('le deck fait 26 cartes, sans exemplaire brillant', () => {
+  it('le deck fait 30 cartes, sans exemplaire brillant', () => {
     const deck = DECKS.find((d) => d.id === 'archers')!;
     expect(deck.name).toBe('Archers impériaux');
-    expect(deck.cards).toHaveLength(26);
+    expect(deck.cards).toHaveLength(30);
     expect(deck.shiny).toBeUndefined();
   });
 });
@@ -312,5 +312,52 @@ describe('Camps de tir : +1 portée aux archers impériaux, sur sa case et son c
 });
 
 function getCardOf(id: 'camps-de-tir') {
-  return getTerrain(id);
+  return getTerrain(CARDS, id);
 }
+
+describe('Flèche explosive sur une case vide (2026-11-10)', () => {
+  const cell = (unitId: UnitId, row: number, col: number): Action => ({ type: 'attackCell', unitId, pos: at(row, col) });
+  const cells = (state: GameState, unitId: UnitId) =>
+    getLegalActions(state).flatMap((a) => (a.type === 'attackCell' && a.unitId === unitId ? [`${a.pos.row},${a.pos.col}`] : []));
+  const scene = (extra: Parameters<typeof gameWith>[0] = []) =>
+    gameWith([{ monster: 'archer-imperial', owner: 1, at: at(9, 0) }, ...extra], MANA);
+
+  it('armé, il tire sur une case vide qu’il pourrait attaquer : les éclats touchent les ennemis autour, jamais un allié ; c’est son attaque', () => {
+    const state = applyAction(
+      scene([
+        { monster: 'milicien', owner: 2, at: at(8, 3) }, // à côté de la case visée
+        { monster: 'milicien', owner: 2, at: at(8, 5) }, // trop loin
+        { monster: 'milicien', owner: 1, at: at(9, 4) }, // allié à côté : épargné
+      ]),
+      arm('u1'),
+    );
+    expect(cells(state, 'u1')).toContain('9,3');
+    const after = applyAction(state, cell('u1', 9, 3));
+    expect([after.units.u2?.hp, after.units.u3?.hp, after.units.u4?.hp]).toEqual([2, 3, 3]);
+    expect(monster(after, 'u1')).toMatchObject({ hasAttacked: true, attacksMade: 1 });
+    expect(monster(after, 'u1').armed).toBeUndefined();
+    expect(after.events).toContainEqual({ type: 'attack', unitId: 'u1', from: at(9, 0), to: at(9, 3), behind: false });
+    expect(canAttack(after, monster(after, 'u1'))).toBe(false);
+  });
+
+  it('seulement armé d’éclats ; en ligne avec ligne de vue ou en diagonale, à portée, sur une case sans unité', () => {
+    expect(cells(scene(), 'u1')).toEqual([]);
+    const armed = applyAction(scene([{ monster: 'golem', owner: 2, at: at(9, 2) }]), arm('u1'));
+    const reach = cells(armed, 'u1');
+    expect(reach).toContain('9,1');
+    expect(reach).toContain('8,1'); // en diagonale
+    expect(reach).not.toContain('9,2'); // le Golem : une attaque, pas un tir sur une case
+    expect(reach).not.toContain('9,3'); // derrière le Golem : plus de ligne de vue
+    expect(() => applyAction(armed, cell('u1', 9, 3))).toThrow(IllegalActionError);
+    expect(cells(applyAction(scene(), arm('u1')), 'u1')).not.toContain('9,5'); // portée 4
+  });
+
+  it('un ennemi invisible sur la case visée est touché : une attaque sur lui, et il se révèle', () => {
+    const hidden = withStatus(scene([{ monster: 'golem', owner: 2, at: at(9, 3) }]), 'u2', 'camouflage', 0, 1);
+    const armed = applyAction(hidden, arm('u1'));
+    expect(cells(armed, 'u1')).toContain('9,3');
+    const after = applyAction(armed, cell('u1', 9, 3));
+    expect(after.units.u2).toMatchObject({ hp: 5, revealed: true });
+    expect(after.events).toContainEqual(expect.objectContaining({ type: 'attack', unitId: 'u1', targetId: 'u2' }));
+  });
+});

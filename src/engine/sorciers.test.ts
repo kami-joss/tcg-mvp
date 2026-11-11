@@ -19,13 +19,12 @@ const burnTargets = (state: GameState) =>
   getLegalActions(state).flatMap((a) => (a.type === 'activateEffect' && a.target.kind === 'cell' ? [a.target.pos] : []));
 
 describe('cartes du deck Sorciers du feu', () => {
-  it('caractéristiques, famille, Brûlure 1, 2 tours', () => {
-    expect(CARDS.apprenti).toMatchObject({ cost: 3, atk: 1, hp: 3, mobility: 5, range: 2, archetype: 'sorcier' });
-    expect(CARDS['lutin-brasier']).toMatchObject({ cost: 2, atk: 1, hp: 3, mobility: 6, range: 1, archetype: 'sorcier' });
-    expect(CARDS.archimage).toMatchObject({ cost: 6, atk: 3, hp: 7, mobility: 5, range: 2, archetype: 'sorcier' });
-    expect(CARDS['golem-de-lave']).toMatchObject({ cost: 4, atk: 2, hp: 10, mobility: 2, range: 1, archetype: 'sorcier' });
+  it('famille, Brûlure (Feria, Archimage)', () => {
+    // Leurs chiffres (coût, stats, valeurs des mots-clés, coût des effets) se règlent dans l'atelier : cardText.test.ts
+    // vérifie qu'ils sont ceux des tableaux de SPEC.md.
+    for (const id of ['apprenti', 'lutin-brasier', 'archimage', 'golem-de-lave'] as const) expect(CARDS[id], id).toMatchObject({ archetype: 'sorcier' });
     for (const id of ['apprenti', 'archimage'] as const) {
-      expect(CARDS[id], id).toMatchObject({ keywords: [{ keyword: 'brulure', amount: 1, turns: 2 }] });
+      expect(CARDS[id], id).toMatchObject({ keywords: [{ keyword: 'brulure' }] });
     }
     // Le Lutin brasier n'a plus de Brûlure : seule sa case brûlée.
     expect(CARDS['lutin-brasier']).toMatchObject({ keywords: [] });

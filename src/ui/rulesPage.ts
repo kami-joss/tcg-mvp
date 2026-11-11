@@ -3,10 +3,13 @@
 // (`{{terme|mot}}`, `rulesText.ts`) : en gras, définis au survol. Les nombres viennent de `config.ts`.
 // Statuts et lexique sont lus dans `GLOSSARY` : une seule définition par mot, la même que sur les cartes.
 import {
-  BASE_MANA_CAP,
   BASE_MANA_FIRST_TURN,
+  CLASSIC_DECK_SIZE,
+  DECK_SIZE,
+  DEFAULT_MANA_RULES,
   MANA_GROWTH_PER_TURN,
   MAX_COPIES_PER_DECK,
+  TURN_TIMER_SECONDS,
   VICTORY_VP,
   VP_PER_CONTROLLED_ZONE,
   VP_PER_MONSTER_DESTROYED,
@@ -31,7 +34,7 @@ export const RULES_SECTIONS: readonly RulesSection[] = [
     id: 'but',
     title: 'But du jeu',
     intro: [
-      `Deux joueurs s’affrontent sur un plateau, chacun avec son deck. Le premier à ${VICTORY_VP} VP (points de victoire) gagne aussitôt.`,
+      `Deux joueurs s’affrontent sur un plateau, chacun avec son deck. Le premier à ${VICTORY_VP} VP (points de victoire ; un autre nombre se choisit à l’accueil) gagne aussitôt.`,
     ],
     points: [
       `Tenir une mana zone rapporte ${VP_PER_CONTROLLED_ZONE} VP au début de chacun de ses tours.`,
@@ -72,23 +75,26 @@ export const RULES_SECTIONS: readonly RulesSection[] = [
       'Les statuts agissent : requiem (le monstre meurt, sans VP), puis burn.',
       'Ses monstres retrouvent toute leur mobilité, leur attaque et leurs effets actifs.',
       'Ensuite, dans l’ordre qu’on veut et autant de fois que possible : jouer une carte, déplacer un monstre, attaquer, utiliser l’effet actif d’un monstre. Le tour finit avec « Fin du tour ».',
+      `Avec le minuteur (option de l’accueil) : ${TURN_TIMER_SECONDS / 60} minutes de réflexion par tour ; les actions et leurs animations ne comptent pas. À 0:00, le tour finit.`,
     ],
   },
   {
     id: 'mana',
     title: 'Le mana',
-    intro: ['Le mana paie les cartes et les effets actifs. Il ne se garde pas d’un tour à l’autre.'],
+    intro: [
+      'Le mana paie les cartes et les effets actifs. Deux économies, choisies à l’accueil : Classique, le mana non dépensé est perdu à la fin du tour ; Réserve, il se garde d’un tour à l’autre.',
+    ],
     points: [
-      `Mana de base : ${BASE_MANA_FIRST_TURN} à son premier tour, +${MANA_GROWTH_PER_TURN} à chacun de ses tours suivants, ${BASE_MANA_CAP} au plus.`,
-      'Une mana zone tenue où l’on a un terrain rapporte +1 mana (plus les bonus de ce terrain et du mot-clé Étendard). Un monstre seul sur une zone ne rapporte pas de mana, seulement le VP.',
-      `Au-delà de ${BASE_MANA_CAP}, seuls les terrains donnent du mana en plus.`,
+      `Mana de base : ${BASE_MANA_FIRST_TURN} à son premier tour, +${MANA_GROWTH_PER_TURN} à chacun de ses tours suivants, jusqu’à la génération max de la partie (${DEFAULT_MANA_RULES.baseCap} par défaut, réglable à l’accueil).`,
+      'Une mana zone tenue où l’on a un terrain rapporte +1 mana (plus les bonus de ce terrain et du mot-clé Étendard), en plus du mana de base. Un monstre seul sur une zone ne rapporte pas de mana, seulement le VP.',
+      `On n’a jamais plus de mana que la limite de la partie (${DEFAULT_MANA_RULES.limit} par défaut, réglable à l’accueil) : un gain qui la dépasse est perdu, au début du tour comme pendant.`,
     ],
   },
   {
     id: 'grimoire',
     title: 'Le grimoire et les cartes',
     intro: [
-      `Un deck compte 25 cartes (26 pour les Archers impériaux), ${MAX_COPIES_PER_DECK} exemplaires au plus d’une même carte. Trois sortes de cartes : les monstres, les sorts (effet immédiat) et les terrains.`,
+      `Un deck compte ${DECK_SIZE} cartes (le deck Classique, deck d’essai : ${CLASSIC_DECK_SIZE}), ${MAX_COPIES_PER_DECK} exemplaires au plus d’une même carte. Trois sortes de cartes : les monstres, les sorts (effet immédiat) et les terrains.`,
     ],
     points: [
       'Toute carte du grimoire se joue pendant son tour, si l’on a le mana. Pas de limite par tour : seul le mana compte.',
@@ -192,12 +198,12 @@ export const KEYWORD_RULES: Readonly<Record<Keyword, { readonly name: string; re
   sournois: { name: 'Sournois +N', text: `En attaquant un monstre ${t('parDerriere', 'par derrière')} : +N ATK pour cette attaque.` },
   assassin: { name: 'Attaque par surprise ×N', text: `En attaquant un monstre ${t('parDerriere', 'par derrière')} : dégâts ×N.` },
   camouflage: { name: 'Camouflage', text: `Caché à l’adversaire tant qu’aucun de ses monstres ni terrains n’est dans un ${t('carre', 'carré de 2')}.` },
-  soif: { name: 'Soif N', text: 'À l’attaque, il récupère N PV, sans dépasser ses PV max.' },
+  soif: { name: 'Soif N', text: 'En attaquant un monstre (pas un terrain), il récupère N PV, sans dépasser ses PV max.' },
 };
 
 /** Statuts (SPEC.md §5 bis), malus puis bonus : leur définition est celle du lexique des cartes. */
 export const STATUS_TERMS: readonly { readonly title: string; readonly terms: readonly GlossaryTerm[] }[] = [
-  { title: 'Malus', terms: ['burn', 'slow', 'immobilise', 'absorbe', 'stun', 'silence', 'desarme', 'requiem'] },
+  { title: 'Malus', terms: ['malus', 'burn', 'slow', 'immobilise', 'absorbe', 'stun', 'silence', 'desarme', 'requiem'] },
   { title: 'Bonus', terms: ['camouflage', 'invisible', 'absorbation', 'recuperation', 'vol', 'carapace'] },
 ];
 
@@ -207,7 +213,7 @@ export const LEXICON_TERMS: readonly { readonly title: string; readonly terms: r
   { title: 'Mouvements', terms: ['deplacement', 'entrer', 'teleporter', 'repousser', 'chemin', 'transformer'] },
   {
     title: 'Effets',
-    terms: ['invoquer', 'sacrifier', 'absorber', 'piege', 'caseBrulee', 'passage', 'zone', 'arme', 'contreCoup'],
+    terms: ['invoquer', 'caseInvocation', 'cimetiere', 'sacrifier', 'absorber', 'piege', 'caseBrulee', 'passage', 'zone', 'arme', 'contreCoup'],
   },
 ];
 

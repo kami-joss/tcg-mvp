@@ -77,7 +77,7 @@ export function getZoneMana(state: ZoneState, pos: Position, controller = getZon
   return units.reduce(
     (mana, unit) =>
       mana +
-      (unit.kind === 'terrain' ? getTerrainCard(unit.cardId).zoneManaBonus : (getKeyword(unit, 'etendard')?.amount ?? 0)),
+      (unit.kind === 'terrain' ? getTerrainCard(state.cards, unit.cardId).zoneManaBonus : (getKeyword(state.cards, unit, 'etendard')?.amount ?? 0)),
     MANA_PER_CONTROLLED_ZONE,
   );
 }

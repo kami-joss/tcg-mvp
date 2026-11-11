@@ -22,7 +22,7 @@ describe('Origine - Dragons élémentaires', () => {
       players: { 1: { mana: 20, grimoire: ['dragon-origine', 'dragon-feu'] as CardId[] } },
     });
     const origine = gameWith([{ monster: 'dragon-origine', owner: 1, at: at(1, 4) }]);
-    expect(hasKeyword(monster(origine, 'u1'), 'vol')).toBe(true);
+    expect(hasKeyword(CARDS, monster(origine, 'u1'), 'vol')).toBe(true);
     const evolutions = getLegalActions(state).flatMap((a) =>
       a.type === 'activateEffect' && a.target.kind === 'card' ? [a.target.cardId] : [],
     );

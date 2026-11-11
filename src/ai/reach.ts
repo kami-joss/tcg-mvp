@@ -3,7 +3,7 @@
 // falaises §10), sans les pièges (cachés) : appelé des milliers de fois par décision, là où le moteur prendrait des
 // secondes.
 import { squareCells, getCell, getCliff, getKeyword, getMonsterCard, getTerrainCard } from '../engine';
-import type { Board, Direction, GameState, MonsterUnit, PlayerId, Position, Unit } from '../engine';
+import type { AllyZone, Archetype, Board, CardSet, Direction, GameState, MonsterUnit, PlayerId, Position, TrapEffect, Unit } from '../engine';
 
 /** Ordre des directions dans les tableaux : haut, bas, gauche, droite. */
 const DIRECTIONS: readonly Direction[] = ['up', 'down', 'left', 'right'];
@@ -100,23 +100,79 @@ interface StrikeProfile {
   readonly siege: number;
   readonly sournois: number;
   readonly assassin: number;
+  /** Brûlure N, T tours : la cible perdra encore N PV au début de chacun de ses T prochains tours (§5 bis). */
+  readonly burn: number;
+  /**
+   * « Zone » (Golem de lave, §10) : l'ennemi à côté duquel il arrive en subit les effets (dégâts, et PV que ses burn lui
+   * feront perdre), en plus de l'attaque.
+   */
+  readonly zone: number;
+  /** `no_cac` (Trébuchet des archers) : jamais une cible au contact (1 case en ligne droite). */
+  readonly noContact: boolean;
+  readonly archetype: Archetype | null;
 }
 
-const profiles = new Map<string, StrikeProfile>();
+/** Profils gardés par jeu de cartes, puis par carte : deux parties aux cartes différentes ne se mêlent pas. */
+const profiles = new WeakMap<CardSet, Map<string, StrikeProfile>>();
 
-function profileOf(monster: MonsterUnit): StrikeProfile {
-  let profile = profiles.get(monster.cardId);
+function profileOf(cards: CardSet, monster: MonsterUnit): StrikeProfile {
+  let byCard = profiles.get(cards);
+  if (!byCard) profiles.set(cards, (byCard = new Map()));
+  let profile = byCard.get(monster.cardId);
   if (!profile) {
+    const card = getMonsterCard(cards, monster.cardId);
+    const brulure = getKeyword(cards, monster, 'brulure');
     profile = {
-      range: getMonsterCard(monster.cardId).range,
-      flying: getKeyword(monster, 'vol') !== undefined,
-      siege: getKeyword(monster, 'siege')?.multiplier ?? 1,
-      sournois: getKeyword(monster, 'sournois')?.amount ?? 0,
-      assassin: getKeyword(monster, 'assassin')?.multiplier ?? 1,
+      range: card.range,
+      flying: getKeyword(cards, monster, 'vol') !== undefined,
+      siege: getKeyword(cards, monster, 'siege')?.multiplier ?? 1,
+      sournois: getKeyword(cards, monster, 'sournois')?.amount ?? 0,
+      assassin: getKeyword(cards, monster, 'assassin')?.multiplier ?? 1,
+      // Posé pendant le tour de l'attaquant, un burn de T tours agit au début de T tours de la cible.
+      burn: brulure ? brulure.amount * brulure.turns : 0,
+      zone: card.passage?.lingering ? effectsDamage(card.passage.effects) : 0,
+      noContact: card.noContact === true,
+      archetype: card.archetype,
     };
-    profiles.set(monster.cardId, profile);
+    byCard.set(monster.cardId, profile);
   }
   return profile;
+}
+
+/**
+ * Pour chaque archétype qui en profite, la portée en plus que donnent les auras de portée des unités de `attacker`
+ * (Camps de tir : sa case et son carré de 1) à un monstre qui tire de chaque case ; rien sans aura de portée.
+ */
+function rangeAurasOf(state: GameState, attacker: PlayerId, grid: Grid): Map<Archetype, Uint8Array> {
+  const byArchetype = new Map<Archetype, Uint8Array>();
+  for (const unit of Object.values(state.units)) {
+    if (unit.owner !== attacker) continue;
+    const aura = unit.kind === 'monster' ? getMonsterCard(state.cards, unit.cardId).aura : getTerrainCard(state.cards, unit.cardId).aura;
+    if (!aura?.range) continue;
+    let cells = byArchetype.get(aura.archetype);
+    if (!cells) byArchetype.set(aura.archetype, (cells = new Uint8Array(grid.size)));
+    for (const pos of auraCells(state.board, unit.pos, aura.zone)) cells[pos.row * grid.cols + pos.col]! += aura.range;
+  }
+  return byArchetype;
+}
+
+/**
+ * Les cases que couvre une aura posée en `pos` (§10). La source elle-même n'en profite pas : sur sa propre case, seul un
+ * terrain (zone `cellAndSquare`) couvre un monstre, et aucun monstre à aura de portée n'existe encore.
+ */
+function auraCells(board: Board, pos: Position, zone: AllyZone): Position[] {
+  if (zone === 'cellAndSquare') return [pos, ...squareCells(board, pos)];
+  return squareCells(board, pos, zone === 'square2' ? 2 : 1);
+}
+
+/** PV que des effets de Passage ou de Zone font perdre : leurs dégâts, et ce que leurs burn infligeront ensuite. */
+function effectsDamage(effects: readonly TrapEffect[]): number {
+  let total = 0;
+  for (const effect of effects) {
+    if (effect.type === 'damage') total += effect.amount;
+    else if (effect.type === 'status' && effect.kind === 'burn') total += effect.amount * effect.turns;
+  }
+  return total;
 }
 
 /** Tableaux de travail, réutilisés d'un appel à l'autre (un seul calcul à la fois). */
@@ -188,17 +244,20 @@ export function getStrikers(
     // Mobilité en plus pour entrer sur une case : les zones des terrains adverses qui ralentissent (Terrain piégé).
     if (unit.kind === 'terrain' && unit.owner !== attacker) {
       let slow = 0;
-      for (const effect of getTerrainCard(unit.cardId).passage?.effects ?? []) if (effect.type === 'status' && effect.kind === 'slow') slow += effect.amount;
+      for (const effect of getTerrainCard(state.cards, unit.cardId).passage?.effects ?? []) if (effect.type === 'status' && effect.kind === 'slow') slow += effect.amount;
       if (slow > 0) for (const pos of squareCells(state.board, unit.pos)) extra[pos.row * grid.cols + pos.col]! += slow;
     }
   }
+  // Portée en plus selon la case d'où il tire : les auras de portée de ses alliés (Camps de tir), par archétype.
+  const rangeAuras = rangeAurasOf(state, attacker, grid);
   const strikers: Striker[] = [];
   for (const monster of units) {
     if (monster.kind !== 'monster' || monster.owner !== attacker) continue;
     const mobility = mobilityOf(monster);
     if (mobility < 0) continue; // Ne pourra pas agir.
-    const profile = profileOf(monster);
-    const { range, siege, sournois, assassin } = profile;
+    const profile = profileOf(state.cards, monster);
+    const { range: cardRange, siege, sournois, assassin, burn, zone, noContact, archetype } = profile;
+    const rangeAt = archetype ? rangeAuras.get(archetype) : undefined;
     // Le profil est gardé par carte : le statut Vol, lui, est propre au monstre.
     const flying = profile.flying || monster.statuses.some((s) => s.kind === 'vol');
     const start = monster.pos.row * grid.cols + monster.pos.col;
@@ -234,11 +293,12 @@ export function getStrikers(
     // De chaque case où il peut s'arrêter (jouable, sans monstre, sans terrain ennemi), ses tirs.
     const atk = atkOf(monster);
     const behindBonus = sournois > 0 || assassin > 1;
-    const shotWalls = range >= 2 ? grid.noShot : grid.cliff;
     let best: Map<Unit, number> | null = null;
     for (let r = 0; r < count; r++) {
       const from = reached[r]!;
       if (from !== start && (grid.kind[from] !== PLAIN || monsterAt[from] || (owner[from] !== 0 && owner[from] !== attacker))) continue;
+      const range = cardRange + (rangeAt?.[from] ?? 0);
+      const shotWalls = range >= 2 ? grid.noShot : grid.cliff;
       for (let d = 0; d < 4; d++) {
         let previous = from;
         for (let k = 1; k <= range; k++) {
@@ -251,10 +311,12 @@ export function getStrikers(
           if (cell === start || owner[cell] === 0) continue;
           if (owner[cell] === attacker) continue; // Une unité alliée (monstre ou terrain) ne gêne pas le tir (§4.7).
           const target = targetAt.get(cell);
-          if (target) {
+          if (target && !(noContact && k === 1)) {
             let damage = atk;
             if (target.kind === 'terrain') damage *= siege;
             else if (behindBonus && DIRECTIONS[d] === target.facing) damage = (atk + sournois) * assassin;
+            // Brûlure (terrains compris) ; au contact, la Zone de l'attaquant touche aussi le monstre (§10).
+            damage += burn + (k === 1 && target.kind === 'monster' ? zone : 0);
             best ??= new Map();
             if (damage > (best.get(target) ?? 0)) best.set(target, damage);
           }
@@ -272,7 +334,7 @@ export function getStrikers(
           if (owner[cell] === attacker) continue; // Une unité alliée ne gêne pas le tir.
           const target = targetAt.get(cell);
           if (target) {
-            const damage = target.kind === 'terrain' ? atk * siege : atk;
+            const damage = (target.kind === 'terrain' ? atk * siege : atk) + burn + (step === 1 && target.kind === 'monster' ? zone : 0);
             best ??= new Map();
             if (damage > (best.get(target) ?? 0)) best.set(target, damage);
           }

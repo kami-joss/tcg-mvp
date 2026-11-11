@@ -89,6 +89,7 @@ export function PilePanel(props: PilePanelProps) {
           {entries.map(({ copy, index }) => (
             <Tile
               key={index}
+              cards={view.cards}
               cardId={copy.cardId}
               list={false}
               focused={focused === index}

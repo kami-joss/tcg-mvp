@@ -171,7 +171,7 @@ export function unitVisuals(inputs: TokenInputs): { tokens: TokenVisual[]; terra
       });
       continue;
     }
-    const card = getMonsterCard(unit.cardId);
+    const card = getMonsterCard(view.cards, unit.cardId);
     const active = unit.owner === view.activePlayer;
     const facing = flipped ? FLIP[unit.facing] : unit.facing;
     const angle = ISO_ANGLES[facing];
@@ -189,7 +189,7 @@ export function unitVisuals(inputs: TokenInputs): { tokens: TokenVisual[]; terra
       pos,
       owner: unit.owner,
       cardId: unit.cardId,
-      label: shortName(unit.cardId, getCard(unit.cardId).name),
+      label: shortName(unit.cardId, getCard(view.cards, unit.cardId).name),
       x: x + TOKEN_FOOT,
       y: y + TOKEN_FOOT,
       depth: isoDepth(x + TOKEN_FOOT, y + TOKEN_FOOT, TOKEN_DZ),

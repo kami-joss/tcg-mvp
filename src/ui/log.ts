@@ -3,9 +3,10 @@
 // Les vues ne contiennent que des informations publiques : le journal ne révèle rien de caché. Les deux joueurs le
 // lisent : la case d'un de ses monstres invisibles pour l'adversaire n'y apparaît jamais (§10).
 import { getCard, getCell, getMonsterCard, samePos } from '../engine';
-import type { Action, Board, Direction, ManaZoneId, PlayerId, PlayerView, Position, Unit, UnitId } from '../engine';
+import type { Action, Board, CardSet, Direction, ManaZoneId, PlayerId, PlayerView, Position, Unit, UnitId } from '../engine';
 import type { IconName } from './Icon';
 import { cardTitle } from './cardText';
+import { statusLabel } from './statusInfo';
 
 /** Couleur d'une conséquence : perte (PV, destruction, piège), gain (bonus), VP, information. */
 export type LogTone = 'hurt' | 'good' | 'vp' | 'info';
@@ -47,7 +48,7 @@ const DIRECTION_NAMES: Readonly<Record<Direction, string>> = {
   right: 'la droite',
 };
 
-const unitName = (unit: Unit) => `${getCard(unit.cardId).name} de J${unit.owner}`;
+const unitName = (cards: CardSet, unit: Unit) => `${getCard(cards, unit.cardId).name} de J${unit.owner}`;
 
 /** « sur la Forge » pour une mana zone, « en (8, 1) » sinon. */
 export function place(board: Board, pos: Position): string {
@@ -64,7 +65,7 @@ const isSecret = (view: PlayerView, unitId: UnitId) => view.hiddenFromOpponent.i
 /** L'effet actif de rang `effect` d'un monstre, s'il l'a. */
 function abilityOf(view: PlayerView, unitId: UnitId, effect = 0) {
   const unit = view.units[unitId];
-  const card = unit ? getCard(unit.cardId) : null;
+  const card = unit ? getCard(view.cards, unit.cardId) : null;
   return card?.kind === 'monster' ? card.activated[effect] : undefined;
 }
 
@@ -77,19 +78,29 @@ function describeIntent(view: PlayerView, action: Action, after: PlayerView): st
   const actor = `J${view.activePlayer}`;
   const name = (unitId: UnitId) => {
     const unit = view.units[unitId];
-    return unit ? unitName(unit) : unitId;
+    return unit ? unitName(after.cards, unit) : unitId;
   };
 
   switch (action.type) {
     case 'playCard': {
-      const card = getCard(action.cardId);
+      const card = getCard(after.cards, action.cardId);
       const { target } = action;
       if (target.kind === 'cell') {
         const summoned = Object.values(after.units).find((u) => !view.units[u.id] && samePos(u.pos, target.pos));
         if (summoned && isSecret(after, summoned.id)) return `${actor} invoque ${card.name}, invisible.`;
         return `${actor} ${card.kind === 'monster' ? 'invoque' : 'pose'} ${card.name} ${place(view.board, target.pos)}.`;
       }
-      if (target.kind === 'area' || target.kind === 'card' || target.kind === 'cellAndCard' || target.kind === 'all') {
+      if (target.kind === 'cellAndCard') {
+        // Réanimation : le monstre revient de son cimetière.
+        const back = Object.values(after.units).find((u) => !view.units[u.id] && samePos(u.pos, target.pos));
+        const where = back && isSecret(after, back.id) ? ', invisible' : ` ${place(view.board, target.pos)}`;
+        return `${actor} lance ${card.name} : ${getCard(after.cards, target.cardId).name} revient${where}.`;
+      }
+      if (target.kind === 'unitAndCell') {
+        const where = isSecret(after, target.unitId) ? '' : ` ${place(view.board, target.pos)}`;
+        return `${actor} lance ${card.name} : ${name(target.unitId)} est téléporté${where}.`;
+      }
+      if (target.kind === 'area' || target.kind === 'card' || target.kind === 'all') {
         return `${actor} lance ${card.name}.`;
       }
       const direction = target.kind === 'unitAndDirection' ? ` vers ${DIRECTION_NAMES[target.direction]}` : '';
@@ -97,7 +108,7 @@ function describeIntent(view: PlayerView, action: Action, after: PlayerView): st
     }
     case 'move': {
       const unit = view.units[action.unitId];
-      const unitLabel = unit ? getCard(unit.cardId).name : action.unitId;
+      const unitLabel = unit ? getCard(after.cards, unit.cardId).name : action.unitId;
       if (isSecret(after, action.unitId)) {
         return isSecret(view, action.unitId)
           ? `${actor} déplace ${unitLabel}, invisible.`
@@ -107,6 +118,9 @@ function describeIntent(view: PlayerView, action: Action, after: PlayerView): st
     }
     case 'attack':
       return `${name(action.unitId)} attaque ${name(action.targetId)}.`;
+    case 'attackCell':
+      // Flèche explosive sur une case vide (2026-11-10) : la case est publique, le tir se voit.
+      return `${name(action.unitId)} tire ${place(view.board, action.pos)}.`;
     case 'activateEffect':
       // Un piège reste secret : sa case n'apparaît pas dans le journal, que les deux joueurs lisent.
       if (action.target.kind === 'cell') {
@@ -122,15 +136,15 @@ function describeIntent(view: PlayerView, action: Action, after: PlayerView): st
       if (action.target.kind === 'cellAndCard') {
         const { pos, cardId } = action.target;
         const summoned = Object.values(after.units).find((u) => !view.units[u.id] && samePos(u.pos, pos));
-        if (summoned && isSecret(after, summoned.id)) return `${name(action.unitId)} invoque ${getCard(cardId).name}, invisible.`;
-        return `${name(action.unitId)} invoque ${getCard(cardId).name} ${place(view.board, pos)}.`;
+        if (summoned && isSecret(after, summoned.id)) return `${name(action.unitId)} invoque ${getCard(after.cards, cardId).name}, invisible.`;
+        return `${name(action.unitId)} invoque ${getCard(after.cards, cardId).name} ${place(view.board, pos)}.`;
       }
       if (action.target.kind === 'unitAndCell') {
         const where = isSecret(after, action.target.unitId) ? '' : ` ${place(view.board, action.target.pos)}`;
         return `${name(action.unitId)} téléporte ${name(action.target.unitId)}${where}.`;
       }
       if (action.target.kind === 'card') {
-        return `${name(action.unitId)} évolue en ${getCard(action.target.cardId).name} ${place(view.board, view.units[action.unitId]?.pos ?? { row: 0, col: 0 })}.`;
+        return `${name(action.unitId)} évolue en ${getCard(after.cards, action.target.cardId).name} ${place(view.board, view.units[action.unitId]?.pos ?? { row: 0, col: 0 })}.`;
       }
       if (action.target.kind === 'all') return `${name(action.unitId)} utilise ${effectName(view, action.unitId, action.effect)}.`;
       if (action.target.kind === 'area') {
@@ -141,7 +155,7 @@ function describeIntent(view: PlayerView, action: Action, after: PlayerView): st
       // Effet sur lui-même : transformation (Emma), Dopage.
       if (action.target.unitId === action.unitId) {
         const transform = abilityOf(view, action.unitId, action.effect)?.effects.find((effect) => effect.type === 'transform');
-        if (transform?.type === 'transform') return `${name(action.unitId)} se transforme en ${cardTitle(transform.into)}.`;
+        if (transform?.type === 'transform') return `${name(action.unitId)} se transforme en ${cardTitle(after.cards, transform.into)}.`;
         return `${name(action.unitId)} utilise ${effectName(view, action.unitId, action.effect)}.`;
       }
       return `${name(action.unitId)} utilise son effet sur ${name(action.target.unitId)}.`;
@@ -154,7 +168,7 @@ function describeIntent(view: PlayerView, action: Action, after: PlayerView): st
 function intentIcon(view: PlayerView, action: Action, after: PlayerView): IconName {
   switch (action.type) {
     case 'playCard': {
-      const { kind } = getCard(action.cardId);
+      const { kind } = getCard(after.cards, action.cardId);
       return kind === 'monster' ? 'dragon-head' : kind === 'terrain' ? 'castle' : 'spell-book';
     }
     case 'move':
@@ -163,8 +177,10 @@ function intentIcon(view: PlayerView, action: Action, after: PlayerView): IconNa
       const attacker = view.units[action.unitId];
       const target = view.units[action.targetId];
       const far = attacker && target && Math.abs(attacker.pos.row - target.pos.row) + Math.abs(attacker.pos.col - target.pos.col) > 1;
-      return attacker?.kind === 'monster' && far && getMonsterCard(attacker.cardId).range > 1 ? 'high-shot' : 'broadsword';
+      return attacker?.kind === 'monster' && far && getMonsterCard(after.cards, attacker.cardId).range > 1 ? 'high-shot' : 'broadsword';
     }
+    case 'attackCell':
+      return 'high-shot';
     case 'activateEffect':
       return after.events.some((event) => event.type === 'cellBurned') ? 'flame' : 'magic-swirl';
     case 'endTurn':
@@ -182,6 +198,7 @@ function targetOf(action: Action): UnitId | null {
       return action.target.kind === 'unit' || action.target.kind === 'unitAndDirection' || action.target.kind === 'unitAndCell'
         ? action.target.unitId
         : null;
+    case 'attackCell':
     case 'move':
     case 'endTurn':
       return null;
@@ -203,42 +220,52 @@ function describeUnitChanges(before: PlayerView, action: Action, after: PlayerVi
       const requiem = after.events.some((event) => event.type === 'requiem' && event.unitId === unit.id);
       lines.push(
         after.hiddenEnemies.includes(unit.id)
-          ? item('eye-slash', `${unitName(unit)} disparaît.`, 'info')
+          ? item('eye-slash', `${unitName(after.cards, unit)} disparaît.`, 'info')
           : requiem
-            ? item('death-skull', `${unitName(unit)} succombe (requiem).`, 'hurt')
-            : item('death-skull', `${unitName(unit)} est détruit.`, 'hurt'),
+            ? item('death-skull', `${unitName(after.cards, unit)} succombe (requiem).`, 'hurt')
+            : item('death-skull', `${unitName(after.cards, unit)} est détruit.`, 'hurt'),
       );
       continue;
     }
-    if (next.hp !== unit.hp) lines.push(item('hearts', `${unitName(unit)} : ${unit.hp} → ${next.hp} PV.`, next.hp < unit.hp ? 'hurt' : 'good'));
+    if (next.hp !== unit.hp) lines.push(item('hearts', `${unitName(after.cards, unit)} : ${unit.hp} → ${next.hp} PV.`, next.hp < unit.hp ? 'hurt' : 'good'));
+    // Carapace : des dégâts qui l'auraient fait descendre sous 1 PV ont été retenus.
+    if (after.events.some((event) => event.type === 'damage' && event.unitId === unit.id && event.held)) {
+      lines.push(item('shield', `${unitName(after.cards, unit)} tient à 1 PV (carapace).`, 'info'));
+    }
+    // Cure : ses malus retirés.
+    for (const event of after.events) {
+      if (event.type !== 'cleansed' || event.unitId !== unit.id) continue;
+      const names = [...new Set(event.removed.map(statusLabel))].join(', ');
+      lines.push(item('magic-swirl', `${unitName(after.cards, unit)} : malus retirés (${names}).`, 'good'));
+    }
     if (next.kind !== 'monster' || unit.kind !== 'monster') continue;
     if (next.atk !== unit.atk) {
-      lines.push(item('broadsword', `${unitName(unit)} : ATK ${unit.atk} → ${next.atk}.`, next.atk > unit.atk ? 'good' : 'hurt'));
+      lines.push(item('broadsword', `${unitName(after.cards, unit)} : ATK ${unit.atk} → ${next.atk}.`, next.atk > unit.atk ? 'good' : 'hurt'));
     }
-    if (next.atkBonus > unit.atkBonus) lines.push(item('broadsword', `${unitName(unit)} : +${next.atkBonus - unit.atkBonus} ATK ce tour.`, 'good'));
+    if (next.atkBonus > unit.atkBonus) lines.push(item('broadsword', `${unitName(after.cards, unit)} : +${next.atkBonus - unit.atkBonus} ATK ce tour.`, 'good'));
     if (next.rangeBonus > unit.rangeBonus) {
-      lines.push(item('high-shot', `${unitName(unit)} : +${next.rangeBonus - unit.rangeBonus} portée ce tour.`, 'good'));
+      lines.push(item('high-shot', `${unitName(after.cards, unit)} : +${next.rangeBonus - unit.rangeBonus} portée ce tour.`, 'good'));
     }
     const requiems = (u: Unit) => u.statuses.filter((status) => status.kind === 'requiem');
     const requiem = requiems(next).at(-1);
     if (requiem && requiems(next).length > requiems(unit).length) {
-      lines.push(item('death-skull', `${unitName(unit)} : requiem.`, 'hurt'));
+      lines.push(item('death-skull', `${unitName(after.cards, unit)} : requiem.`, 'hurt'));
     }
     if (action.type === 'playCard' && next.mobilityLeft > unit.mobilityLeft) {
-      lines.push(item('walking-boot', `${unitName(unit)} : +${next.mobilityLeft - unit.mobilityLeft} mobilité ce tour.`, 'good'));
+      lines.push(item('walking-boot', `${unitName(after.cards, unit)} : +${next.mobilityLeft - unit.mobilityLeft} mobilité ce tour.`, 'good'));
     }
     // Parti de la zone d'un Terrain de chasse ; rien pour un monstre caché à l'adversaire (ce serait dire où il était).
     for (const event of after.events) {
       if (event.type !== 'mobility' || event.unitId !== unit.id || !event.source || isSecret(after, unit.id)) continue;
-      lines.push(item('walking-boot', `${unitName(unit)} : +${event.amount} mobilité ce tour (${getCard(event.source).name}).`, 'good'));
+      lines.push(item('walking-boot', `${unitName(after.cards, unit)} : +${event.amount} mobilité ce tour (${getCard(after.cards, event.source).name}).`, 'good'));
     }
-    const teleported = action.type === 'activateEffect' && action.target.kind === 'unitAndCell' && action.target.unitId === unit.id;
+    const teleported = (action.type === 'activateEffect' || action.type === 'playCard') && action.target.kind === 'unitAndCell' && action.target.unitId === unit.id;
     const returned = action.type === 'activateEffect' && action.target.kind === 'cell' && action.unitId === unit.id;
     if (!samePos(next.pos, unit.pos) && action.type !== 'move' && !teleported && !returned) {
       const where = isSecret(after, unit.id) ? '' : ` ${place(after.board, next.pos)}`;
       const rewound = after.events.some((event) => event.type === 'rewind' && event.unitId === unit.id);
       const verb = rewound ? 'remonte le temps et revient' : action.type === 'attack' ? 'avance' : 'recule';
-      lines.push(item('walking-boot', `${unitName(unit)} ${verb}${where}.`, 'info'));
+      lines.push(item('walking-boot', `${unitName(after.cards, unit)} ${verb}${where}.`, 'info'));
     }
   }
   return lines;
@@ -254,27 +281,27 @@ function describeTrap(before: PlayerView, action: Action, after: PlayerView, blo
     const unit = before.units[action.unitId];
     const moved = after.units[action.unitId];
     if (!unit) return [];
-    if (trapped && (!moved || moved.hp < unit.hp)) return [item('fishing-net', `${unitName(unit)} déclenche un piège !`, 'hurt')];
+    if (trapped && (!moved || moved.hp < unit.hp)) return [item('fishing-net', `${unitName(after.cards, unit)} déclenche un piège !`, 'hurt')];
     if (!moved) return [];
     if (!samePos(moved.pos, action.to) && blockers.length > 0) {
-      return [item('eye', `${unitName(unit)} est arrêté ${place(after.board, moved.pos)} et ne peut plus bouger de ce tour.`, 'hurt')];
+      return [item('eye', `${unitName(after.cards, unit)} est arrêté ${place(after.board, moved.pos)}.`, 'hurt')];
     }
     if (after.events.some((event) => event.type === 'rewind' && event.unitId === action.unitId)) {
-      return [item('fishing-net', `${unitName(unit)} déclenche un sablier : il remonte le temps ${place(after.board, moved.pos)} et ne peut plus bouger de ce tour.`, 'hurt')];
+      return [item('fishing-net', `${unitName(after.cards, unit)} déclenche un sablier : il remonte le temps ${place(after.board, moved.pos)} et ne peut plus bouger de ce tour.`, 'hurt')];
     }
     if (!samePos(moved.pos, action.to)) {
-      return [item('fishing-net', `${unitName(unit)} est pris au piège ${place(after.board, moved.pos)} et ne peut plus bouger de ce tour.`, 'hurt')];
+      return [item('fishing-net', `${unitName(after.cards, unit)} est pris au piège ${place(after.board, moved.pos)} et ne peut plus bouger de ce tour.`, 'hurt')];
     }
   }
   const summoned =
-    action.type === 'playCard' && action.target.kind === 'cell' && getCard(action.cardId).kind === 'monster'
+    action.type === 'playCard' && action.target.kind === 'cell' && getCard(after.cards, action.cardId).kind === 'monster'
       ? { pos: action.target.pos, cardId: action.cardId }
       : action.type === 'activateEffect' && action.target.kind === 'cellAndCard'
         ? action.target
         : null;
   if (summoned && !Object.values(after.units).some((u) => u.kind === 'monster' && samePos(u.pos, summoned.pos))) {
     const how = trapped ? 'tombe dans un piège et est détruit' : 'est détruit à son arrivée';
-    return [item('death-skull', `${getCard(summoned.cardId).name} de J${before.activePlayer} ${how}.`, 'hurt')];
+    return [item('death-skull', `${getCard(after.cards, summoned.cardId).name} de J${before.activePlayer} ${how}.`, 'hurt')];
   }
   return [];
 }
@@ -284,13 +311,13 @@ function describePassages(before: PlayerView, after: PlayerView): LogItem[] {
   return after.events.flatMap((event) => {
     if (event.type === 'burningCell') {
       const unit = before.units[event.unitId] ?? after.units[event.unitId];
-      return unit ? [item('flame', `${unitName(unit)} marche dans le feu ${place(after.board, event.cell.pos)}.`, 'hurt')] : [];
+      return unit ? [item('flame', `${unitName(after.cards, unit)} marche dans le feu ${place(after.board, event.cell.pos)}.`, 'hurt')] : [];
     }
     if (event.type !== 'passage') return [];
     const terrain = after.units[event.sourceId] ?? before.units[event.sourceId];
     const unit = before.units[event.unitId] ?? after.units[event.unitId];
     if (!terrain || !unit) return [];
-    return [item('magic-swirl', `${unitName(terrain)} se déclenche sur ${unitName(unit)}.`, 'hurt')];
+    return [item('magic-swirl', `${unitName(after.cards, terrain)} se déclenche sur ${unitName(after.cards, unit)}.`, 'hurt')];
   });
 }
 
@@ -318,8 +345,8 @@ function describeReveal(action: Action, revealed: readonly Unit[], blockers: rea
     item(
       'eye',
       action.type === 'attack' && blockers.includes(unit)
-        ? `${unitName(unit)} apparaît ${place(after.board, unit.pos)} et arrête le tir !`
-        : `${unitName(unit)} apparaît ${place(after.board, unit.pos)} !`,
+        ? `${unitName(after.cards, unit)} apparaît ${place(after.board, unit.pos)} et arrête le tir !`
+        : `${unitName(after.cards, unit)} apparaît ${place(after.board, unit.pos)} !`,
       'info',
     ),
   );
@@ -355,6 +382,10 @@ function outcome(before: PlayerView, action: Action, after: PlayerView): Outcome
     turn = { number: after.turn, player, mana: publicInfo(after, player).mana, vp: gain('vp') };
     gains.push(item('water-drop', `Tour ${after.turn} : J${player} reçoit ${turn.mana} mana et ${turn.vp} VP.`, 'info'));
   } else {
+    // Mana gagné pendant le tour (Élixir de mana, Pillage).
+    for (const event of after.events) {
+      if (event.type === 'mana' && event.amount > 0) gains.push(item('water-drop', `J${event.player} gagne ${event.amount} mana.`, 'good'));
+    }
     for (const player of [1, 2] as const) {
       const gain = publicInfo(after, player).vp - publicInfo(before, player).vp;
       if (gain > 0) gains.push(item('laurels', `J${player} gagne ${gain} VP (${publicInfo(after, player).vp} au total).`, 'vp'));

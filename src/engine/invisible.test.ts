@@ -69,7 +69,7 @@ describe('`invisible` : Farceur (SPEC.md §5, §10)', () => {
     expect(view.zoneControl.find((z) => z.pos.row === 5 && z.pos.col === 4)?.controller).toBe(2);
   });
 
-  it('un déplacement qui entrerait sur sa case s’arrête avant, sans plus de mobilité, et le révèle', () => {
+  it('un déplacement qui entrerait sur sa case s’arrête avant et le révèle ; il garde sa mobilité restante (2026-11-10)', () => {
     const state = gameWith([
       { monster: 'chevalier', owner: 1, at: at(9, 0) },
       { monster: 'farceur', owner: 2, at: at(9, 3) },
@@ -77,7 +77,10 @@ describe('`invisible` : Farceur (SPEC.md §5, §10)', () => {
     const blocked = { type: 'move', unitId: 'u1', to: at(9, 3), path: [at(9, 1), at(9, 2), at(9, 3)] } as const;
     expect(getLegalActions(state)).toContainEqual({ type: 'move', unitId: 'u1', to: at(9, 3) });
     const after = applyAction(state, blocked);
-    expect(after.units.u1).toMatchObject({ pos: at(9, 2), mobilityLeft: 0, facing: 'right' });
+    // Chevalier (mobilité 3) : 2 pas faits, il lui en reste 1, et il peut repartir.
+    expect(after.units.u1).toMatchObject({ pos: at(9, 2), mobilityLeft: 1, facing: 'right' });
+    expect((after.units.u1 as { halted?: true }).halted).toBeUndefined();
+    expect(getLegalActions(after)).toContainEqual({ type: 'move', unitId: 'u1', to: at(8, 2) });
     expect(after.units.u2).toMatchObject({ pos: at(9, 3), revealed: true });
     expect(visibleTo(after, 1, 'u2')).toBe(true);
   });

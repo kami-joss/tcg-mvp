@@ -5,12 +5,12 @@ import { DIRECTION_OFFSETS, DIRECTIONS, allPositions, squareCells, distance, has
 import { getLineCells, getLineOfSightCells } from './combat';
 import { dealDamage } from './damage';
 import { emit } from './events';
-import { isShinyCopy, opponent, shine, takeFromGrimoire } from './players';
-import { addStatus, canMove, statusExpiry } from './statuses';
+import { addMana, getManaLimit, isShinyCopy, opponent, shine, takeFromGrimoire, updatePlayer } from './players';
+import { addStatus, canMove, cleanse, isMalus, statusExpiry } from './statuses';
 import { perceived, perceivedBy, reveal } from './stealth';
 import { NEW_MOVEMENT, enterCell, rewindMonster } from './traps';
 import { getCard, getMonsterCard } from './cards';
-import { payCard, placeSummonedMonster } from './summon';
+import { getFreeSummonCells, payCard, placeSummonedMonster } from './summon';
 import { addUnit, canAttack, createMonsterUnit, getMonsterAt, getMonsters, getUnitsAt, removeUnit, setUnit } from './units';
 import type {
   EffectSource,
@@ -29,6 +29,7 @@ import type {
   PlayerId,
   Position,
   Targeting,
+  TeleportTo,
   Trap,
   UnitId,
 } from './types';
@@ -42,7 +43,7 @@ function requireSource(source: MonsterUnit | null): MonsterUnit {
 
 /** Les monstres de `player` d'une famille. */
 function alliesOf(state: BoardState, player: PlayerId, archetype: Archetype): MonsterUnit[] {
-  return getMonsters(state, player).filter((m) => getMonsterCard(m.cardId).archetype === archetype);
+  return getMonsters(state, player).filter((m) => getMonsterCard(state.cards, m.cardId).archetype === archetype);
 }
 
 /** Monstres que peut viser un effet de `player` ; `source` est le monstre qui active l'effet (`null` pour un sort). */
@@ -54,7 +55,7 @@ function getTargetableMonsters(
 ): MonsterUnit[] {
   // Une famille, s'il y en a une (« un allié bodybuilder »).
   const candidates = getMonsters(state, targeting.side === 'ally' ? player : opponent(player)).filter(
-    (m) => !targeting.archetype || getMonsterCard(m.cardId).archetype === targeting.archetype,
+    (m) => !targeting.archetype || getMonsterCard(state.cards, m.cardId).archetype === targeting.archetype,
   );
   const { reach } = targeting;
   switch (reach.type) {
@@ -63,6 +64,11 @@ function getTargetableMonsters(
     case 'nearOwnMonster': {
       const own = getMonsters(state, player);
       return candidates.filter((m) => own.some((o) => distance(o.pos, m.pos) <= reach.steps));
+    }
+    case 'nearOwnUnit': {
+      // Dans le carré de N d'une de ses unités, monstre ou terrain ; falaises et cases X coupent le carré (§5.1).
+      const cells = nearOwnUnitCells(state, player, reach.square);
+      return candidates.filter((m) => cells.has(`${m.pos.row},${m.pos.col}`));
     }
     case 'square1': {
       // Les 8 cases autour ; aucune falaise ne se franchit, même celle de la Scierie (§10).
@@ -163,6 +169,57 @@ export function getEmptySquareCells(state: BoardState, source: MonsterUnit): Pos
   return squareCells(state.board, source.pos).filter((pos) => getUnitsAt(state, pos).length === 0);
 }
 
+/** Cases du carré de `square` de ses unités (monstres et terrains), en clés « ligne,colonne » (Boule de feu). */
+function nearOwnUnitCells(state: BoardState, player: PlayerId, square: number): Set<string> {
+  return new Set(
+    Object.values(state.units)
+      .filter((unit) => unit.owner === player)
+      .flatMap((unit) => squareCells(state.board, unit.pos, square))
+      .map((pos) => `${pos.row},${pos.col}`),
+  );
+}
+
+/** Case libre : jouable, sans aucune unité. */
+const isFreeCell = (state: BoardState, pos: Position) => isPlayable(state.board, pos) && getUnitsAt(state, pos).length === 0;
+
+/**
+ * Cases où une téléportation peut poser `monster` (§5.4) : sans précision, les cases libres du carré de 1 de la source
+ * (Téléporteur) ; `around` : les cases libres à N cases au plus de lui, diagonales comprises, sans regarder ce qu'il y a
+ * entre les deux (ni case X, ni falaise : Flash) ; `summonCell` : ses cases d'invocation libres (Repli) ; `ownTerrain` :
+ * les cases de ses terrains sans monstre (Téléportation).
+ */
+export function getTeleportDestinations(
+  state: BoardState,
+  to: TeleportTo | undefined,
+  monster: MonsterUnit,
+  source: MonsterUnit | null,
+): Position[] {
+  if (!to) return getEmptySquareCells(state, requireSource(source));
+  switch (to.type) {
+    case 'around': {
+      const cells: Position[] = [];
+      for (let dr = -to.square; dr <= to.square; dr++) {
+        for (let dc = -to.square; dc <= to.square; dc++) {
+          const pos = { row: monster.pos.row + dr, col: monster.pos.col + dc };
+          if ((dr !== 0 || dc !== 0) && isFreeCell(state, pos)) cells.push(pos);
+        }
+      }
+      return cells;
+    }
+    case 'summonCell':
+      return getFreeSummonCells(state, monster.owner);
+    case 'ownTerrain':
+      return Object.values(state.units)
+        .filter((unit) => unit.kind === 'terrain' && unit.owner === monster.owner && !getMonsterAt(state, unit.pos))
+        .map((unit) => unit.pos);
+  }
+}
+
+/** Monstres de son cimetière qu'une réanimation peut invoquer (une fois chaque carte). */
+export function getGraveyardMonsters(state: GameState, player: PlayerId): CardId[] {
+  return [...new Set(state.players[player].graveyard.map((copy) => copy.cardId))].filter((id) => getCard(state.cards, id).kind === 'monster');
+}
+
 /** Cases où `source` peut poser un piège : libres du carré de 1, sans piège à lui. */
 export function getTrapCells(state: GameState, source: MonsterUnit): Position[] {
   return getEmptySquareCells(state, source).filter(
@@ -186,7 +243,7 @@ function getSummonTargets(state: GameState, ability: Ability, player: PlayerId, 
   const effectCost = 'manaCost' in ability && typeof ability.manaCost === 'number' ? ability.manaCost : 0;
   const budget = state.players[player].mana - effectCost;
   const cards = [...new Set(state.players[player].grimoire)].filter((id) => {
-    const card = getCard(id);
+    const card = getCard(state.cards, id);
     return card.kind === 'monster' && card.cost <= budget;
   });
   return getEmptySquareCells(state, source).flatMap((pos) =>
@@ -272,6 +329,20 @@ export function getEffectTargets(
       return alliesOf(state, player, targeting.archetype).map((m): EffectTarget => ({ kind: 'unit', unitId: m.id }));
     case 'trail':
       return getTrailCells(state, requireSource(source)).map((pos): EffectTarget => ({ kind: 'cell', pos }));
+    case 'terrain':
+      // Un de ses terrains (Fortification).
+      return Object.values(state.units)
+        .filter((unit) => unit.kind === 'terrain' && unit.owner === player)
+        .map((unit): EffectTarget => ({ kind: 'unit', unitId: unit.id }));
+    case 'graveyard': {
+      // Réanimation : un monstre de son cimetière, sur une de ses cases d'invocation libres.
+      const cards = getGraveyardMonsters(state, player);
+      return getFreeSummonCells(state, player).flatMap((pos) => cards.map((cardId): EffectTarget => ({ kind: 'cellAndCard', pos, cardId })));
+    }
+    case 'none':
+      // Pour le joueur : un gain de mana n'est jouable que s'il lui reste de la place sous la limite.
+      if (effects.some((effect) => effect.type === 'gainMana') && state.players[player].mana >= getManaLimit(state)) return [];
+      return [{ kind: 'all' }];
     case 'self':
       // Évolution : un choix de carte ; sinon (Dopage), la source elle-même.
       if (effects.some((effect) => effect.type === 'evolve')) return getEvolveTargets(state, player, requireSource(source));
@@ -300,16 +371,19 @@ export function getEffectTargets(
     case 'monster': {
       const floor = hpFloor(effects);
       const monsters = getTargetableMonsters(state, targeting, player, source).filter(
-        // On ne soigne pas un monstre qui a déjà tous ses PV (§10) ; « tous ses PV sauf N » vise un monstre qui en a plus.
-        (m) => (!effects.every((effect) => effect.type === 'heal') || m.hp < m.maxHp) && (floor === null || m.hp > floor),
+        // On ne soigne pas un monstre qui a déjà tous ses PV (§10) ; « tous ses PV sauf N » vise un monstre qui en a plus ;
+        // on ne retire pas les malus d'un monstre qui n'en a pas (Cure).
+        (m) =>
+          (!effects.every((effect) => effect.type === 'heal') || m.hp < m.maxHp) &&
+          (floor === null || m.hp > floor) &&
+          (!effects.every((effect) => effect.type === 'cleanse') || m.statuses.some(isMalus)),
       );
-      // Téléportation : un allié autre que la source, puis une case libre du carré de 1 de la source (§5.4).
-      if (effects.some((effect) => effect.type === 'teleport')) {
-        const from = requireSource(source);
-        const cells = getEmptySquareCells(state, from);
+      // Téléportation : un allié (autre que la source), puis une case où le poser (§5.4).
+      const teleport = effects.find((effect): effect is Extract<Effect, { type: 'teleport' }> => effect.type === 'teleport');
+      if (teleport) {
         return monsters
-          .filter((m) => m.id !== from.id)
-          .flatMap((m) => cells.map((pos): EffectTarget => ({ kind: 'unitAndCell', unitId: m.id, pos })));
+          .filter((m) => m.id !== source?.id)
+          .flatMap((m) => getTeleportDestinations(state, teleport.to, m, source).map((pos): EffectTarget => ({ kind: 'unitAndCell', unitId: m.id, pos })));
       }
       const push = findPush(effects);
       if (push?.direction !== 'chosen') return monsters.map((m): EffectTarget => ({ kind: 'unit', unitId: m.id }));
@@ -354,6 +428,14 @@ export function getEffectReach(state: BoardState, ability: Ability, player: Play
           .flatMap((unit) => squareCells(state.board, unit.pos));
       case 'enemiesAroundAlly':
         return alliesOf(state, player, targeting.archetype).flatMap((m) => [m.pos, ...squareCells(state.board, m.pos, targeting.square)]);
+      case 'terrain':
+        return Object.values(state.units)
+          .filter((unit) => unit.kind === 'terrain' && unit.owner === player)
+          .map((unit) => unit.pos);
+      case 'graveyard':
+        return getFreeSummonCells(state, player);
+      case 'none':
+        return [];
       case 'monster': {
         const { reach } = targeting;
         switch (reach.type) {
@@ -365,9 +447,13 @@ export function getEffectReach(state: BoardState, ability: Ability, player: Play
             const own = getMonsters(state, player);
             return allPositions(state.board).filter((pos) => isPlayable(state.board, pos) && own.some((o) => distance(o.pos, pos) <= reach.steps));
           }
+          case 'nearOwnUnit': {
+            const cells = nearOwnUnitCells(state, player, reach.square);
+            return allPositions(state.board).filter((pos) => cells.has(`${pos.row},${pos.col}`));
+          }
           case 'anywhere':
             return getMonsters(state, targeting.side === 'ally' ? player : opponent(player))
-              .filter((m) => !targeting.archetype || getMonsterCard(m.cardId).archetype === targeting.archetype)
+              .filter((m) => !targeting.archetype || getMonsterCard(state.cards, m.cardId).archetype === targeting.archetype)
               .map((m) => m.pos);
         }
       }
@@ -492,6 +578,28 @@ export function resolveAbility(
         state,
       );
     }
+    case 'terrain': {
+      // Fortification : ses effets (des statuts) sur le terrain visé.
+      if (target.kind !== 'unit') throw new Error('Cet effet vise un terrain');
+      const terrain = state.units[target.unitId];
+      if (terrain?.kind !== 'terrain' || terrain.owner !== by) throw new Error(`Terrain invalide : ${target.unitId}`);
+      return effects.reduce((next, effect) => {
+        if (effect.type !== 'status') throw new Error('Sur un terrain, seul un statut se pose');
+        return addStatus(next, terrain.id, effect);
+      }, state);
+    }
+    case 'graveyard': {
+      if (target.kind !== 'cellAndCard') throw new Error('La réanimation vise une case et un monstre du cimetière');
+      return effects.reduce((next, effect) => {
+        if (effect.type !== 'reanimate') throw new Error('Depuis le cimetière, seule une réanimation se fait');
+        return reanimate(next, target, by);
+      }, state);
+    }
+    case 'none':
+      return effects.reduce((next, effect) => {
+        if (effect.type !== 'gainMana') throw new Error('Sans cible, seul un gain de mana se fait');
+        return addMana(next, by, effect.amount);
+      }, state);
     case 'trail': {
       if (target.kind !== 'cell') throw new Error('Le retour vise une case');
       const from = requireSource(source);
@@ -557,11 +665,13 @@ function applyEffect(state: GameState, effect: Effect, monster: MonsterUnit, con
       return heal(state, monster, effect.amount);
     case 'absorb': {
       // Les PV retirés (jamais plus que ceux qu'il a) reviennent à la source, sans dépasser ses PV max (§10).
-      const removed = 'downTo' in effect ? monster.hp - effect.downTo : Math.min(effect.amount, monster.hp);
-      if (removed <= 0) return state;
-      const hit = dealDamage(state, unitId, removed, context.by, cause);
+      const asked = 'downTo' in effect ? monster.hp - effect.downTo : Math.min(effect.amount, monster.hp);
+      if (asked <= 0) return state;
+      const hit = dealDamage(state, unitId, asked, context.by, cause);
+      // Seuls les PV vraiment retirés reviennent (une carapace en retient, §5 bis).
+      const removed = monster.hp - (hit.units[unitId]?.hp ?? 0);
       const drinker = hit.units[requireSource(context.source).id];
-      return drinker?.kind === 'monster' ? heal(hit, drinker, removed) : hit;
+      return drinker?.kind === 'monster' && removed > 0 ? heal(hit, drinker, removed) : hit;
     }
     case 'loseHp': {
       // Il tombe à `downTo` PV, sans être détruit ; ses PV max ne changent pas.
@@ -570,6 +680,8 @@ function applyEffect(state: GameState, effect: Effect, monster: MonsterUnit, con
     }
     case 'transform':
       return transform(state, monster, effect.into);
+    case 'cleanse':
+      return cleanse(state, unitId);
     case 'status': {
       // Absorbé : le monstre qui absorbe est la source de l'effet.
       const spec = effect.kind === 'absorbe' && !effect.by ? { ...effect, by: context.source?.id } : effect;
@@ -622,13 +734,13 @@ function applyEffect(state: GameState, effect: Effect, monster: MonsterUnit, con
     }
     case 'returnOnTrail': {
       // Retour : une téléportation sur une case de son chemin du tour (ce qui est sur cette case se déclenche) ; il garde
-      // son attaque et son orientation, mais ne se déplace plus ce tour. Son chemin s'arrête à cette case (ce qui suivait
-      // est effacé).
+      // son attaque, son orientation et sa mobilité restante : il peut encore se déplacer (2026-11-10). Son chemin s'arrête
+      // à cette case (ce qui suivait est effacé), puis repart de là.
       const to = context.destination;
       if (!to) throw new Error('Un retour demande une case');
       const index = monster.trail.findIndex((cell) => samePos(cell, to));
       const trail = index >= 0 ? monster.trail.slice(0, index + 1) : [...monster.trail, to];
-      const moved = setUnit(emit(state, { type: 'rewind', unitId, from: pos, to }), { ...monster, pos: to, trail, mobilityLeft: 0, halted: true });
+      const moved = setUnit(emit(state, { type: 'rewind', unitId, from: pos, to }), { ...monster, pos: to, trail });
       return enterCell(moved, unitId, NEW_MOVEMENT, pos).state;
     }
     case 'rewind':
@@ -637,6 +749,8 @@ function applyEffect(state: GameState, effect: Effect, monster: MonsterUnit, con
     case 'burnCell':
     case 'evolve':
     case 'summon':
+    case 'gainMana':
+    case 'reanimate':
       throw new Error(`L'effet « ${effect.type} » ne s'applique pas à un monstre`);
   }
 }
@@ -648,8 +762,8 @@ function applyEffect(state: GameState, effect: Effect, monster: MonsterUnit, con
  * de la nouvelle forme moins ce qu'il a déjà dépensé ce tour ; rien s'il ne peut plus se déplacer ce tour.
  */
 function transform(state: GameState, monster: MonsterUnit, into: CardId): GameState {
-  const from = getMonsterCard(monster.cardId);
-  const to = getMonsterCard(into);
+  const from = getMonsterCard(state.cards, monster.cardId);
+  const to = getMonsterCard(state.cards, into);
   const maxHp = to.hp + (monster.maxHp - from.hp);
   const hp = Math.max(1, maxHp - (monster.otherFormDamage ?? 0));
   // Ce qu'il lui reste à marcher, en comptant ce qu'il a dépensé au-delà de sa forme actuelle.
@@ -707,12 +821,31 @@ export function applyTriggeredEffects(state: GameState, effects: readonly Effect
 
 /** Invocation (Invocateur) : le joueur paie aussi le coût du monstre, qui arrive sur la case et peut agir aussitôt. */
 function resolveSummon(state: GameState, target: Extract<EffectTarget, { kind: 'cellAndCard' }>, by: PlayerId): GameState {
-  const card = getCard(target.cardId);
+  const card = getCard(state.cards, target.cardId);
   if (card.kind !== 'monster') throw new Error(`« ${target.cardId} » n'est pas un monstre`);
   const pos = { row: target.pos.row, col: target.pos.col };
   const shiny = isShinyCopy(state, by, card.id);
   const paid = payCard(emit(state, { type: 'cardPlayed', player: by, cardId: card.id, pos, unitId: `u${state.nextUnitId}` }), by, card);
   return placeSummonedMonster(paid, by, card, pos, shiny);
+}
+
+/**
+ * Réanimation : un exemplaire de la carte quitte son cimetière (le brillant d'abord) et son monstre est invoqué sur la
+ * case, sans payer son coût, avec tous ses PV et sans statut ; il peut agir aussitôt et entre sur sa case (§4.5). Ce
+ * n'est pas une carte jouée : il ne sort pas du grimoire.
+ */
+function reanimate(state: GameState, target: Extract<EffectTarget, { kind: 'cellAndCard' }>, by: PlayerId): GameState {
+  const card = getCard(state.cards, target.cardId);
+  if (card.kind !== 'monster') throw new Error(`« ${target.cardId} » n'est pas un monstre`);
+  const { graveyard } = state.players[by];
+  const shinyAt = graveyard.findIndex((copy) => copy.cardId === card.id && copy.shiny);
+  const index = shinyAt >= 0 ? shinyAt : graveyard.findIndex((copy) => copy.cardId === card.id);
+  if (index < 0) throw new Error(`« ${card.name} » n'est pas dans le cimetière de J${by}`);
+  const shiny = graveyard[index]!.shiny === true;
+  const left = updatePlayer(emit(state, { type: 'revived', player: by, cardId: card.id, shiny }), by, {
+    graveyard: [...graveyard.slice(0, index), ...graveyard.slice(index + 1)],
+  });
+  return placeSummonedMonster(left, by, card, { row: target.pos.row, col: target.pos.col }, shiny);
 }
 
 /** Recul case par case : un piège sur le chemin se déclenche, même pour un monstre `vol` (§10). */
@@ -747,7 +880,7 @@ function getEvolveTargets(state: GameState, player: PlayerId, source: MonsterUni
   if (source.summonedOnTurn === state.turn) return [];
   return [...new Set(state.players[player].grimoire)]
     .filter((id) => {
-      const card = getCard(id);
+      const card = getCard(state.cards, id);
       return card.kind === 'monster' && card.evolvesFrom === source.cardId;
     })
     .map((cardId): EffectTarget => ({ kind: 'card', cardId }));
@@ -759,7 +892,7 @@ function getEvolveTargets(state: GameState, player: PlayerId, source: MonsterUni
  */
 function resolveEvolve(state: GameState, target: EffectTarget, source: MonsterUnit, effects: readonly Effect[]): GameState {
   if (target.kind !== 'card') throw new Error('L’évolution choisit une carte du grimoire');
-  const card = getCard(target.cardId);
+  const card = getCard(state.cards, target.cardId);
   if (card.kind !== 'monster') throw new Error(`« ${target.cardId} » n'est pas un monstre`);
   const { pos, owner, facing } = source;
   const shiny = isShinyCopy(state, owner, card.id);

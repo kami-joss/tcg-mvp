@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getLegalActions } from './actions';
-import { getCard } from './cards';
+import { CARDS, getCard } from './cards';
 import { IllegalActionError } from './errors';
-import { createGame } from './game';
+import { createGame as createRealGame } from './game';
 import { getFreeSummonCells } from './play-card';
+import { TEST_CARDS } from './test-cards';
 import { at, deepFreeze, gameWith } from './test-utils';
 import { getMonsterAt } from './units';
 import type { Action, CardId, Position } from './types';
 
 const summon = (cardId: CardId, pos: Position): Action => ({ type: 'playCard', cardId, target: { kind: 'cell', pos } });
+
+/** Partie neuve avec les cartes d'essai : un réglage de l'atelier (coût de l'Éclaireur…) ne change rien ici. */
+const createGame = () => createRealGame(undefined, undefined, undefined, undefined, 1, undefined, undefined, TEST_CARDS);
 
 describe('invocation (SPEC.md §4.5)', () => {
   it('pose le monstre sur une case d’invocation libre de son camp', () => {
@@ -126,7 +130,7 @@ describe('invocation (SPEC.md §4.5)', () => {
 describe('getLegalActions — invocations', () => {
   const summonActions = (actions: Action[]) =>
     actions.filter(
-      (a): a is Extract<Action, { type: 'playCard' }> => a.type === 'playCard' && getCard(a.cardId).kind === 'monster',
+      (a): a is Extract<Action, { type: 'playCard' }> => a.type === 'playCard' && getCard(CARDS, a.cardId).kind === 'monster',
     );
 
   it('propose chaque monstre abordable, une seule fois par carte, sur chaque case d’invocation libre', () => {

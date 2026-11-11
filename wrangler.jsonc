@@ -1,0 +1,21 @@
+// Serveur des parties en ligne (SPEC.md §7 ter) : `npx wrangler dev` en local (sans compte), `npx wrangler deploy` pour
+// le mettre en ligne (lot 6). Le site est celui de `npm run build` (dossier dist), servi par le même Worker.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tcg-tactique",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    // Une adresse de page (/game, /partie/…) renvoie index.html ; l'application choisit la page.
+    "not_found_handling": "single-page-application",
+    // L'API passe par le Worker avant les fichiers du site.
+    "run_worker_first": ["/api/*"]
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "ROOMS", "class_name": "GameRoom" }]
+  },
+  // Offre gratuite : seulement des Durable Objects à stockage SQLite.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRoom"] }],
+  "observability": { "enabled": true }
+}

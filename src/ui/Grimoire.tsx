@@ -14,7 +14,7 @@
 import { useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent } from 'react';
 import { getCard } from '../engine';
-import type { Card, CardId, PlayerView } from '../engine';
+import type { Card, CardId, CardSet, PlayerView } from '../engine';
 import { TILE_FRAME, artFit, cardArtFor, fitBackground } from './art';
 import { groupCards, splitCardName } from './cardText';
 import { Icon } from './Icon';
@@ -117,7 +117,7 @@ export function Grimoire(props: GrimoireProps) {
       </header>
       <div className={`grimoire grimoire--${layout}`} style={columns}>
         {GRIMOIRE_SECTIONS.map(({ kind, title }) => {
-          const cards = groups.filter(({ cardId }) => getCard(cardId).kind === kind);
+          const cards = groups.filter(({ cardId }) => getCard(view.cards, cardId).kind === kind);
           if (cards.length === 0) return null;
           const total = cards.reduce((sum, { count }) => sum + count, 0);
           return (
@@ -130,6 +130,7 @@ export function Grimoire(props: GrimoireProps) {
               <ul className="grimoire__cards">
                 {cards.map(({ cardId, count }) => (
                   <Tile
+                    cards={view.cards}
                     key={cardId}
                     cardId={cardId}
                     count={count}
@@ -155,6 +156,8 @@ export function Grimoire(props: GrimoireProps) {
 }
 
 interface TileProps {
+  /** Les cartes où lire celle de la tuile : celles de la partie, ou `CARDS` hors partie. */
+  cards: CardSet;
   cardId: CardId;
   /** Exemplaires de la carte (grimoire) ; absent : la tuile est un seul exemplaire (cartes jouées, cimetière). */
   count?: number;
@@ -190,9 +193,9 @@ function TileName({ name }: { name: string }) {
 
 /** Tuile d'une carte : grimoire, ou exemplaire des cartes jouées et du cimetière (`CardPiles`). */
 export function Tile(props: TileProps) {
-  const { cardId, count, list, playable, selected, focused, shiny, animated, fxAnchor = false } = props;
+  const { cards, cardId, count, list, playable, selected, focused, shiny, animated, fxAnchor = false } = props;
   const { onClick, onContextMenu, onHover } = props;
-  const card = getCard(cardId);
+  const card = getCard(cards, cardId);
   const art = cardArtFor(cardId, shiny);
   const overframe = list ? undefined : OVERFRAMES[cardId];
   const button = useRef<HTMLButtonElement>(null);
@@ -303,7 +306,7 @@ export function Tile(props: TileProps) {
                 <span className="tile__note">{card.kind === 'spell' ? 'Sort · effet immédiat' : 'Terrain'}</span>
               )}
               {card.kind === 'monster' && card.evolvesFrom && (
-                <span className="tile__note">Ou par évolution d’un {getCard(card.evolvesFrom).name}</span>
+                <span className="tile__note">Ou par évolution d’un {getCard(cards, card.evolvesFrom).name}</span>
               )}
             </span>
           </>

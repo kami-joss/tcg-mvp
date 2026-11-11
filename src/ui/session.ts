@@ -1,10 +1,12 @@
 // Déroulement d'une partie en hotseat (SPEC.md §4.3) : état complet, journal, et écran de passage entre
 // deux tours ; ou contre l'IA d'entraînement (§7 bis) : pas d'écran de passage, l'écran montre toujours la vue du
 // joueur humain. App.tsx n'en est que l'enveloppe React : toute la logique est ici, testée sans navigateur.
-import { BATTLEFIELD_13, DECKS, IllegalActionError, applyAction, createGame, getPlayerView } from '../engine';
-import type { Action, Board, Deck, Economy, GameMode, GameState, PlayerId } from '../engine';
+import { BATTLEFIELD_13, DECKS, DEFAULT_MANA_RULES, IllegalActionError, TURN_TIMER_SECONDS, VICTORY_VP, applyAction, createGame, getPlayerView } from '../engine';
+import type { Action, Board, Deck, Economy, GameMode, GameState, ManaRules, PlayerId } from '../engine';
 import { logEntry } from './log';
 import type { LogEntry } from './log';
+import { hasPatches, modifiedText, workshopCards } from './workshop';
+import type { WorkshopPatches } from './workshop';
 
 /**
  * Carte, mode et deck de chaque joueur, choisis avant la partie ; `mode` : Normal par défaut, contestation seulement sur
@@ -15,14 +17,74 @@ export interface Setup {
   readonly mode?: GameMode;
   /** Économie du mana : classique par défaut, ou « Réserve » (SPEC.md §10). */
   readonly economy?: Economy;
+  /** Génération max et limite du mana (SPEC.md §4.2), dans les deux économies ; absent : 5 et 10 (`DEFAULT_MANA_RULES`). */
+  readonly manaRules?: ManaRules;
+  /** VP pour gagner (SPEC.md §4.10), choisis à l'accueil ; absent : 30 (`VICTORY_VP`). */
+  readonly victoryVp?: number;
   readonly decks: Readonly<Record<PlayerId, Deck>>;
   readonly ai?: PlayerId | null;
+  /**
+   * Réglages de l'atelier joués dans cette partie (« Cartes de l'atelier » à l'accueil) : la partie se joue avec ces
+   * cartes, fixées à son lancement. Absent : les cartes d'origine.
+   */
+  readonly workshop?: WorkshopPatches;
+  /**
+   * Minuteur de tour (option de l'accueil, SPEC.md §4.2) : chaque joueur a `TURN_TIMER_SECONDS` de réflexion par tour,
+   * puis son tour finit (`timeout`). Absent : sans minuteur.
+   */
+  readonly timer?: boolean;
+  /**
+   * « Joueur 2 : en ligne » (SPEC.md §7 ter) : la partie se joue sur le serveur, J2 arrivant par un lien d'invitation avec
+   * son deck ; l'accueil la crée au lieu de lancer une partie locale.
+   */
+  readonly online?: boolean;
 }
 
 /** Le mode joué : contestation seulement si la carte le propose. */
 export function modeOf(setup: Pick<Setup, 'board' | 'mode'>): GameMode {
   return setup.mode === 'contestation' && setup.board.contestation ? 'contestation' : 'normal';
 }
+
+/** Réglages du mana de la partie : ceux de l'accueil, ou les valeurs par défaut. */
+export function manaRulesOf(setup: Pick<Setup, 'manaRules'>): ManaRules {
+  return setup.manaRules ?? DEFAULT_MANA_RULES;
+}
+
+/** Valeurs proposées à l'accueil pour les réglages du mana (et seules acceptées dans l'adresse du jeu). */
+export const MANA_CHOICES: Readonly<Record<keyof ManaRules, { readonly min: number; readonly max: number }>> = {
+  baseCap: { min: 3, max: 10 },
+  limit: { min: 5, max: 20 },
+};
+
+/** VP pour gagner : ceux de l'accueil, ou 30. */
+export function victoryVpOf(setup: Pick<Setup, 'victoryVp'>): number {
+  return setup.victoryVp ?? VICTORY_VP;
+}
+
+/** Valeurs proposées à l'accueil pour les VP pour gagner (et seules acceptées dans l'adresse du jeu), de 5 en 5. */
+export const VICTORY_CHOICES = { min: 10, max: 50, step: 5 } as const;
+
+/** Une valeur de VP pour gagner que l'accueil propose. */
+export const isVictoryChoice = (value: unknown): value is number =>
+  typeof value === 'number' &&
+  Number.isInteger(value) &&
+  value >= VICTORY_CHOICES.min &&
+  value <= VICTORY_CHOICES.max &&
+  (value - VICTORY_CHOICES.min) % VICTORY_CHOICES.step === 0;
+
+/** Réglages du mana dans le journal du début de partie, s'ils ne sont pas ceux par défaut. */
+function manaText(rules: ManaRules): string {
+  if (rules.baseCap === DEFAULT_MANA_RULES.baseCap && rules.limit === DEFAULT_MANA_RULES.limit) return '';
+  return `, mana de base jusqu’à ${rules.baseCap}, limite ${rules.limit}`;
+}
+
+/** Les cartes de l'atelier dans le journal du début de partie, si la partie les joue. */
+function workshopText(setup: Pick<Setup, 'workshop'>, game: GameState): string {
+  return hasPatches(setup.workshop) ? `, avec les cartes de l’atelier (${modifiedText(game.cards, setup.workshop)})` : '';
+}
+
+/** « 3 minutes » : la durée du minuteur de tour, pour l'accueil et le journal. */
+export const TIMER_TEXT = TURN_TIMER_SECONDS % 60 === 0 ? `${TURN_TIMER_SECONDS / 60} minutes` : `${TURN_TIMER_SECONDS} secondes`;
 
 /** Joueur dont l'écran montre la vue : le joueur actif en hotseat, toujours le joueur humain contre l'IA. */
 export function viewerOf(session: Pick<Session, 'setup' | 'game'>): PlayerId {
@@ -81,7 +143,9 @@ export type SessionEvent =
   /** Le gagnant du lancer de dés choisit le joueur qui commence. */
   | { readonly type: 'chooseFirst'; readonly first: PlayerId }
   /** Nouvelle partie, avec la carte et les decks choisis (les mêmes par défaut), et son lancer de dés s'il y en a un. */
-  | { readonly type: 'restart'; readonly setup?: Setup; readonly opening?: Opening };
+  | { readonly type: 'restart'; readonly setup?: Setup; readonly opening?: Opening }
+  /** Le temps de réflexion du joueur actif est écoulé (minuteur de tour) : son tour finit, le journal le dit. */
+  | { readonly type: 'timeout' };
 
 /** Phrase du lancer de dés pour le journal : « J1 3 · J2 3 (égalité, on relance), J1 5 · J2 2. J1 commence. » */
 function openingText({ rolls }: Opening, first: PlayerId, winner: PlayerId): string {
@@ -89,7 +153,8 @@ function openingText({ rolls }: Opening, first: PlayerId, winner: PlayerId): str
   return `Lancer de dés : ${shown}. J${winner} a le plus gros chiffre${first === winner ? ' et choisit de commencer' : ` et laisse J${first} commencer`}.`;
 }
 
-function startLog(setup: Setup, game: GameState, opening: Opening | null, first: PlayerId): LogEntry[] {
+/** Journal du début de partie : la partie, le lancer de dés s'il y en a un, puis le premier tour (aussi pour une partie en ligne). */
+export function startLog(setup: Setup, game: GameState, opening: Opening | null, first: PlayerId): LogEntry[] {
   const { board, decks } = setup;
   const mode = game.mode;
   const player = game.players[first];
@@ -98,7 +163,7 @@ function startLog(setup: Setup, game: GameState, opening: Opening | null, first:
       kind: 'start',
       player: null,
       icon: 'castle',
-      text: `Début de la partie sur la carte « ${board.name} »${mode === 'contestation' ? ', en mode contestation' : ''}${game.economy === 'reserve' ? ', économie Réserve' : ''}, J1 avec le deck ${decks[1].name}, J2 avec le deck ${decks[2].name}.`,
+      text: `Début de la partie sur la carte « ${board.name} »${mode === 'contestation' ? ', en mode contestation' : ''}${game.economy === 'reserve' ? ', économie Réserve' : ''}${manaText(game.manaRules)}${game.victoryVp !== VICTORY_VP ? `, ${game.victoryVp} VP pour gagner` : ''}${workshopText(setup, game)}${setup.timer ? `, minuteur de ${TIMER_TEXT} par tour` : ''}, J1 avec le deck ${decks[1].name}, J2 avec le deck ${decks[2].name}.`,
       items: [],
     },
     ...(opening ? [{ kind: 'start' as const, player: null, icon: 'laurels' as const, text: openingText(opening, first, opening.winner), items: [] }] : []),
@@ -113,7 +178,8 @@ function startLog(setup: Setup, game: GameState, opening: Opening | null, first:
   ];
 }
 
-function startGame(setup: Setup, first: PlayerId): GameState {
+/** La partie de ces réglages, `first` commençant (aussi pour une partie en ligne). */
+export function startGame(setup: Setup, first: PlayerId): GameState {
   const { board, decks } = setup;
   return createGame(
     board,
@@ -122,6 +188,9 @@ function startGame(setup: Setup, first: PlayerId): GameState {
     modeOf(setup),
     first,
     setup.economy ?? 'classic',
+    manaRulesOf(setup),
+    hasPatches(setup.workshop) ? workshopCards(setup.workshop) : undefined,
+    victoryVpOf(setup),
   );
 }
 
@@ -159,7 +228,24 @@ export function updateSession(session: Session, event: SessionEvent): Session {
     }
     case 'restart':
       return newSession(session.id + 1, event.setup ?? session.setup, event.opening ?? null);
+    case 'timeout':
+      return timeout(session);
   }
+}
+
+/** Temps de réflexion écoulé : le tour du joueur actif finit, comme s'il avait cliqué « Fin du tour ». */
+function timeout(session: Session): Session {
+  const { game } = session;
+  // L'IA n'est pas minutée ; pendant le passage d'écran ou le lancer de dés, personne ne joue.
+  if (!session.setup.timer || session.setup.ai === game.activePlayer || session.handoffTo !== null || session.opening !== null || game.winner !== null) {
+    return session;
+  }
+  return play({ ...session, log: [...session.log, timeoutEntry(game.activePlayer)] }, { type: 'endTurn' });
+}
+
+/** Ligne du journal d'un tour fini par le minuteur (aussi pour une partie en ligne). */
+export function timeoutEntry(player: PlayerId): LogEntry {
+  return { kind: 'action', player, icon: 'timer-outline', text: `Temps de réflexion écoulé : fin du tour de J${player}.`, items: [] };
 }
 
 function play(session: Session, action: Action): Session {

@@ -1,7 +1,7 @@
 // Vue d'un joueur (SPEC.md §2, §4.3) : l'état de la partie sans les informations cachées.
 import { getLegalActions } from './actions';
 import { getManaZones } from './board';
-import { opponent } from './players';
+import { getVictoryVp, opponent } from './players';
 import { getHiddenUnitIds, perceivedBy } from './stealth';
 import { cardOfOrigin } from './units';
 import { getZoneStatus } from './zones';
@@ -18,12 +18,16 @@ export function getPlayerView(state: GameState, player: PlayerId): PlayerView {
   return {
     viewer: player,
     board: state.board,
+    cards: state.cards,
     mode: state.mode,
     economy: state.economy,
+    manaRules: state.manaRules,
+    victoryVp: getVictoryVp(state),
     units: withoutEnemyTrails(perceivedBy(state, player).units, player),
     activePlayer: state.activePlayer,
     turn: state.turn,
     winner: state.winner,
+    concession: state.concession,
     me: state.players[player],
     opponent: {
       id: other.id,
@@ -52,7 +56,7 @@ function playedSeenBy(state: GameState, player: PlayerId): readonly CardCopy[] {
   const { played } = state.players[opponent(player)];
   const hidden = getHiddenUnitIds(state, player).flatMap((id) => {
     const unit = state.units[id];
-    return unit?.shiny ? [cardOfOrigin(unit)] : [];
+    return unit?.shiny ? [cardOfOrigin(state.cards, unit)] : [];
   });
   if (hidden.length === 0) return played;
   const seen = [...played];
@@ -87,6 +91,7 @@ function eventUnits(event: GameEvent): UnitId[] {
     case 'revealed':
       return [event.unit.id];
     case 'attack':
+      return event.targetId ? [event.unitId, event.targetId] : [event.unitId];
     case 'riposte':
       return [event.unitId, event.targetId];
     case 'trapTriggered':
@@ -110,7 +115,9 @@ function eventUnits(event: GameEvent): UnitId[] {
     case 'requiem':
     case 'mobility':
     case 'status':
+    case 'cleansed':
       return [event.unitId];
+    case 'revived':
     case 'turnStart':
     case 'mana':
     case 'vp':

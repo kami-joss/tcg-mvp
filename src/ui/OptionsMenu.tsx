@@ -36,6 +36,10 @@ interface OptionsMenuProps {
   /** Partie en cours : « Nouvelle partie » demande confirmation. */
   confirmHome: boolean;
   onHome: () => void;
+  /** Partie en ligne : « Abandonner la partie », qui la donne gagnée à l'adversaire (après confirmation). */
+  onConcede?: () => void;
+  /** La question de « Nouvelle partie » avant de quitter une partie en cours (par défaut : l'abandonner). */
+  homeWarning?: string;
   /** Ouvert d'emblée (tests). */
   initialOpen?: boolean;
 }
@@ -73,8 +77,10 @@ export function OptionsMenu(props: OptionsMenuProps) {
   );
 }
 
-function OptionsPanel({ settings, boardView, isoAvailable, tiltAvailable, onChange, onSound, confirmHome, onHome }: OptionsMenuProps) {
-  const [confirming, setConfirming] = useState(false);
+function OptionsPanel(props: OptionsMenuProps) {
+  const { settings, boardView, isoAvailable, tiltAvailable, onChange, onSound, confirmHome, onHome, onConcede, homeWarning = 'Abandonner la partie en cours ?' } = props;
+  /** Ce qu'on confirme : quitter (« Nouvelle partie ») ou abandonner (partie en ligne). */
+  const [confirming, setConfirming] = useState<'home' | 'concede' | null>(null);
   const { zoom, tokenStats: stats } = settings;
   const zoomIndex = ZOOMS.indexOf(zoom);
   return (
@@ -93,15 +99,15 @@ function OptionsPanel({ settings, boardView, isoAvailable, tiltAvailable, onChan
       <section className="options__section options__section--row">
         <h3 className="options__title">Zoom</h3>
         <div className="view-switch zoom-switch" role="group" aria-label="Zoom du plateau">
-          <button type="button" title="Dézoomer" disabled={zoomIndex <= 0} onClick={() => onChange({ zoom: stepZoom(zoom, -1) })}>
+          <button type="button" title="Dézoomer (−)" disabled={zoomIndex <= 0} onClick={() => onChange({ zoom: stepZoom(zoom, -1) })}>
             −
           </button>
-          <button type="button" className="zoom-switch__value" title="Revenir à la taille ajustée" onClick={() => onChange({ zoom: 1 })}>
+          <button type="button" className="zoom-switch__value" title="Revenir à la taille ajustée (0)" onClick={() => onChange({ zoom: 1 })}>
             {Math.round(zoom * 100)} %
           </button>
           <button
             type="button"
-            title="Zoomer"
+            title="Zoomer (+)"
             disabled={zoomIndex >= ZOOMS.length - 1}
             onClick={() => onChange({ zoom: stepZoom(zoom, 1) })}
           >
@@ -163,22 +169,48 @@ function OptionsPanel({ settings, boardView, isoAvailable, tiltAvailable, onChan
       </section>
 
       <section className="options__section options__section--rule">
-        {confirming ? (
+        {confirming === 'home' ? (
           <div className="options__confirm">
-            <span>Abandonner la partie en cours ?</span>
+            <span>{homeWarning}</span>
             <div className="options__confirm-buttons">
               <button type="button" className="btn btn--gold" onClick={onHome}>
                 Oui, retour à l’accueil
               </button>
-              <button type="button" className="btn btn--ghost" onClick={() => setConfirming(false)}>
+              <button type="button" className="btn btn--ghost" onClick={() => setConfirming(null)}>
+                Non
+              </button>
+            </div>
+          </div>
+        ) : confirming === 'concede' && onConcede ? (
+          <div className="options__confirm">
+            <span>Abandonner ? Ton adversaire gagne la partie.</span>
+            <div className="options__confirm-buttons">
+              <button
+                type="button"
+                className="btn btn--gold"
+                onClick={() => {
+                  setConfirming(null);
+                  onConcede();
+                }}
+              >
+                Oui, abandonner
+              </button>
+              <button type="button" className="btn btn--ghost" onClick={() => setConfirming(null)}>
                 Non
               </button>
             </div>
           </div>
         ) : (
-          <button type="button" className="options__button" onClick={() => (confirmHome ? setConfirming(true) : onHome())}>
-            Nouvelle partie
-          </button>
+          <>
+            {onConcede && (
+              <button type="button" className="options__button" onClick={() => setConfirming('concede')}>
+                Abandonner la partie
+              </button>
+            )}
+            <button type="button" className="options__button" onClick={() => (confirmHome ? setConfirming('home') : onHome())}>
+              Nouvelle partie
+            </button>
+          </>
         )}
       </section>
     </div>

@@ -1,6 +1,6 @@
 // Point d'entrée des règles : actions légales et application d'une action (SPEC.md §2).
 import { applyActivateEffect, getActivateEffectActions } from './abilities';
-import { applyAttack, getAttackActions } from './combat';
+import { applyAttack, applyAttackCell, getAttackActions } from './combat';
 import { IllegalActionError } from './errors';
 import { syncAuraHp } from './auras';
 import { applyMove, getMoveActions } from './movement';
@@ -42,6 +42,8 @@ function resolveAction(state: GameState, action: Action): GameState {
       return applyMove(state, action);
     case 'attack':
       return applyAttack(state, action);
+    case 'attackCell':
+      return applyAttackCell(state, action);
     case 'activateEffect':
       return applyActivateEffect(state, action);
     case 'endTurn':

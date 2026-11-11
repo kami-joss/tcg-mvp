@@ -1,8 +1,9 @@
 // Création de la partie (SPEC.md §4.1).
 import { BOARD } from './board';
-import { TEST_GRIMOIRE } from './cards';
+import { CARDS, TEST_GRIMOIRE } from './cards';
+import { DEFAULT_MANA_RULES, VICTORY_VP } from './config';
 import { startTurn } from './turns';
-import type { Board, CardId, Economy, GameMode, GameState, PlayerId, PlayerState } from './types';
+import type { Board, CardId, CardSet, Economy, GameMode, GameState, ManaRules, PlayerId, PlayerState } from './types';
 
 /** Les exemplaires brillants qui sont bien dans le deck (un par exemplaire présent, au plus). */
 function shinyCopies(deck: readonly CardId[], shiny: readonly CardId[]): readonly CardId[] {
@@ -24,6 +25,8 @@ function createPlayer(id: PlayerId, deck: readonly CardId[], shiny: readonly Car
  * Nouvelle partie, sur le plateau classique, en mode Normal et avec le grimoire de test par défaut. `shiny` : les
  * exemplaires brillants de chaque deck (purement visuels). Le mode contestation ne se joue que sur un plateau qui le
  * propose (§4.4 bis). `first` : le joueur qui joue le tout premier tour (§4.1 : celui que le lancer de dés désigne ; J1 par défaut).
+ * `manaRules` : génération max et limite du mana, réglées à l'accueil (§4.2, 5 et 10 par défaut).
+ * `cards` : les cartes de la partie, `CARDS` par défaut (d'autres pour un essai) ; toute carte des decks doit y être.
  */
 export function createGame(
   board: Board = BOARD,
@@ -32,15 +35,27 @@ export function createGame(
   mode: GameMode = 'normal',
   first: PlayerId = 1,
   economy: Economy = 'classic',
+  manaRules: ManaRules = DEFAULT_MANA_RULES,
+  cards: CardSet = CARDS,
+  victoryVp: number = VICTORY_VP,
 ): GameState {
   if (mode === 'contestation' && !board.contestation) {
     throw new Error(`Le mode contestation ne se joue pas sur « ${board.name} »`);
   }
+  if (![manaRules.baseCap, manaRules.limit].every((value) => Number.isInteger(value) && value >= 1)) {
+    throw new Error(`Réglages du mana invalides : génération max ${manaRules.baseCap}, limite ${manaRules.limit}`);
+  }
+  if (!Number.isInteger(victoryVp) || victoryVp < 1) throw new Error(`VP pour gagner invalides : ${victoryVp}`);
+  const missing = [...new Set([...decks[1], ...decks[2]])].filter((id) => !cards[id]);
+  if (missing.length > 0) throw new Error(`Cartes des decks absentes des cartes de la partie : ${missing.join(', ')}`);
   // Mise en place (§4.1), puis début du premier tour du premier joueur, qui s'applique dès le tour 1 (§10).
   return startTurn({
     board,
+    cards,
     mode,
     economy,
+    manaRules: { baseCap: manaRules.baseCap, limit: manaRules.limit },
+    victoryVp,
     players: { 1: createPlayer(1, decks[1], shiny[1]), 2: createPlayer(2, decks[2], shiny[2]) },
     activePlayer: first,
     turn: 1,
@@ -49,6 +64,7 @@ export function createGame(
     burningCells: [],
     nextUnitId: 1,
     winner: null,
+    concession: null,
     events: [],
   });
 }

@@ -21,7 +21,9 @@ describe('getPlayerView (SPEC.md §2, §4.3)', () => {
       played: [{ cardId: 'charge' }],
       grimoireCount: 2,
     });
-    expect(JSON.stringify(view)).not.toMatch(/dragonnet|golem/);
+    // Les cartes de la partie sont publiques : leur liste ne dit rien de ce qu'il a dans son grimoire.
+    const { cards: _cards, ...rest } = view;
+    expect(JSON.stringify(rest)).not.toMatch(/dragonnet|golem/);
   });
 
   it('montre au joueur tout son propre grimoire', () => {

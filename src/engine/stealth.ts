@@ -15,7 +15,7 @@ import type { BoardState, GameState, PlayerId, Unit, UnitId } from './types';
 export function isHiddenFrom(state: BoardState, unit: Unit, viewer: PlayerId): boolean {
   if (unit.kind !== 'monster' || unit.owner === viewer || unit.revealed) return false;
   const radii = [
-    getKeyword(unit, 'camouflage') ? CAMOUFLAGE_RADIUS : 0, // mot-clé du Farceur
+    getKeyword(state.cards, unit, 'camouflage') ? CAMOUFLAGE_RADIUS : 0, // mot-clé du Farceur
     ...unit.statuses.map((s) => (s.kind === 'camouflage' ? CAMOUFLAGE_RADIUS : s.kind === 'invisible' ? INVISIBLE_RADIUS : 0)),
     auraStealth(state, unit), // Terrain de jeu : tenu tant qu'il est dans la zone
   ];

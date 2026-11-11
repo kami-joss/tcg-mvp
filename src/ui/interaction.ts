@@ -35,12 +35,18 @@ export type Selection =
    * « effets », puis le choix d'une carte d'évolution).
    */
   | { readonly kind: 'attack'; readonly unitId: UnitId; readonly targetId: UnitId; readonly page: BubblePage }
+  /** Tir sur une case vide (Flèche explosive armée) : la bulle propose de tirer. */
+  | { readonly kind: 'shoot'; readonly unitId: UnitId; readonly pos: Position }
   /** Bulle de ses effets (clic droit sur son monstre). */
   | { readonly kind: 'effects'; readonly unitId: UnitId; readonly page: Exclude<BubblePage, 'main'> }
   /** Invocateur : la case est choisie, reste le monstre à invoquer (dans la bulle). */
   | { readonly kind: 'summonAt'; readonly unitId: UnitId; readonly pos: Position }
   /** Téléporteur : l'allié est choisi, reste la case où le poser. */
   | { readonly kind: 'teleport'; readonly unitId: UnitId; readonly targetId: UnitId }
+  /** Sort de téléportation (Flash, Repli, Téléportation) : l'allié est choisi, reste la case où le poser. */
+  | { readonly kind: 'cardTeleport'; readonly cardId: CardId; readonly targetId: UnitId }
+  /** Réanimation : la case est choisie, reste le monstre du cimetière à y invoquer (dans la bulle). */
+  | { readonly kind: 'reviveAt'; readonly cardId: CardId; readonly pos: Position }
   /** Zone en ligne avec un recul au choix (Vent violent) : la direction est choisie, reste la distance (dans la bulle). */
   | { readonly kind: 'areaDirection'; readonly unitId: UnitId; readonly direction: Direction }
   /** Unité affichée pour information seulement (adverse, terrain, ou hors de son tour). */
@@ -59,6 +65,8 @@ export function isBubble(selection: Selection): boolean {
     selection.kind === 'cardMenu' ||
     selection.kind === 'push' ||
     selection.kind === 'summonAt' ||
+    selection.kind === 'reviveAt' ||
+    selection.kind === 'shoot' ||
     selection.kind === 'areaDirection'
   );
 }
@@ -97,7 +105,7 @@ const cardTargetPos = (view: PlayerView, action: ActionOf<'playCard'>) => target
  * monstres ennemis qu'il voit (Piège temporel). Un clic sur l'un d'eux lance le sort.
  */
 export function getSpellAllies(view: PlayerView, cardId: CardId): Position[] {
-  const card = getCard(cardId);
+  const card = getCard(view.cards, cardId);
   if (card.kind !== 'spell') return [];
   const { targeting } = card.ability;
   if (targeting.type === 'enemies') {
@@ -114,7 +122,7 @@ export function getSpellAllies(view: PlayerView, cardId: CardId): Position[] {
   if (targeting.type !== 'allies') return [];
   const { archetype } = targeting;
   return Object.values(view.units)
-    .filter((u) => u.kind === 'monster' && u.owner === view.viewer && getMonsterCard(u.cardId).archetype === archetype)
+    .filter((u) => u.kind === 'monster' && u.owner === view.viewer && getMonsterCard(view.cards, u.cardId).archetype === archetype)
     .map((u) => u.pos);
 }
 
@@ -136,7 +144,7 @@ export function getAreaDirections(view: PlayerView, unitId: UnitId, effect = 0):
 export function getEffectArea(view: PlayerView, unitId: UnitId, direction?: Direction, effect = 0): Position[] {
   const unit = view.units[unitId];
   if (unit?.kind !== 'monster' || !getEffectActions(view, unitId, effect).some((a) => a.target.kind === 'area')) return [];
-  const targeting = getMonsterCard(unit.cardId).activated[effect]?.targeting;
+  const targeting = getMonsterCard(view.cards, unit.cardId).activated[effect]?.targeting;
   if (targeting?.type !== 'zone') return [];
   if (!isDirectionalZone(targeting.zone)) return getAreaCells(view, unit, targeting.zone);
   const zone = targeting.zone;
@@ -163,9 +171,13 @@ export function selectedUnitId(selection: Selection): UnitId | null {
     case 'summonAt':
     case 'teleport':
     case 'areaDirection':
+    case 'shoot':
       return selection.unitId;
+    case 'cardTeleport':
+      return selection.targetId;
     case 'card':
     case 'cardMenu':
+    case 'reviveAt':
     case 'none':
       return null;
   }
@@ -183,6 +195,8 @@ export function getHighlights(view: PlayerView, selection: Selection): Map<strin
       if (selection.mode === 'act') {
         for (const a of actionsOf(view, 'move')) if (a.unitId === selection.unitId) mark(a.to, 'move');
         for (const a of actionsOf(view, 'attack')) if (a.unitId === selection.unitId) mark(unitPos(view, a.targetId), 'attack');
+        // Armé d'éclats : les cases vides où il peut tirer (Flèche explosive).
+        for (const a of actionsOf(view, 'attackCell')) if (a.unitId === selection.unitId) mark(a.pos, 'attack');
       } else {
         const effect = selection.effect ?? 0;
         for (const a of getEffectActions(view, selection.unitId, effect)) mark(effectTargetPos(view, a), 'effect');
@@ -202,8 +216,16 @@ export function getHighlights(view: PlayerView, selection: Selection): Map<strin
     case 'attack':
       mark(unitPos(view, selection.targetId), 'attack');
       break;
+    case 'shoot':
+      mark(selection.pos, 'attack');
+      break;
     case 'summonAt':
+    case 'reviveAt':
       mark(selection.pos, 'effect');
+      break;
+    case 'cardTeleport':
+      mark(unitPos(view, selection.targetId), 'target');
+      for (const pos of getCardTeleportCells(view, selection)) mark(pos, 'target');
       break;
     case 'teleport':
       mark(unitPos(view, selection.targetId), 'target');
@@ -248,11 +270,26 @@ export function clickCell(view: PlayerView, selection: Selection, pos: Position)
   }
 
   if (selection.kind === 'unit' && selection.mode === 'act') {
+    // Armé d'éclats, une case vide où il peut tirer ouvre la bulle du tir (qui propose aussi d'y aller, s'il le peut).
+    if (actionsOf(view, 'attackCell').some((a) => a.unitId === selection.unitId && isHere(a.pos))) {
+      return { selection: { kind: 'shoot', unitId: selection.unitId, pos } };
+    }
     const move = actionsOf(view, 'move').find((a) => a.unitId === selection.unitId && isHere(a.to));
     if (move) return { action: move };
     // Une cible à portée : la bulle d'action s'ouvre au-dessus d'elle, l'attaque n'est jamais immédiate.
     const target = attackTargetAt(view, selection.unitId, pos);
     if (target) return { selection: { kind: 'attack', unitId: selection.unitId, targetId: target, page: 'main' } };
+  }
+
+  if (selection.kind === 'cardTeleport') {
+    const teleport = actionsOf(view, 'playCard').find(
+      (a) => a.cardId === selection.cardId && a.target.kind === 'unitAndCell' && a.target.unitId === selection.targetId && isHere(a.target.pos),
+    );
+    if (teleport) return { action: teleport };
+    // Un autre allié qu'il peut téléporter : il devient la cible.
+    const other = actionsOf(view, 'playCard').find((a) => a.cardId === selection.cardId && a.target.kind === 'unitAndCell' && isHere(unitPos(view, a.target.unitId)));
+    if (other?.target.kind === 'unitAndCell') return { selection: { ...selection, targetId: other.target.unitId } };
+    return { selection: NO_SELECTION };
   }
 
   if (selection.kind === 'teleport') {
@@ -296,6 +333,10 @@ export function clickCell(view: PlayerView, selection: Selection, pos: Position)
     if (play?.target.kind === 'unitAndDirection') {
       return { selection: { kind: 'push', cardId: play.cardId, unitId: play.target.unitId } };
     }
+    // Téléportation : l'allié est choisi, la case se choisit ensuite sur le plateau.
+    if (play?.target.kind === 'unitAndCell') return { selection: { kind: 'cardTeleport', cardId: play.cardId, targetId: play.target.unitId } };
+    // Réanimation : la case est choisie, le monstre se choisit dans la bulle.
+    if (play?.target.kind === 'cellAndCard') return { selection: { kind: 'reviveAt', cardId: play.cardId, pos } };
     if (play) return { action: play };
   }
 
@@ -333,10 +374,16 @@ export function contextCard(view: PlayerView, cardId: CardId): Selection {
   return view.me.grimoire.includes(cardId) ? { kind: 'cardMenu', cardId } : NO_SELECTION;
 }
 
-/** Cliquer une carte jouable la sélectionne ; la recliquer la désélectionne. */
+/**
+ * Cliquer une carte jouable la sélectionne ; la recliquer la désélectionne. Un sort sans cible ni monstre touché (Élixir
+ * de mana) ouvre sa bulle : il se lance de là.
+ */
 export function clickCard(view: PlayerView, selection: Selection, cardId: CardId): Selection {
   if (selection.kind === 'card' && selection.cardId === cardId) return NO_SELECTION;
-  return canPlay(view, cardId) ? { kind: 'card', cardId } : selection;
+  if (!canPlay(view, cardId)) return selection;
+  const plays = actionsOf(view, 'playCard').filter((a) => a.cardId === cardId);
+  if (plays.length === 1 && plays[0]!.target.kind === 'all' && getSpellAllies(view, cardId).length === 0) return { kind: 'cardMenu', cardId };
+  return { kind: 'card', cardId };
 }
 
 /** Actions d'effet actif du monstre ; `effect` : seulement celles de cet effet (rang sur la carte, 0 : le premier). */
@@ -349,6 +396,24 @@ export function getSummonChoices(view: PlayerView, selection: Selection): { card
   if (selection.kind !== 'summonAt') return [];
   return getEffectActions(view, selection.unitId).flatMap((action) =>
     action.target.kind === 'cellAndCard' && samePos(action.target.pos, selection.pos) ? [{ cardId: action.target.cardId, action }] : [],
+  );
+}
+
+/** Monstres de son cimetière que la Réanimation peut invoquer sur la case choisie, avec l'action correspondante. */
+export function getReviveChoices(view: PlayerView, selection: Selection): { cardId: CardId; action: Action }[] {
+  if (selection.kind !== 'reviveAt') return [];
+  return actionsOf(view, 'playCard').flatMap((action) =>
+    action.cardId === selection.cardId && action.target.kind === 'cellAndCard' && samePos(action.target.pos, selection.pos)
+      ? [{ cardId: action.target.cardId, action }]
+      : [],
+  );
+}
+
+/** Cases où un sort de téléportation peut poser l'allié choisi. */
+export function getCardTeleportCells(view: PlayerView, selection: Selection): Position[] {
+  if (selection.kind !== 'cardTeleport') return [];
+  return actionsOf(view, 'playCard').flatMap((action) =>
+    action.cardId === selection.cardId && action.target.kind === 'unitAndCell' && action.target.unitId === selection.targetId ? [action.target.pos] : [],
   );
 }
 
@@ -371,7 +436,7 @@ export interface PushChoice {
 export function getPushChoices(view: PlayerView, selection: Selection): PushChoice[] {
   if (selection.kind !== 'push') return [];
   const monster = view.units[selection.unitId];
-  const card = getCard(selection.cardId);
+  const card = getCard(view.cards, selection.cardId);
   const effect = card.kind === 'spell' ? card.ability.effects.find((e) => e.type === 'push') : undefined;
   if (monster?.kind !== 'monster' || effect?.type !== 'push') return [];
 
@@ -466,7 +531,7 @@ export function getAttackPreviews(view: PlayerView, selection: Selection): Map<s
     const target = view.units[action.targetId];
     if (action.unitId !== attacker.id || !target) continue;
     if (selection.kind === 'attack' && target.id !== selection.targetId) continue;
-    const behind = hitsFromBehind(attacker, target);
+    const behind = hitsFromBehind(view.cards, attacker, target);
     previews.set(posKey(target.pos), { damage: attackDamage(view, attacker, target), behind });
   }
   return previews;
@@ -482,6 +547,9 @@ export function isFocused(selection: Selection): boolean {
     selection.kind === 'effects' ||
     selection.kind === 'summonAt' ||
     selection.kind === 'teleport' ||
+    selection.kind === 'cardTeleport' ||
+    selection.kind === 'reviveAt' ||
+    selection.kind === 'shoot' ||
     selection.kind === 'areaDirection'
   );
 }
@@ -491,6 +559,6 @@ export function isExhausted(view: PlayerView, unitId: UnitId): boolean {
   const unit = view.units[unitId];
   if (unit?.kind !== 'monster' || unit.owner !== view.viewer || view.activePlayer !== view.viewer) return false;
   return !view.legalActions.some(
-    (a) => (a.type === 'move' || a.type === 'attack' || a.type === 'activateEffect') && a.unitId === unitId,
+    (a) => (a.type === 'move' || a.type === 'attack' || a.type === 'attackCell' || a.type === 'activateEffect') && a.unitId === unitId,
   );
 }

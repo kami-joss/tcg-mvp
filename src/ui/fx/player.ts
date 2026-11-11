@@ -164,7 +164,7 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
         break;
 
       case 'cardPlayed': {
-        const card = getCard(event.cardId);
+        const card = getCard(shown().cards, event.cardId);
         lastSpell = card.kind === 'spell' ? card.id : null;
         sfx('card');
         if (cut) {
@@ -202,7 +202,7 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
       case 'effect': {
         const source = monsterOf(shown(), event.unitId);
         if (!source) break;
-        const ability = getMonsterCard(source.cardId).activated[event.effect ?? 0];
+        const ability = getMonsterCard(shown().cards, source.cardId).activated[event.effect ?? 0];
         recoil(stage, source.id);
         if (event.cells.length > 0) {
           sfx(AREA_SOUNDS[source.cardId] ?? 'spell');
@@ -228,7 +228,7 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
         sfx('spell');
         rise(stage, event.pos, BLOOD);
         burst(stage, event.pos, BLOOD, { n: 14, spread: 34, size: 5, ringScale: 2.6 });
-        float(stage, event.pos, cardTitle(event.to), 'oklch(0.75 0.16 25)');
+        float(stage, event.pos, cardTitle(shown().cards, event.to), 'oklch(0.75 0.16 25)');
         await patch(event);
         await wait(350);
         break;
@@ -310,7 +310,7 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
         const source = shown().units[event.sourceId];
         sfx('flip');
         if (source) burst(stage, source.pos, VIOLET, { n: 10, spread: 30, size: 5, ringScale: 2.6 });
-        float(stage, event.pos, source ? getCard(source.cardId).name : 'Passage', VIOLET);
+        float(stage, event.pos, source ? getCard(shown().cards, source.cardId).name : 'Passage', VIOLET);
         await wait(220);
         await patch(event);
         break;
@@ -397,7 +397,8 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
         }
         shakeUnit(stage, event.unitId, hard);
         sfx(event.cause === 'burn' ? 'burn' : hard ? 'hitHard' : 'hit');
-        const label = event.cause === 'attack' && behind ? `−${event.amount} dans le dos !` : `−${event.amount}`;
+        // Carapace : ce qui l'aurait fait descendre sous 1 PV est retenu.
+        const label = event.held ? `−${event.amount} · carapace` : event.cause === 'attack' && behind ? `−${event.amount} dans le dos !` : `−${event.amount}`;
         float(stage, event.pos, label, event.cause === 'burn' ? 'oklch(0.8 0.16 55)' : DAMAGE);
         await patch(event);
         await wait(event.hp > 0 ? 320 : 0);
@@ -417,6 +418,19 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
         float(stage, event.pos, 'Requiem', REQUIEM, 120);
         sfx('death', 0.26);
         await die(stage, event.unitId, event.pos);
+        await patch(event);
+        break;
+
+      case 'cleansed':
+        // Cure : ses malus s'envolent.
+        sfx('spell');
+        rise(stage, event.pos, 'oklch(0.88 0.08 200)');
+        float(stage, event.pos, 'Malus retirés', 'oklch(0.88 0.08 200)');
+        await patch(event);
+        await wait(350);
+        break;
+
+      case 'revived':
         await patch(event);
         break;
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, getLegalActions } from './actions';
-import { COMMON_CARDS, DECKS, TEST_GRIMOIRE } from './cards';
+import { CARDS, DECKS, getCard } from './cards';
 import { attackDamage, previewAttack } from './combat';
 import { syncAuraHp } from './auras';
 import { dealDamage } from './damage';
@@ -22,14 +22,14 @@ const inject = (_state: GameState, unitId: UnitId): Action => ({
   target: { kind: 'unit', unitId },
 });
 
-describe('deck Bodybuilder (SPEC.md §6 bis)', () => {
-  it('25 cartes : ses 4 monstres ×3, Seringue ×2 et la Salle de sport, complétés par le grimoire de test et les cartes communes', () => {
-    const deck = DECKS.find((d) => d.id === 'bodybuilder')!;
+describe('cartes du Bodybuilder (SPEC.md §6 bis)', () => {
+  it('plus de deck depuis le 2026-11-10 : ses cartes gardent leurs données, dans aucun deck', () => {
+    expect(DECKS.find((d) => d.id === 'bodybuilder')).toBeUndefined();
     const own: CardId[] = ['rudy', 'arnold', 'tibo', 'ki-ne', 'seringue', 'salle-de-sport'];
-    expect(deck.name).toBe('Bodybuilder');
-    expect(deck.cards).toHaveLength(25);
-    for (const id of own) expect(deck.cards.filter((c) => c === id), id).toHaveLength(id === 'seringue' ? 2 : id === 'salle-de-sport' ? 1 : 3);
-    for (const id of deck.cards.filter((c) => !own.includes(c) && !COMMON_CARDS.includes(c))) expect(TEST_GRIMOIRE).toContain(id);
+    for (const id of own) {
+      expect(getCard(CARDS, id).name, id).toContain(' - Bodybuilder');
+      for (const deck of DECKS) expect(deck.cards, `${deck.id} · ${id}`).not.toContain(id);
+    }
   });
 });
 
@@ -271,45 +271,49 @@ describe('Tibo : Tortank · lui-même · carapace jusqu’à son prochain tour',
     expect(monster(after, 'u1').statuses).toEqual([expect.objectContaining({ kind: 'carapace', turns: 0 })]);
   });
 
-  it('la prochaine attaque ne lui inflige que 1 PV (même dans le dos), puis la carapace disparaît', () => {
-    const after = tortank([{ monster: 'arnold', owner: 2, at: at(8, 3) }]);
+  // Carapace (§5 bis, nouveau sens du 2026-11-10) : ses PV ne descendent pas sous 1, quels que soient les dégâts.
+  it('une attaque qui le détruirait le laisse à 1 PV, et la carapace reste ; une attaque moins forte passe entière', () => {
+    const after = tortank([{ monster: 'arnold', owner: 2, at: at(8, 3) }], 4);
     const hit = applyAction(applyAction(after, END_TURN), attack('u2', 'u1'));
-    expect(monster(hit, 'u1').hp).toBe(7);
-    expect(monster(hit, 'u1').statuses).toEqual([]);
-    expect(hit.events.find((e) => e.type === 'damage')).toMatchObject({ amount: 1, hp: 7 });
+    expect(monster(hit, 'u1').hp).toBe(1);
+    expect(monster(hit, 'u1').statuses).toEqual([expect.objectContaining({ kind: 'carapace' })]);
+    expect(hit.events.find((e) => e.type === 'damage')).toMatchObject({ amount: 3, hp: 1, held: true });
+    const scratch = applyAction(applyAction(tortank([{ monster: 'milicien', owner: 2, at: at(8, 3) }], 8), END_TURN), attack('u2', 'u1'));
+    expect(monster(scratch, 'u1').hp).toBe(6);
   });
 
-  it('l’aperçu de l’attaque annonce 1 dégât, et « attaquer et avancer » n’est plus proposé si 1 PV suffirait à peine', () => {
+  it('l’aperçu de l’attaque annonce ce qui le laisse à 1 PV, et « attaquer et avancer » n’est plus proposé', () => {
     const after = applyAction(tortank([{ monster: 'arnold', owner: 2, at: at(8, 3) }], 2), END_TURN);
     const preview = previewAttack(after, monster(after, 'u2'), after.units.u1!);
     expect(preview).toMatchObject({ damage: 1, hpAfter: 1, destroys: false, canAdvance: false });
   });
 
-  it('un sort, un effet ou le burn ne sont pas touchés, et ne consomment pas la carapace', () => {
+  it('un sort, un effet ou le burn ne le font pas non plus descendre sous 1 PV', () => {
     const after = tortank([], 8);
-    const boule = { ...after, players: { ...after.players, 1: { ...after.players[1], grimoire: [], mana: 3 } } };
-    const burned = dealDamage(boule, 'u1', 3, 2, 'spell');
-    expect(monster(burned, 'u1').hp).toBe(5);
-    expect(monster(burned, 'u1').statuses).toHaveLength(1);
-    expect(monster(dealDamage(boule, 'u1', 2, 2, 'burn'), 'u1').statuses).toHaveLength(1);
+    expect(monster(dealDamage(after, 'u1', 3, 2, 'spell'), 'u1').hp).toBe(5);
+    expect(monster(dealDamage(after, 'u1', 20, 2, 'spell'), 'u1').hp).toBe(1);
+    expect(monster(dealDamage(after, 'u1', 20, 2, 'burn'), 'u1')).toMatchObject({ hp: 1, statuses: [expect.objectContaining({ kind: 'carapace' })] });
   });
 
-  it('sans attaque, elle disparaît au début du prochain tour de Tibo', () => {
-    const after = tortank();
-    expect(monster(applyAction(after, END_TURN), 'u1').statuses).toHaveLength(1);
-    expect(monster(applyAction(applyAction(after, END_TURN), END_TURN), 'u1').statuses).toEqual([]);
+  it('elle tombe au début du prochain tour de Tibo, juste après le burn de ce début de tour (§10)', () => {
+    const after = tortank([], 2);
+    const burning = { ...after, units: { ...after.units, u1: { ...monster(after, 'u1'), statuses: [...monster(after, 'u1').statuses, { kind: 'burn' as const, amount: 5, turns: 1, expiresAtTurn: 9 }] } } };
+    expect(monster(applyAction(burning, END_TURN), 'u1').statuses).toHaveLength(2);
+    const back = applyAction(applyAction(burning, END_TURN), END_TURN);
+    expect(monster(back, 'u1').hp).toBe(1);
+    expect(monster(back, 'u1').statuses.map((s) => s.kind)).toEqual(['burn']);
   });
 
-  it('la riposte de l’ennemi attaqué par Tibo compte comme une attaque : 1 PV, et la carapace est consommée', () => {
+  it('la riposte qui le détruirait le laisse aussi à 1 PV', () => {
     const state = gameWith([
-      { monster: 'tibo', owner: 1, at: at(8, 2), hp: 8 },
+      { monster: 'tibo', owner: 1, at: at(8, 2), hp: 3 },
       { monster: 'gardien', owner: 2, at: at(8, 3), atk: 5 },
     ]);
     const shielded = { ...state, units: { ...state.units, u1: { ...monster(state, 'u1'), statuses: [{ kind: 'carapace' as const, turns: 0, expiresAtTurn: 9 }] } } };
-    expect(previewAttack(shielded, monster(shielded, 'u1'), state.units.u2!).riposte).toBe(1);
+    expect(previewAttack(shielded, monster(shielded, 'u1'), state.units.u2!).riposte).toBe(2);
     const next = applyAction(shielded, attack('u1', 'u2'));
     expect(monster(next, 'u2').hp).toBe(3);
-    expect(monster(next, 'u1')).toMatchObject({ hp: 7, statuses: [] });
+    expect(monster(next, 'u1')).toMatchObject({ hp: 1, statuses: [expect.objectContaining({ kind: 'carapace' })] });
   });
 });
 
