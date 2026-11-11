@@ -214,6 +214,12 @@ function pill(
   return node;
 }
 
+/**
+ * Rotation dans le plan d'une icône couchée au sol, pour qu'elle se lise droite à l'écran en vue isométrique : le haut de
+ * l'écran est la diagonale vers le haut à gauche du plan (X = (x − y)/√2, Y = (x + y)/√6).
+ */
+const INLAY_ROTATION = -Math.PI / 4;
+
 /** Profondeur des noms de zone : devant tout le décor debout, comme une étiquette posée sur l'image. */
 const ZONE_TAG_DEPTH = 100_000;
 
@@ -314,6 +320,8 @@ export class CellLayer {
   private readonly still: Sprite[] = [];
   /** Opacité de repos de chaque lueur qui respire. */
   private readonly glowBase: number[] = [];
+  /** Icônes incrustées dans les cases centrales des mana zones. */
+  private readonly inlays: Sprite[] = [];
 
   constructor(
     private readonly pixi: Pixi,
@@ -345,7 +353,8 @@ export class CellLayer {
     this.dangerLine.clear();
     for (const child of this.halos.removeChildren()) child.destroy();
     for (const child of this.dots.removeChildren()) child.destroy();
-    for (const sprite of [...this.glows, ...this.still]) sprite.destroy();
+    for (const sprite of [...this.glows, ...this.still, ...this.inlays]) sprite.destroy();
+    this.inlays.length = 0;
     this.glows.length = 0;
     this.glowBase.length = 0;
     this.still.length = 0;
@@ -375,7 +384,7 @@ export class CellLayer {
     }
 
     // Mana zones (refonte du 2026-11-11). Au repos : une lueur dans le carré de la zone, la case centrale éclairée (elles
-    // respirent si les animations sont permises) et l'icône de la zone au centre. La souris sur la zone : un trait fin au
+    // respirent si les animations sont permises) et l'icône de la zone incrustée au centre. La souris sur la zone : un trait fin au
     // bord, les quatre coins, un cercle fin autour de la case centrale.
     const textures = (this.manaTextures ??= { halo: radialTexture(pixi, 0.85), well: radialTexture(pixi, 0.9) });
     for (const v of cells) {
@@ -391,19 +400,21 @@ export class CellLayer {
         this.glows.push(halo, well);
         this.glowBase.push(halo.alpha, well.alpha);
       } else this.still.push(halo, well);
-      // L'icône de la zone, redressée dans une pastille sombre, sauf sous les marques d'un « Passage » ou d'une case brûlée.
+      // L'icône de la zone incrustée dans la case centrale : couchée dans le plan, tournée pour se lire droite à l'écran,
+      // en creux (sombre) avec un liseré clair sur son bord bas ; pas sous les marques d'un « Passage » ou d'une case brûlée.
       if (v.marks.length === 0) {
-        const r = S * 0.27;
-        const badge = new pixi.Container();
-        const disc = new pixi.Graphics()
-          .circle(0, 0, r)
-          .fill({ color: cssColor('oklch(0.17 0.012 60)').color, alpha: 0.7 })
-          .circle(0, 0, r)
-          .stroke({ width: 1.5, ...cssColor(mix(z.color, 85)), alignment: 1 });
-        const icon = new pixi.Sprite({ texture: iconTexture(pixi, z.icon), anchor: 0.5, width: r * 1.3, height: r * 1.3 });
-        icon.tint = cssColor(mix(z.color, 45, 'white')).color;
-        badge.addChild(disc, icon);
-        place(badge, v.x + S / 2, v.y + S / 2, { scaled: true, under: true });
+        const texture = iconTexture(pixi, z.icon);
+        const inlay = (dx: number, dy: number, css: string) => {
+          const icon = new pixi.Sprite({ texture, anchor: 0.5, x: v.x + S / 2 + dx, y: v.y + S / 2 + dy, rotation: INLAY_ROTATION });
+          icon.width = icon.height = S * 0.78;
+          const { color, alpha } = cssColor(css);
+          icon.tint = color;
+          icon.alpha = alpha;
+          this.glowLayer.addChild(icon);
+          this.inlays.push(icon);
+        };
+        inlay(1.4, 1.4, mix(mix(z.color, 50, 'white'), 60));
+        inlay(0, 0, mix(mix(z.color, 40, 'black'), 85));
       }
       if (!z.hovered) continue;
       const light = cssColor(mix(z.color, 55, 'white'));

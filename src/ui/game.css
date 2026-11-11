@@ -3489,28 +3489,23 @@ select {
   --glow: var(--contested);
 }
 
-/* Icône de la mana zone, au centre de sa case centrale (vue de dessus ; en isométrique, le plateau PixiJS la dessine). */
+/* Icône de la mana zone incrustée dans sa case centrale : en creux, sombre, avec un liseré clair en bas (vue de dessus ;
+   en isométrique, le plateau PixiJS la couche dans le plan). */
 .cell__zone-icon {
   --zone-ink: var(--zone);
   position: absolute;
   z-index: 1;
-  left: 50%;
-  top: 50%;
-  translate: -50% -50%;
+  inset: 0;
   display: grid;
   place-items: center;
-  width: 42%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: oklch(0.17 0.012 60 / 0.7);
-  box-shadow: inset 0 0 0 1.5px color-mix(in oklch, var(--zone-ink) 85%, transparent);
-  color: color-mix(in oklch, var(--zone-ink) 45%, white);
+  color: color-mix(in oklch, color-mix(in oklch, var(--zone-ink) 40%, black) 85%, transparent);
+  filter: drop-shadow(0 1px 0 color-mix(in oklch, color-mix(in oklch, var(--zone-ink) 50%, white) 60%, transparent));
   pointer-events: none;
 }
 
 .cell__zone-icon .icon {
-  width: 62%;
-  height: 62%;
+  width: 70%;
+  height: 70%;
 }
 
 .cell--held-p1 .cell__zone-icon {
