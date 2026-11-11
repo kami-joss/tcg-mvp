@@ -103,6 +103,17 @@ export function groupStatuses(statuses: readonly Status[]): { readonly key: stri
   return [...groups.values()];
 }
 
+/** Petit signe sur l'icône d'un statut (refonte du 2026-11-11) : ▼ slow et stat −X, ✕ immobilisé, ▲ stat +X. */
+export type StatusBadge = 'up' | 'down' | 'cross';
+
+export function statusBadge(posed: StatusSpec): StatusBadge | null {
+  const status = normalStatus(posed);
+  if (status.kind === 'slow') return 'down';
+  if (status.kind === 'immobilise') return 'cross';
+  if (status.kind === 'stat') return status.amount < 0 ? 'down' : 'up';
+  return null;
+}
+
 /** Icône d'un statut ; un statut de stat prend l'icône de sa stat. */
 export function statusIcon(posed: StatusSpec): IconName {
   const status = normalStatus(posed);

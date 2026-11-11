@@ -8,20 +8,22 @@ import { effectText } from './cardText';
 import type { IconName } from './Icon';
 
 export const STATUS_ICONS: Readonly<Record<StatusKind, IconName>> = {
-  stun: 'knockout',
-  slow: 'snail',
-  immobilise: 'fishing-net',
+  stun: 'knocked-out-stars',
+  // Slow et immobilisé : la botte de la mobilité, avec ▼ ou ✕ (`statusBadge`).
+  slow: 'walking-boot',
+  immobilise: 'walking-boot',
   burn: 'flame',
   requiem: 'death-skull',
-  camouflage: 'eye-slash',
-  carapace: 'shield',
-  silence: 'speaker-off',
-  invisible: 'eye',
-  desarme: 'anvil',
-  vol: 'dragon-head',
-  absorbe: 'water-drop',
-  absorbation: 'hearts',
-  recuperation: 'laurels',
+  camouflage: 'hood',
+  carapace: 'turtle-shell',
+  silence: 'silenced',
+  invisible: 'eye-slash',
+  desarme: 'drop-weapon',
+  vol: 'feathered-wing',
+  // Absorbé (malus) et Absorbation (bonus) : les mêmes crocs, à la couleur de leur pastille.
+  absorbe: 'pretty-fangs',
+  absorbation: 'pretty-fangs',
+  recuperation: 'healing',
   stat: 'aura',
 };
 
@@ -52,7 +54,7 @@ export function getZoneMarks(view: Pick<PlayerView, 'board' | 'units' | 'cards'>
     const name = getCard(view.cards, unit.cardId).name;
     const effects: Omit<ZoneMark, 'sourceId' | 'owner'>[] = passage.effects.map((effect) => {
       const title = `${name} de J${unit.owner} : ${effectText(view.cards, effect)} ${passage.lingering ? 'à l’ennemi qui entre ici ou près duquel il arrive, et au début de son tour s’il y est encore.' : 'à l’ennemi qui entre ici (à chaque case en marchant).'}`;
-      if (effect.type === 'damage') return { icon: 'hearts', label: `−${effect.amount}`, title };
+      if (effect.type === 'damage') return { icon: 'health-decrease', label: `−${effect.amount}`, title };
       if (effect.type === 'rewind') return { icon: 'compass', label: `−${effect.steps}`, title };
       const amount = 'amount' in effect ? effect.amount : 0;
       return { icon: STATUS_ICONS[effect.kind], label: amount > 1 ? String(amount) : null, title };

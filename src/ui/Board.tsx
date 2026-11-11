@@ -48,7 +48,7 @@ import type { BoardView, TokenStats } from './settings';
 import { FLIP_EDGE, getZoneTiles } from './contestZones';
 import type { ZoneTile } from './contestZones';
 import { diceLayout, getZoneMarks } from './zoneMarks';
-import { groupStatuses, signed, statusEffect, statusIcon, statusLabel } from './statusInfo';
+import { groupStatuses, signed, statusBadge, statusEffect, statusIcon, statusLabel } from './statusInfo';
 import type { ZoneMark } from './zoneMarks';
 
 interface BoardProps {
@@ -1206,6 +1206,7 @@ function Statuses({ statuses, requiem = null }: { statuses: readonly Status[]; r
         return (
           <span key={key} className={`status status--${status.kind}`} title={statusTitle(status, amount)}>
             <Icon name={statusIcon(status)} />
+            {statusBadge(status) && <span className={`status__badge status__badge--${statusBadge(status)}`} aria-hidden="true" />}
             {showAmount && (status.kind === 'stat' ? signed(total) : amount)}
           </span>
         );

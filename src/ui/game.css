@@ -2473,6 +2473,46 @@ select {
   box-shadow: 0 0 0 2px white, 0 2px 3px oklch(0 0 0 / 0.45);
 }
 
+/* ▼ slow et stat −X, ✕ immobilisé, ▲ stat +X (refonte du 2026-11-11, `statusBadge`) : un petit rond sur l'icône. */
+.status {
+  position: relative;
+}
+
+.status__badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  place-items: center;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px white;
+  color: white;
+  font: 800 6px/1 var(--font);
+}
+
+.status__badge--down,
+.status__badge--cross {
+  background: oklch(0.55 0.19 25);
+}
+
+.status__badge--up {
+  background: oklch(0.58 0.14 150);
+}
+
+.status__badge--down::after {
+  content: '▼';
+}
+
+.status__badge--up::after {
+  content: '▲';
+}
+
+.status__badge--cross::after {
+  content: '✕';
+}
+
 .status .icon {
   font-size: calc(var(--cell) * 0.18);
 }

@@ -166,7 +166,7 @@ export function startLog(setup: Setup, game: GameState, opening: Opening | null,
       text: `Début de la partie sur la carte « ${board.name} »${mode === 'contestation' ? ', en mode contestation' : ''}${game.economy === 'reserve' ? ', économie Réserve' : ''}${manaText(game.manaRules)}${game.victoryVp !== VICTORY_VP ? `, ${game.victoryVp} VP pour gagner` : ''}${workshopText(setup, game)}${setup.timer ? `, minuteur de ${TIMER_TEXT} par tour` : ''}, J1 avec le deck ${decks[1].name}, J2 avec le deck ${decks[2].name}.`,
       items: [],
     },
-    ...(opening ? [{ kind: 'start' as const, player: null, icon: 'laurels' as const, text: openingText(opening, first, opening.winner), items: [] }] : []),
+    ...(opening ? [{ kind: 'start' as const, player: null, icon: 'dice' as const, text: openingText(opening, first, opening.winner), items: [] }] : []),
     {
       kind: 'turn',
       player: first,

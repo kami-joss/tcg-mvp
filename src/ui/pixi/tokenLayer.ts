@@ -11,7 +11,7 @@ import type { ColorMatrixFilter, Container as PixiContainer, Graphics, Sprite, T
 import { CARD_ART, tokenFit } from '../art';
 import type { IconName } from '../Icon';
 import type { IsoCamera } from '../iso/scenery';
-import { statusIcon } from '../statusInfo';
+import { statusBadge, statusIcon } from '../statusInfo';
 import { CELL_COLORS, CELL_SIZE } from './cellModel';
 import { cssColor, hatch, iconTexture, mix } from './cellLayer';
 import { painted } from './groundFx';
@@ -149,7 +149,7 @@ function statChip(pixi: Pixi, stat: StatPill): { node: PixiContainer; width: num
 /** Pastille de statut d'un jeton (14 px), comme `.token .status`. */
 function statusChip(pixi: Pixi, status: StatusPill, h = S * 0.206): PixiContainer {
   const [fill, color] = STATUS_COLORS[status.kind];
-  return chip(pixi, {
+  const result = chip(pixi, {
     icon: statusIcon(status.status),
     iconColor: color,
     value: status.text,
@@ -162,7 +162,22 @@ function statusChip(pixi: Pixi, status: StatusPill, h = S * 0.206): PixiContaine
     padL: 2,
     padR: 2,
     minW: h,
-  }).node;
+  });
+  // ▼ slow et stat −X, ✕ immobilisé, ▲ stat +X : un petit rond en haut à droite de la pastille (`statusBadge`).
+  const badge = statusBadge(status.status);
+  if (badge) {
+    const r = h * 0.3;
+    const [cx, cy] = [result.width - r * 0.6, -h / 2 + r * 0.4];
+    const sign = new pixi.Graphics().circle(cx, cy, r).fill(cssColor(badge === 'up' ? 'oklch(0.58 0.14 150)' : 'oklch(0.55 0.19 25)'));
+    sign.circle(cx, cy, r).stroke({ width: 1, color: 0xffffff });
+    const k = r * 0.5;
+    if (badge === 'cross') sign.moveTo(cx - k, cy - k).lineTo(cx + k, cy + k).moveTo(cx + k, cy - k).lineTo(cx - k, cy + k);
+    else if (badge === 'down') sign.moveTo(cx - k, cy - k * 0.4).lineTo(cx, cy + k * 0.6).lineTo(cx + k, cy - k * 0.4);
+    else sign.moveTo(cx - k, cy + k * 0.4).lineTo(cx, cy - k * 0.6).lineTo(cx + k, cy + k * 0.4);
+    sign.stroke({ width: 1.6, color: 0xffffff, cap: 'round', join: 'round' });
+    result.node.addChild(sign);
+  }
+  return result.node;
 }
 
 /** Pastille des dégâts annoncés, centrée en (0, 0). */

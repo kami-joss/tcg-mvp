@@ -88,7 +88,7 @@ describe('Pénombre', () => {
     // Un seul « Camouflé » : le statut de Pénombre, sans puce d'effet en double.
     expect(chips).toEqual([
       {
-        icon: 'eye-slash',
+        icon: 'hood',
         text: 'Camouflage',
         detail: 'Camouflage jusqu’à la fin de ce tour et de son prochain : invisible pour l’adversaire sans monstre ni terrain à lui dans un carré de 2',
         kind: 'info',

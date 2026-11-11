@@ -455,7 +455,7 @@ function zoneSheet(view: PlayerView, zone: ManaZoneId, pos: Position): SheetData
     typeIcon: ZONE_ICONS[zone],
     lines: [
       {
-        icon: 'laurels',
+        icon: 'crown',
         label: 'Contrôle',
         status: contested
           ? { text: 'Contestée · personne', tone: 'warn' }

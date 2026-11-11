@@ -153,7 +153,7 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
       case 'vp':
         if (event.pos) {
           float(stage, event.pos, `+${event.amount} VP`, GOLD, 120);
-          flyTo(stage, event.pos, `[data-vp="${event.player}"]`, 'laurels', '#d9b44a', 80);
+          flyTo(stage, event.pos, `[data-vp="${event.player}"]`, 'crown', '#d9b44a', 80);
           sfx('vp', 0.93);
           await wait(170);
         } else {

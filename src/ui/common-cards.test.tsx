@@ -131,13 +131,13 @@ describe('zone des terrains « Passage » : l’icône de ce qu’ils infligent 
     1,
   );
 
-  it('dégâts : un cœur « −1 » ; slow 1 : l’escargot ; rien autour d’un terrain sans Passage', () => {
+  it('dégâts : PV perdus « −1 » ; slow 1 : la botte ; rien autour d’un terrain sans Passage', () => {
     const marks = getZoneMarks(view);
     // Forge (5, 4) : ses 6 cases adjacentes (les cases X ne comptent pas).
     for (const key of ['4,3', '5,3', '6,3', '4,5', '5,5', '6,5']) {
-      expect(marks.get(key), key).toEqual([expect.objectContaining({ sourceId: 'u1', owner: 2, icon: 'hearts', label: '−1' })]);
+      expect(marks.get(key), key).toEqual([expect.objectContaining({ sourceId: 'u1', owner: 2, icon: 'health-decrease', label: '−1' })]);
     }
-    expect(marks.get('1,4')).toEqual([expect.objectContaining({ sourceId: 'u2', owner: 1, icon: 'snail', label: null })]);
+    expect(marks.get('1,4')).toEqual([expect.objectContaining({ sourceId: 'u2', owner: 1, icon: 'walking-boot', label: null })]);
     expect(marks.has('7,4') || marks.has('9,4') || marks.has('8,3')).toBe(false);
     expect(marks.get('5,3')?.[0]?.title).toBe('Terrain drainant de J2 : 1 dégât à l’ennemi qui entre ici (à chaque case en marchant).');
   });

@@ -55,7 +55,7 @@ describe('fiche (lot 9)', () => {
     expect(cellSheet(burning, 1, 8, 2)?.status).toEqual(
       expect.arrayContaining([
         { icon: 'flame', text: 'Burn 1', detail: 'Burn 1 : perd 1 PV au début de chacun de ses tours pendant ses 2 prochains tours', kind: 'burn', group: 'status' },
-        { icon: 'fishing-net', text: 'Immobilisé', detail: 'Immobilisé : ne peut plus se déplacer jusqu’à son prochain tour', kind: 'warn', group: 'status' },
+        { icon: 'walking-boot', text: 'Immobilisé', detail: 'Immobilisé : ne peut plus se déplacer jusqu’à son prochain tour', kind: 'warn', group: 'status' },
       ]),
     );
   });
@@ -134,7 +134,7 @@ describe('fiche (lot 9)', () => {
     const empty = gameWith([]);
     expect(cellSheet(empty, 1, 5, 4)?.title).toBe('Forge');
     expect(cellSheet(empty, 1, 5, 4)?.lines).toEqual([
-      { icon: 'laurels', label: 'Contrôle', status: { text: 'Neutre · personne', tone: 'off' } },
+      { icon: 'crown', label: 'Contrôle', status: { text: 'Neutre · personne', tone: 'off' } },
     ]);
     expect(cellSheet(empty, 1, 3, 4)?.title).toBe('Case bloquée');
   });

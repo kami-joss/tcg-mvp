@@ -190,8 +190,8 @@ describe('journal : une entrée par action, avec ses icônes', () => {
       icon: 'broadsword',
       text: 'Milicien de J1 attaque Éclaireur de J2.',
       items: [
-        { icon: 'death-skull', text: 'Éclaireur de J2 est détruit.', tone: 'hurt' },
-        { icon: 'laurels', text: 'J1 gagne 1 VP (4 au total).', tone: 'vp' },
+        { icon: 'tombstone', text: 'Éclaireur de J2 est détruit.', tone: 'hurt' },
+        { icon: 'crown', text: 'J1 gagne 1 VP (4 au total).', tone: 'vp' },
       ],
     });
     // Tir à distance, invocation, déplacement.
@@ -221,7 +221,7 @@ describe('journal : affichage', () => {
         player: 1,
         icon: 'broadsword',
         text: 'Milicien de J1 attaque Éclaireur de J2.',
-        items: [{ icon: 'death-skull', text: 'Éclaireur de J2 est détruit.', tone: 'hurt' }],
+        items: [{ icon: 'tombstone', text: 'Éclaireur de J2 est détruit.', tone: 'hurt' }],
       },
     ];
     const html = renderToStaticMarkup(<ActionLog entries={entries} />);

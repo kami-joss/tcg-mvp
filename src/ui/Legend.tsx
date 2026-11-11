@@ -7,7 +7,7 @@ import type { IconName } from './Icon';
 
 const ICONS: [IconName, string][] = [
   ['water-drop', 'Mana'],
-  ['laurels', 'VP'],
+  ['crown', 'VP'],
   ['magic-swirl', 'Effet actif'],
   ['broadsword', 'ATK'],
   ['hearts', 'PV'],

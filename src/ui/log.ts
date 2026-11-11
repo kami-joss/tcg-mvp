@@ -223,11 +223,14 @@ function describeUnitChanges(before: PlayerView, action: Action, after: PlayerVi
           ? item('eye-slash', `${unitName(after.cards, unit)} disparaît.`, 'info')
           : requiem
             ? item('death-skull', `${unitName(after.cards, unit)} succombe (requiem).`, 'hurt')
-            : item('death-skull', `${unitName(after.cards, unit)} est détruit.`, 'hurt'),
+            : item('tombstone', `${unitName(after.cards, unit)} est détruit.`, 'hurt'),
       );
       continue;
     }
-    if (next.hp !== unit.hp) lines.push(item('hearts', `${unitName(after.cards, unit)} : ${unit.hp} → ${next.hp} PV.`, next.hp < unit.hp ? 'hurt' : 'good'));
+    if (next.hp !== unit.hp) {
+      const lost = next.hp < unit.hp;
+      lines.push(item(lost ? 'health-decrease' : 'health-increase', `${unitName(after.cards, unit)} : ${unit.hp} → ${next.hp} PV.`, lost ? 'hurt' : 'good'));
+    }
     // Carapace : des dégâts qui l'auraient fait descendre sous 1 PV ont été retenus.
     if (after.events.some((event) => event.type === 'damage' && event.unitId === unit.id && event.held)) {
       lines.push(item('shield', `${unitName(after.cards, unit)} tient à 1 PV (carapace).`, 'info'));
@@ -301,7 +304,7 @@ function describeTrap(before: PlayerView, action: Action, after: PlayerView, blo
         : null;
   if (summoned && !Object.values(after.units).some((u) => u.kind === 'monster' && samePos(u.pos, summoned.pos))) {
     const how = trapped ? 'tombe dans un piège et est détruit' : 'est détruit à son arrivée';
-    return [item('death-skull', `${getCard(after.cards, summoned.cardId).name} de J${before.activePlayer} ${how}.`, 'hurt')];
+    return [item('tombstone', `${getCard(after.cards, summoned.cardId).name} de J${before.activePlayer} ${how}.`, 'hurt')];
   }
   return [];
 }
@@ -388,10 +391,10 @@ function outcome(before: PlayerView, action: Action, after: PlayerView): Outcome
     }
     for (const player of [1, 2] as const) {
       const gain = publicInfo(after, player).vp - publicInfo(before, player).vp;
-      if (gain > 0) gains.push(item('laurels', `J${player} gagne ${gain} VP (${publicInfo(after, player).vp} au total).`, 'vp'));
+      if (gain > 0) gains.push(item('crown', `J${player} gagne ${gain} VP (${publicInfo(after, player).vp} au total).`, 'vp'));
     }
   }
-  const winner = after.winner !== null && before.winner === null ? item('laurels', `J${after.winner} remporte la partie !`, 'vp') : null;
+  const winner = after.winner !== null && before.winner === null ? item('crown', `J${after.winner} remporte la partie !`, 'vp') : null;
   return { intent: describeIntent(before, action, after), icon: intentIcon(before, action, after), items, gains, winner, turn };
 }
 
