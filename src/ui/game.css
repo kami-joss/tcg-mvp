@@ -4265,44 +4265,144 @@ select {
   );
 }
 
-/* Vue liste : une ligne par carte (coût, nom et caractéristiques, type et exemplaires), sans illustration. */
+/* Vue liste (refonte du 2026-11-11, par défaut) : des lignes sobres. Coût dans une pastille ronde, vignette de
+   l'illustration, nom, puis les stats d'un monstre ou, si la carte n'est pas jouable, pourquoi ; exemplaires à droite.
+   Jouable : la pastille de coût est bleue ; injouable : la ligne est ternie, sa vignette grisée. */
 .grimoire--list .grimoire__cards {
-  gap: 5px;
+  gap: 4px;
 }
 
 .tile--row {
   flex-direction: row;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 10px 0 8px;
+  border-radius: 11px;
+  background: oklch(1 0 0 / 0.03);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.06);
+  color: oklch(0.93 0.015 85);
+  text-shadow: none;
+  opacity: 0.5;
+}
+
+.tile--row.tile--playable {
+  background: oklch(1 0 0 / 0.055);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.11);
+  color: oklch(0.97 0.01 85);
+  text-shadow: none;
+  opacity: 1;
+}
+
+.tile--row.tile--playable:hover {
+  background: oklch(1 0 0 / 0.09);
+}
+
+.tile--row.is-focused {
+  background: oklch(0.82 0.13 85 / 0.13);
+  box-shadow: inset 0 0 0 1px oklch(0.82 0.13 85 / 0.65), 0 0 16px oklch(0.82 0.13 85 / 0.18);
+}
+
+.tile--row.is-selected {
+  box-shadow: inset 0 0 0 2px var(--select), 0 0 16px oklch(0.82 0.13 85 / 0.25);
 }
 
 .tile--row .tile__cost {
   position: static;
   flex: none;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  background: linear-gradient(160deg, oklch(0.48 0.012 60), oklch(0.34 0.012 60));
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.2);
+  font-size: 16px;
+}
+
+.tile--row.tile--playable .tile__cost {
+  background: var(--mana-pill);
+  box-shadow: var(--mana-shine), 0 1px 3px oklch(0 0 0 / 0.5);
+}
+
+.tile--row .tile__cost .icon {
+  display: none;
+}
+
+.tile__thumb {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(160deg, oklch(0.36 calc(var(--jewel-c) * 0.6) var(--jewel-h)), oklch(0.24 calc(var(--jewel-c) * 0.4) var(--jewel-h)));
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.18);
+  color: oklch(0.9 0.04 var(--jewel-h));
+}
+
+.tile__thumb .icon {
+  font-size: 20px;
+}
+
+.tile--row:not(.tile--playable) .tile__thumb {
+  filter: grayscale(0.7);
+}
+
+.tile--row.tile--shiny .tile__thumb {
+  box-shadow: inset 0 0 0 1.5px var(--gold);
 }
 
 .tile--row .tile__body {
   flex: 1;
   min-width: 0;
-  gap: 3px;
+  gap: 4px;
   padding: 0;
 }
 
 .tile--row .tile__name {
   overflow: hidden;
+  font-size: 15px;
+  line-height: 1.05;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .tile--row .tile__stats {
   flex-wrap: nowrap;
-  font-size: 12px;
+  gap: 9px;
+  font-size: 12.5px;
+}
+
+.tile--row .tile__stat--broadsword .icon {
+  color: oklch(0.78 0.12 50);
+}
+
+.tile--row .tile__stat--hearts .icon {
+  color: oklch(0.72 0.15 15);
+}
+
+.tile--row .tile__stat--walking-boot .icon {
+  color: oklch(0.8 0.1 155);
+}
+
+.tile--row .tile__stat--high-shot .icon {
+  color: oklch(0.78 0.08 255);
+}
+
+.tile--row .tile__note {
+  font-size: 12.5px;
+  color: oklch(0.8 0.025 80);
+  opacity: 1;
 }
 
 .tile--row .tile__kind {
   position: static;
   flex: none;
+  padding: 0;
+  background: none;
+  color: oklch(0.72 0.02 80);
+  font-size: 12.5px;
 }
 
 .log {

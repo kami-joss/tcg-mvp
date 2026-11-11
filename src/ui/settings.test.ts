@@ -15,7 +15,7 @@ function fakeStorage() {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
-  it('par défaut : vue isométrique, animations, son à 0,7, zoom 100 %, grimoire à 2 cartes par ligne', () => {
+  it('par défaut : vue isométrique, animations, son à 0,7, zoom 100 %, grimoire en liste', () => {
     fakeStorage();
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
     expect(DEFAULT_SETTINGS).toEqual({
@@ -24,7 +24,7 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
       sound: true,
       volume: 0.7,
       zoom: 1,
-      grimoireLayout: 'grid2',
+      grimoireLayout: 'list',
       grimoireOpen: true,
       tokenStats: { hp: true, mobility: true, enemyMobility: false, atk: false, statuses: true },
       edgeScroll: false,
@@ -83,16 +83,21 @@ describe('réglages d’affichage (handoff, lots 3 à 6)', () => {
     data.set('tcg-plateau-zoom-v5', '3');
     data.set('tcg-grimoire-affichage', '4');
     data.set('tcg-plateau-stats-v6', '{"pv": "oui", "atk": true}');
-    expect(loadSettings()).toMatchObject({ view: 'iso', zoom: 1, grimoireLayout: 'grid2', tokenStats: { ...DEFAULT_TOKEN_STATS, atk: true } });
+    expect(loadSettings()).toMatchObject({ view: 'iso', zoom: 1, grimoireLayout: 'list', tokenStats: { ...DEFAULT_TOKEN_STATS, atk: true } });
   });
 
-  it('grimoire : 3, 2 ou 1 carte par ligne, ou liste, chacun retrouvé tel quel', () => {
-    expect(GRIMOIRE_LAYOUTS).toEqual(['grid3', 'grid2', 'grid1', 'list']);
+  it('grimoire : tuiles ou liste (par défaut), chacun retrouvé tel quel ; les anciens 3 et 1 par ligne deviennent des tuiles', () => {
+    expect(GRIMOIRE_LAYOUTS).toEqual(['grid2', 'list']);
+    expect(DEFAULT_SETTINGS.grimoireLayout).toBe('list');
     const data = fakeStorage();
-    for (const [layout, stored] of [['grid3', '3'], ['grid2', '2'], ['grid1', '1'], ['list', 'liste']] as const) {
+    for (const [layout, stored] of [['grid2', '2'], ['list', 'liste']] as const) {
       saveSettings({ ...DEFAULT_SETTINGS, grimoireLayout: layout });
       expect(data.get('tcg-grimoire-affichage')).toBe(stored);
       expect(loadSettings().grimoireLayout).toBe(layout);
+    }
+    for (const old of ['3', '1']) {
+      data.set('tcg-grimoire-affichage', old);
+      expect(loadSettings().grimoireLayout).toBe('grid2');
     }
   });
 

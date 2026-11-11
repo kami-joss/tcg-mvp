@@ -8,11 +8,11 @@ export type BoardView = 'top' | 'tilt' | 'iso';
 /** Niveaux de zoom du plateau (lot 5 ; lot 11 : de 50 à 200 %). 100 % : le plateau ajusté à sa zone. */
 export const ZOOMS: readonly number[] = [0.5, 0.65, 0.8, 1, 1.25, 1.5, 1.75, 2];
 
-/** Affichage du grimoire : 3, 2 ou 1 carte par ligne, ou liste compacte. */
-export type GrimoireLayout = 'grid3' | 'grid2' | 'grid1' | 'list';
+/** Affichage du grimoire (refonte du 2026-11-11) : tuiles illustrées, 2 par ligne, ou liste (par défaut). */
+export type GrimoireLayout = 'grid2' | 'list';
 
 /** Les affichages du grimoire, dans l'ordre de leurs boutons. */
-export const GRIMOIRE_LAYOUTS: readonly GrimoireLayout[] = ['grid3', 'grid2', 'grid1', 'list'];
+export const GRIMOIRE_LAYOUTS: readonly GrimoireLayout[] = ['grid2', 'list'];
 
 /** Stats affichées sur les jetons (lot 6, menu « Stats ») ; Alt maintenu les montre toutes. */
 export interface TokenStats {
@@ -74,7 +74,7 @@ export const DEFAULT_SETTINGS: DisplaySettings = {
   sound: true,
   volume: 0.7,
   zoom: 1,
-  grimoireLayout: 'grid2',
+  grimoireLayout: 'list',
   grimoireOpen: true,
   tokenStats: DEFAULT_TOKEN_STATS,
   edgeScroll: false,
@@ -102,7 +102,9 @@ const KEYS = {
 const VIEW_VALUES: Readonly<Record<BoardView, string>> = { top: '0', tilt: '45', iso: 'iso' };
 
 /** Valeur mémorisée de chaque affichage du grimoire. */
-const LAYOUT_VALUES: Readonly<Record<GrimoireLayout, string>> = { grid3: '3', grid2: '2', grid1: '1', list: 'liste' };
+const LAYOUT_VALUES: Readonly<Record<GrimoireLayout, string>> = { grid2: '2', list: 'liste' };
+/** Anciens affichages (3 ou 1 carte par ligne) : des tuiles. */
+const OLD_GRIDS = ['3', '1'];
 
 function read(key: string): string | null {
   try {
@@ -144,7 +146,9 @@ export function loadSettings(): DisplaySettings {
     sound: sound === null ? DEFAULT_SETTINGS.sound : sound !== '0',
     volume: Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : DEFAULT_SETTINGS.volume,
     zoom: ZOOMS.includes(zoom) ? zoom : DEFAULT_SETTINGS.zoom,
-    grimoireLayout: GRIMOIRE_LAYOUTS.find((l) => LAYOUT_VALUES[l] === grimoireLayout) ?? DEFAULT_SETTINGS.grimoireLayout,
+    grimoireLayout:
+      GRIMOIRE_LAYOUTS.find((l) => LAYOUT_VALUES[l] === grimoireLayout) ??
+      (grimoireLayout !== null && OLD_GRIDS.includes(grimoireLayout) ? 'grid2' : DEFAULT_SETTINGS.grimoireLayout),
     grimoireOpen: grimoireOpen === null ? DEFAULT_SETTINGS.grimoireOpen : grimoireOpen === '1',
     tokenStats: readTokenStats(),
     edgeScroll: edgeScroll === null ? DEFAULT_SETTINGS.edgeScroll : edgeScroll === '1',

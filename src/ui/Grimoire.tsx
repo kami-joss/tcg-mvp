@@ -1,21 +1,22 @@
 // Grimoire du joueur actif (SPEC.md §7) : coût, type, nombre d'exemplaires, caractéristiques, en trois sections
 // (monstres, sorts, terrains ; une section vide disparaît).
-// Quatre affichages, choisis par les boutons de l'en-tête : tuiles à 3, 2 ou 1 par ligne, ou liste compacte (une ligne
-// par carte, sans illustration : la fiche la montre). L'affichage règle aussi la largeur de son panneau, qui flotte à
-// droite du plateau et se replie contre le bord par son onglet (`GrimoireTab`, handoff V11, lot 13 §4).
+// Deux affichages (refonte du 2026-11-11), choisis par les boutons de l'en-tête : la liste, par défaut (une ligne par
+// carte : coût, vignette de l'illustration, nom, stats d'un monstre ou, si la carte n'est pas jouable, pourquoi), ou
+// des tuiles illustrées, 2 par ligne. L'affichage règle aussi la largeur de son panneau, qui flotte à droite du plateau
+// et se replie contre le bord par son onglet (`GrimoireTab`, handoff V11, lot 13 §4).
 // Tuiles illustrées au format 3:4 (handoff V8, lot 9) : l'illustration cadrée sur les yeux, coût en haut à gauche, type
 // et exemplaires en haut à droite, nom et caractéristiques en bas. Jouable : liseré vert ; injouable : ternie ;
-// choisie : anneau doré ; montrée par la fiche : anneau blanc. En liste, fond teinté selon le type (monstre rouge, sort
-// bleu, terrain vert), vif si la carte est jouable, sombre sinon. Clic : la sélectionner (cases dorées) ; clic droit : sa
+// choisie : anneau doré ; montrée par la fiche : anneau blanc. En liste, des lignes sobres : jouable, la pastille de
+// coût est bleue ; injouable, la ligne est ternie et sa vignette grisée. Clic : la sélectionner (cases dorées) ; clic droit : sa
 // bulle d'action (l'invoquer, la lancer, la poser, ou pourquoi elle ne peut pas l'être).
 // Overframes et exemplaires brillants (handoff V11, §6.2 du handoff overframe) : pas de débordement dans la grille ; au
 // repos, une tuile brillante garde son holo, son reflet, son cadre doré et un « ★ » ; au survol d'une carte à overframe,
 // la tuile s'incline, l'illustration respire et la moitié des particules arrière passent.
 import { useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent } from 'react';
-import { getCard } from '../engine';
+import { cardAvailability, getCard } from '../engine';
 import type { Card, CardId, CardSet, PlayerView } from '../engine';
-import { TILE_FRAME, artFit, cardArtFor, fitBackground } from './art';
+import { THUMB_FRAME, TILE_FRAME, artFit, cardArtFor, fitBackground } from './art';
 import { groupCards, splitCardName } from './cardText';
 import { Icon } from './Icon';
 import type { IconName } from './Icon';
@@ -23,6 +24,7 @@ import { canPlay } from './interaction';
 import { ShinyLayers, TileParticles, useMotionGate } from './Overframe';
 import { OVERFRAMES } from './overframes';
 import { GRIMOIRE_LAYOUTS } from './settings';
+import { reasonStatus } from './sheet';
 import type { GrimoireLayout } from './settings';
 
 interface GrimoireProps {
@@ -44,10 +46,8 @@ interface GrimoireProps {
 export const GRIMOIRE_DISPLAY: Readonly<
   Record<GrimoireLayout, { readonly icon: IconName; readonly label: string; readonly columns: number; readonly width: number }>
 > = {
-  grid3: { icon: 'layout-3', label: '3 cartes par ligne', columns: 3, width: 414 },
-  grid2: { icon: 'layout-2', label: '2 cartes par ligne', columns: 2, width: 304 },
-  grid1: { icon: 'layout-1', label: '1 carte par ligne', columns: 1, width: 240 },
-  list: { icon: 'layout-list', label: 'Liste', columns: 1, width: 260 },
+  grid2: { icon: 'layout-2', label: 'Tuiles', columns: 2, width: 304 },
+  list: { icon: 'layout-list', label: 'Liste', columns: 1, width: 300 },
 };
 
 const KIND_ICONS: Readonly<Record<Card['kind'], IconName>> = { monster: 'dragon-head', spell: 'spell-book', terrain: 'castle' };
@@ -86,6 +86,12 @@ function Stats({ card }: { card: Card }) {
       ))}
     </span>
   );
+}
+
+/** Pourquoi une carte du grimoire ne peut pas être jouée (« Aucune cible à portée »), ou rien si elle peut l'être. */
+function whyNot(view: PlayerView, cardId: CardId): string | undefined {
+  const availability = cardAvailability(view, cardId);
+  return availability.ok ? undefined : reasonStatus(availability.reason, '').text;
 }
 
 export function Grimoire(props: GrimoireProps) {
@@ -136,6 +142,7 @@ export function Grimoire(props: GrimoireProps) {
                     count={count}
                     list={layout === 'list'}
                     playable={canPlay(view, cardId)}
+                    reason={whyNot(view, cardId)}
                     selected={selectedCard === cardId}
                     focused={focusedCard === cardId}
                     shiny={view.me.shiny?.includes(cardId) ?? false}
@@ -165,6 +172,8 @@ interface TileProps {
   list: boolean;
   /** Jouable (liseré vert) ou non (ternie) ; absent : ni l'un ni l'autre, la tuile ne fait que montrer sa fiche. */
   playable?: boolean;
+  /** Pourquoi elle n'est pas jouable (en liste, sous son nom, à la place des stats d'un sort ou d'un terrain). */
+  reason?: string;
   /** Choisie pour être jouée (grimoire seulement). */
   selected?: boolean;
   focused: boolean;
@@ -193,7 +202,7 @@ function TileName({ name }: { name: string }) {
 
 /** Tuile d'une carte : grimoire, ou exemplaire des cartes jouées et du cimetière (`CardPiles`). */
 export function Tile(props: TileProps) {
-  const { cards, cardId, count, list, playable, selected, focused, shiny, animated, fxAnchor = false } = props;
+  const { cards, cardId, count, list, playable, reason, selected, focused, shiny, animated, fxAnchor = false } = props;
   const { onClick, onContextMenu, onHover } = props;
   const card = getCard(cards, cardId);
   const art = cardArtFor(cardId, shiny);
@@ -231,7 +240,7 @@ export function Tile(props: TileProps) {
           ★
         </span>
       )}
-      <Icon name={KIND_ICONS[card.kind]} />
+      {!list && <Icon name={KIND_ICONS[card.kind]} />}
       {count !== undefined && `×${count}`}
     </span>
   );
@@ -272,9 +281,22 @@ export function Tile(props: TileProps) {
         {list ? (
           <>
             {cost}
+            <span
+              className="tile__thumb"
+              aria-hidden="true"
+              style={art ? { background: `${fitBackground(art, artFit(art, THUMB_FRAME), 40)}, oklch(0.2 0.014 60)` } : undefined}
+            >
+              {!art && <Icon name={KIND_ICONS[card.kind]} />}
+            </span>
             <span className="tile__body">
               <TileName name={card.name} />
-              {card.kind === 'spell' ? <span className="tile__note">Sort · effet immédiat</span> : <Stats card={card} />}
+              {reason && card.kind !== 'monster' ? (
+                <span className="tile__note tile__reason">{reason}</span>
+              ) : card.kind === 'spell' ? (
+                <span className="tile__note">Sort</span>
+              ) : (
+                <Stats card={card} />
+              )}
             </span>
             {kind}
           </>

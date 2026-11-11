@@ -18,33 +18,38 @@ const render = (layout: GrimoireLayout, state: GameState = createGame()) =>
   );
 
 describe('grimoire : affichages', () => {
-  it('quatre boutons d’affichage, celui en cours enfoncé', () => {
-    const html = render('grid3');
-    for (const label of ['3 cartes par ligne', '2 cartes par ligne', '1 carte par ligne', 'Liste']) {
-      expect(html).toContain(`aria-label="${label}"`);
-    }
+  it('deux boutons d’affichage (refonte du 2026-11-11), celui en cours enfoncé', () => {
+    const html = render('grid2');
+    for (const label of ['Tuiles', 'Liste']) expect(html).toContain(`aria-label="${label}"`);
     expect(html.match(/aria-pressed="true" aria-label|aria-label="[^"]*" aria-pressed="true"/g)).toHaveLength(1);
-    expect(html).toMatch(/aria-label="3 cartes par ligne" aria-pressed="true"/);
+    expect(html).toMatch(/aria-label="Tuiles" aria-pressed="true"/);
   });
 
-  it('tuiles à 3, 2 ou 1 par ligne, avec illustration ; la colonne s’élargit avec le nombre de cartes par ligne', () => {
-    for (const [layout, columns] of [['grid3', 3], ['grid2', 2], ['grid1', 1]] as const) {
-      const html = render(layout);
-      expect(html).toContain(`--grimoire-cols:${columns}`);
-      expect(html).toContain('tile__art');
-      expect(html).not.toContain('tile--row');
-    }
-    expect(GRIMOIRE_DISPLAY.grid3.width).toBeGreaterThan(GRIMOIRE_DISPLAY.grid2.width);
-    expect(GRIMOIRE_DISPLAY.grid2.width).toBeGreaterThan(GRIMOIRE_DISPLAY.grid1.width);
+  it('tuiles illustrées, 2 par ligne', () => {
+    const html = render('grid2');
+    expect(html).toContain('--grimoire-cols:2');
+    expect(html).toContain('tile__art');
+    expect(html).not.toContain('tile--row');
+    expect(GRIMOIRE_DISPLAY.list.width).toBe(300);
   });
 
-  it('vue liste : une ligne par carte, sans illustration, mêmes cartes cliquables', () => {
+  it('vue liste : une ligne par carte avec sa vignette, mêmes cartes cliquables', () => {
     const list = render('list');
     const tiles = render('grid2');
     expect(list).toContain('grimoire--list');
     expect(list).not.toContain('tile__art');
+    expect(list.match(/class="tile__thumb"/g)).toHaveLength(tiles.match(/data-card=/g)!.length);
     expect(list.match(/data-card=/g)).toHaveLength(tiles.match(/data-card=/g)!.length);
     expect(list.match(/class="tile tile--\w+ tile--row/g)).toHaveLength(tiles.match(/data-card=/g)!.length);
+  });
+
+  it('vue liste : un sort ou un terrain injouable dit pourquoi, à la place de ses stats ; un monstre garde ses stats', () => {
+    const list = render('list');
+    const spells = list.split('grimoire__section--spell')[1]!.split('</section>')[0]!;
+    expect(spells).toMatch(/class="tile__note tile__reason">[^<]+</);
+    const monsters = list.split('grimoire__section--monster')[1]!.split('</section>')[0]!;
+    expect(monsters).not.toContain('tile__reason');
+    expect(monsters).toContain('tile__stats');
   });
 
   it('tuiles teintées selon le type de carte', () => {
