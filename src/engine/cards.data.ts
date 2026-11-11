@@ -879,7 +879,7 @@ export const CARD_DATA: CardSet = {
     id: 'dragonnet-temps',
     name: 'Dragonnet - Explorateur du temps',
     cost: 4,
-    atk: 4,
+    atk: 3,
     hp: 4,
     mobility: 5,
     range: 1,
@@ -1062,7 +1062,7 @@ export const CARD_DATA: CardSet = {
     kind: 'spell',
     id: 'appel-du-sang',
     name: 'Appel du sang - Vampire',
-    cost: 3,
+    cost: 4,
     ability: { targeting: { type: 'allies', archetype: 'vampire' }, effects: [{ type: 'addMobility', amount: 2 }] },
   },
   'sacrifice-sanguinaire': {
@@ -1106,7 +1106,7 @@ export const CARD_DATA: CardSet = {
     keywords: [],
     activated: [
       {
-        manaCost: 1,
+        manaCost: 2,
         targeting: { type: 'monster', side: 'ally', reach: { type: 'anywhere' } },
         effects: [{ type: 'teleport' }],
       },
@@ -1295,7 +1295,7 @@ export const CARD_DATA: CardSet = {
     kind: 'spell',
     id: 'charge',
     name: 'Charge',
-    cost: 1,
+    cost: 2,
     ability: {
       targeting: { type: 'monster', side: 'ally', reach: { type: 'anywhere' } },
       effects: [{ type: 'addMobility', amount: 2 }],
@@ -1305,7 +1305,7 @@ export const CARD_DATA: CardSet = {
     kind: 'spell',
     id: 'bourrasque',
     name: 'Bourrasque',
-    cost: 1,
+    cost: 2,
     ability: {
       targeting: { type: 'monster', side: 'enemy', reach: { type: 'anywhere' } },
       effects: [{ type: 'push', distance: 2, direction: 'chosen', chooseDistance: false }],
@@ -1427,7 +1427,7 @@ export const CARD_DATA: CardSet = {
     kind: 'spell',
     id: 'fatigue',
     name: 'Fatigue',
-    cost: 2,
+    cost: 3,
     ability: {
       targeting: { type: 'monster', side: 'enemy', reach: { type: 'anywhere' } },
       effects: [{ type: 'status', kind: 'slow', amount: 2, turns: 1 }],
@@ -1437,7 +1437,7 @@ export const CARD_DATA: CardSet = {
     kind: 'spell',
     id: 'carapace',
     name: 'Carapace',
-    cost: 2,
+    cost: 3,
     ability: {
       targeting: { type: 'monster', side: 'ally', reach: { type: 'anywhere' } },
       effects: [{ type: 'status', kind: 'carapace', turns: 0 }],
@@ -1454,14 +1454,14 @@ export const CARD_DATA: CardSet = {
     kind: 'spell',
     id: 'cure',
     name: 'Cure',
-    cost: 1,
+    cost: 2,
     ability: { targeting: { type: 'monster', side: 'ally', reach: { type: 'anywhere' } }, effects: [{ type: 'cleanse' }] },
   },
   repli: {
     kind: 'spell',
     id: 'repli',
     name: 'Repli',
-    cost: 1,
+    cost: 2,
     ability: {
       targeting: { type: 'monster', side: 'ally', reach: { type: 'anywhere' } },
       effects: [{ type: 'teleport', to: { type: 'summonCell' } }],

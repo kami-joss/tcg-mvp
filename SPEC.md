@@ -488,8 +488,8 @@ Les 20 cartes ci-dessous, plus les 5 premières cartes communes (§6 ter : Invoc
 | Carte | Coût | Effet |
 |---|---|---|
 | Boule de feu | 2 | Un ennemi dans un carré de 3 d'une de vos unités · 1 dégât |
-| Charge | 1 | Un allié · +2 mobilité (pour ce tour) |
-| Bourrasque | 1 | Un ennemi · recul 2, direction au choix |
+| Charge | 2 | Un allié · +2 mobilité (pour ce tour) |
+| Bourrasque | 2 | Un ennemi · recul 2, direction au choix |
 | Bénédiction | 1 | Un allié · +1 ATK +1 PV (définitivement) |
 
 ### Terrains (2)
@@ -641,7 +641,7 @@ Les 4 monstres sont de l'archétype Explorateur du temps. Ils ont tous « Retour
 |---|---|---|---|---|---|---|
 | Apprenti - Explorateur du temps | 2 | 2 | 4 | 4 | 1 | Actif (1 mana) · Retour vers le futur · retour |
 | Chronomancienne - Explorateur du temps | 4 | 3 | 3 | 7 | 1 | Actif (1 mana) · Retour vers le futur · retour ; Actif (1 mana) · Sablier du temps · piège une case libre, carré de 1 (3 tours adverses, un seul à la fois) · remonte 3 cases |
-| Dragonnet - Explorateur du temps | 4 | 4 | 4 | 5 | 1 | Actif (1 mana) · Retour vers le futur · retour ; Actif (3 mana) · Miroir de souvenirs · un ennemi dans un carré de 1 · stun pendant 1 tour · contre-coup : silence pendant 1 tour |
+| Dragonnet - Explorateur du temps | 4 | 3 | 4 | 5 | 1 | Actif (1 mana) · Retour vers le futur · retour ; Actif (3 mana) · Miroir de souvenirs · un ennemi dans un carré de 1 · stun pendant 1 tour · contre-coup : silence pendant 1 tour |
 | Maître du temps - Explorateur du temps | 7 | 5 | 5 | 7 | 1 | Actif (1 mana) · Retour vers le futur · retour ; Actif (2 mana) · Requiem · un ennemi dans un carré de 1 · requiem |
 
 Maître du temps : « Un ancien explorateur, qui s'est perdu entre les époques. Physiquement jeune, mais très vieux dans les faits. » (texte d'ambiance).
@@ -675,7 +675,7 @@ Forme d'Emma, hors grimoire (elle n'apparaît que par la transformation, §10) :
 
 | Carte | Coût | Effet |
 |---|---|---|
-| Appel du sang - Vampire | 3 | Tous les vampires alliés · +2 mobilité (pour ce tour) |
+| Appel du sang - Vampire | 4 | Tous les vampires alliés · +2 mobilité (pour ce tour) |
 | Sacrifice sanguinaire - Vampire | 1 | Un allié vampire · perd tous ses PV sauf 1 + +1 ATK par PV perdu (pour ce tour) |
 
 | Carte | Coût | PV | Effet |
@@ -693,7 +693,7 @@ Génériques (sans archétype), elles complètent les decks, chacun avec ses pro
 | Carte | Coût | ATK | PV | Mob. | Portée | Effet |
 |---|---|---|---|---|---|---|
 | Invocateur | 4 | 1 | 3 | 3 | 2 | Actif (1 mana) · une case libre, carré de 1 · invocation |
-| Téléporteur | 4 | 1 | 3 | 3 | 2 | Actif (1 mana) · un allié · téléportation sur une case libre, carré de 1 |
+| Téléporteur | 4 | 1 | 3 | 3 | 2 | Actif (2 mana) · un allié · téléportation sur une case libre, carré de 1 |
 
 | Carte | Coût | PV | Effet |
 |---|---|---|---|
@@ -706,11 +706,11 @@ Génériques (sans archétype), elles complètent les decks, chacun avec ses pro
 | Puissance | 2 | Un allié · +2 ATK (pour ce tour) |
 | Soin | 2 | Un allié · soin 5 |
 | Flash | 3 | Un allié · téléportation sur une case libre à 2 cases au plus de la cible, sans obstacle |
-| Fatigue | 2 | Un ennemi · slow 2 pendant 1 tour |
-| Carapace | 2 | Un allié · carapace jusqu'à son prochain tour |
+| Fatigue | 3 | Un ennemi · slow 2 pendant 1 tour |
+| Carapace | 3 | Un allié · carapace jusqu'à son prochain tour |
 | Élixir de mana | 0 | +1 mana |
-| Cure | 1 | Un allié · retire ses malus |
-| Repli | 1 | Un allié · téléportation sur une case d'invocation libre de son camp |
+| Cure | 2 | Un allié · retire ses malus |
+| Repli | 2 | Un allié · téléportation sur une case d'invocation libre de son camp |
 | Téléportation | 3 | Un allié · téléportation sur un de ses terrains sans monstre |
 | Réanimation | 5 | Un monstre de son cimetière · invoqué sur une case d'invocation libre de son camp, sans payer son coût |
 | Fortification | 3 | Un de ses terrains · carapace jusqu'à son prochain tour |
