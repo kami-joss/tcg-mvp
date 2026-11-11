@@ -29,6 +29,7 @@ import {
 import type { Board as BoardData, CardSet, Direction, MonsterCard, MonsterUnit, PlayerView, Position, Status, StatusKind, TerrainCard, TerrainUnit, Trap, Unit, UnitId } from '../engine';
 import { CARD_ART, boardArt, fitBackground, shortName, tokenFit } from './art';
 import { Icon } from './Icon';
+import { ZONE_ICONS } from './sheet';
 import { isExhausted, posKey } from './interaction';
 import { manaZoneAt } from './pixi/cellModel';
 import { PixiBoard } from './pixi/PixiBoard';
@@ -850,6 +851,11 @@ function BoardCell({
           {cell.summonZoneOf !== null && <span className="cell__summon">J{cell.summonZoneOf}</span>}
           {area}
           {zone && <span className="cell__glow" />}
+          {zone && !marks?.length && (
+            <span className="cell__zone-icon" aria-hidden="true">
+              <Icon name={ZONE_ICONS[zone]} />
+            </span>
+          )}
           {marks && <ZoneMarks marks={marks} />}
           {dim && <span className="layer layer--dim" />}
           {/* Zones (handoff « zones ») : halo, anneau de survol, puis contour violet du danger, de bas en haut. */}

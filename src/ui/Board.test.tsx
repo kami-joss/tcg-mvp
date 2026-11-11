@@ -120,6 +120,14 @@ describe('plateau PixiJS (15 × 15)', () => {
     expect(labels(render(contest, 'top', 1, undefined, at(6, 6)))).toEqual(['Forge']);
   });
 
+  it('vue de dessus : l’icône de chaque mana zone au centre de sa case, toujours ; en isométrique, dans le canvas', () => {
+    const plain = render(view, 'top');
+    const zones = plain.match(/cell--mana/g)?.length ?? 0;
+    expect(zones).toBeGreaterThan(0);
+    expect(plain.match(/cell__zone-icon/g)).toHaveLength(zones);
+    expect(render(view, 'iso')).not.toContain('cell__zone-icon');
+  });
+
   it('les unités sont dessinées dans le canvas : pas de jeton, de blason ni de flèche en HTML', () => {
     const units = getPlayerView(
       gameWith(

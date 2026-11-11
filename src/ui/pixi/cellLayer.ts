@@ -375,8 +375,8 @@ export class CellLayer {
     }
 
     // Mana zones (refonte du 2026-11-11). Au repos : une lueur dans le carré de la zone, la case centrale éclairée (elles
-    // respirent si les animations sont permises). La souris sur la zone : un trait fin au bord, les quatre coins, un
-    // cercle fin autour de la case centrale.
+    // respirent si les animations sont permises) et l'icône de la zone au centre. La souris sur la zone : un trait fin au
+    // bord, les quatre coins, un cercle fin autour de la case centrale.
     const textures = (this.manaTextures ??= { halo: radialTexture(pixi, 0.85), well: radialTexture(pixi, 0.9) });
     for (const v of cells) {
       const z = v.manaZone;
@@ -391,6 +391,20 @@ export class CellLayer {
         this.glows.push(halo, well);
         this.glowBase.push(halo.alpha, well.alpha);
       } else this.still.push(halo, well);
+      // L'icône de la zone, redressée dans une pastille sombre, sauf sous les marques d'un « Passage » ou d'une case brûlée.
+      if (v.marks.length === 0) {
+        const r = S * 0.27;
+        const badge = new pixi.Container();
+        const disc = new pixi.Graphics()
+          .circle(0, 0, r)
+          .fill({ color: cssColor('oklch(0.17 0.012 60)').color, alpha: 0.7 })
+          .circle(0, 0, r)
+          .stroke({ width: 1.5, ...cssColor(mix(z.color, 85)), alignment: 1 });
+        const icon = new pixi.Sprite({ texture: iconTexture(pixi, z.icon), anchor: 0.5, width: r * 1.3, height: r * 1.3 });
+        icon.tint = cssColor(mix(z.color, 45, 'white')).color;
+        badge.addChild(disc, icon);
+        place(badge, v.x + S / 2, v.y + S / 2, { scaled: true, under: true });
+      }
       if (!z.hovered) continue;
       const light = cssColor(mix(z.color, 55, 'white'));
       // Le bord passe au milieu de l'espace entre les cases.
