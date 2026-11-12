@@ -161,8 +161,8 @@ describe('cartes de l’atelier', () => {
     expect(new Set(listed).size).toBe(listed.length);
     for (const deck of DECKS) for (const id of deck.cards) expect(listed).toContain(id);
     expect(listed.indexOf('emma-chauve-souris')).toBe(listed.indexOf('emma') + 1);
-    // Les cartes communes à la fin, monstres, puis sorts, puis terrains.
-    const kinds = ['monster', 'spell', 'terrain'];
+    // Les cartes communes à la fin, monstres, puis sorts, puis terrains, puis balises.
+    const kinds = ['monster', 'spell', 'terrain', 'beacon'];
     const sorted = [...COMMON_CARDS].sort((a, b) => kinds.indexOf(CARDS[a].kind) - kinds.indexOf(CARDS[b].kind));
     expect(groups[groups.length - 1]).toEqual({ title: 'Cartes communes', cards: sorted });
   });

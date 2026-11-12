@@ -42,7 +42,7 @@ describe('aperçu d’attaque', () => {
     expect(preview(survives)).toMatchObject({ destroys: false, hpAfter: 5, canAdvance: false });
   });
 
-  it('statuts posés sur une cible qui survit (Givre), pas sur une cible détruite', () => {
+  it('statuts posés sur une cible qui survit (Entrave), pas sur une cible détruite', () => {
     const state = gameWith([
       { monster: 'archer-de-glace', owner: 1, at: at(5, 3) },
       { monster: 'golem', owner: 2, at: at(5, 5) },

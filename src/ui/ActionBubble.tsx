@@ -229,7 +229,7 @@ export function ActionBubble({ model, layoutKey, onPick, onBack, onClose, onHove
           <RowIcon row={row} iso={iso} />
           <span className="bubble__text">
             <span className="bubble__title">{row.title}</span>
-            <span className={`bubble__sub${!row.enabled && row.warn ? ' is-warn' : ''}`}>{row.subtitle}</span>
+            {row.subtitle && <span className={`bubble__sub${!row.enabled && row.warn ? ' is-warn' : ''}`}>{row.subtitle}</span>}
           </span>
           {row.cost !== null && (
             <span className="mana-pill mana-pill--row">

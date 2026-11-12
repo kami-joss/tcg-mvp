@@ -2,6 +2,8 @@
 // Tout part des actions légales de la vue : l'interface ne propose jamais une action que le moteur refuserait.
 import {
   attackDamage,
+  getAllyChains,
+  getAtk,
   getAreaCells,
   getCard,
   getMonsterCard,
@@ -84,7 +86,9 @@ function actionsOf<T extends Action['type']>(view: PlayerView, type: T): ActionO
   return view.legalActions.filter((action): action is ActionOf<T> => action.type === type);
 }
 
-const unitPos = (view: PlayerView, unitId: UnitId): Position | undefined => view.units[unitId]?.pos;
+/** Case d'une unité, ou d'une balise (Balise de vision : une cible d'attaque ou de sort, sans être une unité). */
+const unitPos = (view: PlayerView, unitId: UnitId): Position | undefined =>
+  view.units[unitId]?.pos ?? view.beacons.find((beacon) => beacon.id === unitId)?.pos;
 
 /**
  * Case visée par une cible d'effet ou de carte : la case elle-même (piège, invocation), celle du monstre ciblé
@@ -112,6 +116,11 @@ export function getSpellAllies(view: PlayerView, cardId: CardId): Position[] {
     return Object.values(view.units)
       .filter((u) => u.kind === 'monster' && u.owner !== view.viewer)
       .map((u) => u.pos);
+  }
+  if (targeting.type === 'allyChains') {
+    // Chaînes d'éclair : ses monstres et les cases des chaînes entre eux (toujours jouable, §10).
+    const mine = Object.values(view.units).filter((u) => u.kind === 'monster' && u.owner === view.viewer).map((u) => u.pos);
+    return [...mine, ...getAllyChains(view, view.viewer).flat()];
   }
   if (targeting.type === 'enemiesNearAllies') {
     const mine = Object.values(view.units).filter((u) => u.owner === view.viewer);
@@ -529,6 +538,12 @@ export function getAttackPreviews(view: PlayerView, selection: Selection): Map<s
   if (attacker?.kind !== 'monster') return previews;
   for (const action of actionsOf(view, 'attack')) {
     const target = view.units[action.targetId];
+    const beacon = target ? undefined : view.beacons.find((b) => b.id === action.targetId);
+    if (action.unitId === attacker.id && beacon && (selection.kind !== 'attack' || beacon.id === selection.targetId)) {
+      // Une balise : l'ATK du moment, sans bonus de dos.
+      previews.set(posKey(beacon.pos), { damage: getAtk(view, attacker), behind: false });
+      continue;
+    }
     if (action.unitId !== attacker.id || !target) continue;
     if (selection.kind === 'attack' && target.id !== selection.targetId) continue;
     const behind = hitsFromBehind(view.cards, attacker, target);

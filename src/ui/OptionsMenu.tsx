@@ -12,7 +12,7 @@ export const STAT_ROWS: readonly { key: keyof TokenStats; label: string; icon: I
   { key: 'mobility', label: 'Mobilité restante (mes monstres)', icon: 'walking-boot' },
   { key: 'enemyMobility', label: 'Mobilité (adversaire)', icon: 'walking-boot' },
   { key: 'atk', label: 'Attaque', icon: 'broadsword' },
-  { key: 'statuses', label: 'Statuts (brûlure, givre…)', icon: 'flame' },
+  { key: 'statuses', label: 'Statuts (burn, slow…)', icon: 'flame' },
 ];
 
 const VIEWS: [BoardView, string][] = [

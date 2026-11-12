@@ -548,6 +548,21 @@ export class CellLayer {
       place(pill(pixi, v.trap, { fontSize: S * 0.16 * TEXT_SCALE, family: 'sc', fill: 'transparent', color: CELL_COLORS.paper, padX: 0, padY: 0, radius: 0 }), cx, cy);
     }
 
+    // Balises (les deux joueurs, publiques) : un cercle à la couleur de son joueur, « Balise » et ses PV au sol.
+    for (const v of cells) {
+      if (!v.beacon) continue;
+      const s = TEXT_SCALE;
+      const [cx, cy] = [v.x + S / 2, v.y + S / 2];
+      const color = v.beacon.owner === 1 ? CELL_COLORS.j1 : CELL_COLORS.j2;
+      o.circle(cx, cy, S * 0.3).fill(cssColor('oklch(0.2 0.014 60 / 0.5)'));
+      o.circle(cx, cy, S * 0.3).stroke({ width: 3, ...cssColor(color) });
+      place(
+        pill(pixi, `Balise ${v.beacon.hp}`, { fontSize: S * 0.15 * s, family: 'sc', fill: color, color: 'white', ring: { css: 'white', width: 1.5 }, padX: 4 * s, padY: 1 * s, radius: 4 * s }),
+        cx,
+        v.trap ? cy + S * 0.2 : cy,
+      );
+    }
+
     // Attaque sur un terrain seul : cadre blanc cerné, dégâts annoncés.
     for (const v of cells) {
       if (!v.attack) continue;

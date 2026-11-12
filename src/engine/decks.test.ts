@@ -32,8 +32,8 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
   const deck = (id: string) => DECKS.find((d) => d.id === id)!;
   const count = (cards: readonly CardId[], id: CardId) => cards.filter((c) => c === id).length;
 
-  it('sept decks de 30 cartes (Classique, le deck d’essai : 25) ; plus de Bodybuilder (2026-11-10)', () => {
-    expect(DECKS.map((d) => d.id)).toEqual(['classique', 'archers', 'pieges', 'dragons', 'sorciers-du-feu', 'explorateur-du-temps', 'vampire']);
+  it('huit decks de 30 cartes (Classique, le deck d’essai : 25) ; plus de Bodybuilder (2026-11-10)', () => {
+    expect(DECKS.map((d) => d.id)).toEqual(['classique', 'archers', 'pieges', 'dragons', 'sorciers-du-feu', 'explorateur-du-temps', 'vampire', 'ingenieurs']);
     for (const d of DECKS) expect(d.cards, d.id).toHaveLength(d.id === 'classique' ? 25 : 30);
     expect(deck('classique').cards).toBe(TEST_GRIMOIRE);
     // Les cartes du Bodybuilder gardent leurs données, sans deck.
@@ -129,6 +129,19 @@ describe('decks pré-construits (SPEC.md §6 bis)', () => {
       teleportation: 3,
       flash: 1,
       puissance: 2,
+    });
+    // Ingénieurs foudroyants (donnée le 2026-11-12) : l'archétype ×3, puis des cartes de base et une commune.
+    expect(composition('ingenieurs')).toEqual({
+      archi: 3,
+      elek: 3,
+      blitz: 3,
+      joy: 3,
+      'champ-magnetique': 3,
+      'chaines-eclair': 3,
+      'onde-de-choc': 3,
+      bourrasque: 3,
+      charge: 3,
+      'zone-invocation': 3,
     });
     // La chauve-souris est une forme d'Emma : dans aucun deck.
     for (const d of DECKS) expect(d.cards, d.id).not.toContain('emma-chauve-souris');

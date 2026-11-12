@@ -52,13 +52,14 @@ export const GRIMOIRE_DISPLAY: Readonly<
   list: { icon: 'layout-list', label: 'Liste', columns: 1, width: 300 },
 };
 
-const KIND_ICONS: Readonly<Record<Card['kind'], IconName>> = { monster: 'dragon-head', spell: 'spell-book', terrain: 'castle' };
+const KIND_ICONS: Readonly<Record<Card['kind'], IconName>> = { monster: 'dragon-head', spell: 'spell-book', terrain: 'castle', beacon: 'eye' };
 
 /** Sections du grimoire, dans l'ordre d'affichage. */
 export const GRIMOIRE_SECTIONS: readonly { readonly kind: Card['kind']; readonly title: string }[] = [
   { kind: 'monster', title: 'Monstres' },
   { kind: 'spell', title: 'Sorts' },
   { kind: 'terrain', title: 'Terrains' },
+  { kind: 'beacon', title: 'Balises' },
 ];
 
 function tileStats(card: Card): [IconName, number][] {
@@ -71,6 +72,7 @@ function tileStats(card: Card): [IconName, number][] {
         ['high-shot', card.range],
       ];
     case 'terrain':
+    case 'beacon':
       return [['hearts', card.hp]];
     case 'spell':
       return [];

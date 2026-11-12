@@ -62,6 +62,7 @@ export function createGame(
     units: {},
     traps: [],
     burningCells: [],
+    beacons: [],
     nextUnitId: 1,
     winner: null,
     concession: null,

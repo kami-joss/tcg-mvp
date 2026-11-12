@@ -192,13 +192,17 @@ export const KEYWORD_RULES: Readonly<Record<Keyword, { readonly name: string; re
   trophee: { name: 'Trophée N', text: `Quand il détruit un monstre ${t('auContact', 'au contact')} : +N VP en plus.` },
   pillage: { name: 'Pillage N', text: `Quand il détruit un monstre ${t('auContact', 'au contact')} : +N mana.` },
   etendard: { name: 'Étendard N', text: 'La mana zone qu’il occupe rapporte +N mana, si son camp y a un terrain.' },
-  givre: { name: 'Givre N', text: `À l’attaque, inflige ${t('slow', 'slow')} N à sa cible pendant 1 tour (pas à un terrain).` },
+  entrave: { name: 'Entrave N', text: `À l’attaque, inflige ${t('slow', 'slow')} N à sa cible pendant 1 tour (pas à un terrain).` },
   brulure: { name: 'Brûlure N', text: `À l’attaque, inflige ${t('burn', 'burn')} N à sa cible pendant 1 tour.` },
   siege: { name: 'Siège ×N', text: 'Dégâts ×N contre un terrain.' },
   sournois: { name: 'Sournois +N', text: `En attaquant un monstre ${t('parDerriere', 'par derrière')} : +N ATK pour cette attaque.` },
   assassin: { name: 'Attaque par surprise ×N', text: `En attaquant un monstre ${t('parDerriere', 'par derrière')} : dégâts ×N.` },
   camouflage: { name: 'Camouflage', text: `Caché à l’adversaire tant qu’aucun de ses monstres ni terrains n’est dans un ${t('carre', 'carré de 2')}.` },
   soif: { name: 'Soif N', text: 'En attaquant un monstre (pas un terrain), il récupère N PV, sans dépasser ses PV max.' },
+  statik: {
+    name: 'Statik N',
+    text: 'En attaquant un monstre, ses dégâts se propagent de proche en proche aux ennemis autour de la cible (chacun dans un carré de 1 du précédent), N de moins à chaque saut, jamais moins de 1. Dégâts d’effet : pas de riposte, un monstre détruit rapporte son VP.',
+  },
 };
 
 /** Statuts (SPEC.md §5 bis), malus puis bonus : leur définition est celle du lexique des cartes. */
@@ -210,10 +214,26 @@ export const STATUS_TERMS: readonly { readonly title: string; readonly terms: re
 /** Les autres mots du lexique, groupés : zones et distances, mouvements, effets. */
 export const LEXICON_TERMS: readonly { readonly title: string; readonly terms: readonly GlossaryTerm[] }[] = [
   { title: 'Zones et distances', terms: ['carre', 'adjacent', 'auContact', 'enLigne', 'pas', 'parDerriere'] },
-  { title: 'Mouvements', terms: ['deplacement', 'entrer', 'teleporter', 'repousser', 'chemin', 'transformer'] },
+  { title: 'Mouvements', terms: ['deplacement', 'entrer', 'teleporter', 'repousser', 'attirer', 'chemin', 'transformer'] },
   {
     title: 'Effets',
-    terms: ['invoquer', 'caseInvocation', 'cimetiere', 'sacrifier', 'absorber', 'piege', 'caseBrulee', 'passage', 'zone', 'arme', 'contreCoup'],
+    terms: [
+      'invoquer',
+      'caseInvocation',
+      'cimetiere',
+      'sacrifier',
+      'absorber',
+      'piege',
+      'piegeElectrique',
+      'chaine',
+      'balise',
+      'caseBrulee',
+      'passage',
+      'zone',
+      'debutTourAdverse',
+      'arme',
+      'contreCoup',
+    ],
   },
 ];
 

@@ -2,7 +2,7 @@
 // règles que `BoardCell` en vue isométrique (jetons debout : une cible posée sur un monstre est dessinée sur son jeton,
 // pas sur la case). Pur et testé ; les couleurs sont celles de game.css (variables `:root`, plateau peint).
 import { MANA_ZONE_NAMES, allPositions, getCell, getUnitsAt, getViewZoneStatus, samePos } from '../../engine';
-import type { PlayerView, Position, UnitId } from '../../engine';
+import type { PlayerId, PlayerView, Position, UnitId } from '../../engine';
 import { trapLabel } from '../cardText';
 import type { IconName } from '../Icon';
 import type { AttackPreview, Highlight, ZoneView } from '../interaction';
@@ -78,6 +78,8 @@ export interface CellVisual {
   readonly target: boolean;
   /** Piège visible (le sien), sous un monstre absent. */
   readonly trap: string | null;
+  /** Balise posée (Balise de vision, publique), sous un monstre absent : son joueur et ses PV. */
+  readonly beacon: { readonly owner: PlayerId; readonly hp: number } | null;
   /** Cible d'attaque posée sur la case (un terrain seul) : son cadre, et les dégâts annoncés. */
   readonly attack: { readonly damage: string | null } | null;
 }
@@ -196,6 +198,7 @@ export function cellVisuals(inputs: CellInputs): CellVisual[] {
         effect: false,
         target: false,
         trap: null,
+        beacon: null,
         attack: null,
       });
       continue;
@@ -213,6 +216,7 @@ export function cellVisuals(inputs: CellInputs): CellVisual[] {
     const reach = zones.moves.has(key) ? 'move' : zones.targets.has(key) ? 'target' : zones.attacks.has(key) ? 'attack' : null;
     const selected = (id: UnitId | undefined) => id !== undefined && id === selectedUnitId;
     const trap = view.traps.find((t) => samePos(t.pos, pos));
+    const beacon = view.beacons.find((b) => samePos(b.pos, pos));
     // Jetons debout : une cible ou une attaque sur un monstre se dessine sur son jeton.
     const onToken = monster !== undefined;
     out.push({
@@ -245,6 +249,7 @@ export function cellVisuals(inputs: CellInputs): CellVisual[] {
       effect: highlight === 'effect',
       target: highlight === 'target' && !onToken,
       trap: trap && !monster ? trapLabel(trap) : null,
+      beacon: beacon && !monster ? { owner: beacon.owner, hp: beacon.hp } : null,
       attack: (highlight === 'attack' || attack) && !onToken ? { damage: attack ? `−${attack.damage}${attack.behind ? ' dos' : ''}` : null } : null,
     });
   }

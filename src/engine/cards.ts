@@ -73,6 +73,7 @@ export const COMMON_CARDS: readonly CardId[] = [
   'teleportation',
   'reanimation',
   'fortification',
+  'balise-de-vision',
 ];
 
 /** Les 5 premières cartes communes en 1 exemplaire : celles du deck Classique. */
@@ -207,6 +208,22 @@ export const DECKS: readonly Deck[] = [
       ['carapace', 3],
       ['flash', 1],
       ['puissance', 2],
+    ]),
+  },
+  {
+    id: 'ingenieurs',
+    name: 'Ingénieurs foudroyants',
+    cards: expand([
+      ['archi', 3],
+      ['elek', 3],
+      ['blitz', 3],
+      ['joy', 3],
+      ['champ-magnetique', 3],
+      ['chaines-eclair', 3],
+      ['onde-de-choc', 3],
+      ['bourrasque', 3],
+      ['charge', 3],
+      ['zone-invocation', 3],
     ]),
   },
 ];

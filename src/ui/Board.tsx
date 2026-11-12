@@ -26,7 +26,7 @@ import {
   requiemCountdown,
   samePos,
 } from '../engine';
-import type { Board as BoardData, CardSet, Direction, MonsterCard, MonsterUnit, PlayerView, Position, Status, StatusKind, TerrainCard, TerrainUnit, Trap, Unit, UnitId } from '../engine';
+import type { Beacon, Board as BoardData, CardSet, Direction, MonsterCard, MonsterUnit, PlayerView, Position, Status, StatusKind, TerrainCard, TerrainUnit, Trap, Unit, UnitId } from '../engine';
 import { CARD_ART, boardArt, fitBackground, shortName, tokenFit } from './art';
 import { Icon } from './Icon';
 import { ZONE_ICONS } from './sheet';
@@ -808,6 +808,7 @@ function BoardCell({
   const highlight = highlights.get(key);
   const attack = attacks.get(key);
   const trap = view.traps.find((t) => samePos(t.pos, pos));
+  const beacon = view.beacons.find((b) => samePos(b.pos, pos));
   const isSelected = (unit: Unit | undefined) => unit !== undefined && unit.id === selectedUnitId;
   const reachKind = zones.moves.has(key) ? 'move' : zones.targets.has(key) ? 'target' : zones.attacks.has(key) ? 'attack' : null;
   const danger = zones.danger.get(key);
@@ -874,6 +875,7 @@ function BoardCell({
           {highlight === 'effect' && <span className="layer hl-effect" />}
           {highlight === 'target' && !onToken && <span className="layer hl-target">{!monster && '+'}</span>}
           {trap && !monster && <TrapMarker trap={trap} />}
+          {beacon && !monster && <BeaconMarker beacon={beacon} />}
         </>
       )}
       {/* Plateau PixiJS : les unités, leurs ombres et la flèche d'orientation sont dans le canvas. */}
@@ -1242,6 +1244,15 @@ function statusTitle(status: Status, amount: number): string {
   }
   const shown = 'amount' in status && status.kind !== 'stat' ? { ...status, amount } : status;
   return `${statusLabel(shown)} : ${statusEffect(shown)}`;
+}
+
+/** Une balise (Balise de vision) : publique, à la couleur de son joueur, avec ses PV. */
+function BeaconMarker({ beacon }: { beacon: Beacon }) {
+  return (
+    <span className={`beacon beacon--p${beacon.owner}`}>
+      <span>Balise {beacon.hp}</span>
+    </span>
+  );
 }
 
 /** Un de ses propres pièges : l'adversaire ne le voit pas. */

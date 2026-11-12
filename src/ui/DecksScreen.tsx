@@ -16,7 +16,7 @@ import { loadSettings, prefersReducedMotion } from './settings';
 import { cardSheetOf } from './sheet';
 import type { SheetData } from './sheet';
 
-const KIND_ICONS: Readonly<Record<Card['kind'], IconName>> = { monster: 'dragon-head', spell: 'spell-book', terrain: 'castle' };
+const KIND_ICONS: Readonly<Record<Card['kind'], IconName>> = { monster: 'dragon-head', spell: 'spell-book', terrain: 'castle', beacon: 'eye' };
 
 interface DecksScreenProps {
   initial: Deck;

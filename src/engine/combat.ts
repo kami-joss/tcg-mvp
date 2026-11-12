@@ -4,13 +4,14 @@ import { getMonsterCard } from './cards';
 import { dealDamage } from './damage';
 import { IllegalActionError } from './errors';
 import { emit } from './events';
-import { addMana, addVp } from './players';
+import { addMana, addVp, opponent as opponentOf } from './players';
 import { addStatus, canMove, isStunned } from './statuses';
 import { perceived, reveal } from './stealth';
 import { enterCell } from './traps';
 import { applyTriggeredEffects } from './effects';
+import { damageBeacon, getBeacon, getBeaconAt, getBeacons } from './beacons';
 import { canAttack, getActiveMonster, getAtk, getKeyword, getMonsters, getRange, getUnitsAt, hasKeyword, setUnit } from './units';
-import type { Action, BoardState, CardSet, GameState, MonsterUnit, PlayerId, Position, StatusSpec, Unit, UnitId } from './types';
+import type { Action, Beacon, BoardState, CardSet, GameState, MonsterUnit, PlayerId, Position, StatusSpec, Unit, UnitId } from './types';
 
 type AttackAction = Extract<Action, { type: 'attack' }>;
 
@@ -148,6 +149,23 @@ export function getAttackTargets(state: GameState, attacker: MonsterUnit): Unit[
   });
 }
 
+/**
+ * Balises ennemies que `attacker` peut attaquer ce tour (Balise de vision, §10) : sur une case qu'il pourrait frapper
+ * (ligne droite avec ligne de vue, ou diagonale), seules sur leur case (aucune unité qu'il voit), comme un terrain seul.
+ */
+export function getBeaconTargets(state: Pick<GameState, 'board' | 'units' | 'cards' | 'beacons'>, attacker: MonsterUnit): Beacon[] {
+  if (!canAttack(state, attacker)) return [];
+  const cells = getStrikeCells(state, attacker.pos, getRange(state, attacker), attacker.owner);
+  const noContact = getMonsterCard(state.cards, attacker.cardId).noContact === true;
+  return getBeacons(state).filter(
+    (beacon) =>
+      beacon.owner !== attacker.owner &&
+      cells.some((pos) => samePos(pos, beacon.pos)) &&
+      getUnitsAt(state, beacon.pos).length === 0 &&
+      !(noContact && distance(attacker.pos, beacon.pos) === 1),
+  );
+}
+
 /** L'attaque profite d'un bonus « par derrière » (`assassin`, `sournois`) : la cible est un monstre pris de dos. */
 export function hitsFromBehind(cards: CardSet, attacker: MonsterUnit, target: Unit): boolean {
   return (
@@ -210,7 +228,7 @@ export interface AttackPreview {
   readonly hpBefore: number;
   readonly hpAfter: number;
   readonly destroys: boolean;
-  /** Statuts posés si elle survit (`brulure`, `givre`). */
+  /** Statuts posés si elle survit (`brulure`, `entrave`). */
   readonly statuses: readonly StatusSpec[];
   /** PV que l'attaquant récupère avec `soif` (0 sans, ou s'il a tous ses PV). */
   readonly heal: number;
@@ -231,10 +249,10 @@ export function previewAttack(state: BoardState, attacker: MonsterUnit, target: 
   const destroys = hpAfter === 0;
   const statuses: StatusSpec[] = [];
   const brulure = getKeyword(state.cards, attacker, 'brulure');
-  const givre = getKeyword(state.cards, attacker, 'givre');
+  const entrave = getKeyword(state.cards, attacker, 'entrave');
   if (!destroys && target.kind === 'monster') {
     if (brulure) statuses.push({ kind: 'burn', amount: brulure.amount, turns: brulure.turns });
-    if (givre) statuses.push({ kind: 'slow', amount: givre.amount, turns: givre.turns });
+    if (entrave) statuses.push({ kind: 'slow', amount: entrave.amount, turns: entrave.turns });
   }
   const ripostes =
     !destroys &&
@@ -271,6 +289,8 @@ export function getAttackActions(state: GameState): Action[] {
           ]
         : [{ ...attack, advance: false }];
     }),
+    // Une balise ennemie seule sur sa case (§10) : sans avancée (on peut marcher dessus).
+    ...getBeaconTargets(state, attacker).map((beacon): Action => ({ type: 'attack', unitId: attacker.id, targetId: beacon.id, advance: false })),
     ...getAttackCells(state, attacker).map((pos): Action => ({ type: 'attackCell', unitId: attacker.id, pos })),
   ]);
 }
@@ -280,12 +300,16 @@ export function getAttackActions(state: GameState): Action[] {
  * en ligne droite avec ligne de vue, ou en diagonale — sans aucune unité (d'après ce que voit son joueur). Rien sans
  * éclats armés ni attaque restante.
  */
-export function getAttackCells(state: BoardState, attacker: MonsterUnit): Position[] {
+export function getAttackCells(state: Pick<GameState, 'board' | 'units' | 'cards' | 'beacons'>, attacker: MonsterUnit): Position[] {
   if (!attacker.armed || attacker.armed.splash <= 0 || !canAttack(state, attacker)) return [];
   const range = getRange(state, attacker);
   const noContact = getMonsterCard(state.cards, attacker.cardId).noContact === true;
+  // Une case où est une balise ennemie n'est pas vide : on attaque la balise (§10).
   return getStrikeCells(state, attacker.pos, range, attacker.owner).filter(
-    (pos) => getUnitsAt(state, pos).length === 0 && !(noContact && distance(attacker.pos, pos) === 1),
+    (pos) =>
+      getUnitsAt(state, pos).length === 0 &&
+      getBeaconAt(state, pos)?.owner !== opponentOf(attacker.owner) &&
+      !(noContact && distance(attacker.pos, pos) === 1),
   );
 }
 
@@ -320,12 +344,43 @@ export function applyAttack(state: GameState, action: AttackAction): GameState {
   const attacker = getActiveMonster(state, action.unitId);
   if (!canAttack(state, attacker)) throw new IllegalActionError(`${attacker.id} ne peut plus attaquer ce tour`);
   const seen = perceived(state);
+  const beacon = getBeacon(state, action.targetId);
+  if (beacon) {
+    if (action.advance || !getBeaconTargets(seen, attacker).some((b) => b.id === beacon.id)) {
+      throw new IllegalActionError(`${attacker.id} ne peut pas attaquer la balise ${beacon.id}`);
+    }
+    return strikeBeacon(state, attacker, beacon);
+  }
   const target = getAttackTargets(seen, attacker).find((t) => t.id === action.targetId);
   if (!target) throw new IllegalActionError(`${attacker.id} ne peut pas attaquer ${action.targetId}`);
   if (action.advance && !canAdvance(seen, attacker, target)) {
     throw new IllegalActionError(`Avancée impossible pour ${attacker.id} sur ${target.id}`);
   }
   return strike(state, attacker, target, action.advance);
+}
+
+/**
+ * L'attaque de `attacker` sur une balise ennemie (§10), déjà validée : ses dégâts (ATK du moment), sans riposte, ni VP, ni
+ * mot-clé contre un monstre ; armé d'éclats, les éclats touchent les ennemis autour. Un monstre invisible sur la ligne
+ * arrête le tir ; un monstre adverse caché sur la case de la balise est attaqué à sa place, et il se révèle.
+ */
+function strikeBeacon(state: GameState, attacker: MonsterUnit, beacon: Beacon): GameState {
+  const blocker = getShotBlocker(state, attacker.pos, beacon.pos, attacker.owner);
+  const hidden = getUnitsAt(state, beacon.pos).find((unit) => unit.kind === 'monster' && unit.owner !== attacker.owner);
+  if (hidden && !blocker) {
+    const revealed = reveal(state, hidden.id);
+    return strike(revealed, attacker, revealed.units[hidden.id]!, false);
+  }
+  const { armed, ...unarmed } = attacker;
+  const attacked: MonsterUnit = { ...unarmed, hasAttacked: true, attacksMade: attacker.attacksMade + 1 };
+  if (blocker) {
+    const shot = emit(state, { type: 'shotBlocked', unitId: attacker.id, from: attacker.pos, pos: blocker.pos });
+    return reveal(setUnit(shot, attacked), blocker.id);
+  }
+  const declared = emit(state, { type: 'attack', unitId: attacker.id, targetId: beacon.id, from: attacker.pos, to: beacon.pos, behind: false });
+  let next = damageBeacon(setUnit(declared, attacked), beacon.id, getAtk(state, attacker));
+  if (armed && armed.splash > 0) next = splashDamage(next, attacker, beacon.pos, null, armed.splash);
+  return next;
 }
 
 /** L'attaque de `attacker` sur `target`, déjà validée ; `advance` : prendre sa case s'il la détruit au contact. */
@@ -354,6 +409,9 @@ function strike(state: GameState, attacker: MonsterUnit, target: Unit, advance: 
   let next = dealDamage(setUnit(declared, attacked), target.id, rawAttackDamage(state, attacker, target), attacker.owner, 'attack');
   // Armé (Flèche explosive) : 1 dégât aux ennemis du carré de 1 de la cible, cible exclue, que celle-ci survive ou non.
   if (armed && armed.splash > 0) next = splashDamage(next, attacker, target.pos, target.id, armed.splash);
+  // Statik (Elek) : contre un monstre, ses dégâts se propagent aux ennemis reliés à la cible, même détruite (§10).
+  const statik = target.kind === 'monster' ? getKeyword(state.cards, attacker, 'statik') : undefined;
+  if (statik) next = statikDamage(next, attacker, target, rawAttackDamage(state, attacker, target), statik.amount);
   // Soif (Vampire) : il récupère ses PV après les dégâts, avant la riposte et l'avancée, même si la cible est détruite ;
   // seulement contre un monstre, pas un terrain (2026-11-10, §10).
   const soif = target.kind === 'monster' ? getKeyword(state.cards, attacker, 'soif') : undefined;
@@ -378,11 +436,11 @@ function strike(state: GameState, attacker: MonsterUnit, target: Unit, advance: 
   }
 
   // La cible survit : marques de l'attaquant, puis riposte éventuelle.
-  // Statuts posés par l'attaque (« à l'attaque », §5.6) : burn pour Brûlure, slow pour Givre.
+  // Statuts posés par l'attaque (« à l'attaque », §5.6) : burn pour Brûlure, slow pour Entrave.
   const brulure = getKeyword(state.cards, attacker, 'brulure');
   if (brulure) next = addStatus(next, target.id, { kind: 'burn', amount: brulure.amount, turns: brulure.turns });
-  const givre = getKeyword(state.cards, attacker, 'givre');
-  if (givre) next = addStatus(next, target.id, { kind: 'slow', amount: givre.amount, turns: givre.turns });
+  const entrave = getKeyword(state.cards, attacker, 'entrave');
+  if (entrave) next = addStatus(next, target.id, { kind: 'slow', amount: entrave.amount, turns: entrave.turns });
   const defender = next.units[target.id];
   if (
     defender?.kind === 'monster' &&
@@ -409,6 +467,47 @@ function splashDamage(state: GameState, attacker: MonsterUnit, center: Position,
     (unit) => unit.kind === 'monster' && unit.owner !== attacker.owner && unit.id !== exclude && isInSquare(state.board, center, unit.pos),
   );
   return hit.reduce((next, unit) => (next.units[unit.id] ? dealDamage(next, unit.id, amount, attacker.owner, 'effect') : next), state);
+}
+
+/**
+ * Les ennemis reliés à `origin` par Statik, avec leur rang dans la chaîne : de proche en proche, chacun dans le carré de 1
+ * (falaises et cases X comprises) d'un ennemi du rang d'avant ; chacun une fois, à son rang le plus court. Invisibles
+ * compris : être caché ne protège de rien (§5.3).
+ */
+export function getStatikChain(
+  state: BoardState,
+  owner: PlayerId,
+  origin: Unit,
+): { readonly unitId: UnitId; readonly link: number; readonly from: Unit }[] {
+  const enemies = Object.values(state.units).filter((unit) => unit.kind === 'monster' && unit.owner !== owner && unit.id !== origin.id);
+  const reached: { unitId: UnitId; link: number; from: Unit }[] = [];
+  let frontier: Unit[] = [origin];
+  for (let link = 1; frontier.length > 0; link++) {
+    const found = enemies.flatMap((enemy) => {
+      if (reached.some((r) => r.unitId === enemy.id)) return [];
+      // L'ennemi d'avant qui le relie : le premier du rang d'avant dans son carré de 1.
+      const from = frontier.find((unit) => isInSquare(state.board, unit.pos, enemy.pos));
+      return from ? [{ unitId: enemy.id, link, from }] : [];
+    });
+    reached.push(...found);
+    frontier = found.map((r) => state.units[r.unitId]!);
+  }
+  return reached;
+}
+
+/**
+ * Statik N (Elek, §10) : chaque ennemi relié à la cible subit les dégâts de l'attaque moins N par maillon, jamais moins de
+ * 1 ; dégâts d'effet (ni riposte, ni mot-clé d'attaque), un monstre détruit rapporte son VP.
+ */
+function statikDamage(state: GameState, attacker: MonsterUnit, origin: Unit, damage: number, step: number): GameState {
+  const chain = getStatikChain(state, attacker.owner, origin);
+  if (chain.length === 0) return state;
+  // L'animation : un arc de chaque ennemi à celui qu'il relie.
+  const arcs = chain.map(({ unitId, from }) => ({ from: from.pos, to: state.units[unitId]!.pos, fromId: from.id, toId: unitId }));
+  return chain.reduce(
+    (next, { unitId, link }) => (next.units[unitId] ? dealDamage(next, unitId, Math.max(1, damage - step * link), attacker.owner, 'effect') : next),
+    emit(state, { type: 'arcs', cardId: attacker.cardId, arcs }),
+  );
 }
 
 /** PV que l'attaquant récupérera avec `soif`, sans dépasser ses PV max. */

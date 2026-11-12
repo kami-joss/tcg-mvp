@@ -26,6 +26,7 @@ export type SoundName =
   | 'trapSet'
   | 'charge'
   | 'gust'
+  | 'zap'
   | 'blocked'
   | 'mana'
   | 'vp'
@@ -141,6 +142,13 @@ export const RECIPES: Readonly<Record<SoundName, (k: SynthKit, t: number) => voi
   gust: (k, t) => {
     k.noise(t, 0.9, 0.5, 'bandpass', 350, 1400, 1, 0.3);
     k.noise(t + 0.1, 0.7, 0.2, 'bandpass', 900, 2600, 3, 0.25);
+  },
+  /** Éclair (Ingénieurs foudroyants) : un grésillement aigu, des craquements et un bourdonnement qui retombe. */
+  zap: (k, t) => {
+    k.crackle(t, 0.28, 10, 0.16);
+    k.noise(t, 0.24, 0.26, 'highpass', 2600, 6200, 1, 0.004);
+    k.tone(t, 240, 110, 0.2, 0.1, 'square', 0.004);
+    k.tone(t + 0.03, 1900, 520, 0.14, 0.05, 'sawtooth', 0.004);
   },
   blocked: (k, t) => k.tone(t, 160, 120, 0.12, 0.25, 'square'),
   mana: (k, t) => {

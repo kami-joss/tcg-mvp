@@ -11,6 +11,7 @@ import { perceived, perceivedBy, reveal } from './stealth';
 import { NEW_MOVEMENT, enterCell, rewindMonster } from './traps';
 import { getCard, getMonsterCard } from './cards';
 import { getFreeSummonCells, payCard, placeSummonedMonster } from './summon';
+import { damageBeacon, enemyBeaconsOn, getBeacon, getBeacons } from './beacons';
 import { addUnit, canAttack, createMonsterUnit, getMonsterAt, getMonsters, getUnitsAt, removeUnit, setUnit } from './units';
 import type {
   EffectSource,
@@ -106,6 +107,56 @@ export function getPushDestination(
   return pos;
 }
 
+/**
+ * Case d'arrivée d'un monstre attiré par `puller` (Blitz, §10) : il glisse vers lui en ligne droite jusqu'au contact, en
+ * s'arrêtant avant le premier obstacle, comme un recul vers la source.
+ */
+export function getPullDestination(state: BoardState, puller: MonsterUnit, monster: MonsterUnit): Position {
+  if (monster.pos.row !== puller.pos.row && monster.pos.col !== puller.pos.col) return monster.pos;
+  return getPushDestination(state, monster, lineDirection(monster.pos, puller.pos), distance(monster.pos, puller.pos) - 1);
+}
+
+/** Direction de `from` vers `to`, alignés en ligne droite orthogonale (pas forcément voisins). */
+function lineDirection(from: Position, to: Position): Direction {
+  if (from.row === to.row) return to.col > from.col ? 'right' : 'left';
+  return to.row > from.row ? 'down' : 'up';
+}
+
+/**
+ * Chaînes d'éclair (§10) : les cases des chaînes entre les monstres de `player`, une liste par chaîne. Une chaîne relie
+ * deux de ses monstres en ligne droite orthogonale, sans autre de ses monstres entre eux, ni case X ni falaise ; elle
+ * passe sur les autres unités.
+ */
+export function getAllyChains(state: BoardState, player: PlayerId): Position[][] {
+  return getAllyChainLinks(state, player).map((link) => link.cells);
+}
+
+/** Les chaînes entre les monstres de `player` (Chaînes d'éclair) : leurs deux monstres et les cases entre eux. */
+export function getAllyChainLinks(state: BoardState, player: PlayerId): { from: MonsterUnit; to: MonsterUnit; cells: Position[] }[] {
+  const own = getMonsters(state, player);
+  const links: { from: MonsterUnit; to: MonsterUnit; cells: Position[] }[] = [];
+  for (const from of own) {
+    // Vers la droite et vers le bas seulement : chaque chaîne une fois.
+    for (const direction of ['right', 'down'] as const) {
+      const step = DIRECTION_OFFSETS[direction];
+      const cells: Position[] = [];
+      let previous = from.pos;
+      for (;;) {
+        const pos = { row: previous.row + step.row, col: previous.col + step.col };
+        if (!isPlayable(state.board, pos) || hasCliff(state.board, previous, pos)) break;
+        const to = own.find((m) => samePos(m.pos, pos));
+        if (to) {
+          links.push({ from, to, cells });
+          break;
+        }
+        cells.push(pos);
+        previous = pos;
+      }
+    }
+  }
+  return links;
+}
+
 /** Longueur de la zone `line3`. */
 const LINE_LENGTH = 3;
 
@@ -180,6 +231,44 @@ function nearOwnUnitCells(state: BoardState, player: PlayerId, square: number): 
 }
 
 /** Case libre : jouable, sans aucune unité. */
+/** Un sort qui inflige des dégâts : il touche aussi les balises ennemies seules sur leur case (§10). */
+const hitsBeacons = (effects: readonly Effect[], source: MonsterUnit | null) => source === null && effects.some((effect) => effect.type === 'damage');
+
+/**
+ * Balises ennemies qu'un sort de dégâts peut viser à la place d'un monstre ennemi (Balise de vision, §10) : seules sur leur
+ * case, à la portée du sort (n'importe où, ou près d'un de ses monstres ou unités).
+ */
+function getTargetableBeacons(state: GameState, targeting: Extract<Targeting, { type: 'monster' }>, player: PlayerId): EffectTarget[] {
+  if (targeting.side !== 'enemy' || targeting.archetype) return [];
+  const { reach } = targeting;
+  const own = getMonsters(state, player);
+  const near =
+    reach.type === 'nearOwnUnit'
+      ? nearOwnUnitCells(state, player, reach.square)
+      : null;
+  return getBeacons(state)
+    .filter((beacon) => beacon.owner !== player && getUnitsAt(state, beacon.pos).length === 0)
+    .filter((beacon) => {
+      switch (reach.type) {
+        case 'anywhere':
+          return true;
+        case 'nearOwnUnit':
+          return near!.has(`${beacon.pos.row},${beacon.pos.col}`);
+        case 'nearOwnMonster':
+          return own.some((o) => distance(o.pos, beacon.pos) <= reach.steps);
+        case 'square1':
+        case 'line':
+          return false; // portée mesurée depuis un monstre source : jamais celle d'un sort
+      }
+    })
+    .map((beacon): EffectTarget => ({ kind: 'unit', unitId: beacon.id }));
+}
+
+/** Les effets de dégâts d'un sort sur une balise (ses autres effets ne la touchent pas). */
+function damageBeaconBy(state: GameState, effects: readonly Effect[], beaconId: UnitId): GameState {
+  return effects.reduce((next, effect) => (effect.type === 'damage' ? damageBeacon(next, beaconId, effect.amount) : next), state);
+}
+
 const isFreeCell = (state: BoardState, pos: Position) => isPlayable(state.board, pos) && getUnitsAt(state, pos).length === 0;
 
 /**
@@ -339,6 +428,9 @@ export function getEffectTargets(
       const cards = getGraveyardMonsters(state, player);
       return getFreeSummonCells(state, player).flatMap((pos) => cards.map((cardId): EffectTarget => ({ kind: 'cellAndCard', pos, cardId })));
     }
+    case 'allyChains':
+      // Chaînes d'éclair : toujours jouable, pour toucher les ennemis que le lanceur ne voit pas (§10).
+      return [{ kind: 'all' }];
     case 'none':
       // Pour le joueur : un gain de mana n'est jouable que s'il lui reste de la place sous la limite.
       if (effects.some((effect) => effect.type === 'gainMana') && state.players[player].mana >= getManaLimit(state)) return [];
@@ -385,8 +477,18 @@ export function getEffectTargets(
           .filter((m) => m.id !== source?.id)
           .flatMap((m) => getTeleportDestinations(state, teleport.to, m, source).map((pos): EffectTarget => ({ kind: 'unitAndCell', unitId: m.id, pos })));
       }
+      // Attire (Blitz) : seulement un monstre qui se rapproche d'au moins une case, comme un recul (§10).
+      if (effects.some((effect) => effect.type === 'pull')) {
+        const puller = requireSource(source);
+        return monsters
+          .filter((m) => !samePos(getPullDestination(state, puller, m), m.pos))
+          .map((m): EffectTarget => ({ kind: 'unit', unitId: m.id }));
+      }
       const push = findPush(effects);
-      if (push?.direction !== 'chosen') return monsters.map((m): EffectTarget => ({ kind: 'unit', unitId: m.id }));
+      if (push?.direction !== 'chosen') {
+        const beacons = hitsBeacons(effects, source) ? getTargetableBeacons(state, targeting, player) : [];
+        return [...monsters.map((m): EffectTarget => ({ kind: 'unit', unitId: m.id })), ...beacons];
+      }
       // Seulement dans une direction où le monstre recule d'au moins une case (§10).
       return monsters.flatMap((m) =>
         DIRECTIONS.filter((d) => !samePos(getPushDestination(state, m, d, push.distance), m.pos)).map(
@@ -434,6 +536,8 @@ export function getEffectReach(state: BoardState, ability: Ability, player: Play
           .map((unit) => unit.pos);
       case 'graveyard':
         return getFreeSummonCells(state, player);
+      case 'allyChains':
+        return getAllyChains(state, player).flat();
       case 'none':
         return [];
       case 'monster': {
@@ -534,11 +638,18 @@ export function resolveAbility(
           effects: effect.effects,
           cardId: poster.cardId,
           sourceId: poster.id,
-          // Jusqu'au prochain tour de son poseur, ou au N-ième prochain (tours adverses, §10).
-          expiresAtTurn: state.turn + 2 * (effect.turns ?? 1),
+          // Jusqu'au prochain tour de son poseur, ou au N-ième prochain (tours adverses, §10) ; un piège électrique reste.
+          expiresAtTurn: effect.chain !== undefined ? null : state.turn + 2 * (effect.turns ?? 1),
+          ...(effect.chain !== undefined ? { chain: effect.chain } : {}),
         };
         // « Un seul à la fois par monstre » : le précédent disparaît (sans VP, il n'a pas servi).
-        const kept = effect.single ? next.traps.filter((old) => old.sourceId !== poster.id) : next.traps;
+        let kept = effect.single ? next.traps.filter((old) => old.sourceId !== poster.id) : next.traps;
+        // « N à la fois » (Archi : 3 par joueur, cette carte) : le plus ancien disparaît, sans VP.
+        if (effect.max !== undefined) {
+          const same = kept.filter((old) => old.owner === by && old.cardId === poster.cardId);
+          const gone = same.slice(0, Math.max(0, same.length - effect.max + 1));
+          kept = kept.filter((old) => !gone.includes(old));
+        }
         next = { ...emit(next, { type: 'trapPlaced', trap }), traps: [...kept, trap] };
       }
       return next;
@@ -573,10 +684,19 @@ export function resolveAbility(
       if (target.kind !== 'unit') throw new Error('Cet effet vise un allié');
       const around = state.units[target.unitId];
       if (around?.kind !== 'monster' || around.owner !== by) throw new Error(`Allié invalide : ${target.unitId}`);
-      return getEnemiesAround(state, around, targeting.square).reduce(
-        (next, m) => applyEffects(next, effects, m.id, { by, source, origin }),
-        state,
-      );
+      const enemies = getEnemiesAround(state, around, targeting.square);
+      // Un sort de dégâts touche aussi les balises ennemies seules dans la zone (§10).
+      const beacons = hitsBeacons(effects, source) ? enemyBeaconsOn(state, by, squareCells(state.board, around.pos, targeting.square)) : [];
+      // L'animation d'un sort de dégâts (Onde de choc) : un éclair de l'allié à chaque ennemi touché.
+      const arcs = effects.some((effect) => effect.type === 'damage')
+        ? [
+            ...enemies.map((m) => ({ from: around.pos, to: m.pos, fromId: around.id, toId: m.id })),
+            ...beacons.map((beacon) => ({ from: around.pos, to: beacon.pos, fromId: around.id })),
+          ]
+        : [];
+      const lit = arcs.length > 0 ? emit(state, { type: 'arcs', cardId: origin.cardId, arcs }) : state;
+      const hit = enemies.reduce((next, m) => applyEffects(next, effects, m.id, { by, source, origin }), lit);
+      return beacons.reduce((next, beacon) => damageBeaconBy(next, effects, beacon.id), hit);
     }
     case 'terrain': {
       // Fortification : ses effets (des statuts) sur le terrain visé.
@@ -594,6 +714,23 @@ export function resolveAbility(
         if (effect.type !== 'reanimate') throw new Error('Depuis le cimetière, seule une réanimation se fait');
         return reanimate(next, target, by);
       }, state);
+    }
+    case 'allyChains': {
+      // Au moment du sort : chaque unité ennemie (monstre ou terrain, invisibles compris) sur une chaîne subit les
+      // effets, une fois par chaîne (deux chaînes : deux fois, §10).
+      const links = getAllyChainLinks(state, by);
+      const chains = links.map((link) => link.cells);
+      const hits = chains.flatMap((cells) =>
+        Object.values(state.units).filter((unit) => unit.owner !== by && cells.some((pos) => samePos(pos, unit.pos))),
+      );
+      // L'animation : un éclair le long de chaque chaîne, d'un monstre à l'autre.
+      const arcs = links.map(({ from, to }) => ({ from: from.pos, to: to.pos, fromId: from.id, toId: to.id }));
+      const lit = arcs.length > 0 ? emit(state, { type: 'arcs', cardId: origin.cardId, arcs }) : state;
+      const hit = hits.reduce((next, unit) => applyToUnit(next, effects, unit.id, { by, source, origin }), lit);
+      // Et les balises ennemies seules sur une chaîne, une fois par chaîne (§10).
+      if (!hitsBeacons(effects, source)) return hit;
+      const beacons = chains.flatMap((cells) => enemyBeaconsOn(state, by, cells));
+      return beacons.reduce((next, beacon) => damageBeaconBy(next, effects, beacon.id), hit);
     }
     case 'none':
       return effects.reduce((next, effect) => {
@@ -623,6 +760,8 @@ export function resolveAbility(
       if (target.kind !== 'unit' && target.kind !== 'unitAndDirection' && target.kind !== 'unitAndCell') {
         throw new Error('Cet effet vise un monstre');
       }
+      // Un sort de dégâts sur une balise ennemie (§10).
+      if (getBeacon(state, target.unitId)) return damageBeaconBy(state, effects, target.unitId);
       const monster = state.units[target.unitId];
       if (monster?.kind !== 'monster') throw new Error(`Cible d'effet invalide : ${target.unitId}`);
       const direction = target.kind === 'unitAndDirection' ? target.direction : undefined;
@@ -644,6 +783,19 @@ function applyEffects(state: GameState, effects: readonly Effect[], unitId: stri
     if (monster?.kind !== 'monster') break;
     next = applyEffect(next, effect, monster, { ...context, hpLost });
     if (effect.type === 'loseHp') hpLost = monster.hp - (next.units[unitId]?.hp ?? 0);
+  }
+  return next;
+}
+
+/** Les effets sur une unité : un monstre comme d'habitude ; un terrain ne subit que les dégâts et les statuts (§5 bis). */
+function applyToUnit(state: GameState, effects: readonly Effect[], unitId: UnitId, context: EffectContext): GameState {
+  const unit = state.units[unitId];
+  if (unit?.kind === 'monster') return applyEffects(state, effects, unitId, context);
+  let next = state;
+  for (const effect of effects) {
+    if (!next.units[unitId]) break;
+    if (effect.type === 'damage') next = dealDamage(next, unitId, effect.amount, context.by, context.source ? 'effect' : 'spell');
+    else if (effect.type === 'status') next = addStatus(next, unitId, effect);
   }
   return next;
 }
@@ -723,6 +875,15 @@ function applyEffect(state: GameState, effect: Effect, monster: MonsterUnit, con
       if (!direction) throw new Error('Un recul demande une direction');
       const chosen = effect.chooseDistance && context.distance ? Math.min(context.distance, effect.distance) : effect.distance;
       return push(state, monster, direction, chosen);
+    }
+    case 'pull': {
+      // Attire (Blitz) : la source se tourne vers la cible, qui glisse vers elle jusqu'au contact (§10).
+      const puller = requireSource(context.source);
+      const turned = state.units[puller.id];
+      const facing = lineDirection(puller.pos, pos);
+      const faced = turned?.kind === 'monster' ? setUnit(state, { ...turned, facing }) : state;
+      const steps = distance(getPullDestination(faced, puller, monster), pos);
+      return steps > 0 ? push(faced, monster, lineDirection(pos, puller.pos), steps, 'pull') : faced;
     }
     case 'teleport': {
       // Pas un déplacement : il garde sa mobilité, son attaque et son orientation. Mais il entre sur sa nouvelle case :
@@ -848,8 +1009,11 @@ function reanimate(state: GameState, target: Extract<EffectTarget, { kind: 'cell
   return placeSummonedMonster(left, by, card, { row: target.pos.row, col: target.pos.col }, shiny);
 }
 
-/** Recul case par case : un piège sur le chemin se déclenche, même pour un monstre `vol` (§10). */
-function push(state: GameState, monster: MonsterUnit, direction: Direction, pushDistance: number): GameState {
+/**
+ * Recul case par case : un piège sur le chemin se déclenche, même pour un monstre `vol` (§10). `kind` : `pull` quand il
+ * est attiré (Blitz), le même glissement vers la source.
+ */
+function push(state: GameState, monster: MonsterUnit, direction: Direction, pushDistance: number, kind: 'push' | 'pull' = 'push'): GameState {
   const destination = getPushDestination(state, monster, direction, pushDistance);
   const step = DIRECTION_OFFSETS[direction];
   let next = state;
@@ -863,7 +1027,7 @@ function push(state: GameState, monster: MonsterUnit, direction: Direction, push
     const current = next.units[monster.id];
     if (current?.kind !== 'monster') break;
     const pos = { row: monster.pos.row + step.row * i, col: monster.pos.col + step.col * i };
-    const moved = emit(next, { type: 'step', unitId: monster.id, from: current.pos, to: pos, kind: 'push' });
+    const moved = emit(next, { type: 'step', unitId: monster.id, from: current.pos, to: pos, kind });
     const entered = enterCell(setUnit(moved, { ...current, pos }), monster.id, movement, current.pos);
     next = entered.state;
     movement = entered.movement;

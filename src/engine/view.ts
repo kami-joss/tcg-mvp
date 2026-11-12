@@ -1,5 +1,6 @@
 // Vue d'un joueur (SPEC.md §2, §4.3) : l'état de la partie sans les informations cachées.
 import { getLegalActions } from './actions';
+import { getBeacons, getRevealedTraps } from './beacons';
 import { getManaZones } from './board';
 import { getVictoryVp, opponent } from './players';
 import { getHiddenUnitIds, perceivedBy } from './stealth';
@@ -36,8 +37,10 @@ export function getPlayerView(state: GameState, player: PlayerId): PlayerView {
       onBoardHidden: onBoardHiddenFrom(state, player),
       grimoireCount: other.grimoire.length,
     },
-    traps: state.traps.filter((trap) => trap.owner === player),
+    // Ses pièges, et les pièges ennemis que révèlent ses balises (Balise de vision, §10).
+    traps: [...state.traps.filter((trap) => trap.owner === player), ...getRevealedTraps(state, player)],
     burningCells: state.burningCells,
+    beacons: getBeacons(state),
     hiddenFromOpponent: getHiddenUnitIds(state, opponent(player)),
     hiddenEnemies: getHiddenUnitIds(state, player),
     zoneControl: getManaZones(state.board).map(({ pos }) => getZoneStatus(state, pos)),
@@ -116,6 +119,10 @@ function eventUnits(event: GameEvent): UnitId[] {
     case 'cardPlayed':
     case 'trapPlaced':
     case 'cellBurned':
+    case 'beaconPlaced':
+    case 'beaconDamage':
+    case 'beaconDestroyed':
+    case 'arcs':
       return [];
   }
 }
@@ -129,8 +136,14 @@ function getVisibleEvents(state: GameState, player: PlayerId): GameEvent[] {
   const hidden = getHiddenUnitIds(state, player);
   const isHidden = (id: UnitId | undefined) => id !== undefined && hidden.includes(id);
   return state.events
+    .map((event) => {
+      // Arcs électriques : sans ceux qui partent d'un monstre caché au joueur ou y arrivent (ce serait dire sa case).
+      if (event.type !== 'arcs') return event;
+      return { ...event, arcs: event.arcs.filter((arc) => !isHidden(arc.fromId) && !isHidden(arc.toId)) };
+    })
     .filter((event) => {
       if (event.type === 'trapPlaced') return event.trap.owner === player;
+      if (event.type === 'arcs') return event.arcs.length > 0;
       return eventUnits(event).every((id) => !hidden.includes(id));
     })
     .map((event) => {

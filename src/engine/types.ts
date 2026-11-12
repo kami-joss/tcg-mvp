@@ -189,6 +189,16 @@ export type CardId =
   | 'zoldik'
   | 'appel-du-sang'
   | 'sacrifice-sanguinaire'
+  // Deck Ingénieurs foudroyants (2026-11-12)
+  | 'archi'
+  | 'elek'
+  | 'blitz'
+  | 'joy'
+  | 'champ-magnetique'
+  | 'chaines-eclair'
+  | 'onde-de-choc'
+  // Balise (carte commune, 2026-11-12)
+  | 'balise-de-vision'
   // Sorts génériques (cartes communes, 2026-11-10).
   | 'puissance'
   | 'soin'
@@ -205,12 +215,12 @@ export type CardId =
 /**
  * Famille de cartes (SPEC.md §5.1) : les bodybuilders, les archers (sauf le Trébuchet), les dragons élémentaires (Jeune
  * dragon compris), les maîtres des pièges (les 4 monstres du deck Maîtres des pièges), les sorciers du feu, les explorateurs du temps,
- * les vampires.
+ * les vampires, les ingénieurs foudroyants.
  */
-export type Archetype = 'bodybuilder' | 'archer' | 'dragon' | 'piege' | 'sorcier' | 'temps' | 'vampire';
+export type Archetype = 'bodybuilder' | 'archer' | 'dragon' | 'piege' | 'sorcier' | 'temps' | 'vampire' | 'ingenieur';
 
 /**
- * Mots-clés (SPEC.md §5.6) et leurs paramètres : chaque carte porte ses propres valeurs (« Givre 1 », « Attaque par surprise ×3 »).
+ * Mots-clés (SPEC.md §5.6) et leurs paramètres : chaque carte porte ses propres valeurs (« Entrave 1 », « Attaque par surprise ×3 »).
  * Une quantité s'appelle `amount`, un multiplicateur `multiplier`, une durée de statut `turns` (§5.7).
  */
 interface KeywordParams {
@@ -227,7 +237,7 @@ interface KeywordParams {
   /** La mana zone qu'il occupe rapporte +`amount` mana (Porte-étendard). */
   readonly etendard: { readonly amount: number };
   /** À l'attaque : slow `amount` pendant `turns` tours (Archer de glace). */
-  readonly givre: { readonly amount: number; readonly turns: number };
+  readonly entrave: { readonly amount: number; readonly turns: number };
   /** À l'attaque : burn `amount` pendant `turns` tours (Archer du feu). */
   readonly brulure: { readonly amount: number; readonly turns: number };
   /** Dégâts ×`multiplier` contre un terrain (Trébuchet). */
@@ -240,6 +250,11 @@ interface KeywordParams {
   readonly camouflage: object;
   /** À l'attaque : il récupère `amount` PV, après les dégâts et avant la riposte (Vampire, §10). */
   readonly soif: { readonly amount: number };
+  /**
+   * Statik N (Elek, §10) : à l'attaque d'un monstre, ses dégâts se propagent de proche en proche aux ennemis reliés à la
+   * cible (chacun dans le carré de 1 du précédent), `amount` de moins par maillon, jamais moins de 1 ; dégâts d'effet.
+   */
+  readonly statik: { readonly amount: number };
 }
 
 export type Keyword = keyof KeywordParams;
@@ -388,6 +403,12 @@ export type Targeting =
   | { readonly type: 'terrain'; readonly side: 'ally' }
   /** Un monstre de son cimetière, au choix, et une de ses cases d'invocation libres (Réanimation). */
   | { readonly type: 'graveyard' }
+  /**
+   * Les unités ennemies (monstres et terrains) sur les chaînes entre ses monstres (Chaînes d'éclair, §10) : une chaîne
+   * relie deux de ses monstres en ligne droite orthogonale, sans autre de ses monstres entre eux, coupée par les cases X et
+   * les falaises ; une unité sur deux chaînes subit les effets deux fois. Sans choix, toujours jouable (ennemis invisibles).
+   */
+  | { readonly type: 'allyChains' }
   /** Sans cible : l'effet est pour le joueur (Élixir de mana). */
   | { readonly type: 'none' };
 
@@ -449,7 +470,21 @@ export type Effect =
       readonly turns?: number;
       /** Un seul à la fois par monstre : en poser un nouveau fait disparaître l'ancien (Sablier du temps). */
       readonly single?: true;
+      /**
+       * Piège électrique (Archi, §10) : il reste (pas de durée) ; deux de ces pièges du même joueur, alignés à `chain` cases
+       * au plus sans case X ni falaise entre eux, sont reliés par une chaîne ; un ennemi qui entre sur un piège ou sur une
+       * case de la chaîne déclenche tout le réseau relié (ennemis du carré de 1 de ses pièges et sur ses chaînes compris),
+       * puis ses pièges se rechargent jusqu'au début du prochain tour de leur poseur.
+       */
+      readonly chain?: number;
+      /** `max` à la fois par joueur pour cette carte : en poser un de plus fait disparaître le plus ancien (Archi : 3). */
+      readonly max?: number;
     }
+  /**
+   * Attire (Blitz, §10) : la source se tourne vers la cible, qui glisse vers elle case par case jusqu'au contact, en
+   * s'arrêtant avant le premier obstacle, comme un recul à l'envers (pièges et Passage à chaque case).
+   */
+  | { readonly type: 'pull' }
   /**
    * Brûle la case visée, visible des deux joueurs, pendant `turns` tours du camp du lanceur (§5.5) : chaque monstre
    * ennemi qui y entre subit `effects` ; la case reste (Lutin brasier).
@@ -523,6 +558,11 @@ export interface TerrainPassage {
    * aussi quand c'est la source qui entre à côté de lui, et au début de chaque tour de son camp sur ceux qui y sont encore.
    */
   readonly lingering?: boolean;
+  /**
+   * « Début du tour adverse » (Champ magnétique, §10) : au début de chaque tour de l'adversaire, chaque ennemi dans sa zone
+   * subit de nouveau ses effets (après les revenus, avant burn et la mobilité).
+   */
+  readonly enemyTurnStart?: true;
 }
 
 /**
@@ -660,7 +700,20 @@ export interface TerrainCard extends CardBase {
   readonly aura: StatAura | null;
 }
 
-export type Card = MonsterCard | SpellCard | TerrainCard;
+/**
+ * Balise (Balise de vision, §6 ter, §10) : la carte pose sur le plateau une balise, ni monstre ni terrain. Elle est au sol
+ * et ne bloque rien ; elle a des PV ; elle révèle à son joueur les pièges ennemis autour d'elle.
+ */
+export interface BeaconCard extends CardBase {
+  readonly kind: 'beacon';
+  readonly hp: number;
+  /** Où elle se pose : une case libre dans le carré de `square` d'un de ses monstres, hors case centrale d'une mana zone qu'il tient. */
+  readonly placement: { readonly square: number };
+  /** Elle révèle à son joueur les pièges ennemis de son carré de `square`, tant qu'elle est sur le plateau. */
+  readonly revealTraps: { readonly square: number };
+}
+
+export type Card = MonsterCard | SpellCard | TerrainCard | BeaconCard;
 
 /**
  * Les cartes d'une partie : la définition de chaque carte, par son identifiant. Celles de `CARDS` par défaut, d'autres
@@ -702,7 +755,7 @@ export interface MonsterUnit extends UnitBase {
   /** PV donnés par les auras (Origine), déjà compris dans `hp` et `maxHp` : ce qu'il perd en quittant l'aura. */
   readonly auraHp: number;
   readonly mobilityLeft: number;
-  /** Mobilité retirée pour ce tour par slow (Givre, Terrain piégé…) ; recalculée au début de son tour. */
+  /** Mobilité retirée pour ce tour par slow (Entrave, Terrain piégé…) ; recalculée au début de son tour. */
   readonly froze: number;
   /** Mobilité ajoutée pour ce tour (Charge) ; remise à 0 au début de son tour. */
   readonly boost: number;
@@ -761,6 +814,22 @@ export interface TerrainUnit extends UnitBase {
 
 export type Unit = MonsterUnit | TerrainUnit;
 
+/**
+ * Balise posée (§6 ter, §10) : publique, au sol, elle ne bloque rien (on marche dessus, elle ne gêne ni les déplacements
+ * ni les tirs) et ne compte ni pour une mana zone ni pour révéler un monstre. Une attaque ou un sort de dégâts la touche
+ * quand aucun monstre n'est sur sa case. Ce n'est pas une unité : elle est rangée à part, comme les pièges.
+ */
+export interface Beacon {
+  /** Identifiant tiré du même compteur que les unités (`u12`). */
+  readonly id: UnitId;
+  readonly cardId: CardId;
+  readonly owner: PlayerId;
+  readonly pos: Position;
+  readonly hp: number;
+  readonly maxHp: number;
+  readonly shiny?: true;
+}
+
 // ---------------------------------------------------------------------------
 // État de la partie
 // ---------------------------------------------------------------------------
@@ -811,6 +880,8 @@ export interface GameState {
   readonly traps: readonly Trap[];
   /** Cases brûlées (Lutin brasier) : publiques. */
   readonly burningCells: readonly BurningCell[];
+  /** Balises posées (Balise de vision) : publiques ; absent dans une partie d'avant (lire avec `getBeacons`). */
+  readonly beacons?: readonly Beacon[];
   /** Compteur pour générer des `UnitId` de façon déterministe. */
   readonly nextUnitId: number;
   readonly winner: PlayerId | null;
@@ -907,7 +978,7 @@ export type GameEvent =
       readonly unitId: UnitId;
       readonly from: Position;
       readonly to: Position;
-      readonly kind: 'walk' | 'advance' | 'push';
+      readonly kind: 'walk' | 'advance' | 'push' | 'pull';
     }
   /** Téléportation : le monstre passe de `from` à `to` sans traverser les cases entre les deux. */
   | { readonly type: 'teleport'; readonly unitId: UnitId; readonly from: Position; readonly to: Position }
@@ -960,7 +1031,26 @@ export type GameEvent =
   | { readonly type: 'trapPlaced'; readonly trap: Trap }
   | { readonly type: 'trapTriggered'; readonly trap: Trap; readonly unitId: UnitId }
   /** Monstre invisible révélé pour avoir bloqué une action (§10). */
-  | { readonly type: 'revealed'; readonly unit: MonsterUnit };
+  | { readonly type: 'revealed'; readonly unit: MonsterUnit }
+  /**
+   * Arcs électriques entre des cases, pour l'animation (propagation de Statik, réseau d'Archi, Chaînes d'éclair, Onde de
+   * choc) ; `cardId` : la carte qui les lance. `getPlayerView` retire un arc dont une extrémité est un monstre caché au joueur.
+   */
+  | { readonly type: 'arcs'; readonly cardId: CardId; readonly arcs: readonly Arc[] }
+  /** Balise posée (Balise de vision), publique. */
+  | { readonly type: 'beaconPlaced'; readonly beacon: Beacon }
+  /** Balise touchée par une attaque ou un sort : `hp`, ses PV ensuite. */
+  | { readonly type: 'beaconDamage'; readonly beaconId: UnitId; readonly pos: Position; readonly amount: number; readonly hp: number }
+  /** Balise détruite : elle quitte le plateau pour le cimetière de son joueur (pas de VP). */
+  | { readonly type: 'beaconDestroyed'; readonly beaconId: UnitId; readonly pos: Position };
+
+/** Un arc électrique (événement `arcs`) : de `from` à `to` ; `fromId`, `toId` : l'unité sur chaque bout, s'il y en a une. */
+export interface Arc {
+  readonly from: Position;
+  readonly to: Position;
+  readonly fromId?: UnitId;
+  readonly toId?: UnitId;
+}
 
 /** Case brûlée (Lutin brasier) : publique, elle reste jusqu'au début du tour `expiresAtTurn`. */
 export interface BurningCell {
@@ -982,8 +1072,15 @@ export interface Trap {
   readonly cardId: CardId;
   /** Le monstre qui l'a posé (un sablier à la fois par monstre, §10). */
   readonly sourceId: UnitId;
-  /** Numéro du tour au début duquel il disparaît : le prochain tour de son poseur, ou plus tard (`turns` de `placeTrap`). */
-  readonly expiresAtTurn: number;
+  /**
+   * Numéro du tour au début duquel il disparaît : le prochain tour de son poseur, ou plus tard (`turns` de `placeTrap`) ;
+   * `null` : il reste (piège électrique d'Archi).
+   */
+  readonly expiresAtTurn: number | null;
+  /** Piège électrique : reliés par une chaîne aux siens de la même carte, alignés à `chain` cases au plus (§10). */
+  readonly chain?: number;
+  /** Piège électrique déclenché : il se recharge jusqu'au début de ce tour (le prochain tour de son poseur). */
+  readonly rearmsAtTurn?: number;
 }
 
 /** Deck pré-construit, choisi avant la partie (pas de deckbuilding). */
@@ -1049,6 +1146,8 @@ export interface PlayerView {
   readonly traps: readonly Trap[];
   /** Toutes les cases brûlées : elles sont publiques. */
   readonly burningCells: readonly BurningCell[];
+  /** Balises des deux joueurs : publiques. */
+  readonly beacons: readonly Beacon[];
   /** Ses monstres `invisible` que l'adversaire ne voit pas en ce moment. */
   readonly hiddenFromOpponent: readonly UnitId[];
   /**

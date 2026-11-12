@@ -24,7 +24,7 @@ export const TEST_NUMBERS: Readonly<Record<string, CardNumbers>> = {
   dragonnet: { cost: 6, atk: 5, hp: 6, mobility: 4, range: 1 },
   'archer-leger': { cost: 1, atk: 1, hp: 3, mobility: 5, range: 2, 'trophee.amount': 1 },
   'archer-lourd': { cost: 3, atk: 3, hp: 3, mobility: 3, range: 2, 'pillage.amount': 1 },
-  'archer-de-glace': { cost: 3, atk: 2, hp: 3, mobility: 3, range: 2, 'givre.amount': 1, 'givre.turns': 1 },
+  'archer-de-glace': { cost: 3, atk: 2, hp: 3, mobility: 3, range: 2, 'entrave.amount': 1, 'entrave.turns': 1 },
   'archer-du-feu': { cost: 3, atk: 2, hp: 3, mobility: 3, range: 2, 'brulure.amount': 1, 'brulure.turns': 1 },
   trebuchet: { cost: 5, atk: 4, hp: 1, mobility: 2, range: 5, 'siege.multiplier': 2 },
   'monstre-de-test': { cost: 10, atk: 3, hp: 7, mobility: 9, range: 1 },
@@ -65,6 +65,14 @@ export const TEST_NUMBERS: Readonly<Record<string, CardNumbers>> = {
   zoldik: { cost: 6, atk: 3, hp: 8, mobility: 5, range: 1, 'soif.amount': 1, 'activated.0.manaCost': 2 },
   'appel-du-sang': { cost: 3 },
   'sacrifice-sanguinaire': { cost: 2 },
+  // Deck Ingénieurs foudroyants (2026-11-12), à leurs chiffres d'arrivée.
+  archi: { cost: 1, atk: 1, hp: 2, mobility: 7, range: 1, 'activated.0.manaCost': 1 },
+  elek: { cost: 6, atk: 6, hp: 3, mobility: 6, range: 1, 'statik.amount': 2 },
+  blitz: { cost: 3, atk: 2, hp: 7, mobility: 4, range: 1, 'activated.0.manaCost': 2 },
+  joy: { cost: 3, atk: 2, hp: 2, mobility: 4, range: 3, 'entrave.amount': 2, 'entrave.turns': 1 },
+  'champ-magnetique': { cost: 3, hp: 5 },
+  'chaines-eclair': { cost: 3 },
+  'onde-de-choc': { cost: 3 },
   invocateur: { cost: 4, atk: 1, hp: 3, mobility: 3, range: 2, 'activated.0.manaCost': 1 },
   teleporteur: { cost: 4, atk: 1, hp: 3, mobility: 3, range: 2, 'activated.0.manaCost': 1 },
   'jeune-gomuscu': { cost: 2, atk: 2, hp: 2, mobility: 3, range: 1 },
@@ -98,6 +106,7 @@ export const TEST_NUMBERS: Readonly<Record<string, CardNumbers>> = {
   teleportation: { cost: 3 },
   reanimation: { cost: 5 },
   fortification: { cost: 3 },
+  'balise-de-vision': { cost: 2, hp: 3 },
 };
 
 /** La carte avec ses chiffres figés. */
@@ -105,7 +114,7 @@ function pinned(card: Card, numbers: CardNumbers | undefined): Card {
   if (!numbers) return card;
   const value = (key: string, current: number) => numbers[key] ?? current;
   if (card.kind === 'spell') return { ...card, cost: value('cost', card.cost) };
-  if (card.kind === 'terrain') return { ...card, cost: value('cost', card.cost), hp: value('hp', card.hp) };
+  if (card.kind === 'terrain' || card.kind === 'beacon') return { ...card, cost: value('cost', card.cost), hp: value('hp', card.hp) };
   return {
     ...card,
     cost: value('cost', card.cost),

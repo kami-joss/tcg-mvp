@@ -17,6 +17,7 @@ const SECTIONS: readonly { readonly kind: Card['kind']; readonly title: string }
   { kind: 'monster', title: 'Monstres' },
   { kind: 'spell', title: 'Sorts' },
   { kind: 'terrain', title: 'Terrains' },
+  { kind: 'beacon', title: 'Balises' },
 ];
 
 /** Les sections du deck, comme dans le grimoire en partie ; une section vide disparaît. */

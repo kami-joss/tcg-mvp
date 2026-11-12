@@ -68,7 +68,7 @@ describe('bulle d’attaque', () => {
     expect(row(bubble(state, attack()), 'advance')).toMatchObject({ enabled: false, subtitle: 'À distance : il ne peut pas avancer' });
   });
 
-  it('conséquences : riposte au contact, Givre, coup dans le dos', () => {
+  it('conséquences : riposte au contact, Entrave, coup dans le dos', () => {
     const riposte = gameWith([
       { monster: 'milicien', owner: 1, at: at(5, 4) },
       { monster: 'gardien', owner: 2, at: at(5, 5) },
@@ -78,7 +78,7 @@ describe('bulle d’attaque', () => {
       { monster: 'archer-de-glace', owner: 1, at: at(5, 3) },
       { monster: 'golem', owner: 2, at: at(5, 5) },
     ]);
-    expect(row(bubble(frost, attack()), 'attack').subtitle).toBe('−2 PV · Givre');
+    expect(row(bubble(frost, attack()), 'attack').subtitle).toBe('−2 PV · Entrave');
     const behind = gameWith([
       { monster: 'clown-assassin', owner: 1, at: at(5, 4) },
       { monster: 'golem', owner: 2, at: at(5, 5), facing: 'right' },

@@ -9,7 +9,7 @@ import { checkScales } from './costScales';
 import type { ScalesSettings } from './costScales';
 
 /**
- * Un champ réglable : « cost », « atk », « hp », « mobility », « range », « mot-clé.valeur » (« givre.amount »), ou le
+ * Un champ réglable : « cost », « atk », « hp », « mobility », « range », « mot-clé.valeur » (« entrave.amount »), ou le
  * coût d'un effet actif, « activated.rang.manaCost » (« activated.0.manaCost » : le premier effet actif de la carte).
  */
 export type FieldId = string;
@@ -62,7 +62,7 @@ export function activeEffectName(card: Card, rank: number): string {
 }
 
 const statsOf = (card: Card): readonly StatId[] =>
-  card.kind === 'monster' ? ['cost', 'atk', 'hp', 'mobility', 'range'] : card.kind === 'terrain' ? ['cost', 'hp'] : ['cost'];
+  card.kind === 'monster' ? ['cost', 'atk', 'hp', 'mobility', 'range'] : card.kind === 'terrain' || card.kind === 'beacon' ? ['cost', 'hp'] : ['cost'];
 
 function statValue(card: Card, id: StatId): number {
   if (id === 'cost') return card.cost;
@@ -160,7 +160,7 @@ export interface WorkshopGroup {
   readonly cards: readonly CardId[];
 }
 
-const KIND_ORDER: Readonly<Record<Card['kind'], number>> = { monster: 0, spell: 1, terrain: 2 };
+const KIND_ORDER: Readonly<Record<Card['kind'], number>> = { monster: 0, spell: 1, terrain: 2, beacon: 3 };
 
 const byKind = (ids: readonly CardId[]) => [...ids].sort((a, b) => KIND_ORDER[CARDS[a].kind] - KIND_ORDER[CARDS[b].kind]);
 

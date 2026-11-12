@@ -4,8 +4,8 @@
 // visuel qu'ils accompagnent. La première carte qui agit (attaque, effet actif, sort, terrain, invocation) est d'abord
 // mise en avant au centre de l'écran (cut-in, `cutIn.ts`), puis l'action se joue.
 import { distance, getCard, getMonsterCard, statusAmount } from '../../engine';
-import { cardTitle, trapLabel } from '../cardText';
-import type { GameEvent, MonsterUnit, PlayerId, PlayerView, Position, StatusKind } from '../../engine';
+import { ARCHETYPE_NAMES, cardTitle, splitCardName, trapLabel } from '../cardText';
+import type { CardId, GameEvent, MonsterUnit, PlayerId, PlayerView, Position, StatusKind } from '../../engine';
 import { CARD_ART } from '../art';
 import { cutInIndex, cutInOf } from './cutIn';
 import type { CutIn } from './cutIn';
@@ -14,6 +14,7 @@ import type { Projectile } from './missiles';
 import { sfx } from '../sfx/sound';
 import type { SoundName } from '../sfx/sound';
 import {
+  ELECTRIC,
   burst,
   die,
   drop,
@@ -34,6 +35,7 @@ import {
   slam,
   wait,
   walk,
+  zap,
 } from './stage';
 import type { Stage } from './stage';
 
@@ -95,6 +97,11 @@ function projectileOf(cardId: string): Exclude<Projectile, 'fireball' | 'magic'>
   return 'arrow';
 }
 
+/** Une carte des Ingénieurs foudroyants (« Nom - Ingénieurs foudroyants ») : ses actions lancent des éclairs. */
+function isElectric(view: PlayerView, cardId: CardId): boolean {
+  return splitCardName(getCard(view.cards, cardId).name).archetype === ARCHETYPE_NAMES.ingenieur.title;
+}
+
 function monsterOf(view: PlayerView, unitId: string): MonsterUnit | undefined {
   const unit = view.units[unitId];
   return unit?.kind === 'monster' ? unit : undefined;
@@ -114,6 +121,8 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
   const { stage, shown, patch, stopped } = playback;
   let behind = false;
   let lastSpell: string | null = null;
+  // Le monstre du dernier effet actif : l'aimant de Blitz lance son éclair de lui vers la cible attirée.
+  let lastEffect: { unitId: string; pos: Position } | null = null;
   const cutAt = cutInIndex(events);
 
   for (let i = 0; i < events.length && !stopped(); i++) {
@@ -202,6 +211,7 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
       case 'effect': {
         const source = monsterOf(shown(), event.unitId);
         if (!source) break;
+        lastEffect = { unitId: source.id, pos: source.pos };
         const ability = getMonsterCard(shown().cards, source.cardId).activated[event.effect ?? 0];
         recoil(stage, source.id);
         if (event.cells.length > 0) {
@@ -248,7 +258,22 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
         float(stage, event.trap.pos, 'Piégé', 'oklch(0.85 0.1 300)');
         break;
 
+      case 'arcs': {
+        // Arcs électriques (Statik, réseau d'Archi, Chaînes d'éclair, Onde de choc) : tous ensemble, presque.
+        sfx('zap');
+        event.arcs.forEach((arc, n) => zap(stage, arc.from, arc.to, Math.min(n, 8) * 45));
+        await wait(320 + Math.min(event.arcs.length, 8) * 45);
+        await patch(event);
+        break;
+      }
+
       case 'trapTriggered': {
+        // Piège électrique (Archi) : il crépite sur sa case ; ses éclairs suivent (événement `arcs`).
+        if (event.trap.chain !== undefined) {
+          burst(stage, event.trap.pos, ELECTRIC, { n: 10, spread: 30, size: 5, flash: ELECTRIC, flashScale: 1.8 });
+          await patch(event);
+          break;
+        }
         const kind = trapLabel(event.trap) === 'Bombe' ? 'bomb' : 'net';
         sfx('flip', 0.22);
         await revealTrap(stage, event.trap.pos, kind);
@@ -268,17 +293,24 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
           steps.push(next);
           i++;
         }
-        if (event.kind === 'push') {
+        // Recul ou attiré (Blitz) : le monstre glisse, sans marcher.
+        const slides = event.kind === 'push' || event.kind === 'pull';
+        if (event.kind === 'pull' && lastEffect && lastEffect.unitId !== event.unitId) {
+          // Attiré (aimant de Blitz) : un éclair le relie à celui qui l'attire.
+          sfx('zap');
+          zap(stage, lastEffect.pos, event.from);
+          await wait(260);
+        } else if (slides) {
           sfx('gust');
           gust(stage, event.from, event.to);
           await wait(220);
         }
         const cells = steps.map((s) => s.to);
-        if (event.kind !== 'push') {
+        if (!slides) {
           // Un pas sourd à chaque case, 210 ms par case.
           cells.forEach((_, n) => sfx('step', ((n + 1) * 210) / 1000 - 0.04));
         }
-        const sliding = await walk(stage, event.unitId, event.from, cells, event.kind === 'push' ? { speed: 0.7, hop: 4 } : {});
+        const sliding = await walk(stage, event.unitId, event.from, cells, slides ? { speed: 0.7, hop: 4 } : {});
         for (const s of steps) await patch(s);
         sliding?.cancel();
         land(stage, event.unitId, cells.at(-1)!);
@@ -308,8 +340,14 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
       case 'passage': {
         // L'unité (terrain, Golem de lave) s'éveille, son nom s'affiche sur le monstre ennemi qui entre dans sa zone.
         const source = shown().units[event.sourceId];
-        sfx('flip');
-        if (source) burst(stage, source.pos, VIOLET, { n: 10, spread: 30, size: 5, ringScale: 2.6 });
+        if (source && isElectric(shown(), source.cardId)) {
+          // Champ magnétique : un éclair du terrain au monstre qui entre (ou qui y est resté).
+          sfx('zap');
+          zap(stage, source.pos, event.pos);
+        } else {
+          sfx('flip');
+          if (source) burst(stage, source.pos, VIOLET, { n: 10, spread: 30, size: 5, ringScale: 2.6 });
+        }
         float(stage, event.pos, source ? getCard(shown().cards, source.cardId).name : 'Passage', VIOLET);
         await wait(220);
         await patch(event);
@@ -346,7 +384,20 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
         if (!attacker) break;
         const ranged = distance(event.from, event.to) > 1;
         let hit = 'oklch(0.97 0.02 85)';
-        if (ranged) {
+        const electric = isElectric(shown(), attacker.cardId);
+        if (electric && ranged) {
+          // Tireur électrique (Joy) : un éclair de lui à sa cible.
+          recoil(stage, attacker.id);
+          sfx('zap');
+          zap(stage, event.from, event.to);
+          await wait(200);
+          hit = ELECTRIC;
+        } else if (electric) {
+          // Au contact (Elek) : l'élan, et la cible crépite.
+          sfx('zap', 0.1);
+          await lunge(stage, attacker.id, event.from, event.to);
+          hit = ELECTRIC;
+        } else if (ranged) {
           recoil(stage, attacker.id);
           const type = projectileOf(attacker.cardId);
           sfx(type);
@@ -409,6 +460,26 @@ export async function playEvents(events: readonly GameEvent[], playback: Playbac
       case 'destroyed':
         sfx('death', 0.26);
         await die(stage, event.unitId, event.pos);
+        await patch(event);
+        break;
+
+      // Balises (Balise de vision) : posée, touchée, détruite.
+      case 'beaconPlaced':
+        sfx('trapSet');
+        burst(stage, event.beacon.pos, 'oklch(0.85 0.1 220)', { n: 10, spread: 30, size: 5 });
+        await patch(event);
+        break;
+
+      case 'beaconDamage':
+        sfx(event.amount >= 3 ? 'hitHard' : 'hit');
+        float(stage, event.pos, `−${event.amount}`, DAMAGE);
+        await patch(event);
+        await wait(event.hp > 0 ? 320 : 0);
+        break;
+
+      case 'beaconDestroyed':
+        sfx('death', 0.26);
+        burst(stage, event.pos, 'oklch(0.6 0.05 70)', { n: 14, spread: 40, size: 7, ring: false });
         await patch(event);
         break;
 

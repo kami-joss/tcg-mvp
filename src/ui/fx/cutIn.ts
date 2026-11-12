@@ -7,7 +7,7 @@ import { getCard, getMonsterCard } from '../../engine';
 import type { Card, CardId, GameEvent, PlayerId, PlayerView, Position } from '../../engine';
 import { splitCardName } from '../cardText';
 
-export type CutInKind = 'attack' | 'effect' | 'spell' | 'terrain' | 'summon';
+export type CutInKind = 'attack' | 'effect' | 'spell' | 'terrain' | 'summon' | 'beacon';
 
 export interface CutIn {
   readonly kind: CutInKind;
@@ -34,6 +34,7 @@ export const CUT_IN_ACTIONS: Readonly<Record<CutInKind, string>> = {
   spell: 'Sort',
   terrain: 'Terrain',
   summon: 'Invocation',
+  beacon: 'Balise',
 };
 
 function cutIn(kind: CutInKind, card: Card, owner: PlayerId, shiny: boolean, effect: string | null, to: Position | null): CutIn {
@@ -68,6 +69,11 @@ export function cutInOf(event: GameEvent, view: PlayerView, after: readonly Game
       // temporel) s'efface sur place, comme une carte dont l'unité est cachée au joueur qui regarde (sans case, §10).
       const card = getCard(view.cards, event.cardId);
       if (card.kind === 'spell') return cutIn('spell', card, event.player, false, null, event.pos);
+      // Une balise (Balise de vision) : posée sur sa case, sans unité.
+      if (card.kind === 'beacon') {
+        const set = after.find((next) => next.type === 'beaconPlaced' && next.beacon.cardId === card.id);
+        return cutIn('beacon', card, event.player, set?.type === 'beaconPlaced' && set.beacon.shiny === true, null, event.pos);
+      }
       const placed = after.find((next) => next.type === 'summon' && next.unit.cardId === card.id);
       const shiny = placed?.type === 'summon' && placed.unit.shiny === true;
       return cutIn(card.kind === 'terrain' ? 'terrain' : 'summon', card, event.player, shiny, null, event.pos);

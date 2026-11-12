@@ -226,7 +226,7 @@ function remainingText(view: PlayerView, unit: Unit, status: Status): string {
   return `jusqu’à la fin de ce tour et de ${left === 2 ? 'son prochain' : `ses ${left - 1} prochains`}`;
 }
 
-/** Couleur de la puce : bonus en vert, malus selon leur nature (givre pour le slow, braise pour le burn), alerte sinon. */
+/** Couleur de la puce : bonus en vert, malus selon leur nature (froid pour le slow, braise pour le burn), alerte sinon. */
 function statusChipKind(status: Status): ChipKind {
   if (status.kind === 'slow') return 'frost';
   if (status.kind === 'burn') return 'burn';

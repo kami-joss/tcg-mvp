@@ -113,7 +113,10 @@ function describeIntent(view: PlayerView, action: Action, after: PlayerView): st
   const actor = `J${view.activePlayer}`;
   const name = (unitId: UnitId) => {
     const unit = view.units[unitId];
-    return unit ? unitName(after.cards, unit) : unitId;
+    if (unit) return unitName(after.cards, unit);
+    // Une balise (Balise de vision) n'est pas une unité : sa carte et son joueur.
+    const beacon = view.beacons.find((b) => b.id === unitId);
+    return beacon ? `${getCard(after.cards, beacon.cardId).name} de J${beacon.owner}` : unitId;
   };
 
   if (blockedArrival(action, after)) {
@@ -227,7 +230,7 @@ function intentIcon(view: PlayerView, action: Action, after: PlayerView): IconNa
       return 'walking-boot';
     case 'attack': {
       const attacker = view.units[action.unitId];
-      const target = view.units[action.targetId];
+      const target = view.units[action.targetId] ?? view.beacons.find((b) => b.id === action.targetId);
       const far = attacker && target && Math.abs(attacker.pos.row - target.pos.row) + Math.abs(attacker.pos.col - target.pos.col) > 1;
       return attacker?.kind === 'monster' && far && getMonsterCard(after.cards, attacker.cardId).range > 1 ? 'high-shot' : 'broadsword';
     }
@@ -333,7 +336,8 @@ function describeUnitChanges(before: PlayerView, action: Action, after: PlayerVi
     if (!samePos(next.pos, unit.pos) && action.type !== 'move' && !teleported && !returned) {
       const where = isSecret(after, unit.id) ? '' : ` ${place(after.board, next.pos)}`;
       const rewound = after.events.some((event) => event.type === 'rewind' && event.unitId === unit.id);
-      const verb = rewound ? 'remonte le temps et revient' : action.type === 'attack' ? 'avance' : 'recule';
+      const pulled = after.events.some((event) => event.type === 'step' && event.kind === 'pull' && event.unitId === unit.id);
+      const verb = rewound ? 'remonte le temps et revient' : action.type === 'attack' ? 'avance' : pulled ? 'est attiré' : 'recule';
       lines.push(item('walking-boot', `${unitName(after.cards, unit)} ${verb}${where}.`, 'info'));
     }
   }
@@ -422,6 +426,19 @@ function describeReveal(action: Action, revealed: readonly Unit[], blockers: rea
   );
 }
 
+/** Balises touchées ou détruites par l'action (Balise de vision) : publiques. */
+function describeBeacons(before: PlayerView, after: PlayerView): LogItem[] {
+  const label = (id: UnitId) => {
+    const beacon = before.beacons.find((b) => b.id === id) ?? after.beacons.find((b) => b.id === id);
+    return beacon ? `${getCard(after.cards, beacon.cardId).name} de J${beacon.owner}` : 'Une balise';
+  };
+  return after.events.flatMap((event): LogItem[] => {
+    if (event.type === 'beaconDamage') return [item('health-decrease', `${label(event.beaconId)} : −${event.amount} PV (${event.hp} PV).`, 'hurt')];
+    if (event.type === 'beaconDestroyed') return [item('tombstone', `${label(event.beaconId)} est détruite.`, 'hurt')];
+    return [];
+  });
+}
+
 /** Ce qu'une action a fait, dans l'ordre du journal. */
 interface Outcome {
   readonly intent: string;
@@ -448,6 +465,7 @@ function outcome(before: PlayerView, action: Action, after: PlayerView): Outcome
     ...describeTrap(before, action, after, blockers),
     ...describePassages(before, after),
     ...describeUnitChanges(before, action, after, destroyed),
+    ...describeBeacons(before, after),
   ];
   const gains: LogItem[] = [];
   let turn: LogEntry['turn'];

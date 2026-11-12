@@ -34,7 +34,7 @@ export const VP_PER_CONTROLLED_ZONE = 1;
 /** VP rapportés par la destruction d'un monstre ennemi (SPEC.md §4.7). */
 export const VP_PER_MONSTER_DESTROYED = 1;
 
-// Les valeurs des mots-clés (Prime 1, Givre 1, Attaque par surprise ×3…) sont portées par chaque carte (SPEC.md §5.6, §5.7).
+// Les valeurs des mots-clés (Prime 1, Entrave 1, Attaque par surprise ×3…) sont portées par chaque carte (SPEC.md §5.6, §5.7).
 
 /**
  * Minuteur de tour (option de l'accueil, SPEC.md §4.2) : secondes de réflexion d'un joueur par tour ; les actions et leurs

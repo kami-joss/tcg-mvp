@@ -1,4 +1,4 @@
-// Jouer une carte du grimoire (SPEC.md §4.3) : invocation (§4.5), sort (§6) ou terrain (§4.9).
+// Jouer une carte du grimoire (SPEC.md §4.3) : invocation (§4.5), sort (§6), terrain (§4.9) ou balise (§6 ter).
 import { getManaZones, samePos } from './board';
 import { getCard } from './cards';
 import { getEffectTargets, resolveAbility, sameEffectTarget } from './effects';
@@ -8,6 +8,7 @@ import { emit } from './events';
 import { isShinyCopy, shine } from './players';
 import { getFreeSummonCells, payCard, placeSummonedMonster } from './summon';
 import { arrival, effectArrival } from './arrival';
+import { getBeaconCells, placeBeacon } from './beacons';
 import type { Arrival } from './arrival';
 import { addUnit, createTerrainUnit, getMonsterAt, getUnitsAt } from './units';
 import { getZoneStatus } from './zones';
@@ -45,6 +46,8 @@ function getCardTargets(seen: GameState, card: Card, real: GameState): CardTarge
       return getEffectTargets(seen, card.ability, player, null);
     case 'terrain':
       return getTerrainCells(real, player).map((pos) => ({ kind: 'cell', pos }));
+    case 'beacon':
+      return getBeaconCells(seen, card, player, real).map((pos) => ({ kind: 'cell', pos }));
   }
 }
 
@@ -131,5 +134,7 @@ function playCard(state: GameState, card: Card, target: CardTarget): GameState {
       if (target.kind === 'cell' || target.kind === 'card') throw new IllegalActionError(`Un sort ne cible pas une case seule`);
       return resolveAbility(paid, card.ability, target, player.id, null, { cardId: card.id });
     }
+    case 'beacon':
+      return placeBeacon(paid, card, player.id, cellOf(target), shiny);
   }
 }

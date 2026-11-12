@@ -263,6 +263,53 @@ export function gust(stage: Stage, from: Position, to: Position): void {
   setTimeout(() => holder.remove(), 1100);
 }
 
+/** Couleurs de l'électricité : le halo bleu et le cœur presque blanc d'un éclair. */
+export const ELECTRIC = 'oklch(0.78 0.15 240)';
+const ELECTRIC_CORE = 'oklch(0.98 0.03 230)';
+
+/** Points d'un éclair en zigzag de `a` à `b`, à l'écran : des coudes au hasard de part et d'autre de la ligne. */
+function boltPoints(a: { x: number; y: number }, b: { x: number; y: number }): string {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const d = Math.hypot(dx, dy) || 1;
+  const [nx, ny] = [-dy / d, dx / d];
+  const steps = Math.max(4, Math.round(d / 16));
+  const jag = Math.min(16, 5 + d * 0.06);
+  const points: string[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const off = i === 0 || i === steps ? 0 : (Math.random() * 2 - 1) * jag;
+    points.push(`${(a.x + dx * t + nx * off).toFixed(1)},${(a.y + dy * t + ny * off).toFixed(1)}`);
+  }
+  return points.join(' ');
+}
+
+/**
+ * Éclair d'une case à une autre (Ingénieurs foudroyants) : deux zigzags qui scintillent, un halo bleu et un cœur blanc,
+ * puis des étincelles à l'arrivée. `delay` en ms.
+ */
+export function zap(stage: Stage, from: Position, to: Position, delay = 0): void {
+  const a = point(stage, from);
+  const b = point(stage, to);
+  const bolt = (points: string) =>
+    `<polyline points="${points}" fill="none" stroke="${ELECTRIC}" stroke-width="8" stroke-linejoin="round" stroke-linecap="round" opacity=".5" style="filter:blur(3px)"/>` +
+    `<polyline points="${points}" fill="none" stroke="${ELECTRIC_CORE}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
+  const svg = (points: string) =>
+    `<svg width="${innerWidth}" height="${innerHeight}" style="position:absolute;left:0;top:0;overflow:visible">${bolt(points)}</svg>`;
+  const flicker: Keyframe[] = [
+    { opacity: 0 },
+    { opacity: 1, offset: 0.08 },
+    { opacity: 0.25, offset: 0.25 },
+    { opacity: 1, offset: 0.4 },
+    { opacity: 0.55, offset: 0.7 },
+    { opacity: 0 },
+  ];
+  // Deux tracés différents, l'un après l'autre : l'éclair semble bouger.
+  spawn(stage, { left: '0', top: '0', zIndex: '4' }, flicker, { duration: 420, delay, easing: 'linear' }, svg(boltPoints(a, b)));
+  spawn(stage, { left: '0', top: '0', zIndex: '4' }, flicker, { duration: 360, delay: delay + 90, easing: 'linear' }, svg(boltPoints(a, b)));
+  setTimeout(() => burst(stage, to, ELECTRIC, { n: 7, spread: 24, size: 4, ring: false, flash: ELECTRIC, flashScale: 1.4 }), delay + 60);
+}
+
 /** Filet qui tombe sur la case. */
 export function net(stage: Stage, pos: Position): void {
   const { x, y } = point(stage, pos);

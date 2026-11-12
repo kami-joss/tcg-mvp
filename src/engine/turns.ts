@@ -3,7 +3,7 @@ import { BASE_MANA_FIRST_TURN, DEFAULT_MANA_RULES, MANA_GROWTH_PER_TURN, VP_PER_
 import { dealDamage } from './damage';
 import { emit } from './events';
 import { addMana, addVp, opponent } from './players';
-import { expireBurningCells, expireTraps, sweepZonesAtTurnStart } from './traps';
+import { expireBurningCells, expireTraps, sweepFieldsAtEnemyTurnStart, sweepZonesAtTurnStart } from './traps';
 import { getMonsterCard } from './cards';
 import { applyTriggeredEffects } from './effects';
 import { expireStatuses, statusTotal, turnMobility, turnMobilityWithoutMalus } from './statuses';
@@ -63,6 +63,8 @@ export function startTurn(state: GameState): GameState {
 
   // 2 bis. Zones (Golem de lave) : chaque ennemi resté dans la zone est de nouveau touché (§10).
   next = sweepZonesAtTurnStart(next, player);
+  // Unités adverses « Début du tour adverse » (Champ magnétique) : ses monstres dans leur zone sont de nouveau touchés (§10).
+  next = sweepFieldsAtEnemyTurnStart(next, player);
 
   // 2 ter. Récupération et absorbation : +X PV au début de son tour, jusqu'à ses PV max (§5 bis).
   for (const monster of getMonsters(next, player)) {

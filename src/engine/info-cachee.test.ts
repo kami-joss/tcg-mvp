@@ -3,7 +3,7 @@ import { BATTLEFIELD_15, DECKS, applyAction, createGame, getHiddenUnitIds, getLe
 import type { Action, GameEvent, GameState, PlayerId } from '.';
 
 // Parties en ligne (SPEC.md §7 ter) : tout ce que reçoit un joueur se lit dans son navigateur. Sur des parties jouées au
-// hasard (graines fixes) avec les decks qui cachent le plus (camouflage, Pénombre, pièges, sablier), à chaque position :
+// hasard (graines fixes) avec les decks qui cachent le plus (camouflage, Pénombre, pièges, sablier, pièges électriques), à chaque position :
 // les actions légales du joueur actif ne dépendent pas de ce qu'il ne voit pas, et la vue de chaque joueur ne contient
 // ni un monstre qui lui est invisible ni sa case, ni un piège adverse, ni le grimoire adverse, ni le chemin d'un monstre
 // adverse. Un événement peut nommer un monstre invisible sans sa case : une carte jouée vers lui, l'effet d'un monstre
@@ -57,6 +57,9 @@ const GAMES = [
   ['explorateur-du-temps', 'pieges', 2],
   ['pieges', 'pieges', 3],
   ['pieges', 'vampire', 4],
+  // Pièges électriques qui restent (Archi), aimant de Blitz contre des monstres camouflés (2026-11-12).
+  ['ingenieurs', 'pieges', 5],
+  ['pieges', 'ingenieurs', 6],
 ] as const;
 
 const POSITIONS = GAMES.flatMap(([a, b, seed]) => playedPositions(a, b, seed, 220));

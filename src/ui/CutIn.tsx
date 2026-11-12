@@ -21,12 +21,14 @@ const ACTION_ICONS: Readonly<Record<CutInKind, IconName>> = {
   spell: 'spell-book',
   terrain: 'castle',
   summon: 'card-play',
+  beacon: 'eye',
 };
 
 const KIND_ICONS: Readonly<Record<Card['kind'], IconName>> = {
   monster: 'dragon-head',
   spell: 'spell-book',
   terrain: 'castle',
+  beacon: 'eye',
 };
 
 /** Fond de la carte : l'illustration sur toute la carte (flou dessous s'il reste du vide en bas), ou l'icône du type. */

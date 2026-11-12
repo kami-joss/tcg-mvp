@@ -7,6 +7,7 @@ import type {
   Ability,
   ActivatedAbility,
   AreaZone,
+  BeaconCard,
   Card,
   CardSet,
   AllyZoneEffect,
@@ -31,13 +32,14 @@ export const KEYWORD_NAMES: Readonly<Record<Keyword, string>> = {
   trophee: 'Trophée',
   pillage: 'Pillage',
   etendard: 'Étendard',
-  givre: 'Givre',
+  entrave: 'Entrave',
   brulure: 'Brûlure',
   siege: 'Siège',
   sournois: 'Sournois',
   assassin: 'Attaque par surprise',
   camouflage: 'Camouflage',
   soif: 'Soif',
+  statik: 'Statik',
 };
 
 /** Durée d'un statut (§5.5) : « pendant 2 tours », « jusqu’à son prochain tour ». */
@@ -45,7 +47,7 @@ export function durationText(turns: number): string {
   return turns === 0 ? 'jusqu’à son prochain tour' : `pendant ${turns} tour${turns > 1 ? 's' : ''}`;
 }
 
-/** Mot-clé avec sa valeur, comme sur la carte : « Givre 1 », « Sournois +1 », « Attaque par surprise ×3 », « Givre 1, 2 tours ». */
+/** Mot-clé avec sa valeur, comme sur la carte : « Entrave 1 », « Sournois +1 », « Attaque par surprise ×3 », « Entrave 1, 2 tours ». */
 export function keywordLabel(spec: KeywordSpec): string {
   const name = KEYWORD_NAMES[spec.keyword];
   switch (spec.keyword) {
@@ -57,7 +59,7 @@ export function keywordLabel(spec: KeywordSpec): string {
       return `${name} ×${spec.multiplier}`;
     case 'sournois':
       return `${name} +${spec.amount}`;
-    case 'givre':
+    case 'entrave':
     case 'brulure':
       // La durée ne s'écrit que si elle diffère de 1 tour (§5.6).
       if (spec.turns === 1) return `${name} ${spec.amount}`;
@@ -67,6 +69,7 @@ export function keywordLabel(spec: KeywordSpec): string {
     case 'pillage':
     case 'etendard':
     case 'soif':
+    case 'statik':
       return `${name} ${spec.amount}`;
     case 'camouflage':
       return name;
@@ -88,7 +91,7 @@ export function keywordText(spec: KeywordSpec): string {
       return `quand il détruit un monstre au contact par son attaque, +${spec.amount} mana.`;
     case 'etendard':
       return `la mana zone qu’il occupe rapporte +${spec.amount} mana.`;
-    case 'givre':
+    case 'entrave':
       return `à l’attaque, sa cible est slow ${spec.amount} (−${spec.amount} mobilité) ${durationText(spec.turns)}.`;
     case 'brulure':
       return `à l’attaque, sa cible est burn ${spec.amount} (−${spec.amount} PV au début de chacun de ses tours) ${durationText(spec.turns)}.`;
@@ -102,6 +105,8 @@ export function keywordText(spec: KeywordSpec): string {
       return 'invisible pour l’adversaire à plus de 2 cases : tant qu’aucun monstre ni terrain adverse n’est dans un carré de 2 autour de lui.';
     case 'soif':
       return `en attaquant un monstre (pas un terrain), il récupère ${spec.amount} PV (soin sur lui-même, sans dépasser ses PV max), après les dégâts et avant une riposte.`;
+    case 'statik':
+      return `en attaquant un monstre, ses dégâts se propagent de proche en proche aux ennemis reliés à la cible (chacun dans un carré de 1 du précédent), ${spec.amount} de moins à chaque saut, jamais moins de 1.`;
   }
 }
 
@@ -122,6 +127,7 @@ export const ARCHETYPE_NAMES: Readonly<Record<Archetype, { readonly title: strin
   sorcier: { title: 'Sorciers du feu', one: 'sorcier du feu', many: 'sorciers du feu' },
   temps: { title: 'Explorateur du temps', one: 'explorateur du temps', many: 'explorateurs du temps' },
   vampire: { title: 'Vampire', one: 'vampire', many: 'vampires' },
+  ingenieur: { title: 'Ingénieurs foudroyants', one: 'ingénieur foudroyant', many: 'ingénieurs foudroyants' },
 };
 
 /**
@@ -180,6 +186,8 @@ export function targetText(targeting: Targeting): string {
       return 'un de ses terrains';
     case 'graveyard':
       return 'un monstre de son cimetière';
+    case 'allyChains':
+      return 'unités ennemies sur les chaînes entre tes monstres';
     case 'none':
       return '';
   }
@@ -267,6 +275,8 @@ export function effectText(cards: CardSet, effect: Effect): string {
       return `perd tous ses PV sauf ${effect.downTo}`;
     case 'transform':
       return `se transforme en ${cardTitle(cards, effect.into)}`;
+    case 'pull':
+      return 'attire jusqu’au contact';
     case 'evolve':
       return '';
   }
@@ -293,7 +303,13 @@ function effectsText(cards: CardSet, effects: readonly Effect[]): string {
 function trapQualifiers(ability: Ability): string {
   const placed = ability.effects.find((effect) => effect.type === 'placeTrap');
   if (placed?.type !== 'placeTrap') return '';
-  const parts = [placed.turns && placed.turns > 1 ? `${placed.turns} tours adverses` : null, placed.single ? 'un seul à la fois' : null].filter(Boolean);
+  const parts = [
+    placed.chain !== undefined ? 'reste' : null,
+    placed.turns && placed.turns > 1 ? `${placed.turns} tours adverses` : null,
+    placed.single ? 'un seul à la fois' : null,
+    placed.max !== undefined ? `${placed.max} à la fois` : null,
+    placed.chain !== undefined ? `chaîne à ${placed.chain} cases au plus` : null,
+  ].filter(Boolean);
   return parts.length > 0 ? ` (${parts.join(', ')})` : '';
 }
 
@@ -472,6 +488,8 @@ export function cardEffectLine(cards: CardSet, card: Card): string {
     }
     case 'spell':
       return capitalize(abilityText(cards, card.ability));
+    case 'beacon':
+      return beaconText(card);
     case 'terrain': {
       const parts = [
         card.zoneManaBonus > 0 ? `La zone rapporte +${card.zoneManaBonus} mana` : null,
@@ -485,11 +503,20 @@ export function cardEffectLine(cards: CardSet, card: Card): string {
   }
 }
 
+/**
+ * Une balise (Balise de vision, §6 ter) : « Balise · une case libre, carré de 3 d’un de tes monstres, hors case centrale
+ * d’une mana zone tenue · révèle les pièges ennemis, carré de 5 ».
+ */
+export function beaconText(card: BeaconCard): string {
+  return `Balise · une case libre, carré de ${card.placement.square} d’un de tes monstres, hors case centrale d’une mana zone tenue · révèle les pièges ennemis, carré de ${card.revealTraps.square}`;
+}
+
 /** Mot-clé des terrains « Point d'invocation » (§5.6). */
 const SUMMON_POINT = 'Point d’invocation';
 
 /** Nom de l'effet : « Passage », ou « Zone » quand elle agit aussi sur celui qui reste et quand sa source approche (§10). */
-export const passageName = (passage: TerrainPassage) => (passage.lingering ? 'Zone' : 'Passage');
+export const passageName = (passage: TerrainPassage) =>
+  passage.lingering ? 'Zone' : passage.enemyTurnStart ? 'Passage et début du tour adverse' : 'Passage';
 
 /** Effet « Passage » d'un terrain ou d'un monstre, au format du lexique : « Passage · carré de 1 · 1 dégât ». */
 export function passageText(cards: CardSet, card: TerrainCard | MonsterCard): string | null {
@@ -510,6 +537,7 @@ export function onMoveText(cards: CardSet, card: TerrainCard): string | null {
 
 /** Nom court d'un piège : « Bombe » s'il fait des dégâts, « Filet » s'il immobilise, « Sablier » s'il fait remonter le temps. */
 export function trapLabel(trap: Trap): string {
+  if (trap.chain !== undefined) return 'Piège électrique';
   if (trap.effects.some((effect) => effect.type === 'damage')) return 'Bombe';
   if (trap.effects.some((effect) => effect.type === 'rewind')) return 'Sablier';
   if (trap.effects.some((effect) => effect.type === 'status' && effect.kind === 'immobilise')) return 'Filet';
@@ -542,13 +570,20 @@ export function describeCard(cards: CardSet, card: Card): string[] {
     }
     case 'spell':
       return [capitalize(abilityText(cards, card.ability))];
+    case 'beacon':
+      return [
+        `PV ${card.hp} · se pose sur une case libre dans un carré de ${card.placement.square} d’un de vos monstres, hors case centrale d’une mana zone que vous tenez.`,
+        `Passif · révèle les pièges ennemis, carré de ${card.revealTraps.square} : vous les voyez tant qu’elle est sur le plateau. Au sol, elle ne bloque rien ; une attaque ou un sort de dégâts la touche quand aucun monstre n’est sur sa case.`,
+      ];
     case 'terrain': {
       const passage = passageText(cards, card);
       return [
         `PV ${card.hp} · se pose sur une mana zone occupée par un de vos monstres.`,
         ...(card.zoneManaBonus > 0 ? [`La zone rapporte +${card.zoneManaBonus} mana.`] : []),
         ...(passage
-          ? [`Passif · ${passage} : chaque monstre ennemi qui entre dans un carré de 1 autour le subit, à chaque case où il entre (une fois par recul).`]
+          ? [
+              `Passif · ${passage} : chaque monstre ennemi qui entre dans un carré de 1 autour le subit, à chaque case où il entre (une fois par recul)${card.passage?.enemyTurnStart ? ', et chaque ennemi dans ce carré de 1 le subit de nouveau au début de chaque tour adverse' : ''}.`,
+            ]
           : []),
         ...(card.aura
           ? [`Passif · ${auraText(card)} : sur la case du terrain et dans un carré de 1 ; plusieurs auras se cumulent.${card.aura.hp ? ' Les PV (et PV max) se gagnent en entrant dans l’aura et se perdent en la quittant, sans descendre sous 1 PV.' : ''}`]

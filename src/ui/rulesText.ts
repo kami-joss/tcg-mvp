@@ -61,6 +61,11 @@ export const GLOSSARY = {
   camouflage: 'Camouflage : caché à l’adversaire à plus de 2 cases (tant qu’aucun de ses monstres ni terrains n’est dans un carré de 2).',
   absorber: 'Absorber : retirer des PV au monstre visé ; ce monstre-ci récupère les PV retirés, sans dépasser ses PV max. Ce n’est pas une attaque.',
   deplacement: 'Déplacement : le monstre marche de case en case, 1 mobilité par case ; il peut en faire plusieurs par tour avec sa mobilité restante. Un recul, une avancée ou une téléportation n’en est pas un.',
+  piegeElectrique: 'Piège électrique : caché à l’adversaire, il reste après s’être déclenché. Deux de tes pièges électriques alignés en ligne droite, assez proches et sans case X ni falaise entre eux, sont reliés par une chaîne. Déclenché, il se recharge jusqu’au début de ton prochain tour.',
+  chaine: 'Chaîne : les cases en ligne droite entre deux unités reliées (deux de tes pièges électriques, ou deux de tes monstres pour Chaînes d’éclair). Une case X ou une falaise la coupe ; elle passe sur les autres unités.',
+  attirer: 'Attirer : le monstre glisse case par case vers celui qui l’attire, jusqu’à être au contact, et entre sur chaque case. Il s’arrête avant le premier obstacle (case bloquée, case occupée, falaise).',
+  debutTourAdverse: 'Début du tour adverse : au début de chaque tour de ton adversaire, après ses revenus et avant ses statuts.',
+  balise: 'Balise : posée au sol, ni monstre ni terrain. Elle ne bloque rien : on marche dessus, elle ne gêne ni les déplacements ni les tirs. Une attaque ou un sort de dégâts la touche quand aucun monstre n’est sur sa case ; détruite, elle ne rapporte pas de VP.',
   transformer: 'Se transformer : prendre son autre forme (stats, mots-clés, effets) en restant le même monstre : même case, mêmes statuts et bonus, une seule attaque par tour. Chaque forme garde ses PV perdus ; la mobilité déjà dépensée ce tour compte.',
 } as const;
 
@@ -177,6 +182,8 @@ function targetOf(targeting: Targeting): Target {
     case 'self':
     case 'trail':
       return one('ce monstre');
+    case 'allyChains':
+      return many(`les unités ennemies sur les ${t('chaine', 'chaînes')} entre tes monstres`);
     case 'emptySquareCell':
     case 'emptyCell':
       return one('la case');
@@ -260,6 +267,10 @@ function clause(effect: Effect, next: Effect | undefined, target: Target, first:
             : ', vers l’avant';
       const verb = t('repousser', 'repousse');
       return [first ? `${verb} ${distance} ${target.noun}${way}` : `${target.it} ${verb} ${distance}${way}`, 1];
+    }
+    case 'pull': {
+      const verb = t('attirer', 'attire');
+      return [first ? `${verb} jusqu’à lui ${target.noun}` : `${target.it} ${verb} jusqu’à lui`, 1];
     }
     case 'addMobility':
       return [give(`+${effect.amount} mobilité`, ' ce tour'), 1];
@@ -365,6 +376,7 @@ function abilityBody(cards: CardSet, ability: Ability): string {
   const first = effects[0];
   switch (first?.type) {
     case 'placeTrap':
+      if (first.chain !== undefined) return electricTrapRules(first);
       return `Pose un ${t('piege', 'piège')} sur une case libre dans un ${t('carre', 'carré')} de 1 : ${ENEMY_ENTERS} ${suffers(first.effects)}.${trapLimits(first)}`;
     case 'burnCell':
       return `Fait d’une case libre dans un ${t('carre', 'carré')} de 2 une ${t('caseBrulee', 'case brûlée')} pendant ${plural(first.turns, 'tour')} : ${ENEMY_ENTERS} ${suffers(first.effects)}.`;
@@ -427,9 +439,38 @@ function abilityBody(cards: CardSet, ability: Ability): string {
         .join('');
       return `${capitalize(targetOf(targeting).noun)} perd tous ses PV sauf ${first.downTo}${gains}.`;
     }
-    default:
-      return `${capitalize(clauses(effects, targetOf(targeting), targeting))}.`;
+    default: {
+      const text = `${capitalize(clauses(effects, targetOf(targeting), targeting))}.`;
+      // Chaînes d'éclair : ce qu'est une chaîne, et le cas d'une unité sur deux chaînes.
+      if (targeting.type === 'allyChains') {
+        return `${text} Une ${t('chaine', 'chaîne')} relie deux de tes monstres en ligne droite ; une unité sur deux chaînes les subit deux fois.`;
+      }
+      return text;
+    }
   }
+}
+
+/**
+ * Piège électrique (Archi) : « Pose un piège électrique… Tes pièges électriques alignés à 4 cases au plus sont reliés
+ * par une chaîne… » (§10).
+ */
+function electricTrapRules(effect: Extract<Effect, { type: 'placeTrap' }>): string {
+  // Au pluriel : « subissent 1 dégât et sont immobilisés jusqu’à leur prochain tour ».
+  const parts = effect.effects.map((e) => {
+    if (e.type === 'damage') return `subissent ${plural(e.amount, 'dégât')}`;
+    if (e.type === 'status' && e.kind === 'immobilise') return `sont ${t('immobilise', 'immobilisés')}${duration(e, 'leur')}`;
+    if (e.type === 'status') return `subissent ${statusWord(e)}${duration(e, 'leur')}`;
+    return '';
+  });
+  const done = parts.filter(Boolean);
+  const what = done.length <= 1 ? done.join('') : `${done.slice(0, -1).join(', ')} et ${done[done.length - 1]}`;
+  return [
+    `Pose un ${t('piegeElectrique', 'piège électrique')} sur une case libre dans un ${t('carre', 'carré')} de 1.`,
+    `Tes pièges électriques alignés à ${effect.chain} cases au plus sont reliés par une ${t('chaine', 'chaîne')}.`,
+    `L’ennemi qui ${t('entrer', 'entre')} sur un de ces pièges ou sur une chaîne déclenche tout le réseau relié : lui et chaque ennemi sur ses pièges, dans un ${t('carre', 'carré')} de 1 de ses pièges ou sur ses chaînes ${what}.`,
+    'Les pièges déclenchés se rechargent jusqu’au début de ton prochain tour.',
+    effect.max !== undefined ? `Ils restent, ${effect.max} au plus à la fois : le plus ancien disparaît.` : 'Ils restent.',
+  ].join(' ');
 }
 
 /** Un mot-clé, en une phrase (son nom et sa valeur sont écrits à côté) : « À l’attaque, inflige slow 1 à sa cible pendant 1 tour. » */
@@ -447,10 +488,10 @@ export function keywordRules(spec: KeywordSpec): string {
       return `Quand il détruit un monstre ${t('auContact', 'au contact')} : +${spec.amount} mana.`;
     case 'etendard':
       return `La mana zone qu’il occupe rapporte +${spec.amount} mana.`;
-    case 'givre':
+    case 'entrave':
     case 'brulure': {
       const status: StatusSpec =
-        spec.keyword === 'givre'
+        spec.keyword === 'entrave'
           ? { kind: 'slow', amount: spec.amount, turns: spec.turns }
           : { kind: 'burn', amount: spec.amount, turns: spec.turns };
       return `À l’attaque, inflige ${statusWord(status)} à sa cible${duration(status, 'son')}.`;
@@ -465,6 +506,8 @@ export function keywordRules(spec: KeywordSpec): string {
       return `Caché à l’adversaire tant qu’aucun de ses monstres ni terrains n’est dans un ${t('carre', 'carré de 2')}.`;
     case 'soif':
       return `En attaquant un monstre, il récupère ${spec.amount} PV.`;
+    case 'statik':
+      return `En attaquant un monstre, ses dégâts se propagent de proche en proche aux ennemis autour de la cible (chacun dans un ${t('carre', 'carré')} de 1 du précédent), ${spec.amount} de moins à chaque saut, jamais moins de 1.`;
   }
 }
 
@@ -499,7 +542,8 @@ const passageRules = (card: TerrainCard | MonsterCard) => {
   if (passage.lingering) {
     return `Le ${t('carre', 'carré')} de 1 forme une ${t('zone', 'zone')} : l’ennemi qui y ${t('entrer', 'entre')}, ou près duquel ce monstre arrive, ${suffers(passage.effects)}, de nouveau au début de ton tour s’il y est encore.`;
   }
-  return `L’ennemi qui ${t('entrer', 'entre')} dans un ${t('carre', 'carré')} de 1 ${suffers(passage.effects)}.`;
+  const again = passage.enemyTurnStart ? `, de nouveau au ${t('debutTourAdverse', 'début du tour adverse')} s’il y est encore` : '';
+  return `L’ennemi qui ${t('entrer', 'entre')} dans un ${t('carre', 'carré')} de 1 ${suffers(passage.effects)}${again}.`;
 };
 
 const passageTerm = (card: TerrainCard | MonsterCard) => (card.passage?.lingering ? t('zone', 'Zone') : t('passage', 'Passage'));
@@ -530,6 +574,15 @@ export interface RulesItem {
 /** Les passifs d'une carte, dans l'ordre de la fiche : mots-clés, quand il détruit, aura, Passage, début de tour ; règles d'un terrain. */
 export function passiveRules(card: Card): RulesItem[] {
   if (card.kind === 'spell') return [];
+  if (card.kind === 'beacon') {
+    return [
+      {
+        name: '',
+        text: `Pose une ${t('balise', 'balise')} sur une case libre dans un ${t('carre', 'carré')} de ${card.placement.square} d’un de tes monstres, sauf la case centrale d’une mana zone que tu tiens.`,
+      },
+      { name: 'Vision', text: `Révèle les ${t('piege', 'pièges')} ennemis sur sa case et dans un ${t('carre', 'carré')} de ${card.revealTraps.square} autour d’elle.` },
+    ];
+  }
   if (card.kind === 'terrain') {
     return [
       card.zoneManaBonus > 0 ? { name: '', text: `La mana zone rapporte +${card.zoneManaBonus} mana.` } : null,
@@ -557,7 +610,7 @@ export function passiveRules(card: Card): RulesItem[] {
   return items;
 }
 
-/** Nom d'un mot-clé avec sa valeur, sans durée (elle est dans la phrase) : « Givre 1 », « Attaque par surprise ×3 ». */
+/** Nom d'un mot-clé avec sa valeur, sans durée (elle est dans la phrase) : « Entrave 1 », « Attaque par surprise ×3 ». */
 function keywordName(spec: KeywordSpec): string {
   const names: Record<KeywordSpec['keyword'], string> = {
     riposte: 'Riposte',
@@ -566,13 +619,14 @@ function keywordName(spec: KeywordSpec): string {
     trophee: 'Trophée',
     pillage: 'Pillage',
     etendard: 'Étendard',
-    givre: 'Givre',
+    entrave: 'Entrave',
     brulure: 'Brûlure',
     siege: 'Siège',
     sournois: 'Sournois',
     assassin: 'Attaque par surprise',
     camouflage: 'Camouflage',
     soif: 'Soif',
+    statik: 'Statik',
   };
   const name = names[spec.keyword];
   switch (spec.keyword) {

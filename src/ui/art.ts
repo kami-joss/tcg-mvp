@@ -75,6 +75,13 @@ import hurlements from '../assets/art/hurlements.jpg';
 import terrainDeChasse from '../assets/art/terrain-de-chasse.jpg';
 import zoldikShiny from '../assets/art/zoldik-shiny.jpg';
 import zoldik from '../assets/art/zoldik.jpg';
+import archi from '../assets/art/archi.jpg';
+import blitz from '../assets/art/blitz.jpg';
+import chainesEclair from '../assets/art/chaines-eclair.jpg';
+import champMagnetique from '../assets/art/champ-magnetique.jpg';
+import elek from '../assets/art/elek.jpg';
+import joy from '../assets/art/joy.jpg';
+import ondeDeChoc from '../assets/art/onde-de-choc.jpg';
 
 export interface CardArt {
   readonly src: string;
@@ -165,6 +172,16 @@ export const CARD_ART: Partial<Record<CardId, CardArt>> = {
   // Le Terrain de chasse (terrain du deck Vampire depuis le 2026-11-10) : une scène, calée en haut ; son blason se centre
   // sur la maison.
   'terrain-de-chasse': art(terrainDeChasse, 576, 1024, [50, 13], 45, [66, 44]),
+  // Deck Ingénieurs foudroyants (2026-11-12, sources dans artworksv2/ingenieurs-foudroyants/, 784 × 1168) : recadrées au
+  // ratio 1,78 sans réduction, les yeux vers 13 % de la hauteur pour couvrir toute la fiche ; les sorts et le Champ
+  // magnétique, des scènes calées en haut, son blason centré sur le cercle.
+  archi: art(archi, 576, 1024, [34.7, 13.8], 25),
+  elek: art(elek, 576, 1024, [39.6, 13], 24),
+  blitz: art(blitz, 576, 1024, [27.8, 14.3], 32),
+  joy: art(joy, 576, 1024, [36.5, 14], 23),
+  'champ-magnetique': art(champMagnetique, 576, 1024, [50, 13], 60, [50, 48]),
+  'chaines-eclair': art(chainesEclair, 576, 1024, [50, 13], 60),
+  'onde-de-choc': art(ondeDeChoc, 576, 1024, [50, 13], 60),
   // Cartes communes
   invocateur: art(invocateur, 1024, 559, [40.3, 24], 17),
   teleporteur: art(teleporteur, 1024, 559, [37.2, 23.7], 18),

@@ -44,6 +44,7 @@ describe('cartes (SPEC.md §6)', () => {
       'teleportation',
       'reanimation',
       'fortification',
+      'balise-de-vision',
     ]);
     // Génériques : leur nom seul, sans archétype (§5.1).
     for (const id of COMMON_CARDS) expect(CARDS[id].name, id).not.toContain(' - ');
@@ -75,10 +76,12 @@ describe('cartes (SPEC.md §6)', () => {
       // Un sort n'a pas de monstre source : ni zone, ni case autour de lui, ni portée relative, ni recul vers l'avant.
       if (card.kind !== 'spell') continue;
       const { targeting, effects } = card.ability;
-      expect(['monster', 'allies', 'enemies', 'enemiesNearAllies', 'enemiesAroundAlly', 'terrain', 'graveyard', 'none'], card.id).toContain(targeting.type);
+      expect(['monster', 'allies', 'enemies', 'enemiesNearAllies', 'enemiesAroundAlly', 'allyChains', 'terrain', 'graveyard', 'none'], card.id).toContain(
+        targeting.type,
+      );
       if (targeting.type === 'monster') expect(['square1', 'line'], card.id).not.toContain(targeting.reach.type);
       for (const effect of effects) {
-        expect(['placeTrap', 'evolve'], card.id).not.toContain(effect.type);
+        expect(['placeTrap', 'evolve', 'pull'], card.id).not.toContain(effect.type);
         if (effect.type === 'push') expect(effect.direction, card.id).toBe('chosen');
         // Une téléportation de sort dit où elle pose le monstre : sans précision, ce serait autour de la source.
         if (effect.type === 'teleport') expect(effect.to, card.id).toBeDefined();

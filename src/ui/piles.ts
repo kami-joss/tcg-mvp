@@ -32,7 +32,8 @@ export const PILE_EMPTY: Readonly<Record<PileKind, string>> = {
 export function pileOf(view: PlayerView, player: PlayerId, pile: PileKind): readonly CardCopy[] {
   const mine = player === view.viewer;
   if (pile === 'graveyard') return (mine ? view.me : view.opponent).graveyard;
-  const seen = Object.values(view.units)
+  // Ses unités et ses balises (Balise de vision, publiques), dans l'ordre d'arrivée.
+  const seen = [...Object.values(view.units), ...view.beacons]
     .filter((unit) => unit.owner === player)
     .sort((a, b) => unitOrder(a.id) - unitOrder(b.id))
     .map((unit): CardCopy => (unit.shiny ? { cardId: unit.cardId, shiny: true } : { cardId: unit.cardId }));

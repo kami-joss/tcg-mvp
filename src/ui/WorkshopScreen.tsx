@@ -36,7 +36,7 @@ import type { WorkshopField, WorkshopPatches } from './workshop';
 
 const GROUPS = workshopGroups();
 
-const KIND_LABELS: Readonly<Record<Card['kind'], string>> = { monster: 'Monstre', spell: 'Sort', terrain: 'Terrain' };
+const KIND_LABELS: Readonly<Record<Card['kind'], string>> = { monster: 'Monstre', spell: 'Sort', terrain: 'Terrain', beacon: 'Balise' };
 
 interface WorkshopScreenProps {
   onNavigate: (page: Page) => void;

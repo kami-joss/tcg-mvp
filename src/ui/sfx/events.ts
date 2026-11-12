@@ -34,11 +34,17 @@ function soundOf(event: GameEvent, cardOf: (unitId: string) => CardId | undefine
     case 'buff':
       return 'spell';
     case 'trapPlaced':
+    case 'beaconPlaced':
       return 'trapSet';
+    case 'beaconDamage':
+    case 'beaconDestroyed':
+      return 'hit';
+    case 'arcs':
+      return 'zap';
     case 'trapTriggered':
       return trapLabel(event.trap) === 'Bombe' ? 'bomb' : 'net';
     case 'step':
-      return event.kind === 'push' ? 'gust' : 'step';
+      return event.kind === 'push' || event.kind === 'pull' ? 'gust' : 'step';
     case 'stopped':
     case 'shotBlocked':
       return 'blocked';
@@ -90,7 +96,11 @@ export function eventSounds(
     const sound = soundOf(event, cardOf);
     // Un recul ne souffle qu'une fois, même sur plusieurs cases.
     const samePush =
-      event.type === 'step' && event.kind === 'push' && previous?.type === 'step' && previous.kind === 'push' && previous.unitId === event.unitId;
+      event.type === 'step' &&
+      (event.kind === 'push' || event.kind === 'pull') &&
+      previous?.type === 'step' &&
+      previous.kind === event.kind &&
+      previous.unitId === event.unitId;
     previous = event;
     if (!sound || samePush) continue;
     out.push([sound, Number(at.toFixed(2))]);

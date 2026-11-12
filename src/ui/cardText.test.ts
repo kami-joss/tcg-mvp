@@ -31,7 +31,7 @@ describe('textes des cartes', () => {
     expect(keywordLabel({ keyword: 'prime', amount: 1 })).toBe('Prime 1');
     expect(keywordLabel({ keyword: 'sournois', amount: 1 })).toBe('Sournois +1');
     expect(keywordLabel({ keyword: 'assassin', multiplier: 3 })).toBe('Attaque par surprise ×3');
-    expect(keywordLabel({ keyword: 'givre', amount: 1, turns: 1 })).toBe('Givre 1');
+    expect(keywordLabel({ keyword: 'entrave', amount: 1, turns: 1 })).toBe('Entrave 1');
     expect(keywordLabel({ keyword: 'brulure', amount: 2, turns: 3 })).toBe('Brûlure 2, 3 tours');
   });
 
@@ -46,7 +46,7 @@ describe('textes des cartes', () => {
     expect(describeCard(CARDS, getCard(CARDS, 'gardien'))[1]).toMatch(/^Passif · Riposte : .*\(une fois par tour\/carte\)\.$/);
     expect(describeCard(CARDS, getCard(CARDS, 'archer-de-glace'))[1]).toBe('Archétype Archers impériaux.');
     expect(describeCard(CARDS, getCard(CARDS, 'archer-de-glace'))[2]).toBe(
-      'Passif · Givre 1 : à l’attaque, sa cible est slow 1 (−1 mobilité) pendant 1 tour.',
+      'Passif · Entrave 1 : à l’attaque, sa cible est slow 1 (−1 mobilité) pendant 1 tour.',
     );
   });
 

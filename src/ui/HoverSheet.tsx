@@ -36,6 +36,7 @@ const KIND_ICONS: Readonly<Record<NonNullable<SheetData['kind']>, IconName>> = {
   monster: 'dragon-head',
   spell: 'spell-book',
   terrain: 'castle',
+  beacon: 'eye',
 };
 
 /** Sous le nom d'une carte sans archétype : son type. */
@@ -43,6 +44,7 @@ const KIND_WORDS: Readonly<Record<NonNullable<SheetData['kind']>, string>> = {
   monster: 'Monstre',
   spell: 'Sort',
   terrain: 'Terrain',
+  beacon: 'Balise',
 };
 
 /** Coût en mana : le rond bleu du grimoire (en liste), avec le chiffre. */

@@ -1905,6 +1905,24 @@ select {
   z-index: 7;
 }
 
+/* Balise (Balise de vision) : publique, cercle plein à la couleur de son joueur, ses PV au centre. */
+.beacon {
+  position: absolute;
+  inset: calc(var(--cell) * 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 3px solid var(--beacon-color, var(--j1));
+  background: oklch(0.2 0.014 60 / 0.5);
+  color: var(--paper);
+  font: 800 calc(var(--cell) * 0.15) / 1 var(--font-sc);
+  z-index: 2;
+}
+.beacon--p2 {
+  --beacon-color: var(--j2);
+}
+
 .trap {
   position: absolute;
   inset: calc(var(--cell) * 0.16);

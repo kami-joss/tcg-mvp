@@ -19,10 +19,10 @@ export {
   pendingOnMove,
   type Destination,
 } from './movement';
-export { attackDamage, hitsFromBehind, isBehind, previewAttack, type AttackPreview } from './combat';
-export { getEffectReach, getEmptySquareCells, getTrapCells, isDirectionalZone } from './effects';
+export { attackDamage, getStatikChain, hitsFromBehind, isBehind, previewAttack, type AttackPreview } from './combat';
+export { getAllyChains, getEffectReach, getEmptySquareCells, getPullDestination, getTrapCells, isDirectionalZone } from './effects';
 export { COMMON_CARDS } from './cards';
-export { getPassage, getPassageSources } from './traps';
+export { chainBetween, getPassage, getPassageSources, getTrapChains, type TrapChain } from './traps';
 export { INITIAL_FACING } from './units';
 export { canMove, getNextTurnMobility, hasCarapace, hasStatus, isMalus, isDisarmed, isSilenced, isStunned, normalStatus, ownerNextTurn, requiemCountdown, statusAmount, statusTotal, statusTurnsLeft } from './statuses';
 export { getFreeSummonCells, getTerrainCells } from './play-card';

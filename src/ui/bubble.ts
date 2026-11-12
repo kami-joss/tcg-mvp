@@ -3,8 +3,9 @@
 // droit), carte du grimoire (clic droit : l'invoquer, la lancer, la poser), et chaque choix en plusieurs temps (carte
 // d'évolution, monstre à invoquer, direction de la Bourrasque, distance d'un recul). Tout vient des actions légales et
 // des aperçus du moteur : la bulle ne calcule rien elle-même.
-import { cardAvailability, effectAvailability, getCard, getEffectCost, getEffectReach, getMonsterCard, isInSquare, previewAttack } from '../engine';
+import { cardAvailability, effectAvailability, getAtk, getCard, getEffectCost, getEffectReach, getMonsterCard, isInSquare, previewAttack } from '../engine';
 import type {
+  MonsterUnit,
   Action,
   CardId,
   Direction,
@@ -16,7 +17,6 @@ import type {
   UnitId,
 } from '../engine';
 import { cardTitle, effectName } from './cardText';
-import { abilityRules, plainRules } from './rulesText';
 import type { IconName } from './Icon';
 import { getEffectActions, getPushChoices, getReviveChoices, getSummonChoices } from './interaction';
 import type { Selection } from './interaction';
@@ -83,7 +83,7 @@ export function bubbleBack(model: BubbleModel): Selection | null {
 const SCREEN_DIRECTION: Readonly<Record<Direction, Direction>> = { up: 'down', down: 'up', left: 'right', right: 'left' };
 const DIRECTION_WORDS: Readonly<Record<Direction, string>> = { up: 'le haut', down: 'le bas', left: 'la gauche', right: 'la droite' };
 
-const STATUS_NAMES: Readonly<Partial<Record<StatusSpec['kind'], string>>> = { burn: 'Brûlure', slow: 'Givre' };
+const STATUS_NAMES: Readonly<Partial<Record<StatusSpec['kind'], string>>> = { burn: 'Brûlure', slow: 'Entrave' };
 
 const manaNote = (view: PlayerView) => `· tu as ${view.me.mana} mana`;
 const statsLine = (card: MonsterCard) => `ATK ${card.atk} · PV ${card.hp} · Mob. ${card.mobility} · Portée ${card.range}`;
@@ -115,7 +115,8 @@ export function getBubble(view: PlayerView, selection: Selection, flipped = fals
 function attackBubble(view: PlayerView, selection: Extract<Selection, { kind: 'attack' }>): BubbleModel | null {
   const attacker = view.units[selection.unitId];
   const target = view.units[selection.targetId];
-  if (attacker?.kind !== 'monster' || !target) return null;
+  if (attacker?.kind !== 'monster') return null;
+  if (!target) return beaconAttackBubble(view, attacker, selection.targetId);
   const attacks = view.legalActions.filter(
     (a): a is Extract<Action, { type: 'attack' }> => a.type === 'attack' && a.unitId === attacker.id && a.targetId === target.id,
   );
@@ -193,6 +194,35 @@ function attackBubble(view: PlayerView, selection: Extract<Selection, { kind: 'a
   };
 }
 
+/** Attaque d'une balise ennemie (Balise de vision, §10) : ses dégâts, sans riposte ni avancée. */
+function beaconAttackBubble(view: PlayerView, attacker: MonsterUnit, beaconId: UnitId): BubbleModel | null {
+  const beacon = view.beacons.find((b) => b.id === beaconId);
+  const attack = view.legalActions.find(
+    (a): a is Extract<Action, { type: 'attack' }> => a.type === 'attack' && a.unitId === attacker.id && a.targetId === beaconId,
+  );
+  if (!beacon || !attack) return null;
+  const damage = Math.min(getAtk(view, attacker), beacon.hp);
+  const after = beacon.hp - damage;
+  return {
+    anchor: beacon.pos,
+    anchorUnit: null,
+    header: { kind: 'unit', name: getCard(view.cards, beacon.cardId).name, owner: beacon.owner, hp: { before: beacon.hp, after }, note: null },
+    rows: [
+      {
+        key: 'attack',
+        icon: 'broadsword',
+        tone: 'plain',
+        title: 'Attaquer la balise',
+        subtitle: [`−${damage} PV`, after === 0 ? 'détruite' : null].filter(Boolean).join(' · '),
+        cost: null,
+        enabled: true,
+        warn: false,
+        pick: { action: attack },
+      },
+    ],
+  };
+}
+
 /** Raison d'indisponibilité, en court pour la bulle (« Il te manque 2 mana »). */
 function reasonText(reason: Parameters<typeof reasonStatus>[0], used: string): string {
   return reason.kind === 'mana' ? `Il te manque ${reason.missing} mana` : reasonStatus(reason, used).text;
@@ -249,7 +279,8 @@ function effectsBubble(
           icon: 'magic-swirl',
           tone: 'effect',
           title: effectName(ability),
-          subtitle: availability?.ok ? plainRules(abilityRules(view.cards, ability)) : availability ? reasonText(availability.reason, 'Déjà utilisé ce tour') : '',
+          // Le texte de l'effet est sur la carte (fiche) : la bulle ne dit que pourquoi il n'est pas disponible.
+          subtitle: availability && !availability.ok ? reasonText(availability.reason, 'Déjà utilisé ce tour') : '',
           // Le coût du moment : 1 mana dans un Nid de dragons.
           cost: getEffectCost(view, unit, ability),
           enabled: availability?.ok ?? false,
@@ -299,9 +330,10 @@ const CARD_ROWS = {
   monster: { icon: 'dragon-head', title: 'Invoquer', hint: 'Sur une case dorée de ta zone d’invocation' },
   spell: { icon: 'spell-book', title: 'Lancer', hint: '' },
   terrain: { icon: 'castle', title: 'Poser', hint: 'Sur une mana zone dorée, sous un de tes monstres' },
+  beacon: { icon: 'eye', title: 'Poser', hint: 'Sur une case libre dorée, près d’un de tes monstres' },
 } as const satisfies Record<string, { icon: IconName; title: string; hint: string }>;
 
-const CARD_KINDS = { monster: 'Monstre', spell: 'Sort', terrain: 'Terrain' } as const;
+const CARD_KINDS = { monster: 'Monstre', spell: 'Sort', terrain: 'Terrain', beacon: 'Balise' } as const;
 
 /**
  * Carte du grimoire (clic droit) : l'invoquer, la lancer ou la poser, ou la raison qui l'empêche. Choisir la ligne
@@ -314,7 +346,8 @@ function cardBubble(view: PlayerView, cardId: CardId): BubbleModel | null {
   const availability = cardAvailability(view, cardId);
   const actions = view.legalActions.filter((a): a is Extract<Action, { type: 'playCard' }> => a.type === 'playCard' && a.cardId === cardId);
   const direct = actions.length === 1 && actions[0]!.target.kind === 'all' ? actions[0]! : null;
-  const hint = card.kind === 'spell' ? plainRules(abilityRules(view.cards, card.ability)) : kind.hint;
+  // Un sort : son texte est sur la carte, la bulle ne le répète pas.
+  const hint = kind.hint;
   return {
     anchor: null,
     anchorUnit: null,
@@ -489,7 +522,7 @@ function distanceBubble(view: PlayerView, selection: Extract<Selection, { kind: 
           tone: 'effect',
           arrow: screen,
           title: distance ? `Recul de ${distance}` : `Lancer ${name}`,
-          subtitle: plainRules(abilityRules(view.cards, ability)),
+          subtitle: '',
           cost: null,
           enabled: true,
           warn: false,

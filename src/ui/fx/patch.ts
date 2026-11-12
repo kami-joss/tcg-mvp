@@ -71,7 +71,8 @@ export function applyEvent(view: PlayerView, event: GameEvent, final: PlayerView
         return moved.kind === 'monster'
           ? {
               ...moved,
-              facing: event.kind === 'push' ? moved.facing : directionBetween(event.from, event.to),
+              // Reculé ou attiré, il garde son orientation.
+              facing: event.kind === 'push' || event.kind === 'pull' ? moved.facing : directionBetween(event.from, event.to),
               mobilityLeft: event.kind === 'walk' ? Math.max(0, moved.mobilityLeft - 1) : moved.mobilityLeft,
             }
           : moved;
@@ -135,6 +136,14 @@ export function applyEvent(view: PlayerView, event: GameEvent, final: PlayerView
     case 'trapPlaced':
       return { ...view, traps: [...view.traps, event.trap] };
     case 'trapTriggered':
+      // Un piège électrique (Archi) reste : il se recharge jusqu'au prochain tour de son poseur (§10).
+      if (event.trap.chain !== undefined) {
+        const rearmsAtTurn = view.activePlayer === event.trap.owner ? view.turn + 2 : view.turn + 1;
+        return {
+          ...view,
+          traps: view.traps.map((t) => (t.owner === event.trap.owner && samePos(t.pos, event.trap.pos) ? { ...t, rearmsAtTurn } : t)),
+        };
+      }
       return { ...view, traps: view.traps.filter((t) => !(t.owner === event.trap.owner && samePos(t.pos, event.trap.pos))) };
     case 'effect':
       // L'effet est utilisé (sauf s'il est sans limite par tour) ; zone en ligne : la source se tourne vers la direction choisie.
@@ -155,6 +164,19 @@ export function applyEvent(view: PlayerView, event: GameEvent, final: PlayerView
       });
     case 'cellBurned':
       return { ...view, burningCells: [...view.burningCells, event.cell] };
+    // Arcs électriques : seulement une animation.
+    case 'arcs':
+      return view;
+    // Balises (Balise de vision) : posée, touchée, détruite (elle va au cimetière de son joueur).
+    case 'beaconPlaced':
+      return { ...view, beacons: [...view.beacons, event.beacon] };
+    case 'beaconDamage':
+      return { ...view, beacons: view.beacons.map((b) => (b.id === event.beaconId ? { ...b, hp: event.hp } : b)) };
+    case 'beaconDestroyed': {
+      const beacon = view.beacons.find((b) => b.id === event.beaconId);
+      const gone = { ...view, beacons: view.beacons.filter((b) => b.id !== event.beaconId) };
+      return beacon ? grow(gone, final, beacon.owner, 'graveyard') : gone;
+    }
     case 'cleansed':
       // Ses malus partent (Cure) : ses statuts, sa mobilité et ses PV d'après.
       return updateUnit(view, event.unitId, (unit) =>

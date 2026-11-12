@@ -188,7 +188,7 @@ const stat = (icon: IconName, label: string, value: number | string, delta = 0, 
   hurt,
 });
 
-/** Mots-clés et passifs d'une carte (monstre ou terrain) : nom (« Givre 1 »), puis sa règle en phrase (`rulesText.ts`). */
+/** Mots-clés et passifs d'une carte (monstre ou terrain) : nom (« Entrave 1 »), puis sa règle en phrase (`rulesText.ts`). */
 const keywordItems = (card: Card): SheetPassive['items'] => passiveRules(card);
 const terrainItems = keywordItems;
 
@@ -352,6 +352,14 @@ export function cardSheetOf(cards: CardSet, cardId: CardId, shiny = false): Shee
         stats: [stat('hearts', 'PV', card.hp)],
         text: ['Se pose sur une mana zone occupée par un de tes monstres.'],
         passive: passiveBlock(terrainItems(card)),
+      };
+    case 'beacon':
+      return {
+        ...base,
+        typeIcon: 'eye',
+        type: 'Carte balise',
+        stats: [stat('hearts', 'PV', card.hp)],
+        passive: passiveBlock(passiveRules(card)),
       };
   }
 }
